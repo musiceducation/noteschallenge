@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=4">
+    <link rel="stylesheet" href="style.css?v=5">
     <script src="https://cdn.jsdelivr.net/npm/vexflow@5.0.0/build/cjs/vexflow.min.js" defer></script>
     <script src="https://unpkg.com/lucide@latest" defer></script>
 </head>
@@ -134,11 +134,11 @@
             <section id="appTabCodex" class="app-tab-panel" data-app-tab="codex" aria-label="圖鑑" hidden>
                 <header class="app-panel-head">
                     <h1 class="app-panel-title">樂器圖鑑</h1>
-                    <p class="app-panel-sub">認識管弦樂器家族</p>
+                    <p class="app-panel-sub">認識管弦樂與中國樂器</p>
                 </header>
                 <div class="app-codex-card">
                     <div class="app-codex-emoji" aria-hidden="true">📚</div>
-                    <p class="app-codex-copy">瀏覽弦樂、木管、銅管、敲擊、鍵盤——與遊戲四共用同一套圖鑑。</p>
+                    <p class="app-codex-copy">瀏覽弦樂、木管、銅管、敲擊、鍵盤，以及中國樂器。計時挑戰仍以管弦樂為主。</p>
                     <button type="button" class="app-home-cta" id="appOpenCodexBtn">開啟圖鑑</button>
                 </div>
             </section>
@@ -1310,7 +1310,7 @@
     <div id="screen-g4-study" class="screen">
         <button class="btn-back-hub" id="g4StudyBack">← 返回</button>
         <h1 class="game-title" style="font-size:2.6rem;">📚 樂器圖鑑</h1>
-        <div class="game-subtitle">認識各種樂器，準備好再挑戰！</div>
+        <div class="game-subtitle">管弦樂與中國樂器。中樂暫以文字介紹，未附相片及錄音。</div>
 
         <!-- Search -->
         <div class="g4-study-search-wrap">
@@ -1327,6 +1327,7 @@
             <button class="study-tab" data-cat="brass">🎺 銅管</button>
             <button class="study-tab" data-cat="percussion">🥁 敲擊</button>
             <button class="study-tab" data-cat="keyboard">🎹 鍵盤</button>
+            <button class="study-tab" data-cat="chinese">🎶 中國樂器</button>
         </div>
 
         <!-- Instruments grid -->
@@ -1414,7 +1415,7 @@
         </div>
     </div>
 
-    <script src="bootstrap-instruments.js?v=4" data-app-bootstrap defer></script>
+    <script src="bootstrap-instruments.js?v=5" data-app-bootstrap defer></script>
     <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
 </body>
 </html>

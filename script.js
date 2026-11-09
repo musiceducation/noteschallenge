@@ -9077,7 +9077,7 @@
 
     const INSTRUMENT_MAP = new Map(INSTRUMENT_BANK.map(i => [i.id, i]));  // O(1) lookup
     // Pre-index: instruments that have card/photo images (not SVG/emoji-only)
-    const G4_IMG_POOL = INSTRUMENT_BANK.filter(i => i.img && /\.(png|jpg|jpeg|avif|webp)$/i.test(i.img));
+    const G4_IMG_POOL = INSTRUMENT_BANK.filter(i => i.img && /\.(png|jpg|jpeg|avif|webp)$/i.test(i.img) && !isG4ChineseFamily(i.family));
 
     function g4SpinFrames(inst) {
         return inst && Array.isArray(inst.frames) && inst.frames.length > 1 ? inst.frames : null;
@@ -9096,6 +9096,25 @@
         if (frames) return g4SpinHtml(frames, imgClass);
         if (!inst || !inst.img) return '';
         return `<img class="${imgClass}" src="${inst.img}" alt="${alt || ''}" loading="lazy">`;
+    }
+
+    function isG4ChineseFamily(family) {
+        return typeof family === 'string' && family.indexOf('chinese') === 0;
+    }
+
+    function g4NoPhotoHtml(inst, kind) {
+        const mark = {
+            'chinese-bowed': '弓',
+            'chinese-plucked': '撥',
+            'chinese-wind': '吹',
+            'chinese-perc': '擊',
+        }[inst && inst.family];
+        if (kind === 'modal') {
+            if (mark) return `<div class="g4-modal-img-placeholder g4-study-fallback" aria-hidden="true">${mark}</div>`;
+            return `<div class="g4-modal-img-placeholder">🎵</div>`;
+        }
+        if (mark) return `<div class="g4-study-emoji g4-study-fallback" aria-hidden="true">${mark}</div>`;
+        return `<div class="g4-study-emoji">🎵</div>`;
     }
 
     function g4ClearSpins(root) {
@@ -9213,7 +9232,8 @@
     }
 
     function generateG4Questions(count) {
-        const pool = INSTRUMENT_BANK;
+        // 中國樂器只在圖鑑供學生選讀。計時／練習測驗維持原有管弦樂題庫。
+        const pool = INSTRUMENT_BANK.filter(i => !isG4ChineseFamily(i.family));
         const percPool = pool.filter(i => i.family === 'percussion');
         const imgPool = G4_IMG_POOL;
         const videoPool = pool.filter(i => i.video);
@@ -9637,12 +9657,17 @@
         const grid = document.getElementById('g4StudyGrid');
         if (!grid) return;
         let items = INSTRUMENT_BANK;
-        if (familyFilter && familyFilter !== 'all') items = items.filter(i => i.family === familyFilter);
+        if (familyFilter && familyFilter !== 'all') {
+            items = familyFilter === 'chinese'
+                ? items.filter(i => isG4ChineseFamily(i.family))
+                : items.filter(i => i.family === familyFilter);
+        }
         if (searchQuery && searchQuery.trim()) {
             const q = searchQuery.trim().toLowerCase();
             items = items.filter(i =>
                 i.nameZh.toLowerCase().includes(q) ||
                 i.nameEn.toLowerCase().includes(q) ||
+                (i.familyZh && i.familyZh.toLowerCase().includes(q)) ||
                 (i.desc && i.desc.toLowerCase().includes(q))
             );
         }
@@ -9651,7 +9676,7 @@
             ? `<div class="g4-study-empty">😔 找不到符合的樂器，請嘗試其他關鍵字。</div>`
             : items.map(inst => {
             const isCard = inst.img && inst.img.includes('/cards/');
-            const imgHtml = inst.img ? `<img src="${inst.img}" alt="${inst.nameEn}" class="g4-study-img" loading="lazy">` : `<div class="g4-study-emoji">🎵</div>`;
+            const imgHtml = inst.img ? `<img src="${inst.img}" alt="${inst.nameEn}" class="g4-study-img" loading="lazy">` : g4NoPhotoHtml(inst);
             return `
             <div class="g4-study-card${isCard ? ' has-card-img' : ''}" data-id="${inst.id}">
                 ${imgHtml}
@@ -9690,8 +9715,8 @@
         closeInstrumentDetail();
 
         // ── Derived facts from existing data ──
-        const playMap = { strings:'弓拉 / 撥弦', woodwind:'管口吹奏', brass:'振唇吹奏', percussion:'敲擊', keyboard:'鍵盤按壓' };
-        const familyIconMap = { strings:'🎻', woodwind:'🎵', brass:'🎺', percussion:'🥁', keyboard:'🎹' };
+        const playMap = { strings:'弓拉 / 撥弦', woodwind:'管口吹奏', brass:'振唇吹奏', percussion:'敲擊', keyboard:'鍵盤按壓', 'chinese-bowed':'馬尾弓拉奏', 'chinese-plucked':'彈撥或琴竹擊弦', 'chinese-wind':'吹管發聲', 'chinese-perc':'槌或手敲擊' };
+        const familyIconMap = { strings:'🎻', woodwind:'🎵', brass:'🎺', percussion:'🥁', keyboard:'🎹', 'chinese-bowed':'弓', 'chinese-plucked':'撥', 'chinese-wind':'吹', 'chinese-perc':'擊' };
         const TONE_MAP = {
             // Strings
             'violin':'明亮圓潤', 'viola':'溫暖深沉', 'cello':'豐厚溫暖', 'double-bass':'低沉渾厚',
@@ -9716,6 +9741,12 @@
             'congas':'溫暖渾厚', 'cowbell':'響亮持久', 'guiro':'沙沙刮擦',
             // Keyboard
             'piano':'豐富多變', 'organ':'厚重持久', 'harpsichord':'清脆明亮', 'accordion':'溫暖豐厚',
+            'erhu':'接近人聲', 'gaohu':'明亮尖亮', 'zhonghu':'厚實溫暖', 'banhu':'高亢明亮', 'jinghu':'尖亮穿透',
+            'pipa':'清亮多變', 'guzheng':'清亮悠長', 'yangqin':'明亮顆粒', 'zhongruan':'圓潤居中',
+            'liuqin':'清脆偏高', 'sanxian':'乾脆帶共鳴',
+            'dizi':'清脆明亮', 'suona':'高亢穿透', 'sheng':'柔和和聲', 'dongxiao':'柔和幽遠',
+            'tanggu':'低沉厚實', 'bangu':'清脆短促', 'muyu':'短促清楚', 'yunluo':'清亮如鈴',
+            'bo':'金屬響亮', 'daluo':'低沉宏亮',
         };
         const sp = inst.synthParams || {};
         const freqHz = sp.freq || 0;
@@ -9738,7 +9769,7 @@
         const isCard = inst.img && inst.img.includes('/cards/');
         const imgHtml = inst.img
             ? g4InstImgHtml(inst, `g4-modal-img${isCard ? ' card-img' : ''}`, inst.nameEn)
-            : `<div class="g4-modal-img-placeholder">🎵</div>`;
+            : g4NoPhotoHtml(inst, 'modal');
 
         const structData = INSTRUMENT_STRUCTURE[inst.id] || [];
         const wrappedImg = `<div class="g4-modal-img-wrap">${imgHtml}</div>`;
