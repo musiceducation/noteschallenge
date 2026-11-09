@@ -1948,6 +1948,18 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 .hub-game3 .hub-game-name { color: #0077B0; }
 .hub-game4 .hub-game-name { color: #0A8F5C; }
 .hub-game-studio .hub-game-name { color: #C23A75; }
+.hub-game-rhythm {
+    border-color: rgba(36, 49, 38, 0.35);
+    background: linear-gradient(165deg, #fff 45%, #eef3ea 100%);
+}
+.hub-game-rhythm::after { background: #243126; }
+.hub-game-rhythm .hub-game-btn {
+    background: linear-gradient(135deg, #243126, #1b281e);
+    box-shadow: 0 4px 14px rgba(36, 49, 38, 0.28);
+}
+.hub-game-rhythm .hub-game-tag { background: #243126; }
+.hub-game-rhythm .hub-game-name { color: #243126; }
+.illust-rhythm { background: linear-gradient(160deg, #f4f7f1 0%, #e4eee0 55%, #d5e3cf 100%); }
 .hub-game-desc {
     font-size: 0.78rem;
     color: var(--text-light);
@@ -6461,6 +6473,7 @@ html.app-three.app-shell .bg-dots { opacity: 0 !important; visibility: hidden; }
 .app-game-row--3 .app-game-row-icon { background: #edf9ff; }
 .app-game-row--4 .app-game-row-icon { background: #eefaf5; }
 .app-game-row--studio .app-game-row-icon { background: #fff0f6; }
+.app-game-row--rhythm .app-game-row-icon { background: #eef3ea; }
 .app-game-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .app-game-row-name { font-size: 1.02rem; font-weight: 800; color: #2d3142; }
 .app-game-row-desc { font-size: 0.75rem; color: #7b8194; font-weight: 600; }

@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=4">
+    <link rel="stylesheet" href="style.css?v=5">
     <script src="https://cdn.jsdelivr.net/npm/vexflow@5.0.0/build/cjs/vexflow.min.js" defer></script>
     <script src="https://unpkg.com/lucide@latest" defer></script>
 </head>
@@ -116,6 +116,14 @@
                         <span class="app-game-row-text">
                             <span class="app-game-row-name">樂器識辨</span>
                             <span class="app-game-row-desc">聽聲辨樂器</span>
+                        </span>
+                        <span class="app-game-row-chevron" aria-hidden="true">›</span>
+                    </button>
+                    <button type="button" class="app-game-row app-game-row--rhythm" data-launch="enterRhythmComposer" role="listitem">
+                        <span class="app-game-row-icon" aria-hidden="true">♩</span>
+                        <span class="app-game-row-text">
+                            <span class="app-game-row-name">節奏</span>
+                            <span class="app-game-row-desc">排 1–8 小節 · 試聽 · 打拍</span>
                         </span>
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
                     </button>
@@ -282,6 +290,32 @@
                 <div class="hub-game-name" aria-hidden="true">樂器識辨</div>
                 <div class="hub-game-desc" aria-hidden="true">聽音辨認樂器 · 認識管弦樂家族</div>
                 <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
+            </div>
+            <!-- 節奏拍回：靜態檔在 rhythm/。不寫入學生分數或排行榜。 -->
+            <div class="hub-game-card hub-game-rhythm" id="enterRhythmComposer" role="button" tabindex="0" aria-label="節奏：用五線譜排 1 到 8 小節，沒有休止符，試聽後打拍評分。樂譜只留在這台裝置。按一下開始。">
+                <div class="hub-game-tag" aria-hidden="true">節奏</div>
+                <div class="hub-game-illust illust-rhythm" aria-hidden="true">
+                    <div class="illust-bg"></div>
+                    <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <g opacity="0.4" stroke="#243126" stroke-width="1.2">
+                            <line x1="28" y1="36" x2="176" y2="36"/><line x1="28" y1="48" x2="176" y2="48"/>
+                            <line x1="28" y1="60" x2="176" y2="60"/><line x1="28" y1="72" x2="176" y2="72"/>
+                            <line x1="28" y1="84" x2="176" y2="84"/>
+                        </g>
+                        <path d="M46 78 V42" stroke="#243126" stroke-width="2"/>
+                        <ellipse cx="40" cy="78" rx="8" ry="5.5" transform="rotate(-18 40 78)" fill="#243126"/>
+                        <ellipse cx="92" cy="66" rx="7" ry="5" transform="rotate(-18 92 66)" fill="#b4332a"/>
+                        <path d="M98 66 V34" stroke="#b4332a" stroke-width="2"/>
+                        <ellipse cx="128" cy="66" rx="7" ry="5" transform="rotate(-18 128 66)" fill="#b4332a"/>
+                        <path d="M134 66 V34" stroke="#b4332a" stroke-width="2"/>
+                        <path d="M98 34 H134" stroke="#b4332a" stroke-width="3"/>
+                        <ellipse cx="164" cy="54" rx="7" ry="5" transform="rotate(-18 164 54)" fill="#243126"/>
+                        <path d="M170 54 V28" stroke="#243126" stroke-width="2"/>
+                    </svg>
+                </div>
+                <div class="hub-game-name" aria-hidden="true">節奏</div>
+                <div class="hub-game-desc" aria-hidden="true">排 1–8 小節 · 沒有休止符<br>試聽後打拍評分</div>
+                <div class="hub-game-btn" aria-hidden="true">開始創作 ▶</div>
             </div>
             <!-- Classroom rollout: hub card hidden; studio screen/logic stay. Remove hidden and restore tabindex="0" to show again. -->
             <div class="hub-game-card hub-game-studio" id="enterCompositionStudio" role="button" tabindex="-1" hidden aria-label="創作工作室：伴奏與配音創作，播放, 匯出, 分享。按一下開始創作。">
@@ -1414,7 +1448,7 @@
         </div>
     </div>
 
-    <script src="bootstrap-instruments.js?v=4" data-app-bootstrap defer></script>
+    <script src="bootstrap-instruments.js?v=5" data-app-bootstrap defer></script>
     <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
 </body>
 </html>

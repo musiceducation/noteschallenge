@@ -4213,6 +4213,18 @@
             }
         });
 
+        const enterRhythmComposerEl = document.getElementById('enterRhythmComposer');
+        enterRhythmComposerEl?.addEventListener('click', () => {
+            if (!requireHubLogin(hubNameField)) return;
+            window.location.href = 'rhythm/';
+        });
+        enterRhythmComposerEl?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                enterRhythmComposerEl.click();
+            }
+        });
+
         const enterCompositionStudioEl = document.getElementById('enterCompositionStudio');
         enterCompositionStudioEl?.addEventListener('click', () => {
             if (!requireHubLogin(hubNameField)) return;
