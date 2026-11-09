@@ -2500,5 +2500,417 @@
       "vibRate": 5,
       "vibDepth": 3
     }
+  },
+  {
+    "id": "erhu",
+    "nameZh": "二胡",
+    "nameEn": "Erhu",
+    "family": "chinese-bowed",
+    "familyZh": "中樂拉弦",
+    "desc": "中國樂器·拉弦（擦弦）。兩弦夾弓拉奏，音色接近人聲。",
+    "history": "二胡是中樂拉弦樂器的代表，亦稱擦弦樂器，因為琴弓的馬尾夾在內外兩弦之間摩擦發聲。琴筒多為六角或八角，傳統蒙蟒皮，現今亦常用合成皮。內弦較低、外弦較高，常用五度定弦。音色含蓄、接近人聲，宜奏抒情旋律，也能表現較激昂的樂段。民族樂團裏，二胡負責高音拉弦聲部。",
+    "synthParams": {
+      "wave": "sawtooth",
+      "freq": 440,
+      "dur": 1.1,
+      "attack": 0.06,
+      "vol": 0.22,
+      "filterType": "lowpass",
+      "filterFreq": 1800,
+      "filterQ": 1,
+      "vibRate": 5.2,
+      "vibDepth": 4
+    }
+  },
+  {
+    "id": "gaohu",
+    "nameZh": "高胡",
+    "nameEn": "Gaohu",
+    "family": "chinese-bowed",
+    "familyZh": "中樂拉弦",
+    "desc": "中國樂器·拉弦（擦弦）。音比二胡高，粵樂主奏，音色明亮。",
+    "history": "高胡在二胡基礎上把琴筒縮小、音域提高，二十世紀由呂文成改良並用於廣東音樂，所以又稱粵胡。演奏時多把琴筒夾在兩膝之間，弓毛同樣夾在兩弦之間。音色比二胡更明亮、更尖亮，是粵樂硬弓組合的主奏樂器，在民族樂團則擔任最高音的拉弦聲部。",
+    "synthParams": {
+      "wave": "sawtooth",
+      "freq": 660,
+      "dur": 1,
+      "attack": 0.05,
+      "vol": 0.2,
+      "filterType": "lowpass",
+      "filterFreq": 2400,
+      "filterQ": 1,
+      "vibRate": 5.5,
+      "vibDepth": 4
+    }
+  },
+  {
+    "id": "zhonghu",
+    "nameZh": "中胡",
+    "nameEn": "Zhonghu",
+    "family": "chinese-bowed",
+    "familyZh": "中樂拉弦",
+    "desc": "中國樂器·拉弦（擦弦）。形體比二胡大，音較低，音色厚實。",
+    "history": "中胡是為民族管弦樂團的中音聲部而發展的拉弦樂器。琴筒和琴杆比二胡大，常用定弦大約比二胡低一個純五度。演奏方式與二胡相同，馬尾弓夾在兩弦之間。音色較厚、不搶高音，用來連接高音二胡和低音拉弦，填補合奏的中音。",
+    "synthParams": {
+      "wave": "sawtooth",
+      "freq": 294,
+      "dur": 1.15,
+      "attack": 0.07,
+      "vol": 0.22,
+      "filterType": "lowpass",
+      "filterFreq": 1400,
+      "filterQ": 0.9,
+      "vibRate": 4.8,
+      "vibDepth": 3
+    }
+  },
+  {
+    "id": "banhu",
+    "nameZh": "板胡",
+    "nameEn": "Banhu",
+    "family": "chinese-bowed",
+    "familyZh": "中樂拉弦",
+    "desc": "中國樂器·拉弦（擦弦）。共鳴面是木板，音色高亢明亮。",
+    "history": "板胡因共鳴面用桐木板、而不是蟒皮而得名，琴筒常見椰殼或木製。它仍用馬尾弓夾在兩弦之間拉奏，但音色高亢、明亮、穿透力強，長期用於秦腔、豫劇、評劇等北方戲曲。在民族樂團中，板胡多作為色彩性的拉弦樂器。",
+    "synthParams": {
+      "wave": "sawtooth",
+      "freq": 784,
+      "dur": 0.9,
+      "attack": 0.04,
+      "vol": 0.2,
+      "filterType": "lowpass",
+      "filterFreq": 2800,
+      "filterQ": 1.2,
+      "vibRate": 5.5,
+      "vibDepth": 5
+    }
+  },
+  {
+    "id": "jinghu",
+    "nameZh": "京胡",
+    "nameEn": "Jinghu",
+    "family": "chinese-bowed",
+    "familyZh": "中樂拉弦",
+    "desc": "中國樂器·拉弦（擦弦）。形體細小，京劇主奏，音色尖亮。",
+    "history": "京胡是京劇的主奏拉弦樂器，琴筒細、琴杆短，兩弦以馬尾弓拉奏，弓毛同樣夾在兩弦之間。音色高而尖亮，用來托腔，跟隨演員的唱腔。它和二胡同屬擦弦樂器，但音更高、更有穿透力，聽起來較緊、較亮。",
+    "synthParams": {
+      "wave": "sawtooth",
+      "freq": 880,
+      "dur": 0.85,
+      "attack": 0.03,
+      "vol": 0.18,
+      "filterType": "lowpass",
+      "filterFreq": 3200,
+      "filterQ": 1.3,
+      "vibRate": 6,
+      "vibDepth": 5
+    }
+  },
+  {
+    "id": "pipa",
+    "nameZh": "琵琶",
+    "nameEn": "Pipa",
+    "family": "chinese-plucked",
+    "familyZh": "中樂彈撥",
+    "desc": "中國樂器·彈撥。梨形四弦有品，以彈、挑、輪指發聲。",
+    "history": "琵琶是梨形、直項的彈撥樂器。現代樂團常用四弦，琴頸和面板設有相與品。右手戴義甲，用彈、挑、輪、掃等手法發聲；左手按品取音，也可以推拉弦作出滑音。音域寬廣，既能奏細膩的文曲，也能奏《十面埋伏》這類氣勢較大的武曲。",
+    "synthParams": {
+      "wave": "triangle",
+      "freq": 392,
+      "dur": 0.55,
+      "attack": 0.005,
+      "vol": 0.22,
+      "filterType": "lowpass",
+      "filterFreq": 2500,
+      "filterQ": 0.8
+    }
+  },
+  {
+    "id": "guzheng",
+    "nameZh": "古箏",
+    "nameEn": "Guzheng",
+    "family": "chinese-plucked",
+    "familyZh": "中樂彈撥",
+    "desc": "中國樂器·彈撥。長箱多弦，右手撥弦，左手按弦作韻。",
+    "history": "古箏是橫放的長形彈撥樂器，弦下有可移動的雁柱。課堂和樂團最常見的是二十一弦箏，按五聲音階定弦。右手彈弦取旋律，左手在雁柱左側按、滑、揉，讓單音產生餘韻，這就是古箏「以韻補聲」的特點。音色清亮悠長，可獨奏，也可參與合奏。",
+    "synthParams": {
+      "wave": "triangle",
+      "freq": 523,
+      "dur": 1.3,
+      "attack": 0.004,
+      "vol": 0.22,
+      "filterType": "lowpass",
+      "filterFreq": 2800,
+      "filterQ": 0.7
+    }
+  },
+  {
+    "id": "yangqin",
+    "nameZh": "揚琴",
+    "nameEn": "Yangqin",
+    "family": "chinese-plucked",
+    "familyZh": "中樂彈撥",
+    "desc": "中國樂器·彈撥。梯形音箱，雙手提琴竹擊弦，能奏和聲。",
+    "history": "揚琴是擊弦樂器，民族樂團習慣把它歸入彈撥組。音箱呈梯形，鋼弦架在琴碼上，演奏者雙手各持一支琴竹敲擊。它源自西亞的擊弦樂器，一般認為約於明代傳入中國，其後發展出自己的音位和技法。因為可以同時奏旋律與和聲，合奏時常常負責節奏與和聲填充。",
+    "synthParams": {
+      "wave": "triangle",
+      "freq": 784,
+      "dur": 0.7,
+      "attack": 0.003,
+      "vol": 0.2,
+      "filterType": "lowpass",
+      "filterFreq": 3200,
+      "filterQ": 0.8
+    }
+  },
+  {
+    "id": "zhongruan",
+    "nameZh": "中阮",
+    "nameEn": "Zhongruan",
+    "family": "chinese-plucked",
+    "familyZh": "中樂彈撥",
+    "desc": "中國樂器·彈撥。圓箱直項、四弦有品，音色圓潤居中。",
+    "history": "阮相傳與魏晉阮咸有關，今天有高阮、小阮、中阮、大阮和低阮。中阮是民族管弦樂團最常用的一種：圓形音箱、直項、四弦、有品，用撥片或義甲彈奏。它的角色接近管弦樂的中提琴，音色圓潤，負責中音彈撥聲部。",
+    "synthParams": {
+      "wave": "triangle",
+      "freq": 247,
+      "dur": 0.7,
+      "attack": 0.006,
+      "vol": 0.22,
+      "filterType": "lowpass",
+      "filterFreq": 1600,
+      "filterQ": 0.8
+    }
+  },
+  {
+    "id": "liuqin",
+    "nameZh": "柳琴",
+    "nameEn": "Liuqin",
+    "family": "chinese-plucked",
+    "familyZh": "中樂彈撥",
+    "desc": "中國樂器·彈撥。小型梨形四弦，音色清脆，音域偏高。",
+    "history": "柳琴原是柳琴戲、泗州戲的伴奏樂器，早期弦數較少。現代民族樂團用的柳琴，多是二十世紀改良後的四弦形制，品位較密，外觀像縮小的琵琶。音域高，音色清脆明亮，常演奏快速旋律，擔任彈撥組的高音聲部。",
+    "synthParams": {
+      "wave": "triangle",
+      "freq": 880,
+      "dur": 0.45,
+      "attack": 0.003,
+      "vol": 0.18,
+      "filterType": "lowpass",
+      "filterFreq": 3400,
+      "filterQ": 0.9
+    }
+  },
+  {
+    "id": "sanxian",
+    "nameZh": "三弦",
+    "nameEn": "Sanxian",
+    "family": "chinese-plucked",
+    "familyZh": "中樂彈撥",
+    "desc": "中國樂器·彈撥。長柄無品、三條弦，皮膜音箱，音色乾脆。",
+    "history": "三弦有長而窄的琴杆，指板沒有品，三條弦張在蒙皮的共鳴箱上，用撥片或指甲彈奏。大三弦多見於北方說唱，小三弦多見於昆曲和江南絲竹。因為無品，音高靠手指位置決定，滑音和腔調很有特色；合奏時音色乾脆，並帶有皮膜的共鳴。",
+    "synthParams": {
+      "wave": "triangle",
+      "freq": 196,
+      "dur": 0.4,
+      "attack": 0.004,
+      "vol": 0.2,
+      "filterType": "lowpass",
+      "filterFreq": 1400,
+      "filterQ": 1
+    }
+  },
+  {
+    "id": "dizi",
+    "nameZh": "笛子",
+    "nameEn": "Dizi",
+    "family": "chinese-wind",
+    "familyZh": "中樂吹管",
+    "desc": "中國樂器·吹管。橫吹竹管，笛膜振動，音色清脆明亮。",
+    "history": "笛子是橫吹的竹管樂器，管身有吹孔、膜孔和按音孔。膜孔貼上薄笛膜，吹奏時笛膜跟着空氣柱振動，形成清脆明亮的音色；這是它有別於洞簫和西方長笛的主要特徵。較長、音色較圓的常稱曲笛，較短、音更高的常稱梆笛。",
+    "synthParams": {
+      "wave": "sine",
+      "freq": 784,
+      "dur": 1,
+      "attack": 0.04,
+      "vol": 0.2,
+      "filterType": "lowpass",
+      "filterFreq": 3000,
+      "filterQ": 0.7,
+      "vibRate": 5,
+      "vibDepth": 3
+    }
+  },
+  {
+    "id": "suona",
+    "nameZh": "嗩吶",
+    "nameEn": "Suona",
+    "family": "chinese-wind",
+    "familyZh": "中樂吹管",
+    "desc": "中國樂器·吹管。雙簧哨片配銅碗，音色高亢穿透。",
+    "history": "嗩吶由雙簧哨片、錐形木管和末端銅碗組成，吹氣使哨片振動發聲。音量很大，音色高亢、穿透力強，傳統用於婚喪喜慶、戲曲和民間吹打，在戶外也聽得清楚。演奏者以嘴唇控制哨片，可以奏出滑音和花舌。民族樂團中，嗩吶常負責熱鬧或戲劇性較強的旋律。",
+    "synthParams": {
+      "wave": "sawtooth",
+      "freq": 587,
+      "dur": 0.9,
+      "attack": 0.03,
+      "vol": 0.16,
+      "filterType": "lowpass",
+      "filterFreq": 2200,
+      "filterQ": 1.4,
+      "vibRate": 5,
+      "vibDepth": 6
+    }
+  },
+  {
+    "id": "sheng",
+    "nameZh": "笙",
+    "nameEn": "Sheng",
+    "family": "chinese-wind",
+    "familyZh": "中樂吹管",
+    "desc": "中國樂器·吹管。多根簧管插在笙斗，可同時吹出和音。",
+    "history": "笙由多根長短不同的竹管插在笙斗上，每管有簧片，吹氣和吸氣都能發聲。它是中國很早就有的和音樂器，戰國曾侯乙墓已經出土笙。因為可以同時發出多個音，笙在合奏中既奏旋律，也填補和聲，音色柔和，帶着簧片的共鳴。",
+    "synthParams": {
+      "wave": "square",
+      "freq": 440,
+      "dur": 1.2,
+      "attack": 0.04,
+      "vol": 0.14,
+      "filterType": "lowpass",
+      "filterFreq": 1600,
+      "filterQ": 1.2,
+      "vibRate": 4.5,
+      "vibDepth": 2
+    }
+  },
+  {
+    "id": "dongxiao",
+    "nameZh": "洞簫",
+    "nameEn": "Xiao",
+    "family": "chinese-wind",
+    "familyZh": "中樂吹管",
+    "desc": "中國樂器·吹管。直吹、沒有笛膜，音色柔和幽遠。",
+    "history": "洞簫是直吹的竹管樂器，管端有吹口，沒有笛子的膜孔，以手指按孔改變音高。氣流直接切入管口，音量比笛子小，音色柔和、平靜、略帶幽遠，常與古琴合奏，也適合作獨奏。持奏時豎直向下，和橫吹的笛子很容易分辨。",
+    "synthParams": {
+      "wave": "sine",
+      "freq": 440,
+      "dur": 1.3,
+      "attack": 0.08,
+      "vol": 0.16,
+      "filterType": "lowpass",
+      "filterFreq": 1400,
+      "filterQ": 0.6,
+      "vibRate": 4.5,
+      "vibDepth": 2
+    }
+  },
+  {
+    "id": "tanggu",
+    "nameZh": "堂鼓",
+    "nameEn": "Tanggu",
+    "family": "chinese-perc",
+    "familyZh": "中樂敲擊",
+    "desc": "中國樂器·敲擊。雙面皮鼓，鼓心低沉，鼓邊較亮。",
+    "history": "堂鼓是桶形雙面皮鼓，鼓身木製，兩面蒙皮，用木槌敲擊。敲鼓心時聲音低沉厚實，敲近鼓邊時較明亮、較短促。它是戲曲鑼鼓和民族樂團的基礎鼓，用來標示拍子和帶動全奏。",
+    "synthParams": {
+      "noise": true,
+      "freq": 90,
+      "dur": 0.45,
+      "filterType": "lowpass",
+      "filterFreq": 280,
+      "filterQ": 0.8,
+      "vol": 0.28
+    }
+  },
+  {
+    "id": "bangu",
+    "nameZh": "板鼓",
+    "nameEn": "Bangu",
+    "family": "chinese-perc",
+    "familyZh": "中樂敲擊",
+    "desc": "中國樂器·敲擊。單面小鼓，音色清脆，戲曲用來領奏。",
+    "history": "板鼓又名單皮鼓，是單面皮鼓，鼓框厚，真正敲擊的鼓心很小，用細鼓籤演奏。聲音高而清脆，餘音短。在京劇等戲曲裏，鼓師用板鼓和檀板帶領鑼鼓與全場節奏，所以它不單是色彩樂器，也有指揮的作用。",
+    "synthParams": {
+      "noise": true,
+      "freq": 900,
+      "dur": 0.12,
+      "filterType": "bandpass",
+      "filterFreq": 1800,
+      "filterQ": 2,
+      "vol": 0.22
+    }
+  },
+  {
+    "id": "muyu",
+    "nameZh": "木魚",
+    "nameEn": "Muyu",
+    "family": "chinese-perc",
+    "familyZh": "中樂敲擊",
+    "desc": "中國樂器·敲擊。中空木製，木槌敲擊，聲音短促清楚。",
+    "history": "木魚原是佛教法器，木製中空，用木槌敲擊發聲，節奏清楚。除了禮儀，木魚也進入粵曲、廣東音樂和民族管弦樂的敲擊聲部。不同大小的木魚音高不同，合奏時常用來點出節拍。",
+    "synthParams": {
+      "noise": true,
+      "freq": 520,
+      "dur": 0.1,
+      "filterType": "bandpass",
+      "filterFreq": 900,
+      "filterQ": 2.5,
+      "vol": 0.22
+    }
+  },
+  {
+    "id": "yunluo",
+    "nameZh": "雲鑼",
+    "nameEn": "Yunluo",
+    "family": "chinese-perc",
+    "familyZh": "中樂敲擊",
+    "desc": "中國樂器·敲擊。多面小鑼有固定音高，可以奏旋律。",
+    "history": "雲鑼把多面大小、厚薄不同的小鑼掛在木架上，用小槌敲擊。鑼面越小、越厚，音越高，因此雲鑼有固定音高，可以演奏旋律，有別於一般只作節奏的大鑼。傳統常見十面，現代樂團用的雲鑼面數可以更多，音色清亮如鈴。",
+    "synthParams": {
+      "wave": "sine",
+      "freq": 1046,
+      "dur": 0.8,
+      "attack": 0.005,
+      "vol": 0.18,
+      "filterType": "lowpass",
+      "filterFreq": 3500,
+      "filterQ": 1
+    }
+  },
+  {
+    "id": "bo",
+    "nameZh": "鈸",
+    "nameEn": "Bo",
+    "family": "chinese-perc",
+    "familyZh": "中樂敲擊",
+    "desc": "中國樂器·敲擊。一對銅片對擊或悶擊，聲音響亮。",
+    "history": "鈸是一對圓形銅片，中間隆起，雙手各持一面，可以對擊、悶擊或滾奏。聲音金屬感強，音量可大可小。戲曲鑼鼓和民間吹打都常用鈸來加強重音；形制有大有小，小者較清脆，大者較洪亮。它和西方管弦樂的鈸同屬金屬對擊，但奏法和音色按中樂鑼鼓的習慣使用。",
+    "synthParams": {
+      "noise": true,
+      "freq": 800,
+      "dur": 0.55,
+      "filterType": "highpass",
+      "filterFreq": 2000,
+      "filterQ": 0.7,
+      "vol": 0.2
+    }
+  },
+  {
+    "id": "daluo",
+    "nameZh": "大鑼",
+    "nameEn": "Daluo",
+    "family": "chinese-perc",
+    "familyZh": "中樂敲擊",
+    "desc": "中國樂器·敲擊。大面銅鑼，槌擊鑼心，聲音低沉宏亮。",
+    "history": "大鑼是一面懸掛的大銅鑼，用布槌敲擊中心。聲音低沉，餘音較長，在戲曲鑼鼓裏常常標示重要拍點或製造氣氛。民族樂團的敲擊聲部也會用大鑼加強高潮。它沒有固定音高，和能奏旋律的雲鑼不同。",
+    "synthParams": {
+      "noise": true,
+      "freq": 120,
+      "dur": 1.1,
+      "filterType": "lowpass",
+      "filterFreq": 400,
+      "filterQ": 0.8,
+      "vol": 0.24
+    }
   }
 ]

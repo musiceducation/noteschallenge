@@ -4277,6 +4277,10 @@ body.is-fullscreen .hub-fullscreen-btn { display: flex; }
 .g4-family-brass { background: #F5A623; }
 .g4-family-percussion { background: #4A90D9; }
 .g4-family-keyboard { background: #9B59B6; }
+.g4-family-chinese-bowed { background: #B23A3A; }
+.g4-family-chinese-plucked { background: #C45C1A; }
+.g4-family-chinese-wind { background: #0E7C6B; }
+.g4-family-chinese-perc { background: #8A6A1F; }
 
 /* ── Instrument Encyclopedia Search Box ── */
 .g4-study-search-wrap {
@@ -4327,6 +4331,16 @@ body.is-fullscreen .hub-fullscreen-btn { display: flex; }
 .g4-study-card:hover { transform: translateY(-5px) scale(1.02); box-shadow: 0 12px 32px rgba(139,102,255,0.12), 0 0 0 2px rgba(139,102,255,0.10); }
 .g4-study-card:active { transform: translateY(-1px) scale(0.98); }
 .g4-study-emoji { font-size: 3rem; line-height: 1; margin-bottom: 4px; }
+.g4-study-fallback {
+    width: 72px; height: 72px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.7rem; font-weight: 900; color: #8d2424;
+    background: rgba(178, 58, 58, 0.12);
+    font-family: 'Noto Sans TC', 'Nunito', sans-serif;
+}
+.g4-modal-img-placeholder.g4-study-fallback {
+    width: 120px; height: 120px; font-size: 3rem; margin: 12px 0;
+}
 .g4-study-img { width: 90px; height: 90px; object-fit: contain; margin: 0 auto 6px; display: block; border-radius: 8px; }
 .g4-study-card.has-card-img .g4-study-img {
     width: 100%; height: auto; max-height: 180px; object-fit: contain;
@@ -4519,6 +4533,10 @@ body.is-fullscreen .hub-fullscreen-btn { display: flex; }
 .g4-intro-banner-brass    { background: rgba(245,166,35,0.14);  color: #9a6200; }
 .g4-intro-banner-percussion { background: rgba(74,144,217,0.13); color: #1a5fa0; }
 .g4-intro-banner-keyboard { background: rgba(155,89,182,0.13);  color: #6a2a92; }
+.g4-intro-banner-chinese-bowed { background: rgba(178,58,58,0.14); color: #8d2424; }
+.g4-intro-banner-chinese-plucked { background: rgba(196,92,26,0.14); color: #8a3d0c; }
+.g4-intro-banner-chinese-wind { background: rgba(14,124,107,0.14); color: #0c5c50; }
+.g4-intro-banner-chinese-perc { background: rgba(138,106,31,0.16); color: #6d5214; }
 
 .g4-panel-lead {
     font-size: 1.1rem; font-weight: 800; color: #2d2a3e;
