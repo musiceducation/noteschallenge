@@ -2520,7 +2520,8 @@
       "filterQ": 1,
       "vibRate": 5.2,
       "vibDepth": 4
-    }
+    },
+    "img": "img/instruments/cn-erhu.jpg"
   },
   {
     "id": "gaohu",
@@ -2541,7 +2542,8 @@
       "filterQ": 1,
       "vibRate": 5.5,
       "vibDepth": 4
-    }
+    },
+    "img": "img/instruments/cn-gaohu.jpg"
   },
   {
     "id": "zhonghu",
@@ -2562,7 +2564,8 @@
       "filterQ": 0.9,
       "vibRate": 4.8,
       "vibDepth": 3
-    }
+    },
+    "img": "img/instruments/cn-zhonghu.jpg"
   },
   {
     "id": "banhu",
@@ -2583,7 +2586,8 @@
       "filterQ": 1.2,
       "vibRate": 5.5,
       "vibDepth": 5
-    }
+    },
+    "img": "img/instruments/cn-banhu.jpg"
   },
   {
     "id": "jinghu",
@@ -2604,7 +2608,8 @@
       "filterQ": 1.3,
       "vibRate": 6,
       "vibDepth": 5
-    }
+    },
+    "img": "img/instruments/cn-jinghu.jpg"
   },
   {
     "id": "pipa",
@@ -2623,7 +2628,8 @@
       "filterType": "lowpass",
       "filterFreq": 2500,
       "filterQ": 0.8
-    }
+    },
+    "img": "img/instruments/cn-pipa.jpg"
   },
   {
     "id": "guzheng",
@@ -2642,7 +2648,8 @@
       "filterType": "lowpass",
       "filterFreq": 2800,
       "filterQ": 0.7
-    }
+    },
+    "img": "img/instruments/cn-guzheng.jpg"
   },
   {
     "id": "yangqin",
@@ -2661,7 +2668,8 @@
       "filterType": "lowpass",
       "filterFreq": 3200,
       "filterQ": 0.8
-    }
+    },
+    "img": "img/instruments/cn-yangqin.jpg"
   },
   {
     "id": "zhongruan",
@@ -2680,7 +2688,8 @@
       "filterType": "lowpass",
       "filterFreq": 1600,
       "filterQ": 0.8
-    }
+    },
+    "img": "img/instruments/cn-zhongruan.jpg"
   },
   {
     "id": "liuqin",
@@ -2699,7 +2708,8 @@
       "filterType": "lowpass",
       "filterFreq": 3400,
       "filterQ": 0.9
-    }
+    },
+    "img": "img/instruments/cn-liuqin.jpg"
   },
   {
     "id": "sanxian",
@@ -2718,7 +2728,8 @@
       "filterType": "lowpass",
       "filterFreq": 1400,
       "filterQ": 1
-    }
+    },
+    "img": "img/instruments/cn-sanxian.jpg"
   },
   {
     "id": "dizi",
@@ -2739,7 +2750,8 @@
       "filterQ": 0.7,
       "vibRate": 5,
       "vibDepth": 3
-    }
+    },
+    "img": "img/instruments/cn-dizi.jpg"
   },
   {
     "id": "suona",
@@ -2760,7 +2772,8 @@
       "filterQ": 1.4,
       "vibRate": 5,
       "vibDepth": 6
-    }
+    },
+    "img": "img/instruments/cn-suona.jpg"
   },
   {
     "id": "sheng",
@@ -2781,7 +2794,8 @@
       "filterQ": 1.2,
       "vibRate": 4.5,
       "vibDepth": 2
-    }
+    },
+    "img": "img/instruments/cn-sheng.jpg"
   },
   {
     "id": "dongxiao",
@@ -2802,7 +2816,8 @@
       "filterQ": 0.6,
       "vibRate": 4.5,
       "vibDepth": 2
-    }
+    },
+    "img": "img/instruments/cn-dongxiao.jpg"
   },
   {
     "id": "tanggu",
@@ -2820,7 +2835,8 @@
       "filterFreq": 280,
       "filterQ": 0.8,
       "vol": 0.28
-    }
+    },
+    "img": "img/instruments/cn-tanggu.jpg"
   },
   {
     "id": "bangu",
@@ -2838,7 +2854,8 @@
       "filterFreq": 1800,
       "filterQ": 2,
       "vol": 0.22
-    }
+    },
+    "img": "img/instruments/cn-bangu.jpg"
   },
   {
     "id": "muyu",
@@ -2856,7 +2873,8 @@
       "filterFreq": 900,
       "filterQ": 2.5,
       "vol": 0.22
-    }
+    },
+    "img": "img/instruments/cn-muyu.jpg"
   },
   {
     "id": "yunluo",
@@ -2875,7 +2893,8 @@
       "filterType": "lowpass",
       "filterFreq": 3500,
       "filterQ": 1
-    }
+    },
+    "img": "img/instruments/cn-yunluo.jpg"
   },
   {
     "id": "bo",
@@ -2893,7 +2912,8 @@
       "filterFreq": 2000,
       "filterQ": 0.7,
       "vol": 0.2
-    }
+    },
+    "img": "img/instruments/cn-bo.jpg"
   },
   {
     "id": "daluo",
@@ -2911,6 +2931,7 @@
       "filterFreq": 400,
       "filterQ": 0.8,
       "vol": 0.24
-    }
+    },
+    "img": "img/instruments/cn-daluo.jpg"
   }
 ]
