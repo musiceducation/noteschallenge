@@ -102,4 +102,54 @@ assert.match(aug, /Ab/);
 assert.match(aug, /增三和弦/);
 assert.equal((aug.match(/chord-kb-name">G#/g) || []).length, 0);
 
+const hidden = CK.renderCard('C', '7', { reveal: false });
+assert.doesNotMatch(hidden, /chord-card-symbol|chord-card-quality|chord-card-spelling|屬七和弦|C7/);
+assert.equal((hidden.match(/chord-kb-key--root/g) || []).length, 1);
+assert.equal((hidden.match(/chord-kb-key--tone/g) || []).length, 3);
+assert.match(hidden, /chord-kb-name">Bb/);
+assert.match(hidden, /chord-kb-root-mark">R/);
+
+for (const root of CK.ROOTS) {
+  for (const type of CK.QUALITY_ORDER) {
+    const question = CK.buildQuestion(root, type, () => 0.999);
+    const types = question.options.map((option) => option.type);
+    assert.equal(question.options.length, 4, `${root}${type} has four choices`);
+    assert.equal(new Set(types).size, 4, `${root}${type} choices are distinct`);
+    assert.ok(types.includes(type), `${root}${type} includes the answer`);
+    assert.ok(question.options.every((option) => option.root === root));
+    assert.ok(question.options.every((option) => CK.QUALITY_ORDER.includes(option.type)));
+    const labels = question.options.map((option) => option.label);
+    assert.equal(new Set(labels).size, 4);
+    assert.equal(question.label, `${CK.symbolOf(root, type)} · ${CK.QUALITIES[type].zh}`);
+    const quiet = CK.renderCard(root, type, { reveal: false });
+    assert.doesNotMatch(quiet, new RegExp(CK.QUALITIES[type].zh));
+    assert.doesNotMatch(quiet, /chord-card-symbol|chord-card-spelling/);
+    const litNames = [...quiet.matchAll(/chord-kb-key--(?:root|tone)[\s\S]*?chord-kb-name">([^<]+)/g)].map((match) => match[1]);
+    assert.equal(litNames.length, CK.QUALITIES[type].intervals.length);
+  }
+}
+
+const dominant = CK.buildQuestion('E', '7', () => 0.999);
+assert.equal(dominant.options.map((option) => option.type).join('|'), '7|maj7|m7|');
+assert.equal(dominant.options.map((option) => option.label).join('|'), [
+  'E7 · 屬七和弦',
+  'Emaj7 · 大七和弦',
+  'Em7 · 小七和弦',
+  'E · 大三和弦',
+].join('|'));
+
+const stats = { score: 0, combo: 0, maxCombo: 0, correct: 0, wrong: 0 };
+assert.equal([1, 2, 3, 4, 5].map(() => CK.applyAnswer(stats, true)).join(','), '10,10,10,10,20');
+assert.equal(stats.score, 60);
+assert.equal(stats.maxCombo, 5);
+assert.equal(CK.applyAnswer(stats, false), 0);
+assert.equal(stats.combo, 0);
+assert.equal(stats.wrong, 1);
+assert.equal(stats.score, 60);
+
+const round = CK.buildRound(10, () => 0.25);
+assert.equal(round.length, 10);
+assert.equal(new Set(round.map((question) => question.symbol)).size, 10);
+assert.ok(round.every((question) => question.options.some((option) => option.type === question.type)));
+
 console.log('chord-keyboard tests passed');

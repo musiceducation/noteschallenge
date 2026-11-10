@@ -181,26 +181,123 @@
             mark + '<span class="chord-kb-name">' + escapeHtml(key.name) + '</span></div>';
     }
 
-    function renderCard(root, type) {
+    var CONFUSIONS = {
+        '': ['m', 'aug', '7', 'sus4', 'maj7'],
+        m: ['', 'dim', 'm7', 'sus2'],
+        dim: ['m', 'dim7', 'm7b5', 'aug'],
+        aug: ['', 'dim', 'maj7'],
+        sus2: ['sus4', '', 'm'],
+        sus4: ['sus2', '', '7'],
+        '7': ['maj7', 'm7', ''],
+        maj7: ['7', '', 'm7'],
+        m7: ['7', 'm', 'm7b5', 'maj7'],
+        m7b5: ['dim7', 'm7', 'dim'],
+        dim7: ['dim', 'm7b5', 'm7']
+    };
+    var ROUND_LENGTH = 10;
+    var OPTION_LETTERS = ['A', 'B', 'C', 'D'];
+
+    function shuffle(list, random) {
+        var arr = list.slice();
+        var rand = random || Math.random;
+        for (var i = arr.length - 1; i > 0; i--) {
+            var j = Math.floor(rand() * (i + 1));
+            var swap = arr[i];
+            arr[i] = arr[j];
+            arr[j] = swap;
+        }
+        return arr;
+    }
+
+    function optionLabel(root, type) {
+        return symbolOf(root, type) + ' · ' + qualityOf(type).zh;
+    }
+
+    function distractorTypes(type) {
+        var preferred = CONFUSIONS[type] || [];
+        var pool = preferred.slice();
+        QUALITY_ORDER.forEach(function (quality) {
+            if (quality !== type && pool.indexOf(quality) === -1) pool.push(quality);
+        });
+        return pool;
+    }
+
+    function buildQuestion(root, type, random) {
+        var picked = shuffle(distractorTypes(type), random).slice(0, 3);
+        var options = shuffle([type].concat(picked), random).map(function (quality) {
+            return {
+                root: root,
+                type: quality,
+                symbol: symbolOf(root, quality),
+                label: optionLabel(root, quality)
+            };
+        });
+        return {
+            root: root,
+            type: type || '',
+            symbol: symbolOf(root, type),
+            label: optionLabel(root, type),
+            options: options
+        };
+    }
+
+    function buildRound(count, random) {
+        var total = count || ROUND_LENGTH;
+        var bag = [];
+        ROOTS.forEach(function (root) {
+            QUALITY_ORDER.forEach(function (type) {
+                bag.push({ root: root, type: type });
+            });
+        });
+        return shuffle(bag, random).slice(0, total).map(function (item) {
+            return buildQuestion(item.root, item.type, random);
+        });
+    }
+
+    /** Same points as 術語識辨 practice: 10, plus 10 more once the combo reaches 5. */
+    function applyAnswer(stats, isCorrect) {
+        if (isCorrect) {
+            stats.combo += 1;
+            if (stats.combo > stats.maxCombo) stats.maxCombo = stats.combo;
+            var pts = 10;
+            if (stats.combo >= 5) pts += 10;
+            stats.score += pts;
+            stats.correct += 1;
+            return pts;
+        }
+        stats.combo = 0;
+        stats.wrong += 1;
+        return 0;
+    }
+
+    function renderCard(root, type, options) {
+        var reveal = !options || options.reveal !== false;
         var model = keyboardModel(root, type);
         var spoken = model.tones.map(function (tone) {
             return tone.name + (tone.root ? '（根音）' : '');
         }).join('、');
-        var spelling = model.tones.map(function (tone) {
-            return '<span class="' + (tone.root ? 'is-root' : '') + '">' + escapeHtml(tone.name) + '</span>';
-        }).join('<span class="chord-card-dot" aria-hidden="true">–</span>');
-        return '<div class="chord-card" data-symbol="' + escapeHtml(model.symbol) + '">' +
-            '<div class="chord-card-heading">' +
+        var aria = reveal
+            ? model.label + '，原位緊密排列：' + spoken
+            : '原位緊密和弦。金色琴鍵和 R 是根音，綠色是其他和弦音。請選出和弦名稱。';
+        var heading = '';
+        var spelling = '';
+        if (reveal) {
+            spelling = '<p class="chord-card-spelling">' + model.tones.map(function (tone) {
+                return '<span class="' + (tone.root ? 'is-root' : '') + '">' + escapeHtml(tone.name) + '</span>';
+            }).join('<span class="chord-card-dot" aria-hidden="true">–</span>') + '</p>';
+            heading = '<div class="chord-card-heading">' +
                 '<span class="chord-card-symbol">' + escapeHtml(model.symbol) + '</span>' +
                 '<span class="chord-card-sep" aria-hidden="true">·</span>' +
                 '<span class="chord-card-quality">' + escapeHtml(model.qualityZh) + '</span>' +
-            '</div>' +
-            '<div class="chord-kb" style="--chord-kb-n-white:8" role="img" aria-label="' +
-                escapeHtml(model.label + '，原位緊密排列：' + spoken) + '">' +
+            '</div>';
+        }
+        return '<div class="chord-card"' + (reveal ? ' data-symbol="' + escapeHtml(model.symbol) + '"' : '') + '>' +
+            heading +
+            '<div class="chord-kb" style="--chord-kb-n-white:8" role="img" aria-label="' + escapeHtml(aria) + '">' +
                 '<div class="chord-kb-whites">' + model.whites.map(function (key) { return keyFace('white', key); }).join('') + '</div>' +
                 '<div class="chord-kb-blacks">' + model.blacks.map(function (key) { return keyFace('black', key); }).join('') + '</div>' +
             '</div>' +
-            '<p class="chord-card-spelling">' + spelling + '</p>' +
+            spelling +
         '</div>';
     }
 
@@ -257,9 +354,191 @@
         }
         var backBtn = document.getElementById('chordCardBack');
         if (backBtn && switchScreen) {
-            backBtn.addEventListener('click', function () { switchScreen(returnScreen); });
+            backBtn.addEventListener('click', function () {
+                clearAdvance();
+                switchScreen(returnScreen);
+            });
         }
+
+        var learnPanel = document.getElementById('chordLearnPanel');
+        var challengePanel = document.getElementById('chordChallengePanel');
+        var learnBtn = document.getElementById('chordModeLearn');
+        var challengeBtn = document.getElementById('chordModeChallenge');
+        var playEl = document.getElementById('chordChallengePlay');
+        var resultEl = document.getElementById('chordChallengeResult');
+        var challengeMount = document.getElementById('chordChallengeMount');
+        var optionsEl = document.getElementById('chordChallengeOptions');
+        var messageEl = document.getElementById('chordChallengeMessage');
+        var qNumEl = document.getElementById('chordQNum');
+        var scoreEl = document.getElementById('chordScore');
+        var comboEl = document.getElementById('chordCombo');
+        var fillEl = document.getElementById('chordProgressFill');
+        var reportEl = document.getElementById('chordReportGrid');
+        var mistakesEl = document.getElementById('chordMistakeReview');
+        var advanceTimer = null;
+        var round = null;
+
+        function clearAdvance() {
+            if (advanceTimer) {
+                clearTimeout(advanceTimer);
+                advanceTimer = null;
+            }
+        }
+
+        function showMode(mode) {
+            var learning = mode !== 'challenge';
+            if (learnPanel) learnPanel.hidden = !learning;
+            if (challengePanel) challengePanel.hidden = learning;
+            if (learnBtn) {
+                learnBtn.classList.toggle('active', learning);
+                learnBtn.setAttribute('aria-selected', learning ? 'true' : 'false');
+            }
+            if (challengeBtn) {
+                challengeBtn.classList.toggle('active', !learning);
+                challengeBtn.setAttribute('aria-selected', learning ? 'false' : 'true');
+            }
+        }
+
+        function freshStats() {
+            return { score: 0, combo: 0, maxCombo: 0, correct: 0, wrong: 0, mistakes: [] };
+        }
+
+        function updateHud() {
+            var answered = round.stats.correct + round.stats.wrong;
+            if (qNumEl) qNumEl.textContent = '第 ' + (round.index + 1) + ' 題 / 共 ' + round.questions.length + ' 題';
+            if (scoreEl) scoreEl.textContent = String(round.stats.score);
+            if (comboEl) comboEl.textContent = String(round.stats.combo);
+            if (fillEl) fillEl.style.width = (answered / round.questions.length * 100) + '%';
+        }
+
+        function renderQuestion() {
+            var question = round.questions[round.index];
+            round.locked = false;
+            if (challengeMount) challengeMount.innerHTML = renderCard(question.root, question.type, { reveal: false });
+            if (messageEl) {
+                messageEl.textContent = '看點亮的琴鍵，選出和弦名稱。';
+                messageEl.className = 'message-box';
+            }
+            if (!optionsEl) return;
+            optionsEl.innerHTML = question.options.map(function (option, index) {
+                return '<button type="button" class="quiz-opt-btn" data-type="' + escapeHtml(option.type) + '">' +
+                    '<span class="opt-letter">' + OPTION_LETTERS[index] + '</span>' +
+                    '<span class="opt-text">' + escapeHtml(option.label) + '</span></button>';
+            }).join('');
+            updateHud();
+        }
+
+        function showResult() {
+            clearAdvance();
+            var stats = round.stats;
+            var total = stats.correct + stats.wrong;
+            var accuracy = total ? Math.round(stats.correct / total * 100) : 0;
+            if (playEl) playEl.hidden = true;
+            if (resultEl) resultEl.hidden = false;
+            if (reportEl) {
+                reportEl.innerHTML =
+                    '<div class="report-item"><div class="report-label">答題數</div><div class="report-value">' + total + '</div></div>' +
+                    '<div class="report-item"><div class="report-label">得分</div><div class="report-value">' + stats.score + '</div></div>' +
+                    '<div class="report-item"><div class="report-label">正確率</div><div class="report-value">' + accuracy + '%</div></div>' +
+                    '<div class="report-item"><div class="report-label">答錯</div><div class="report-value">' + stats.wrong + '</div></div>' +
+                    '<div class="report-item"><div class="report-label">最高連對</div><div class="report-value">' + stats.maxCombo + '</div></div>';
+            }
+            if (mistakesEl) {
+                mistakesEl.innerHTML = stats.mistakes.length
+                    ? '<div class="mistake-review-title">錯題回顧</div>' + stats.mistakes.map(function (item) {
+                        return '<div class="mistake-item"><div class="mistake-detail">' +
+                            '<span class="mistake-wrong">你的答案：' + escapeHtml(item.chosen) + '</span> → ' +
+                            '<span class="mistake-correct">正確：' + escapeHtml(item.answer) + '</span></div></div>';
+                    }).join('')
+                    : (stats.correct > 0 ? '<div>全部答對。</div>' : '<div>這輪還沒有作答。</div>');
+            }
+        }
+
+        function startRound() {
+            clearAdvance();
+            round = { questions: buildRound(ROUND_LENGTH), index: 0, stats: freshStats(), locked: false };
+            if (playEl) playEl.hidden = false;
+            if (resultEl) resultEl.hidden = true;
+            showMode('challenge');
+            renderQuestion();
+        }
+
+        function answerQuestion(button) {
+            if (!round || round.locked) return;
+            var question = round.questions[round.index];
+            var chosenType = button.getAttribute('data-type') || '';
+            var isCorrect = chosenType === question.type;
+            round.locked = true;
+            var pts = applyAnswer(round.stats, isCorrect);
+            if (optionsEl) {
+                optionsEl.querySelectorAll('.quiz-opt-btn').forEach(function (el) { el.disabled = true; });
+            }
+            button.classList.add(isCorrect ? 'correct' : 'wrong');
+            if (!isCorrect && optionsEl) {
+                optionsEl.querySelectorAll('.quiz-opt-btn').forEach(function (el) {
+                    if ((el.getAttribute('data-type') || '') === question.type) el.classList.add('correct');
+                });
+                round.stats.mistakes.push({ chosen: optionLabel(question.root, chosenType), answer: question.label });
+            }
+            if (challengeMount) challengeMount.innerHTML = renderCard(question.root, question.type, { reveal: true });
+            if (messageEl) {
+                messageEl.className = 'message-box ' + (isCorrect ? 'correct' : 'wrong');
+                messageEl.textContent = isCorrect
+                    ? '答對了。+' + pts + ' 分'
+                    : '再看一次。正確是「' + question.label + '」。';
+            }
+            updateHud();
+            if (isCorrect && options && options.playCorrect) options.playCorrect();
+            if (!isCorrect && options && options.playWrong) options.playWrong();
+            var last = round.index + 1 >= round.questions.length;
+            advanceTimer = setTimeout(function () {
+                advanceTimer = null;
+                if (last) showResult();
+                else {
+                    round.index += 1;
+                    renderQuestion();
+                }
+            }, 1200);
+        }
+
+        if (optionsEl) {
+            optionsEl.addEventListener('click', function (event) {
+                var button = event.target.closest('.quiz-opt-btn');
+                if (!button || button.disabled) return;
+                answerQuestion(button);
+            });
+        }
+        if (learnBtn) {
+            learnBtn.addEventListener('click', function () {
+                clearAdvance();
+                showMode('learn');
+            });
+        }
+        if (challengeBtn) {
+            challengeBtn.addEventListener('click', function () {
+                if (challengeBtn.classList.contains('active') && playEl && !playEl.hidden) return;
+                startRound();
+            });
+        }
+        var retryBtn = document.getElementById('chordChallengeRetry');
+        if (retryBtn) retryBtn.addEventListener('click', startRound);
+        var toLearnBtn = document.getElementById('chordChallengeToLearn');
+        if (toLearnBtn) {
+            toLearnBtn.addEventListener('click', function () {
+                clearAdvance();
+                showMode('learn');
+            });
+        }
+        var endBtn = document.getElementById('chordChallengeEnd');
+        if (endBtn) {
+            endBtn.addEventListener('click', function () {
+                if (!round || (playEl && playEl.hidden)) return;
+                showResult();
+            });
+        }
+
         paint();
+        showMode('learn');
     }
 
     return {
@@ -270,6 +549,12 @@
         symbolOf: symbolOf,
         keyboardModel: keyboardModel,
         renderCard: renderCard,
+        buildQuestion: buildQuestion,
+        buildRound: buildRound,
+        distractorTypes: distractorTypes,
+        applyAnswer: applyAnswer,
+        optionLabel: optionLabel,
+        ROUND_LENGTH: ROUND_LENGTH,
         mount: mount
     };
 });
