@@ -100,6 +100,15 @@
         return recordsRank(poolId) && mode !== 'practice';
     }
 
+    /**
+     * startGame4 always arms the profile timer.
+     * Only a ranked timed finish should hand that time to recordGameResult.
+     * Every other finish, including an unranked timed challenge, must reset it.
+     */
+    function profileTimerAction(ranked, mode) {
+        return ranked && mode !== 'practice' ? 'record' : 'reset';
+    }
+
     function loadSelection(store, catalogList) {
         var id = '';
         try { id = store && store.get ? (store.get(STORAGE_KEY) || '') : ''; } catch (e) { id = ''; }
@@ -316,6 +325,7 @@
         resolve: resolve,
         recordsRank: recordsRank,
         submitsGlobal: submitsGlobal,
+        profileTimerAction: profileTimerAction,
         loadSelection: loadSelection,
         saveSelection: saveSelection,
         soundLabel: soundLabel,

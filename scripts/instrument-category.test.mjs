@@ -72,6 +72,36 @@ assert.equal(IC.submitsGlobal('orchestra', 'practice'), false);
 assert.equal(IC.submitsGlobal('chinese', 'challenge'), false);
 assert.equal(IC.submitsGlobal('brass', 'challenge'), false);
 
+function finishProfileTimer(startedAt, ranked, mode, now) {
+  const action = IC.profileTimerAction(ranked, mode);
+  let armedAt = startedAt;
+  let attributedToGame4 = 0;
+  if (action === 'record') {
+    const secs = Math.min(30 * 60, Math.max(0, Math.round((now - armedAt) / 1000)));
+    attributedToGame4 = secs;
+    armedAt = 0;
+  } else {
+    armedAt = 0;
+  }
+  return { armedAt, attributedToGame4, action };
+}
+
+const unrankedTimed = finishProfileTimer(1_000_000, false, 'challenge', 1_000_000 + 125_000);
+assert.equal(unrankedTimed.action, 'reset');
+assert.equal(unrankedTimed.armedAt, 0);
+assert.equal(unrankedTimed.attributedToGame4, 0);
+for (const poolId of ['strings', 'woodwind', 'brass', 'percussion', 'keyboard', 'chinese', 'chinese-bowed', 'chinese-plucked', 'chinese-wind', 'chinese-perc']) {
+  const ended = finishProfileTimer(5_000, IC.recordsRank(poolId), 'challenge', 5_000 + 45 * 60 * 1000);
+  assert.equal(ended.armedAt, 0, poolId);
+  assert.equal(ended.attributedToGame4, 0, poolId);
+}
+const rankedTimed = finishProfileTimer(1_000_000, true, 'challenge', 1_000_000 + 10_000);
+assert.equal(rankedTimed.action, 'record');
+assert.equal(rankedTimed.armedAt, 0);
+assert.equal(rankedTimed.attributedToGame4, 10);
+assert.equal(finishProfileTimer(1_000, true, 'practice', 61_000).attributedToGame4, 0);
+assert.equal(finishProfileTimer(1_000, false, 'practice', 61_000).armedAt, 0);
+
 const store = memoryStore();
 assert.equal(IC.loadSelection(store, catalog), 'orchestra');
 IC.saveSelection(store, 'chinese');
@@ -203,6 +233,14 @@ for (const file of ['script.js', 'www/script.js']) {
   assert.ok(rankAt >= 0 && rankAt < saveAt && saveAt < submitAt, file);
   assert.match(end, /if \(rankedPool\)/);
   assert.match(end, /renderG4PoolPicker\(\)/);
+  assert.match(end, /profileTimerAction === 'record'/);
+  assert.match(end, /if \(profileTimerAction === 'reset'\) _consumeProfilePlaySecs\(\);/);
+  assert.doesNotMatch(end, /else if \(mode === 'practice'\)/);
+  const recordAt = end.indexOf("recordGameResult(user, 'game4'");
+  const resetAt = end.indexOf("if (profileTimerAction === 'reset') _consumeProfilePlaySecs();");
+  assert.ok(recordAt >= 0 && resetAt > recordAt, file);
+  const back = script.slice(script.indexOf("getElementById('g4BackBtn')"), script.indexOf('switchScreen(\'screen-game4\')'));
+  assert.match(back, /_consumeProfilePlaySecs\(\)/);
 }
 
 for (const file of ['index.html', 'www/index.html']) {

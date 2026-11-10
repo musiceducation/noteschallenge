@@ -9622,6 +9622,7 @@
             if (g4State.timerId) clearInterval(g4State.timerId);
             if (g4State._nextTimer) clearTimeout(g4State._nextTimer);
             if (window.InstrumentCategory) InstrumentCategory.saveSelection(g4PoolStore(), g4SelectedPoolId);
+            _consumeProfilePlaySecs();
             switchScreen('screen-hub');
         };
 
@@ -9910,21 +9911,21 @@
 
         // Only the full orchestra pool may touch the existing timed leaderboard.
         const rankedPool = window.InstrumentCategory ? InstrumentCategory.recordsRank(g4State.poolId) : g4State.poolId === 'orchestra';
+        const profileTimerAction = window.InstrumentCategory
+            ? InstrumentCategory.profileTimerAction(rankedPool, mode)
+            : ((rankedPool && mode !== 'practice') ? 'record' : 'reset');
         const scopeNote = document.getElementById('g4ScopeNote');
         if (scopeNote) scopeNote.hidden = rankedPool;
         if (rankedPool) {
             saveLocalRank('game4', user, score, accuracy, maxCombo);
-            if (mode !== 'practice') {
+            if (profileTimerAction === 'record') {
                 submitScoreToGAS('game4', user, score, accuracy, maxCombo, '樂器識辨·挑戰');
                 recordGameResult(user, 'game4', score, accuracy, maxCombo, null, counts);
-            } else {
-                _consumeProfilePlaySecs();
             }
             renderLocalRankList('game4', 'g4RankList', user);
             if (mode !== 'practice') setTimeout(() => loadRanks(2, { force: true }).then(() => renderLocalRankList('game4', 'g4RankList', user)).catch(()=>{}), 800);
-        } else if (mode === 'practice') {
-            _consumeProfilePlaySecs();
         }
+        if (profileTimerAction === 'reset') _consumeProfilePlaySecs();
 
         document.getElementById('g4PlayAgain').onclick = () => { renderG4PoolPicker(); switchScreen('screen-g4-setup'); };
         document.getElementById('g4BackToHub').onclick = () => { renderG4PoolPicker(); switchScreen('screen-g4-setup'); };
