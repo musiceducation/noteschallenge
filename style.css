@@ -390,6 +390,7 @@ input { user-select: auto; }
     padding-top: 4px;
     padding-right: 56px;
     padding-left: 56px;
+    text-wrap: balance;
 }
 
 .user-info-area { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center; }
@@ -1202,7 +1203,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 @media (max-height: 500px) and (orientation: landscape) {
     body { padding: 6px 16px; align-items: flex-start; }
     .screen { gap: 6px; }
-    #screen-game {
+    #screen-game.screen.active {
         display: grid !important;
         grid-template-columns: 1fr 1fr;
         grid-template-rows: auto 1fr auto;
@@ -1982,6 +1983,26 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 .hub-game2 .hub-game-name { color: #C45A12; }
 .hub-game3 .hub-game-name { color: #0077B0; }
 .hub-game4 .hub-game-name { color: #0A8F5C; }
+.hub-card-teach {
+    position: relative;
+    z-index: 3;
+    width: 100%;
+    margin-top: 8px;
+    min-height: 44px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 2px solid #7d3a52;
+    background: #fff;
+    color: #7d3a52;
+    font: inherit;
+    font-weight: 900;
+    font-size: 0.95rem;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.hub-card-teach:hover { background: #fff1f6; }
+.hub-card-teach:focus-visible { outline: 3px solid #c23a75; outline-offset: 2px; }
+.hub-game1.is-locked .hub-card-teach { opacity: 1; }
 .hub-game-studio .hub-game-name { color: #C23A75; }
 .hub-game-rhythm {
     border-color: rgba(36, 49, 38, 0.35);
@@ -7137,61 +7158,74 @@ body.app-shell.app-on-root .sound-toggle {
 }
 
 /* ===== 音名看圖學習 ===== */
-.note-teach-hub-entry {
+.note-teach-entry.btn-start {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: min(100%, 720px);
-    margin: 0 auto 12px;
-    min-height: 48px;
-    padding: 12px 18px;
-    border-radius: 999px;
-    border: 3px solid #7d525e;
-    background: #fff;
-    color: #7d525e;
-    font: inherit;
-    font-weight: 900;
-    font-size: 1.05rem;
-    cursor: pointer;
-    touch-action: manipulation;
-}
-.app-game-row--teach .app-game-row-icon { background: #fff4ea; }
-.note-teach-entry.btn-start {
-    background: #fff;
-    color: #7d525e;
-    border: 3px solid #7d525e;
+    gap: 2px;
+    background: linear-gradient(135deg, #b45274, #7d3a52);
+    color: #fff;
+    border: none;
     letter-spacing: 1px;
     font-size: 1.25rem;
-    box-shadow: 0 4px 0 rgba(125, 82, 94, 0.18);
+    box-shadow: 0 4px 0 rgba(125, 58, 82, 0.28);
+}
+.note-teach-entry-hint {
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    opacity: 0.88;
 }
 .note-teach-entry.btn-start::after { display: none; content: none; animation: none; }
 #screen-note-teach { gap: 8px; }
-#screen-note-teach .game-title { font-size: clamp(1.6rem, 6vw, 2.2rem); margin: 0; }
-#screen-note-teach .game-subtitle { margin-top: 2px; }
+#screen-note-teach .note-teach-head { text-align: center; }
+#screen-note-teach .game-title { font-size: clamp(1.45rem, 5vw, 2.05rem); margin: 0; }
+#screen-note-teach .game-subtitle { margin: 0; font-size: 0.92rem; letter-spacing: 0.08em; }
 .note-teach-how,
 .note-teach-play,
 .note-teach-sentence {
-    margin: 0;
-    line-height: 1.55;
+    margin: 0 auto;
+    width: min(100%, 40rem);
+    line-height: 1.5;
     font-weight: 700;
     color: #2d3142;
 }
 .note-teach-how,
-.note-teach-play { font-size: 0.95rem; }
+.note-teach-play {
+    font-size: 0.86rem;
+    text-align: center;
+    color: #5c6172;
+}
+@media (max-width: 560px) {
+    .note-teach-how,
+    .note-teach-play,
+    .note-teach-readout {
+        padding-right: 58px;
+        box-sizing: border-box;
+    }
+}
 .note-teach-topics,
-.note-teach-filters { display: flex; gap: 8px; }
+.note-teach-filters { display: flex; gap: 8px; justify-content: center; }
 .note-teach-topics {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     padding-bottom: 2px;
+    justify-content: flex-start;
+    scrollbar-width: none;
 }
+.note-teach-topics::-webkit-scrollbar { display: none; }
 .note-teach-filters { flex-wrap: wrap; }
-.note-teach-seg { display: flex; flex-wrap: wrap; gap: 8px; }
+.note-teach-filters:not(:has(.note-teach-seg:not([hidden]))) { display: none; }
+.note-teach-seg { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.note-teach-seg[hidden],
+.note-teach-seg button[hidden] { display: none !important; }
 .note-teach-topic,
 .note-teach-seg button,
 .note-teach-nav button,
 .note-teach-swap {
     min-height: 44px;
+    min-width: 44px;
     padding: 8px 14px;
     border-radius: 999px;
     border: 2px solid rgba(125, 82, 94, 0.35);
@@ -7202,7 +7236,8 @@ body.app-shell.app-on-root .sound-toggle {
     cursor: pointer;
     touch-action: manipulation;
 }
-.note-teach-topic { flex: 0 0 auto; }
+.note-teach-seg button { font-size: 1.25rem; line-height: 1; }
+.note-teach-topic { flex: 0 0 auto; padding-inline: 12px; font-size: 0.95rem; }
 .note-teach-topic.is-on,
 .note-teach-seg button.is-on {
     background: #7d525e;
@@ -7214,13 +7249,15 @@ body.app-shell.app-on-root .sound-toggle {
     border-radius: 18px;
     border: 2px solid rgba(30, 30, 47, 0.08);
     padding: 8px 10px 12px;
+    width: 100%;
 }
 .note-teach-staff {
-    min-height: 150px;
+    min-height: 132px;
+    width: 100%;
     display: block;
     overflow: visible;
 }
-.note-teach-staff svg { display: block; width: 100%; height: auto; }
+.note-teach-staff svg { display: block; width: 100%; height: auto; margin: 0 auto; }
 .note-teach-name {
     display: flex;
     align-items: baseline;
@@ -7235,20 +7272,22 @@ body.app-shell.app-on-root .sound-toggle {
     font-weight: 800;
     color: #7d525e;
 }
-.note-teach-sentence { font-size: 0.98rem; text-align: left; }
+.note-teach-sentence { font-size: 0.95rem; text-align: left; }
 .note-teach-swap { margin-top: 8px; }
 .note-teach-dock {
     position: relative;
     z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
     background: transparent;
-    padding: 4px 0 6px;
+    padding: 0 0 2px;
 }
 .note-teach-nav {
     display: grid;
-    grid-template-columns: 1fr 1.3fr 1fr;
+    grid-template-columns: 1fr auto 1fr;
     gap: 8px;
     align-items: center;
-    margin-bottom: 4px;
 }
 .note-teach-pos {
     text-align: center;
@@ -7257,25 +7296,33 @@ body.app-shell.app-on-root .sound-toggle {
     color: #6d7285;
 }
 #noteTeachHear {
-    background: #7d525e;
-    border-color: #5e3b46;
-    color: #fff;
+    background: #fff;
+    border-color: rgba(125, 82, 94, 0.45);
+    color: #7d525e;
 }
 .note-teach-keys {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    padding: 2px 2px 8px;
+    padding: 10px 10px 12px;
     touch-action: pan-x;
+    background: linear-gradient(180deg, #3c4050 0%, #1a1c26 100%);
+    border-radius: 16px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.16), 0 8px 18px rgba(28, 24, 40, 0.18);
 }
-.ntk { position: relative; min-width: calc(var(--ntk-n-white, 8) * 46px); }
-.ntk-whites { display: flex; gap: 3px; position: relative; z-index: 1; }
+.ntk {
+    --ntk-gap: 3px;
+    --ntk-white-h: 7.35rem;
+    position: relative;
+    width: max(100%, calc(var(--ntk-n-white, 8) * 42px));
+}
+.ntk-whites { display: flex; gap: var(--ntk-gap); position: relative; z-index: 1; }
 .ntk-white,
-.ntk-black {
+.ntk-acc {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-end;
-    gap: 2px;
+    gap: 1px;
     border: 0;
     font: inherit;
     font-weight: 900;
@@ -7285,62 +7332,117 @@ body.app-shell.app-on-root .sound-toggle {
     -webkit-tap-highlight-color: transparent;
 }
 .ntk-white {
-    flex: 1 0 44px;
-    min-width: 44px;
-    height: 7.5rem;
-    padding: 0 1px 8px;
+    flex: 1 1 0;
+    min-width: 0;
+    height: var(--ntk-white-h);
+    padding: 4px 1px 8px;
     border-radius: 0 0 10px 10px;
-    border: 2px solid rgba(45, 49, 66, 0.16);
-    background: linear-gradient(180deg, #fff 0%, #eef0f6 58%, #e4e7ef 100%);
+    border: 2px solid rgba(45, 49, 66, 0.18);
+    background: linear-gradient(180deg, #ffffff 0%, #f3f5fa 55%, #e4e7ef 100%);
     color: #1e1e2f;
-    box-shadow: 0 4px 0 rgba(45, 49, 66, 0.1);
+    box-shadow: 0 5px 0 rgba(20, 22, 32, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    font-size: clamp(0.85rem, 2.4vw, 1.2rem);
 }
 .ntk-blacks {
     position: absolute;
     left: 0;
     right: 0;
     top: 0;
-    height: 4.5rem;
+    height: 68%;
     z-index: 2;
     pointer-events: none;
 }
+.ntk--naturals .ntk-blacks { display: none; }
 .ntk-black {
     position: absolute;
     top: 0;
-    width: calc((100% / var(--ntk-n-white, 8)) * 0.58);
     height: 100%;
+    width: calc((100% / var(--ntk-n-white)) * 0.72);
     transform: translateX(-50%);
-    padding: 0 1px 6px;
+    display: flex;
+    flex-direction: column;
     border-radius: 0 0 7px 7px;
-    border: 2px solid #12141c;
-    background: linear-gradient(180deg, #3a3f52 0%, #1e2130 46%, #12141c 100%);
-    color: #fff;
-    pointer-events: auto;
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    border: 2px solid #0e1018;
+    background: #12141c;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.45), 0 6px 10px rgba(0, 0, 0, 0.28);
+    pointer-events: none;
+    left: calc(
+        (100% - (var(--ntk-n-white) - 1) * var(--ntk-gap)) * var(--ntk-slot) / var(--ntk-n-white)
+        + (var(--ntk-slot) - 1) * var(--ntk-gap)
+        + var(--ntk-gap) / 2
+    );
 }
-.ntk-oct { font-size: 0.68rem; font-weight: 800; opacity: 0.72; }
+.ntk-acc {
+    flex: 1 1 0;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    justify-content: center;
+    padding: 1px;
+    color: #f7f8fc;
+    font-size: clamp(0.68rem, 2.2vw, 0.92rem);
+    pointer-events: auto;
+}
+.ntk-acc.ntk-sharp {
+    background: linear-gradient(180deg, #5a627c 0%, #2c3144 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.28);
+}
+.ntk-acc.ntk-flat {
+    background: linear-gradient(180deg, #232838 0%, #12141c 100%);
+}
+.ntk-oct { font-size: 0.62rem; font-weight: 800; opacity: 0.72; }
+.ntk-acc .ntk-oct { color: rgba(255, 255, 255, 0.78); opacity: 1; }
 .ntk-white.is-selected {
     background: linear-gradient(180deg, #fff 0%, #ffe4ee 100%);
     border-color: #c23a75;
-    box-shadow: 0 0 0 3px rgba(194, 58, 117, 0.45);
+    box-shadow: inset 0 0 0 3px #c23a75, 0 5px 0 rgba(20, 22, 32, 0.18);
     z-index: 3;
 }
-.ntk-black.is-selected {
-    background: linear-gradient(180deg, #8a3d58 0%, #3a1524 100%);
-    border-color: #ffb020;
-    box-shadow: 0 0 0 3px #ffb020;
+.ntk-acc.is-selected {
+    box-shadow: inset 0 0 0 2px #ffb020;
     z-index: 4;
 }
+.ntk-white:active, .ntk-acc:active { filter: brightness(0.92); }
 .ntk-fallback { width: 100%; height: auto; }
 @media (min-width: 768px) {
-    .ntk-white { height: 8.8rem; }
-    .ntk-blacks { height: 5.2rem; }
+    .ntk { --ntk-white-h: 8.1rem; }
     .note-teach-name { font-size: 2.4rem; }
+    .note-teach-topics { justify-content: center; }
 }
 @media (max-width: 420px) {
-    .note-teach-nav button { padding: 8px 6px; font-size: 0.95rem; }
-    .ntk-white { height: 6.6rem; }
-    .ntk-blacks { height: 4rem; }
+    .note-teach-nav button { padding: 8px 8px; font-size: 0.92rem; }
+    .ntk { --ntk-white-h: 6.5rem; --ntk-gap: 2px; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+    #screen-note-teach.screen.active {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(240px, 0.9fr);
+        grid-template-rows: auto auto auto minmax(0, 1fr);
+        column-gap: 12px;
+        row-gap: 4px;
+        align-items: center;
+    }
+    #screen-note-teach #noteTeachBack {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 2;
+    }
+    #screen-note-teach .note-teach-head { grid-column: 1 / -1; grid-row: 1; }
+    #screen-note-teach .game-title { font-size: 1.2rem; }
+    #screen-note-teach .game-subtitle { display: none; }
+    #screen-note-teach .note-teach-topics { grid-column: 1 / -1; grid-row: 2; }
+    #screen-note-teach .note-teach-filters { grid-column: 1 / -1; grid-row: 3; }
+    #screen-note-teach .note-teach-stage { grid-column: 1; grid-row: 4; align-self: center; }
+    #screen-note-teach .note-teach-dock { grid-column: 2; grid-row: 4; align-self: center; }
+    #screen-note-teach .note-teach-how,
+    #screen-note-teach .note-teach-readout,
+    #screen-note-teach .note-teach-play { display: none; }
+    #screen-note-teach .note-teach-staff { min-height: 0; }
+    #screen-note-teach .note-teach-staff svg { max-height: 168px; width: auto; max-width: 100%; }
+    #screen-note-teach .note-teach-name { font-size: 1.6rem; }
+    #screen-note-teach .ntk { --ntk-white-h: 5.4rem; }
 }
 
 /* ===== 音名識辨 · 真實鋼琴答題鍵盤 =====
