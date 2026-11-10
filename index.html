@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=6">
+    <link rel="stylesheet" href="style.css?v=7">
     <script src="https://cdn.jsdelivr.net/npm/vexflow@5.0.0/build/cjs/vexflow.min.js" defer></script>
     <script src="https://unpkg.com/lucide@latest" defer></script>
 </head>
@@ -146,7 +146,7 @@
                 </header>
                 <div class="app-codex-card">
                     <div class="app-codex-emoji" aria-hidden="true">📚</div>
-                    <p class="app-codex-copy">瀏覽弦樂、木管、銅管、敲擊、鍵盤，以及中國樂器。計時挑戰仍以管弦樂為主。</p>
+                    <p class="app-codex-copy">瀏覽管弦樂與中國樂器。中國樂器可以看圖，也可以做十題挑戰。計時排行榜仍以管弦樂為主。</p>
                     <button type="button" class="app-home-cta" id="appOpenCodexBtn">開啟圖鑑</button>
                 </div>
             </section>
@@ -635,7 +635,7 @@
                 <div class="mode-icon">⏱️</div><div class="mode-name">1分鐘挑戰</div><div class="mode-desc">限時一分鐘，計入排行榜</div>
             </div>
             <div class="mode-card challenge" data-mode="noMiss">
-                <div class="mode-icon"><i data-lucide="flame"></i></div><div class="mode-name">零失誤挑戰</div><div class="mode-desc">不限時 · 答錯一題即結束（分數 ×1.5）</div>
+                <div class="mode-icon"><i data-lucide="flame"></i></div><div class="mode-name">零失誤挑戰</div><div class="mode-desc">不限時 · 含升降號 · 答錯一題即結束（分數 ×1.5）</div>
             </div>
             <div class="mode-card keysig" data-mode="keysig_practice">
                 <div class="mode-icon">𝄞</div><div class="mode-name">調號辨別</div><div class="mode-desc">認識不同調號</div>
@@ -1399,7 +1399,7 @@
         <div class="game-subtitle">管弦樂與中國樂器。中樂相片來自維基共享資源，暫未附錄音。</div>
 
         <!-- Search -->
-        <div class="g4-study-search-wrap">
+        <div class="g4-study-search-wrap" id="g4StudySearchWrap">
             <span class="g4-study-search-icon">🔍</span>
             <input type="search" id="g4StudySearch" class="g4-study-search-input" placeholder="搜尋樂器名稱…" autocomplete="off" enterkeyhint="search">
             <button class="g4-study-search-clear" id="g4StudySearchClear" aria-label="清除搜尋">✕</button>
@@ -1416,8 +1416,38 @@
             <button class="study-tab" data-cat="chinese">🎶 中國樂器</button>
         </div>
 
+        <div class="chord-mode-row cn-inst-mode-row" id="cnInstModeRow" hidden role="tablist" aria-label="中國樂器練習方式">
+            <button type="button" class="chord-mode-btn active" id="cnInstModeLearn" role="tab" aria-selected="true">📚 看圖溫習</button>
+            <button type="button" class="chord-mode-btn" id="cnInstModeChallenge" role="tab" aria-selected="false">🎯 樂器挑戰</button>
+        </div>
+
         <!-- Instruments grid -->
         <div class="g4-study-grid" id="g4StudyGrid"></div>
+
+        <div id="cnInstChallengePanel" hidden>
+            <div id="cnInstChallengePlay">
+                <div class="chord-challenge-hud">
+                    <span class="quiz-qnum" id="cnInstQNum">第 1 題 / 共 10 題</span>
+                    <span class="chord-hud-stat">💯 <span id="cnInstScore">0</span></span>
+                    <span class="chord-hud-stat">🔥 <span id="cnInstCombo">0</span></span>
+                </div>
+                <div class="quiz-progress-track"><div class="quiz-progress-fill" id="cnInstProgressFill" style="width:0%"></div></div>
+                <p class="chord-challenge-prompt">這是哪一種中國樂器？</p>
+                <div id="cnInstChallengeMount"></div>
+                <button type="button" class="cn-inst-replay" id="cnInstReplay">🔊 再聽示範聲</button>
+                <div class="quiz-options" id="cnInstChallengeOptions"></div>
+                <div class="message-box" id="cnInstChallengeMessage">看相片、聽示範聲，選出樂器名稱。</div>
+                <button type="button" class="btn-view-ranks" id="cnInstChallengeEnd">結束這一輪</button>
+            </div>
+            <div id="cnInstChallengeResult" hidden>
+                <h2 class="report-title">樂器挑戰完成</h2>
+                <div class="report-grid" id="cnInstReportGrid"></div>
+                <div id="cnInstMistakeReview"></div>
+                <p class="chord-challenge-note">這次成績只留在這一頁，不計入樂器識辨排行榜。</p>
+                <button type="button" class="btn-start" id="cnInstChallengeRetry">再挑戰一次</button>
+                <button type="button" class="btn-view-ranks" id="cnInstChallengeToLearn">返回看圖溫習</button>
+            </div>
+        </div>
 
         <button class="btn-start" id="g4StudyStartBtn">🚀 返回設定並開始</button>
     </div>
@@ -1464,10 +1494,10 @@
                     <div class="tut-visual tut-steps-visual">
                         <ol class="tut-steps">
                             <li style="background:#FFF0F8; border-left:4px solid #FF65A3;"><strong>辨認</strong>五線譜上出現的音符</li>
-                            <li style="background:#FFF5EC; border-left:4px solid #FF8C42;">🎹 <strong>按</strong>下正確的琴鍵（如 <span class="pk pk-natural" role="img" aria-label="音名 C"><span class="pk-name">C</span></span>、<span class="pk pk-natural" role="img" aria-label="音名 D"><span class="pk-name">D</span></span>、<span class="pk pk-sharp" role="img" aria-label="音名 F#"><span class="pk-name">F#</span></span> …）</li>
+                            <li style="background:#FFF5EC; border-left:4px solid #FF8C42;">🎹 <strong>按</strong>下正確的琴鍵。白鍵是自然音；黑鍵上半是升號、下半是降號（<span class="pk pk-sharp" role="img" aria-label="音名 C#"><span class="pk-name">C#</span></span> 與 <span class="pk pk-flat" role="img" aria-label="音名 D♭"><span class="pk-name">D♭</span></span> 要分開選）。</li>
                             <li style="background:#F0F9FF; border-left:4px solid #00A6ED;">答對得分。<strong>連續答對</strong>可獲連擊加分。</li>
                             <li style="background:#F3EEFF; border-left:4px solid #8B66FF;">如未能確定，可按「<strong>聽&amp;看答案</strong>」查閱，或按「<strong>跳過</strong>」更換題目</li>
-                            <li style="background:#F0F9FF; border-left:4px solid #00A6ED;">⌨️ 鍵盤快捷鍵：<strong>1-7</strong> 按自然音，<strong>H</strong> 聆聽答案，<strong>空格</strong> 跳過</li>
+                            <li style="background:#F0F9FF; border-left:4px solid #00A6ED;">⌨️ 鍵盤快捷鍵：<strong>1-7</strong> 自然音，<strong>Q W E R T</strong> 升號，<strong>A S D F G</strong> 降號，<strong>H</strong> 聆聽答案，<strong>空格</strong> 跳過</li>
                             <li style="background:#EEFAF6; border-left:4px solid #00B89F;">🏆 挑戰模式完成後可上傳<strong>排行榜</strong>，可與同班同學比較成績。</li>
                         </ol>
                     </div>
@@ -1501,6 +1531,7 @@
         </div>
     </div>
 
+    <script src="chinese-instrument-challenge.js?v=1" defer></script>
     <script src="chord-keyboard.js?v=2" defer></script>
     <script src="bootstrap-instruments.js?v=6" data-app-bootstrap defer></script>
     <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
