@@ -367,7 +367,7 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.match(html, /id="g4ChineseTenBtn"/);
   assert.match(html, /id="g4ScopeNote"/);
   assert.match(html, /合成示範音色，不是現場錄音/);
-  assert.match(html, /style\.css\?v=11/);
+  assert.match(html, /style\.css\?v=12/);
   assert.match(html, /bootstrap-instruments\.js\?v=9/);
   assert.match(html, /instrument-category\.js\?v=2/);
   assert.match(html, /chinese-instrument-challenge\.js\?v=3/);

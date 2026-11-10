@@ -46,8 +46,8 @@
         var STUDIO_MELODY_MAX_MEASURES = 16;
         /** 4/4：旋律總拍數上限（預設為 max 小節 × 4 拍）。 */
         var STUDIO_MELODY_MAX_BEATS = STUDIO_MELODY_MAX_MEASURES * 4;
-        /** 節奏區最多小節數（與旋律上限對齊）。 */
-        var STUDIO_RHYTHM_MAX_MEASURES = STUDIO_MELODY_MAX_MEASURES;
+        /** 4/4：節奏最多小節數（介面、加入、草稿皆為八小節；旋律仍是十六）。 */
+        var STUDIO_RHYTHM_MAX_MEASURES = 8;
         /** BPM 滑桿與 clamp（需與 index.html #studioBpm min/max 一致，或由 ensureCompositionStudioDom 同步）。 */
         var STUDIO_BPM_MIN = 40;
         var STUDIO_BPM_MAX = 132;
@@ -96,6 +96,7 @@
                 title: '特殊節奏 · 附點與切分',
                 tokens: [
                     { id: 'ta-a-a',   label: '附點二分',  sub: '3 拍', color: 'special' },
+                    { id: 'ta-i',     label: '附點四分',  sub: '1.5 拍', color: 'special' },
                     { id: 'ti-ri',    label: '前附點',    sub: '1 拍', color: 'special' },
                     { id: 'ri-ti-ri', label: '小切分',    sub: '1 拍', color: 'special' },
                 ]
@@ -137,6 +138,9 @@
         var _studioKeybindsBound = false;
         var _studioLastRenderHash = { melody: '', rhythm: '' };
         var _studioShortcutWarned = {};
+        /** Scroll snapshot taken before focus/staff DOM changes. Screen, not window, scrolls in the app shell. */
+        var _studioScrollLock = null;
+        var _studioScrollGuardBound = false;
         var STUDIO_ENABLE_ADV_ENGRAVING_SHORTCUTS = false;
         var STUDIO_EXPORT_PADDING = 8;
 
@@ -323,19 +327,36 @@
             return rhythmMetrics(flat).completeBars;
         }
 
-        function canAddRhythmToken(flat, tok) {
+        /**
+         * '' if the token may be added.
+         * 'bar' — it does not fit the beats left in the current bar (do not open a new bar).
+         * 'max' — already at STUDIO_RHYTHM_MAX_MEASURES.
+         * 'beat' — beamed / syncopated group is off the beat.
+         */
+        function rhythmAddBlockReason(flat, tok) {
             var d = getRhythmTokenDuration(tok);
+            if (!(d > 0)) return 'bar';
             var barBeats = rhythmTailBarBeats(flat);
-            var onBeat = Math.abs(barBeats - Math.round(barBeats)) < 0.01;
-            if (barBeats + d > 4 + 1e-6) {
-                if (rhythmCompleteBarCount(flat) >= 8) return false;
-                barBeats = 0;
-                onBeat = true;
+            var room = 4 - barBeats;
+            if (d > room + 1e-6) {
+                if (barBeats <= 1e-6 && rhythmCompleteBarCount(flat) >= STUDIO_RHYTHM_MAX_MEASURES) return 'max';
+                return 'bar';
             }
-            if (barBeats + d > 4 + 1e-6) return false;
-            if (!onBeat && _STUDIO_BEAM_TOKENS.has(tok)) return false;
+            var onBeat = Math.abs(barBeats - Math.round(barBeats)) < 0.01;
+            if (!onBeat && _STUDIO_BEAM_TOKENS.has(tok)) return 'beat';
             var next = flat.concat([tok]);
-            return flatToRhythmBarStrings(next).length <= 8;
+            if (flatToRhythmBarStrings(next).length > STUDIO_RHYTHM_MAX_MEASURES) return 'max';
+            return '';
+        }
+
+        function canAddRhythmToken(flat, tok) {
+            return rhythmAddBlockReason(flat, tok) === '';
+        }
+
+        function rhythmRejectToast(reason) {
+            if (reason === 'max') return '已滿 ' + STUDIO_RHYTHM_MAX_MEASURES + ' 小節';
+            if (reason === 'beat') return '附點與切分音須對準拍點';
+            return '此節奏放不進目前小節，請先填滿 4 拍再開下一小節';
         }
 
         function updateRhythmStatus() {
@@ -344,10 +365,10 @@
             var tail = rhythmTailBarBeats(rhythmFlat);
             var complete = rhythmCompleteBarCount(rhythmFlat);
             var tailStr = Number.isInteger(tail) ? String(tail) : String(Math.round(tail * 100) / 100);
-            if (complete >= 8 && tail < 1e-6) {
-                el.textContent = '已寫滿八小節（共 8 小節）';
+            if (complete >= STUDIO_RHYTHM_MAX_MEASURES && tail < 1e-6) {
+                el.textContent = '已寫滿 ' + STUDIO_RHYTHM_MAX_MEASURES + ' 小節';
             } else {
-                el.textContent = '進行中小節：已用 ' + tailStr + ' / 4 拍 · 已完成 ' + complete + ' / 8 小節';
+                el.textContent = '進行中小節：已用 ' + tailStr + ' / 4 拍 · 已完成 ' + complete + ' / ' + STUDIO_RHYTHM_MAX_MEASURES + ' 小節';
             }
 
             // Disable rhythm buttons that can't be added under current bar/beat constraints.
@@ -359,6 +380,7 @@
                     btn.disabled = !canAddRhythmToken(rhythmFlat, tok);
                 });
             }
+            if (_studioScrollLock) restoreStudioScroll(_studioScrollLock);
         }
 
         function chunkBarsForStudioSystems(bars, perRow) {
@@ -408,6 +430,8 @@
         function renderMelody() {
             var el = document.getElementById('studioMelodyVf');
             if (!el || typeof VexFlow === 'undefined') return;
+            var staffScroll = beginStudioStaffMutation(el);
+            try {
             el.innerHTML = '';
             var bars = melodyToBars();
             if (!bars.length) {
@@ -528,13 +552,18 @@
                     x += staveW + GAP;
                 });
             });
+            } finally {
+                endStudioStaffMutation(el, staffScroll);
+            }
         }
 
         function renderRhythm() {
             var el = document.getElementById('studioRhythmVf');
             if (!el) return;
+            var staffScroll = beginStudioStaffMutation(el);
+            try {
             if (!rhythmFlat.length) {
-                el.innerHTML = '<p class="studio-hint" style="margin:28px 12px;text-align:center">點選節奏塊加入 · 每小節須滿 4 拍才會進入下一小節 · 最多八小節 · 每行最多兩小節</p>';
+                el.innerHTML = '<p class="studio-hint" style="margin:28px 12px;text-align:center">點選節奏塊加入 · 每小節須滿 4 拍才會進入下一小節 · 最多 ' + STUDIO_RHYTHM_MAX_MEASURES + ' 小節 · 每行最多兩小節</p>';
                 updateRhythmStatus();
                 return;
             }
@@ -548,20 +577,92 @@
                 }
             }
             updateRhythmStatus();
+            } finally {
+                endStudioStaffMutation(el, staffScroll);
+            }
+        }
+
+        function captureStudioScroll() {
+            var nodes = [];
+            function add(node) {
+                if (!node || nodes.indexOf(node) !== -1) return;
+                nodes.push(node);
+            }
+            if (typeof document === 'undefined') return [];
+            add(document.scrollingElement);
+            add(document.documentElement);
+            add(document.body);
+            add(document.getElementById('screen-composition-studio'));
+            var host = document.getElementById(activeTab === 'melody' ? 'studioMelodyVf' : 'studioRhythmVf');
+            while (host) {
+                add(host);
+                host = host.parentElement;
+            }
+            return nodes.map(function (node) {
+                return { el: node, top: node.scrollTop || 0, left: node.scrollLeft || 0 };
+            });
+        }
+
+        function restoreStudioScroll(saved) {
+            if (!saved) return;
+            for (var i = 0; i < saved.length; i++) {
+                var item = saved[i];
+                if (!item.el) continue;
+                if (item.el.scrollTop !== item.top) item.el.scrollTop = item.top;
+                if (item.el.scrollLeft !== item.left) item.el.scrollLeft = item.left;
+            }
+        }
+
+        function rememberStudioScroll(force) {
+            if (_studioScrollLock && !force) return;
+            _studioScrollLock = captureStudioScroll();
+        }
+
+        function scheduleStudioScrollRestore(saved) {
+            if (!saved) return;
+            restoreStudioScroll(saved);
+            requestAnimationFrame(function () {
+                restoreStudioScroll(saved);
+                requestAnimationFrame(function () {
+                    restoreStudioScroll(saved);
+                });
+            });
+            setTimeout(function () {
+                restoreStudioScroll(saved);
+                if (!_studioRenderQueued && _studioScrollLock === saved) _studioScrollLock = null;
+            }, 80);
+        }
+
+        /** Keep the staff box from collapsing while VexFlow replaces its SVG (that reset the screen scroller). */
+        function beginStudioStaffMutation(el) {
+            var saved = _studioScrollLock || captureStudioScroll();
+            var h = el.getBoundingClientRect ? el.getBoundingClientRect().height : 0;
+            if (h > 0) el.style.minHeight = Math.ceil(h) + 'px';
+            return saved;
+        }
+
+        function endStudioStaffMutation(el, saved) {
+            restoreStudioScroll(saved);
+            if (el) el.style.minHeight = '';
+            var next = el && el.getBoundingClientRect ? el.getBoundingClientRect().height : 0;
+            if (el && next > 0) el.style.minHeight = Math.ceil(next) + 'px';
+            restoreStudioScroll(saved);
         }
 
         function requestStudioRender(tab) {
             _studioRenderTargetTab = tab || activeTab;
+            rememberStudioScroll();
+            var saved = _studioScrollLock;
             if (_studioRenderQueued) return;
             _studioRenderQueued = true;
             requestAnimationFrame(function () {
                 _studioRenderQueued = false;
                 var target = _studioRenderTargetTab || activeTab;
-                // Prevent unexpected browser focus/scroll jumps when VexFlow re-renders.
-                var prevScrollX = window.scrollX || window.pageXOffset || 0;
-                var prevScrollY = window.scrollY || window.pageYOffset || 0;
                 var scr = document.getElementById('screen-composition-studio');
-                if (!scr || !scr.classList.contains('active')) return;
+                if (!scr || !scr.classList.contains('active')) {
+                    if (_studioScrollLock === saved) _studioScrollLock = null;
+                    return;
+                }
                 if (target === 'melody') {
                     var melodyHost = document.getElementById('studioMelodyVf');
                     var melodyHash = [
@@ -571,9 +672,10 @@
                         String(dottedInputMode ? 1 : 0),
                         scr.classList.contains('studio-demo-mode') ? '1' : '0'
                     ].join('|');
-                    if (_studioLastRenderHash.melody === melodyHash) return;
-                    _studioLastRenderHash.melody = melodyHash;
-                    renderMelody();
+                    if (_studioLastRenderHash.melody !== melodyHash) {
+                        _studioLastRenderHash.melody = melodyHash;
+                        renderMelody();
+                    }
                 } else {
                     var rhythmHost = document.getElementById('studioRhythmVf');
                     var rhythmHash = [
@@ -581,14 +683,12 @@
                         String(Math.max((rhythmHost && rhythmHost.clientWidth) || 0, 0)),
                         scr.classList.contains('studio-demo-mode') ? '1' : '0'
                     ].join('|');
-                    if (_studioLastRenderHash.rhythm === rhythmHash) return;
-                    _studioLastRenderHash.rhythm = rhythmHash;
-                    renderRhythm();
+                    if (_studioLastRenderHash.rhythm !== rhythmHash) {
+                        _studioLastRenderHash.rhythm = rhythmHash;
+                        renderRhythm();
+                    }
                 }
-                // Restore scroll position after DOM update.
-                requestAnimationFrame(function () {
-                    window.scrollTo(prevScrollX, prevScrollY);
-                });
+                scheduleStudioScrollRestore(saved);
             });
         }
 
@@ -648,6 +748,15 @@
             return out;
         }
 
+        function normalizeLoadedRhythmFlat(flat) {
+            if (!Array.isArray(flat)) return [];
+            var next = flat.filter(function (tok) {
+                return getRhythmTokenDuration(tok) > 0;
+            });
+            if (flatToRhythmBarStrings(next).length > STUDIO_RHYTHM_MAX_MEASURES) return [];
+            return next;
+        }
+
         function loadStudioDraft() {
             try {
                 var raw = localStorage.getItem(STUDIO_DRAFT_LS);
@@ -657,10 +766,7 @@
                 var loadedMelody = normalizeLoadedMelodyNotes(draft.melodyNotes);
                 if (validateMelodySequence(loadedMelody)) melodyNotes = loadedMelody;
                 if (Array.isArray(draft.rhythmFlat)) {
-                    rhythmFlat = draft.rhythmFlat.filter(function (tok) {
-                        return getRhythmTokenDuration(tok) > 0;
-                    });
-                    if (flatToRhythmBarStrings(rhythmFlat).length > STUDIO_RHYTHM_MAX_MEASURES) rhythmFlat = [];
+                    rhythmFlat = normalizeLoadedRhythmFlat(draft.rhythmFlat);
                 }
                 if (typeof draft.selectedPitch === 'string' && draft.selectedPitch) selectedPitch = draft.selectedPitch;
                 if (typeof draft.selectedMelodyDur === 'string' && MELODY_DUR_BEATS[draft.selectedMelodyDur] != null) {
@@ -1430,16 +1536,9 @@
                 if (!enabled) {
                     btn.disabled = true;
                 } else {
-                    var onWhite = function (e) {
-                        if (e && e.preventDefault) e.preventDefault();
-                        btn.blur && btn.blur();
+                    bindStudioAction(btn, function () {
                         appendMelodyFromPiano(host, vfk, btn);
-                    };
-                    if (window.AudioEngine && window.AudioEngine.onInstantTap) {
-                        window.AudioEngine.onInstantTap(btn, onWhite);
-                    } else {
-                        btn.addEventListener('click', onWhite);
-                    }
+                    });
                 }
                 whitesEl.appendChild(btn);
             });
@@ -1460,16 +1559,9 @@
                 if (!enabled) {
                     bbtn.disabled = true;
                 } else {
-                    var onBlack = function (e) {
-                        if (e && e.preventDefault) e.preventDefault();
-                        bbtn.blur && bbtn.blur();
+                    bindStudioAction(bbtn, function () {
                         appendMelodyFromPiano(host, vfk, bbtn);
-                    };
-                    if (window.AudioEngine && window.AudioEngine.onInstantTap) {
-                        window.AudioEngine.onInstantTap(bbtn, onBlack);
-                    } else {
-                        bbtn.addEventListener('click', onBlack);
-                    }
+                    });
                 }
                 blacksEl.appendChild(bbtn);
             });
@@ -1491,18 +1583,29 @@
         }
 
         function getRhythmTokenGlyphSpecs(tokenId) {
+            // One glyph per note in COMPOUND_TOKENS / parseRhythmTaps. 小切分 is not 前附點.
             var specMap = {
                 ta: [{ dur: 'q', dotted: false }],
                 'ti-ti': [{ dur: '8', dotted: false }, { dur: '8', dotted: false }],
                 'ta-a': [{ dur: 'h', dotted: false }],
                 '休': [{ dur: 'qr', dotted: false }],
                 ti: [{ dur: '8', dotted: false }],
-                'ti-ri-ti-ri': [{ dur: '16', dotted: false }, { dur: '16', dotted: false }],
+                'ti-ri-ti-ri': [
+                    { dur: '16', dotted: false }, { dur: '16', dotted: false },
+                    { dur: '16', dotted: false }, { dur: '16', dotted: false }
+                ],
                 'ta-a-a': [{ dur: 'h', dotted: true }],
-                'ti-ri': [{ dur: '8', dotted: true }],
-                'ti-ti-ri': [{ dur: '8', dotted: false }, { dur: '16', dotted: false }],
-                'ti-ri-ti': [{ dur: '16', dotted: false }, { dur: '8', dotted: false }],
-                'ri-ti-ri': [{ dur: '8', dotted: true }, { dur: '16', dotted: false }]
+                'ta-i': [{ dur: 'q', dotted: true }],
+                'ti-ri': [{ dur: '8', dotted: true }, { dur: '16', dotted: false }],
+                'ti-ti-ri': [
+                    { dur: '8', dotted: false }, { dur: '16', dotted: false }, { dur: '16', dotted: false }
+                ],
+                'ti-ri-ti': [
+                    { dur: '16', dotted: false }, { dur: '16', dotted: false }, { dur: '8', dotted: false }
+                ],
+                'ri-ti-ri': [
+                    { dur: '16', dotted: false }, { dur: '8', dotted: false }, { dur: '16', dotted: false }
+                ]
             };
             return specMap[tokenId] || null;
         }
@@ -1521,7 +1624,46 @@
                 return '<span class="studio-rtok-glyph-item" aria-hidden="true">' + svgSafe + '</span>';
             }).join('');
             if (!glyphItems) return '';
-            return '<span class="studio-rtok-glyph-group" aria-hidden="true">' + glyphItems + '</span>';
+            var wide = specs.length >= 3 ? ' studio-rtok-glyph-group--wide' : '';
+            return '<span class="studio-rtok-glyph-group' + wide + '" aria-hidden="true">' + glyphItems + '</span>';
+        }
+
+        /**
+         * Remember the real scroll parent before the control takes focus.
+         * App WebView scrolls `#screen-composition-studio` (window.scrollY stays 0);
+         * focusing or blurring a token jumps that scroller to the top. Do not blur().
+         * mousedown preventDefault keeps mouse focus off the button without blocking touch scroll.
+         */
+        function bindStudioAction(el, handler) {
+            var armed = false;
+            var pointerType = '';
+            el.addEventListener('pointerdown', function (e) {
+                pointerType = e.pointerType || '';
+                rememberStudioScroll(true);
+                armed = true;
+            });
+            el.addEventListener('mousedown', function (e) {
+                if (pointerType === 'touch' || pointerType === 'pen') return;
+                if (e.cancelable) e.preventDefault();
+            });
+            el.addEventListener('pointercancel', function () {
+                armed = false;
+                if (!_studioRenderQueued) _studioScrollLock = null;
+            });
+            el.addEventListener('pointerup', function () {
+                if (!armed) return;
+                setTimeout(function () {
+                    if (armed && !_studioRenderQueued) {
+                        armed = false;
+                        _studioScrollLock = null;
+                    }
+                }, 0);
+            });
+            el.addEventListener('click', function (e) {
+                armed = false;
+                if (e && e.preventDefault) e.preventDefault();
+                handler(e);
+            });
         }
 
         function buildRhythmPalette() {
@@ -1550,12 +1692,11 @@
 
             pal.innerHTML = html;
             pal.querySelectorAll('.studio-rtok').forEach(function (btn) {
-                btn.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    btn.blur && btn.blur();
+                bindStudioAction(btn, function () {
                     var tok = btn.dataset.tok;
-                    if (!canAddRhythmToken(rhythmFlat, tok)) {
-                        _showToast('此節奏放不進目前小節，或已滿八小節', 'warn');
+                    var reason = rhythmAddBlockReason(rhythmFlat, tok);
+                    if (reason) {
+                        _showToast(rhythmRejectToast(reason), 'warn');
                         if (audio.playClick) audio.playClick();
                         return;
                     }
@@ -1609,6 +1750,15 @@
             buildPitchRow();
             paintMelodyDurationGlyphs();
             buildRhythmPalette();
+            if (!_studioScrollGuardBound) {
+                _studioScrollGuardBound = true;
+                var studioScreen = document.getElementById('screen-composition-studio');
+                if (studioScreen) {
+                    studioScreen.addEventListener('focusin', function () {
+                        if (_studioScrollLock) restoreStudioScroll(_studioScrollLock);
+                    });
+                }
+            }
             updateDottedBadgeUi();
             updateInputHudUi();
 
@@ -1668,7 +1818,6 @@
             durRow && durRow.querySelectorAll('.studio-chip').forEach(function (ch) {
                 ch.addEventListener('click', function (e) {
                     e.preventDefault();
-                    ch.blur && ch.blur();
                     activateMelodyDurChip(ch);
                 });
             });
@@ -1815,6 +1964,17 @@
             syncStudioDemoClassFromStorage();
         }
 
-        return { open: open, init: initCompositionStudio };
+        return {
+            open: open,
+            init: initCompositionStudio,
+            _test: {
+                canAddRhythmToken: canAddRhythmToken,
+                rhythmAddBlockReason: rhythmAddBlockReason,
+                getRhythmTokenGlyphSpecs: getRhythmTokenGlyphSpecs,
+                normalizeLoadedRhythmFlat: normalizeLoadedRhythmFlat,
+                tokenGroups: STUDIO_RHYTHM_TOKENS_GROUPED,
+                maxMeasures: STUDIO_RHYTHM_MAX_MEASURES
+            }
+        };
     };
 })(typeof window !== 'undefined' ? window : this);
