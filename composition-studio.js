@@ -1118,6 +1118,15 @@
             return map[mdur] || String(mdur || '');
         }
 
+        function pitchKeyHTML(label) {
+            var text = String(label || '');
+            var kind = text.indexOf('#') >= 0 ? 'sharp' : (/[A-G]b/i.test(text) ? 'flat' : 'natural');
+            var safe = text.replace(/[&<>"']/g, function (ch) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+            });
+            return '<span class="pk pk-' + kind + '" role="img" aria-label="音名 ' + safe + '"><span class="pk-name">' + safe + '</span></span>';
+        }
+
         function updateInputHudUi() {
             var elDur = document.getElementById('studioHudDur');
             var elDot = document.getElementById('studioHudDot');
@@ -1125,7 +1134,7 @@
             var dur = applyDottedModeToDur(selectedMelodyDur);
             if (elDur) elDur.textContent = durationLabelFromMdur(dur);
             if (elDot) elDot.textContent = dottedInputMode ? '開' : '關';
-            if (elPitch) elPitch.textContent = vfKeyToLabel(selectedPitch || 'c/4');
+            if (elPitch) elPitch.innerHTML = pitchKeyHTML(vfKeyToLabel(selectedPitch || 'c/4'));
         }
 
         function isWhitePitchClass(pc) {
@@ -1440,6 +1449,7 @@
                 bbtn.type = 'button';
                 bbtn.className = 'studio-piano-black studio-piano-key' + (enabled ? '' : ' studio-piano-key--disabled');
                 bbtn.dataset.vfkey = vfk;
+                bbtn.textContent = vfKeyToLabel(vfk);
                 bbtn.style.left = ((wi + 1) / nW) * 100 + '%';
                 bbtn.setAttribute('aria-label', vfKeyToLabel(vfk) + (enabled ? '' : '（無試聽音高）'));
                 bbtn.setAttribute('title', enabled ? vfKeyToLabel(vfk) : '此音高未收錄於試聽音階');

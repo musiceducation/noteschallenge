@@ -3,17 +3,17 @@
   var base = el && el.src ? new URL(".", el.src) : new URL("./", location.href);
   function loadApp() {
     var studio = document.createElement("script");
-    studio.src = new URL("composition-studio.js", base).href;
+    studio.src = new URL("composition-studio.js?v=6", base).href;
     studio.onload = function () {
       var s = document.createElement("script");
-      s.src = new URL("script.js?v=5", base).href;
+      s.src = new URL("script.js?v=6", base).href;
       s.defer = true;
       document.body.appendChild(s);
     };
     studio.onerror = function () {
       console.warn("[bootstrap-instruments] composition-studio.js failed, loading script.js only");
       var s = document.createElement("script");
-      s.src = new URL("script.js?v=5", base).href;
+      s.src = new URL("script.js?v=6", base).href;
       s.defer = true;
       document.body.appendChild(s);
     };
