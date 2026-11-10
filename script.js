@@ -3749,6 +3749,18 @@
                 playWrong: function () { audio.playEffect('wrong'); }
             });
         } catch (e) { console.error('chord card error:', e); }
+        try {
+            if (window.ChineseInstrumentChallenge) window.ChineseInstrumentChallenge.mount({
+                getBank: function () { return INSTRUMENT_BANK; },
+                playSound: function (id) {
+                    audio.init();
+                    audio.resume();
+                    audio.playInstrumentSound(id);
+                },
+                playCorrect: function () { audio.playEffect('countdown'); },
+                playWrong: function () { audio.playEffect('wrong'); }
+            });
+        } catch (e) { console.error('chinese instrument challenge error:', e); }
         try { initTutorial(); } catch(e) { console.error('initTutorial error:', e); }
         try { initHub(); } catch(e) { console.error('initHub error:', e); }
         try { initAppShell(); } catch(e) { console.error('initAppShell error:', e); }
@@ -4379,6 +4391,7 @@
         const backTo = backScreenId || (isAppShell() ? 'screen-app-root' : 'screen-g4-setup');
         let studyFamily = 'all';
         let studySearch = '';
+        if (window.ChineseInstrumentChallenge) ChineseInstrumentChallenge.onCodexOpen();
         if (typeof renderG4Study === 'function') renderG4Study(studyFamily, studySearch);
 
         document.querySelectorAll('#screen-g4-study .study-tab').forEach(tab => {
@@ -4388,6 +4401,7 @@
                 document.querySelectorAll('#screen-g4-study .study-tab').forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
                 renderG4Study(studyFamily, studySearch);
+                if (window.ChineseInstrumentChallenge) ChineseInstrumentChallenge.onFamily(studyFamily);
             };
         });
 
@@ -4414,6 +4428,7 @@
         const studyBack = document.getElementById('g4StudyBack');
         if (studyBack) {
             studyBack.onclick = () => {
+                if (window.ChineseInstrumentChallenge) ChineseInstrumentChallenge.leave();
                 switchScreen(backTo);
                 if (isAppShell() && backTo === 'screen-app-root') setAppTab('codex');
             };
@@ -4421,6 +4436,7 @@
         const studyStart = document.getElementById('g4StudyStartBtn');
         if (studyStart) {
             studyStart.onclick = () => {
+                if (window.ChineseInstrumentChallenge) ChineseInstrumentChallenge.leave();
                 if (isAppShell()) {
                     switchScreen('screen-app-root');
                     setAppTab('games');
