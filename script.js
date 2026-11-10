@@ -9432,6 +9432,11 @@
             let type = pickG4Type();
             if (promptMode === 'listen') type = 'listen-name';
             else if (promptMode === 'mix' && Math.random() < 0.22) type = 'listen-name';
+            // No synth timbre means this cannot be a listening question.
+            if (type === 'listen-name' && listenPool.length < 1) {
+                if (promptMode === 'listen') continue;
+                type = pickG4Type();
+            }
             let correct, safety = 0;
 
             // Select instrument based on type constraints
@@ -9442,8 +9447,7 @@
                 do { correct = imgPool[Math.floor(Math.random() * imgPool.length)]; safety++; }
                 while (recentIds.includes(correct.id) && safety < 30);
             } else if (type === 'listen-name') {
-                const source = listenPool.length ? listenPool : pool;
-                do { correct = source[Math.floor(Math.random() * source.length)]; safety++; }
+                do { correct = listenPool[Math.floor(Math.random() * listenPool.length)]; safety++; }
                 while (recentIds.includes(correct.id) && safety < 30);
             } else {
                 do { correct = pool[Math.floor(Math.random() * pool.length)]; safety++; }
@@ -9707,6 +9711,8 @@
         }
         g4State.answered = false;
         g4State._advancing = false;
+        const messageEl = document.getElementById('g4Message');
+        if (messageEl) messageEl.textContent = '🎻 準備好就點選答案！';
         const q = g4State.questions[g4State.currentIdx];
         const total = g4State.mode === 'practice' ? g4State.questions.length : '∞';
         const num = g4State.currentIdx + 1;
@@ -9957,18 +9963,21 @@
         const profileTimerAction = window.InstrumentCategory
             ? InstrumentCategory.profileTimerAction(rankedPool, mode)
             : ((rankedPool && mode !== 'practice') ? 'record' : 'reset');
+        const writesBoard = profileTimerAction === 'record';
         const scopeNote = document.getElementById('g4ScopeNote');
         if (scopeNote) {
-            scopeNote.hidden = rankedPool;
-            if (!rankedPool && (g4State.poolId === 'orchestra' || !g4State.poolId) && promptMode !== 'see') {
+            scopeNote.hidden = writesBoard;
+            if (!writesBoard && (g4State.poolId === 'orchestra' || !g4State.poolId) && promptMode !== 'see') {
                 scopeNote.textContent = '聽聽和混合的成績只留在這一頁，不計入樂器識辨排行榜。';
-            } else if (!rankedPool) {
+            } else if (!writesBoard && rankedPool) {
+                scopeNote.textContent = '練習成績只留在這一頁，不計入樂器識辨排行榜。';
+            } else if (!writesBoard) {
                 scopeNote.textContent = '這個類別的成績只留在這一頁，不計入樂器識辨排行榜。';
             }
         }
         if (rankedPool) {
-            saveLocalRank('game4', user, score, accuracy, maxCombo);
             if (profileTimerAction === 'record') {
+                saveLocalRank('game4', user, score, accuracy, maxCombo);
                 submitScoreToGAS('game4', user, score, accuracy, maxCombo, '樂器識辨·挑戰');
                 recordGameResult(user, 'game4', score, accuracy, maxCombo, null, counts);
             }

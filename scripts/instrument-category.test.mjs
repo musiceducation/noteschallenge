@@ -290,6 +290,9 @@ assert.equal(IC.submitsGlobal('orchestra', 'challenge', 'see'), true);
 assert.equal(IC.submitsGlobal('orchestra', 'challenge', 'listen'), false);
 assert.equal(IC.submitsGlobal('orchestra', 'challenge', 'mix'), false);
 assert.equal(IC.submitsGlobal('orchestra', 'practice', 'see'), false);
+assert.equal(IC.submitsGlobal('orchestra', 'challenge', 'see'), true);
+assert.equal(IC.submitsGlobal('strings', 'challenge', 'see'), false);
+assert.equal(IC.submitsGlobal('chinese', 'practice', 'see'), false);
 const listenTimed = finishProfileTimer(1_000_000, IC.recordsRank('orchestra', 'listen'), 'challenge', 1_000_000 + 10_000);
 assert.equal(listenTimed.action, 'reset');
 assert.equal(listenTimed.armedAt, 0);
@@ -320,6 +323,22 @@ for (const file of ['script.js', 'www/script.js']) {
   const saveAt = end.indexOf("saveLocalRank('game4'");
   const submitAt = end.indexOf("submitScoreToGAS('game4'");
   assert.ok(rankAt >= 0 && rankAt < saveAt && saveAt < submitAt, file);
+  const recordIf = end.indexOf("if (profileTimerAction === 'record')");
+  assert.ok(recordIf >= 0 && recordIf < saveAt, `${file} practice must not saveLocalRank`);
+  assert.match(end, /練習成績只留在這一頁，不計入樂器識辨排行榜/);
+  const render = sliceFn(script, 'renderG4Question', 'handleG4Answer');
+  assert.match(render, /getElementById\('g4Message'\)/);
+  assert.match(render, /messageEl\.textContent = '🎻 準備好就點選答案！'/);
+  assert.match(render, /id="g4ListenReplay"/);
+  const answer = sliceFn(script, 'handleG4Answer', 'revealG4ListenAnswer');
+  assert.match(answer, /revealG4ListenAnswer\(q\)/);
+  assert.match(answer, /正確答案：/);
+  assert.doesNotMatch(answer, /準備好就點選答案/);
+  const gen = sliceFn(script, 'generateG4OrchestraQuestions', 'shuffle');
+  assert.doesNotMatch(gen, /listenPool\.length \? listenPool : pool/);
+  assert.match(gen, /type === 'listen-name' && listenPool\.length < 1/);
+  assert.match(gen, /if \(promptMode === 'listen'\) continue/);
+  assert.match(gen, /correct = listenPool\[/);
   assert.match(end, /recordsRank\(g4State\.poolId, promptMode\)/);
   assert.match(script, /InstrumentCategory\.savePrompt/);
   assert.match(script, /InstrumentCategory\.loadPrompt/);
@@ -374,7 +393,8 @@ for (const file of ['style.css', 'www/style.css']) {
 
 for (const file of ['bootstrap-instruments.js', 'www/bootstrap-instruments.js']) {
   const js = fs.readFileSync(path.join(root, file), 'utf8');
-  assert.match(js, /script\.js\?v=10/);
+  assert.match(js, /script\.js\?v=11/);
+  assert.equal(js.includes('script.js?v=10'), false);
   assert.equal(js.includes('script.js?v=9'), false);
   assert.equal(js.includes('script.js?v=8'), false);
 }
