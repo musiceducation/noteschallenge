@@ -48,7 +48,9 @@ for (const f of [
   "chinese-instrument-challenge.js",
   "www/chinese-instrument-challenge.js",
   "note-name-teach.js",
-  "www/note-name-teach.js"
+  "www/note-name-teach.js",
+  "composition-studio.js",
+  "www/composition-studio.js"
 ]) checkJs(f);
 for (const f of ["data/instrument-bank.json", "data/instrument-structure.json"]) checkJson(f);
 

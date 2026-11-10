@@ -5326,6 +5326,8 @@ body.is-fullscreen .hub-fullscreen-btn { display: flex; }
     border-radius: var(--ds-radius-lg);
     /* Push above .bg-dots fixed overlay (watermark) — base .screen has z-index: 1 */
     z-index: 2;
+    /* Replacing the staff must not anchor-scroll this screen back to the title. */
+    overflow-anchor: none;
 }
 
 /* Mimic game screens: move studio controls to bottom (like action-row) */
@@ -5638,6 +5640,10 @@ body.is-fullscreen .hub-fullscreen-btn { display: flex; }
     box-shadow: var(--ds-shadow-inner-bubbly) inset;
 }
 .studio-vf-wrap svg { display: block; margin: 0 auto; }
+#studioRhythmVf,
+#studioMelodyVf { overflow-anchor: none; }
+/* Reserve one rhythm system so the first token does not collapse the scroller. */
+#studioRhythmVf { min-height: 160px; }
 .studio-hint, .studio-rhythm-status {
     font-size: 0.82rem;
     font-weight: 700;
@@ -6115,6 +6121,15 @@ body.is-fullscreen .hub-fullscreen-btn { display: flex; }
     width: 38px;
     height: 38px;
     transform: translateY(-1px) scale(1.26);
+}
+.studio-rtok .studio-rtok-glyph-group--wide .studio-rtok-glyph-item {
+    width: 15px;
+    height: 20px;
+}
+.studio-rtok .studio-rtok-glyph-group--wide .studio-rtok-glyph-item svg {
+    width: 24px;
+    height: 24px;
+    transform: translateY(0) scale(1);
 }
 
 /* 節奏名稱 */
