@@ -617,7 +617,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     text-align: center; padding: 12px; border-radius: var(--ds-radius-md);
     font-weight: 700; font-size: 1.08rem; background: var(--ds-surface-container-low);
     border: 3px solid var(--ds-outline-variant); transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-    min-height: 48px; display: flex; align-items: center; justify-content: center;
+    min-height: 48px; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px;
     box-shadow: var(--ds-shadow-sm);
 }
 .message-box.correct {
@@ -644,41 +644,46 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 }
 @keyframes shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-8px); } 40% { transform: translateX(8px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(5px); } }
 
-/* 鍵盤按鈕 — piano key redesign */
-.notes-grid { display: flex; flex-direction: column; gap: 6px; align-items: center; }
-.note-row { display: flex; justify-content: center; gap: 5px; flex-wrap: wrap; }
+/* 鍵盤按鈕 — 白鍵／黑鍵，鍵面顯示音名 */
+.notes-grid {
+    display: flex; flex-direction: column; gap: 8px; align-items: center;
+    width: max-content; max-width: 100%; margin-inline: auto; box-sizing: border-box;
+    background: linear-gradient(180deg, #3c4050 0%, #1a1c26 100%);
+    border-radius: 16px; padding: 12px 12px 14px; overflow-x: auto;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.16), 0 8px 18px rgba(28, 24, 40, 0.18);
+}
+.note-row { display: flex; justify-content: center; gap: 5px; flex-wrap: nowrap; }
 .note-btn {
-    border: none; border-radius: 14px; width: 72px; height: 88px;
-    font-size: 1.75rem; font-weight: 900; cursor: pointer; transition: transform 0.1s, filter 0.1s, background 0.15s;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border: none; border-radius: 0 0 12px 12px; width: 64px; height: 108px;
+    font-size: 1.35rem; font-weight: 900; cursor: pointer; transition: transform 0.1s, filter 0.1s, background 0.15s;
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
     position: relative; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
-    letter-spacing: 0; gap: 0;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.12), inset 0 -3px 0 rgba(0,0,0,0.12);
-    padding-bottom: 22px;
+    letter-spacing: 0; gap: 2px; font-family: inherit;
+    padding: 8px 2px 22px;
 }
-.note-btn .key-hint { position: absolute; bottom: 5px; font-size: 0.65rem; font-weight: 900; background: rgba(0,0,0,0.1); padding: 1px 5px; border-radius: 5px; letter-spacing: 0; }
-.note-sol { display: block; font-size: 0.62rem; font-weight: 900; opacity: 0.6; line-height: 1; order: -1; }
+.note-btn .note-name { line-height: 1; }
+.note-btn .key-hint { position: absolute; bottom: 5px; font-size: 0.65rem; font-weight: 900; background: rgba(0,0,0,0.08); padding: 1px 5px; border-radius: 5px; letter-spacing: 0; }
+.note-sol { display: block; font-size: 0.62rem; font-weight: 900; opacity: 0.65; line-height: 1; order: -1; }
 .note-btn.natural {
-    background: linear-gradient(145deg, #FFD966, #FFCB45);
+    background: linear-gradient(180deg, #ffffff 0%, #f3f5fa 55%, #e4e7ef 100%);
     color: var(--text-dark);
-    border: 1.5px solid var(--primary-yellow-dark);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1), inset 0 -3px 0 var(--primary-yellow-dark);
+    border: 2px solid rgba(45, 49, 66, 0.18);
+    box-shadow: 0 5px 0 rgba(20, 22, 32, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
-.note-btn.sharp {
-    background: linear-gradient(145deg, #FF80BB, #FF65A3);
-    color: white; width: 62px; height: 72px;
-    border: 1.5px solid var(--primary-pink-dark);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.15), inset 0 -3px 0 var(--primary-pink-dark);
-}
+.note-btn.sharp,
 .note-btn.flat {
-    background: linear-gradient(145deg, #33BFFF, #00A6ED);
-    color: white; width: 62px; height: 72px;
-    border: 1.5px solid var(--primary-blue-dark);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.15), inset 0 -3px 0 var(--primary-blue-dark);
+    background: linear-gradient(180deg, #4a5168 0%, #1e2130 46%, #12141c 100%);
+    color: #f7f8fc; width: 56px; height: 78px;
+    border: 2px solid #0e1018; border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.45), inset 0 -2px 0 rgba(255, 255, 255, 0.06);
 }
-.note-btn:hover:not(:disabled) { transform: translateY(-3px); filter: brightness(1.07); }
-.note-btn:active:not(:disabled) { transform: translateY(2px); filter: brightness(0.92); box-shadow: 0 1px 4px rgba(0,0,0,0.12), inset 0 -1px 0 rgba(0,0,0,0.10) !important; }
-.note-btn:disabled { opacity: 0.4; filter: grayscale(0.5); cursor: not-allowed; transform: none; }
+.note-btn.sharp .key-hint,
+.note-btn.flat .key-hint { background: rgba(255,255,255,0.16); color: #fff; }
+.note-btn.sharp .note-sol,
+.note-btn.flat .note-sol { color: rgba(255,255,255,0.78); opacity: 1; }
+.note-btn:hover:not(:disabled) { transform: translateY(-3px); filter: brightness(1.06); }
+.note-btn:active:not(:disabled) { transform: translateY(2px); filter: brightness(0.94); }
+.note-btn:disabled { opacity: 0.45; filter: grayscale(0.35); cursor: not-allowed; transform: none; }
 .note-btn.correct {
     background: linear-gradient(145deg, #2EE8A8, #00D28E) !important;
     color: white !important; border-color: #00b87a !important;
@@ -692,6 +697,36 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     color: white !important; border-color: #cc1f40 !important;
     box-shadow: 0 4px 14px rgba(255,74,107,0.4), inset 0 -3px 0 #991535 !important; animation: shake 0.3s;
 }
+
+/* 行內音名琴鍵：回饋、結算、教學。鍵上仍寫音名。 */
+.pk {
+    display: inline-flex; align-items: flex-end; justify-content: center;
+    vertical-align: middle; margin: 0 2px; box-sizing: border-box;
+    line-height: 1; font-weight: 900; letter-spacing: 0; flex: 0 0 auto;
+}
+.pk-name { line-height: 1; }
+.pk-natural {
+    min-width: 1.65em; height: 2.15em; padding: 0 0.28em 0.32em;
+    border-radius: 0 0 0.38em 0.38em;
+    border: 1.5px solid rgba(45, 49, 66, 0.28);
+    background: linear-gradient(180deg, #ffffff 0%, #eef0f6 58%, #e4e7ef 100%);
+    color: #1e1e2f;
+    box-shadow: 0 2px 0 rgba(45, 49, 66, 0.16), inset 0 1px 0 #fff;
+    font-size: 0.95em;
+}
+.pk-sharp, .pk-flat {
+    min-width: 1.9em; height: 1.72em; padding: 0 0.28em 0.24em;
+    border-radius: 0 0 0.28em 0.28em;
+    border: 1.5px solid #12141c;
+    background: linear-gradient(180deg, #3a3f52 0%, #1e2130 45%, #12141c 100%);
+    color: #fff;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+    font-size: 0.86em;
+}
+.tut-key-row { display: inline-flex; flex-wrap: wrap; gap: 3px; align-items: flex-end; vertical-align: middle; }
+.tut-key-map { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: flex-end; justify-content: center; }
+.tut-key-pair { display: inline-flex; align-items: flex-end; gap: 3px; font-weight: 900; }
+.tut-key-map-label { font-weight: 900; align-self: center; }
 
 /* ===== 調號辨別 + 唱名辨別 ===== */
 .keysig-solfege-sub-row {
@@ -1026,8 +1061,8 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     body { background-attachment: scroll; }
     .game-title { font-size: 2.8rem; }
     .user-field { min-width: 100%; }
-    .note-btn { width: 60px; height: 76px; font-size: 1.5rem; border-radius: 12px; padding-bottom: 18px; }
-    .note-btn.sharp, .note-btn.flat { width: 52px; height: 62px; }
+    .note-btn { width: 48px; height: 84px; font-size: 1.15rem; border-radius: 0 0 10px 10px; padding: 6px 2px 16px; }
+    .note-btn.sharp, .note-btn.flat { width: 42px; height: 62px; border-radius: 0 0 8px 8px; }
     .note-btn .key-hint { display: none; }
     .solfege-btn { width: 48px; height: 62px; font-size: 1.05rem; padding-bottom: 16px; }
     .solfege-btn .key-hint { display: none; }
@@ -1150,8 +1185,8 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .progress-area { min-width: 100%; gap: 6px; }
     .stat-badge { padding: 5px 8px; font-size: 0.85rem; min-width: 60px; }
     .staff-container { padding: 10px 12px; min-height: 195px; margin: 2px 0; flex: 1; position: relative; }
-    .note-btn { width: 46px; height: 58px; font-size: 1.15rem; border-radius: 10px; padding-bottom: 14px; }
-    .note-btn.sharp, .note-btn.flat { width: 40px; height: 48px; font-size: 0.85rem; }
+    .note-btn { width: 38px; height: 64px; font-size: 0.95rem; border-radius: 0 0 8px 8px; padding: 4px 1px 8px; }
+    .note-btn.sharp, .note-btn.flat { width: 34px; height: 48px; font-size: 0.72rem; border-radius: 0 0 6px 6px; }
     .note-btn .note-solfege { font-size: 0.52rem; }
     .notes-grid { gap: 6px; }
     .note-row { gap: 4px; }
@@ -1203,8 +1238,8 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .action-row {
         grid-column: 1 / -1;
     }
-    .note-btn { width: 44px; height: 56px; font-size: 1.1rem; padding-bottom: 12px; }
-    .note-btn.sharp, .note-btn.flat { width: 38px; height: 46px; }
+    .note-btn { width: 40px; height: 62px; font-size: 0.95rem; padding: 4px 1px 10px; border-radius: 0 0 8px 8px; }
+    .note-btn.sharp, .note-btn.flat { width: 34px; height: 46px; border-radius: 0 0 6px 6px; }
     .note-row { gap: 5px; }
     .stat-badge { padding: 4px 8px; font-size: 0.8rem; min-width: 56px; }
     .progress-bar { height: 12px; }
@@ -5651,13 +5686,23 @@ body.is-fullscreen .hub-fullscreen-btn { display: flex; }
 .studio-piano-black {
     position: absolute;
     margin: 0;
-    padding: 0;
-    width: min(1.65rem, calc((100% / var(--studio-piano-n-white, 13)) * 0.58));
+    padding: 0 1px 4px;
+    width: min(2.15rem, calc((100% / var(--studio-piano-n-white, 13)) * 0.7));
     height: 100%;
     border-radius: 0 0 6px 6px;
     border: 2px solid #12141c;
     background: linear-gradient(180deg, #3a3f52 0%, #1e2130 42%, #12141c 100%);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.38), inset 0 -2px 0 rgba(255, 255, 255, 0.06);
+    color: #f4f6fb;
+    font-size: 0.52rem;
+    font-weight: 800;
+    font-family: inherit;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    text-align: center;
     cursor: default;
     transform: translateX(-50%);
     pointer-events: auto;
@@ -6183,7 +6228,9 @@ body.is-fullscreen .hub-fullscreen-btn { display: flex; }
     height: 5.35rem;
 }
 #screen-composition-studio.studio-demo-mode .studio-piano-black {
-    width: min(1.85rem, calc((100% / var(--studio-piano-n-white, 13)) * 0.6));
+    width: min(2.35rem, calc((100% / var(--studio-piano-n-white, 13)) * 0.68));
+    font-size: 0.62rem;
+    padding-bottom: 6px;
 }
 #screen-composition-studio.studio-demo-mode #studioPanelMelody .studio-pitch-scroll {
     width: calc(100% + 40px);

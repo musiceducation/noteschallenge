@@ -97,6 +97,72 @@
     const SOLFEGE = {C:'Do',D:'Re',E:'Mi',F:'Fa',G:'Sol',A:'La',B:'Si'};
     const noteSol = n => { const b = SOLFEGE[n.letter]; if (!b) return ''; return b + (n.accidental==='#'?'♯':n.accidental==='♭'?'♭':''); };
 
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    }
+    function noteKeyKind(name) {
+        const s = String(name || '');
+        if (s.includes('#') || s.includes('♯')) return 'sharp';
+        if (s.includes('♭')) return 'flat';
+        return 'natural';
+    }
+    /** Labeled piano key for a pitch-class spelling (C, F#, D♭). */
+    function pianoKeyHTML(name) {
+        const kind = noteKeyKind(name);
+        const safe = escapeHtml(name);
+        return `<span class="pk pk-${kind}" role="img" aria-label="音名 ${safe}"><span class="pk-name">${safe}</span></span>`;
+    }
+    /** Note-game stats are spellings. Key names (C大調) and solfege labels stay text. */
+    function noteStatHTML(label) {
+        const gt = state.modeConfig && state.modeConfig.gameType;
+        if (gt === 'keysig' || gt === 'solfege') return escapeHtml(label);
+        const m = String(label).match(/^([A-G](?:#|♯|♭)?)(.*)$/);
+        if (!m) return escapeHtml(label);
+        return pianoKeyHTML(m[1]) + escapeHtml(m[2]);
+    }
+    function drawLabeledPianoKey(ctx, name, cx, anchorY, placeBelow, ls) {
+        const black = noteKeyKind(name) !== 'natural';
+        const w = Math.max(34, ls * (black ? 1.85 : 1.55));
+        const h = Math.max(26, ls * (black ? 1.25 : 1.7));
+        const x = Math.round(cx - w / 2);
+        const top = Math.round(placeBelow === 'center' ? anchorY - h / 2 : placeBelow ? anchorY : anchorY - h);
+        const r = Math.min(7, w * 0.22, h * 0.35);
+        ctx.beginPath();
+        ctx.moveTo(x, top);
+        ctx.lineTo(x + w, top);
+        ctx.lineTo(x + w, top + h - r);
+        ctx.quadraticCurveTo(x + w, top + h, x + w - r, top + h);
+        ctx.lineTo(x + r, top + h);
+        ctx.quadraticCurveTo(x, top + h, x, top + h - r);
+        ctx.closePath();
+        const g = ctx.createLinearGradient(x, top, x, top + h);
+        if (black) {
+            g.addColorStop(0, '#4a5168');
+            g.addColorStop(0.42, '#1e2130');
+            g.addColorStop(1, '#12141c');
+        } else {
+            g.addColorStop(0, '#ffffff');
+            g.addColorStop(0.58, '#eef0f6');
+            g.addColorStop(1, '#e3e6ef');
+        }
+        ctx.save();
+        ctx.shadowColor = 'rgba(30, 30, 47, 0.28)';
+        ctx.shadowBlur = 5;
+        ctx.shadowOffsetY = 2;
+        ctx.fillStyle = g;
+        ctx.fill();
+        ctx.restore();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = black ? '#0e1018' : '#2a2d3c';
+        ctx.stroke();
+        ctx.fillStyle = black ? '#ffffff' : '#1E1E2F';
+        ctx.font = `900 ${Math.round(Math.max(11, Math.min(h * 0.46, ls * 0.78)))}px 'Nunito', 'Noto Sans TC', sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(name), cx, top + h * 0.62);
+        return { top, bottom: top + h, w, h };
+    }
+
     // ==========================================
     // 調號辨別 + 唱名辨別 資料
     // ==========================================
@@ -1674,11 +1740,20 @@
             ctx.strokeStyle = '#FF4A6B'; ctx.lineWidth = 3; ctx.setLineDash([6, 4]);
             ctx.beginPath(); ctx.arc(centerX, noteY, ls * 1.3, 0, Math.PI * 2); ctx.stroke();
             ctx.setLineDash([]);
-            ctx.fillStyle = '#FF4A6B';
-            ctx.font = `bold ${Math.round(ls * 0.85)}px 'Nunito', 'Noto Sans TC', sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = noteY > middleLineY ? 'top' : 'bottom';
-            const _solLabel = noteSol(state.currentNote); ctx.fillText(state.currentNote.correctName + (_solLabel ? ' = ' + _solLabel : ''), centerX, noteY > middleLineY ? noteY + ls * 1.6 : noteY - ls * 1.6);
+            const stemRight = noteY >= middleLineY;
+            const approxW = Math.max(36, ls * 1.7);
+            let sideX = centerX + (stemRight ? -1 : 1) * ls * 2.5;
+            sideX = Math.max(approxW / 2 + 6, Math.min(w - approxW / 2 - 6, sideX));
+            const key = drawLabeledPianoKey(ctx, state.currentNote.correctName, sideX, noteY, 'center', ls);
+            const _solLabel = noteSol(state.currentNote);
+            if (_solLabel) {
+                ctx.fillStyle = '#FF4A6B';
+                ctx.font = `bold ${Math.round(ls * 0.62)}px 'Nunito', 'Noto Sans TC', sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                const labelY = Math.min(key.bottom + 3, h - ls * 0.7);
+                ctx.fillText('= ' + _solLabel, sideX, labelY);
+            }
             ctx.restore();
         }
     }
@@ -1923,7 +1998,8 @@
                 const div = document.createElement('div'); div.className = 'note-row';
                 notes.forEach(n => {
                     const btn = document.createElement('button'); btn.className = `note-btn ${cls}`; btn.dataset.note = n; btn.disabled = true;
-                    const sol = SOLFEGE[n]; btn.innerHTML = `${sol?`<span class="note-sol">${sol}</span>`:''}${n}<span class="key-hint">${keys[n]}</span>`;
+                    btn.setAttribute('aria-label', '音名 ' + n);
+                    const sol = SOLFEGE[n]; btn.innerHTML = `${sol?`<span class="note-sol">${sol}</span>`:''}<span class="note-name">${n}</span><span class="key-hint">${keys[n]}</span>`;
                     if (window.AudioEngine && window.AudioEngine.onInstantTap) {
                         window.AudioEngine.onInstantTap(btn, () => handleAnswer(n));
                     } else {
@@ -1941,6 +2017,7 @@
         }
         if (_sharpRow) _sharpRow.style.display = showSharp ? '' : 'none';
         if (_flatRow)  _flatRow.style.display  = showFlat  ? '' : 'none';
+        noteBtnMap.forEach(btn => btn.classList.remove('correct', 'wrong'));
     }
 
     function handleAnswer(answer) {
@@ -1965,7 +2042,7 @@
             }
             const pts = state.modeConfig.type === 'challenge' ? Math.round(10 * state.modeConfig.scoreMulti + state.combo) : 0;
             if (pts) state.score += pts;
-            const _sol = noteSol(state.currentNote); const _secs = isFirstAttempt ? ` ⚡ ${(elapsed/1000).toFixed(1)}s` : ''; dom.messageBox.textContent = `✅ 回答正確。${state.currentNote.correctName}${_sol?' = '+_sol:''}${_secs} ✨ 得分：${state.score}`; 
+            const _sol = noteSol(state.currentNote); const _secs = isFirstAttempt ? ` ⚡ ${(elapsed/1000).toFixed(1)}s` : ''; dom.messageBox.innerHTML = `✅ 回答正確。${pianoKeyHTML(state.currentNote.correctName)}${_sol ? ' = ' + escapeHtml(_sol) : ''}${escapeHtml(_secs)} ✨ 得分：${state.score}`; 
             dom.messageBox.className = 'message-box correct';
             audio.playNote(state.currentNote.freqKey);
             if (btn) { btn.classList.add('correct'); if (pts) { const r = btn.getBoundingClientRect(); showScoreFloat(pts, r.left + r.width/2 - 15, r.top - 10); } }
@@ -1989,7 +2066,7 @@
             state.answered = true; 
             state.wrongCount++; 
             state.showAnswerHighlight = true; drawStaff();
-            const _sol2 = noteSol(state.currentNote); const _secs2 = isFirstAttempt ? `（${(elapsed/1000).toFixed(1)}s）` : ''; dom.messageBox.textContent = `❌ 回答不正確。正確答案是 ${state.currentNote.correctName}${_sol2?' ('+_sol2+')':''}${_secs2}，請記下正確答案。`; 
+            const _sol2 = noteSol(state.currentNote); const _secs2 = isFirstAttempt ? `（${(elapsed/1000).toFixed(1)}s）` : ''; dom.messageBox.innerHTML = `❌ 回答不正確。正確答案是 ${pianoKeyHTML(state.currentNote.correctName)}${_sol2 ? ' (' + escapeHtml(_sol2) + ')' : ''}${escapeHtml(_secs2)}，請記下正確答案。`; 
             dom.messageBox.className = 'message-box wrong';
             if (btn) btn.classList.add('wrong'); 
             setTimeout(() => { if (!state.gameActive) return; if (btn) btn.classList.remove('wrong'); if(state.modeConfig.maxWrong !== Infinity) endGame(); else nextQuestion(); }, 1500);
@@ -2447,11 +2524,16 @@
             ctx.strokeStyle = '#FF4A6B'; ctx.lineWidth = 3; ctx.setLineDash([6, 4]);
             ctx.beginPath(); ctx.arc(centerX, noteY, ls * 1.3, 0, Math.PI * 2); ctx.stroke();
             ctx.setLineDash([]);
+            const stemRight = noteY >= middleLineY;
+            const approxW = Math.max(36, ls * 1.7);
+            let sideX = centerX + (stemRight ? -1 : 1) * ls * 2.5;
+            sideX = Math.max(approxW / 2 + 6, Math.min(w - approxW / 2 - 6, sideX));
+            const key = drawLabeledPianoKey(ctx, state.currentNote.correctName, sideX, noteY, 'center', ls);
             ctx.fillStyle = '#FF4A6B';
-            ctx.font = `bold ${Math.round(ls * 0.85)}px 'Nunito', 'Noto Sans TC', sans-serif`;
+            ctx.font = `bold ${Math.round(ls * 0.7)}px 'Nunito', 'Noto Sans TC', sans-serif`;
             ctx.textAlign = 'center';
-            ctx.textBaseline = noteY > middleLineY ? 'top' : 'bottom';
-            ctx.fillText(state.currentNote.correctSolfege + ' (' + state.currentNote.correctName + ')', centerX, noteY > middleLineY ? noteY + ls * 1.6 : noteY - ls * 1.6);
+            ctx.textBaseline = 'top';
+            ctx.fillText(state.currentNote.correctSolfege, sideX, Math.min(key.bottom + 3, h - ls * 0.7));
             ctx.restore();
         }
     }
@@ -2483,7 +2565,7 @@
             if (pts) state.score += pts;
             const _secs = isFirstAttempt ? ` ⚡ ${(elapsed/1000).toFixed(1)}s` : '';
             const keyLabel = state.currentNote.keySig ? ` (${state.currentNote.keySig.name})` : '';
-            dom.messageBox.textContent = `✅ 回答正確。${state.currentNote.correctSolfege} = ${state.currentNote.correctName}${keyLabel}${_secs} ✨ 得分：${state.score}`;
+            dom.messageBox.innerHTML = `✅ 回答正確。${escapeHtml(state.currentNote.correctSolfege)} = ${pianoKeyHTML(state.currentNote.correctName)}${escapeHtml(keyLabel)}${escapeHtml(_secs)} ✨ 得分：${state.score}`;
             dom.messageBox.className = 'message-box correct';
             audio.playNote(state.currentNote.freqKey);
             if (btn) { btn.classList.add('correct'); if (pts) { const r = btn.getBoundingClientRect(); showScoreFloat(pts, r.left + r.width/2 - 15, r.top - 10); } }
@@ -2505,7 +2587,7 @@
             state.wrongCount++;
             state.showAnswerHighlight = true; drawStaffWithKeySig();
             const keyLabel = state.currentNote.keySig ? ` (${state.currentNote.keySig.name})` : '';
-            dom.messageBox.textContent = `❌ 回答不正確。正確答案是 ${state.currentNote.correctSolfege} = ${state.currentNote.correctName}${keyLabel}，請記下正確答案。`;
+            dom.messageBox.innerHTML = `❌ 回答不正確。正確答案是 ${escapeHtml(state.currentNote.correctSolfege)} = ${pianoKeyHTML(state.currentNote.correctName)}${escapeHtml(keyLabel)}，請記下正確答案。`;
             dom.messageBox.className = 'message-box wrong';
             if (btn) btn.classList.add('wrong');
             // Highlight correct button
@@ -2627,7 +2709,7 @@
             else if (secondHalf < firstHalf * 0.8) speedTrend = '<li>🚀 愈做愈快，進步明顯！</li>';
         }
         let analysis = '<ul>';
-        analysis += sorted.slice(0,3).map(([k,v]) => `<li><strong>${k}</strong>：錯了 ${v} 次</li>`).join('');
+        analysis += sorted.slice(0,3).map(([k,v]) => `<li><strong>${noteStatHTML(k)}</strong>：錯了 ${v} 次</li>`).join('');
         if (ledgerErrors > staffErrors && ledgerErrors > 2) analysis += '<li>📏 加線音符出錯較多，請多練習上、下加線音域</li>';
         if (accidentalErrors > naturalErrors && accidentalErrors > 2) analysis += '<li>🎵 升降號音符出錯較多，需加強升降記號辨認</li>';
         if (speedTrend) analysis += speedTrend;
@@ -2638,7 +2720,7 @@
         const slowSorted = Object.entries(state.slowNoteStats).sort((a,b) => b[1] - a[1]);
         if (slowSorted.length) {
             let slowHtml = '<div class="history-summary" style="margin-top:8px;"><strong>🐢 答得較慢的音符（>4秒）：</strong><ul style="margin-left:20px; margin-top:6px;">';
-            slowHtml += slowSorted.slice(0, 3).map(([k,v]) => `<li><strong>${k}</strong>：慢了 ${v} 次</li>`).join('');
+            slowHtml += slowSorted.slice(0, 3).map(([k,v]) => `<li><strong>${noteStatHTML(k)}</strong>：慢了 ${v} 次</li>`).join('');
             slowHtml += '</ul></div>';
             dom.reportWeakness.innerHTML += slowHtml;
         }
@@ -3411,7 +3493,7 @@
             loadRanks();
         });
         
-        dom.revealBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; const gt = state.modeConfig && state.modeConfig.gameType; if (gt === 'keysig') { state.answered = true; state.combo = 0; updateScoreboard(); if (_keysigCurrentQ) { dom.messageBox.textContent = `🔑 答案是 ${_keysigCurrentQ.correct.name}！請記下。`; } dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextKeysigQuestion(); }, 2000); return; } if (gt === 'solfege') { state.answered = true; state.combo = 0; updateScoreboard(); if (state.currentNote) { const solName = getSolfege(state.currentNote.note, state._solfegeKeySig); dom.messageBox.textContent = `🎵 答案是 ${solName}！請記下。`; } dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextSolfegeQuestion(); }, 2000); return; } state.answered = true; state.combo = 0; state.showAnswerHighlight = true; drawStaff(); updateScoreboard(); audio.playNote(state.currentNote.freqKey); const _sol3 = noteSol(state.currentNote); dom.messageBox.textContent = `🔊 答案是 ${state.currentNote.correctName}${_sol3?' = '+_sol3:''}，請聆聽並記下音位，然後作答下一題。`; dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextQuestion(); }, 2500); });
+        dom.revealBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; const gt = state.modeConfig && state.modeConfig.gameType; if (gt === 'keysig') { state.answered = true; state.combo = 0; updateScoreboard(); if (_keysigCurrentQ) { dom.messageBox.textContent = `🔑 答案是 ${_keysigCurrentQ.correct.name}！請記下。`; } dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextKeysigQuestion(); }, 2000); return; } if (gt === 'solfege') { state.answered = true; state.combo = 0; updateScoreboard(); if (state.currentNote) { const solName = getSolfege(state.currentNote.note, state._solfegeKeySig); dom.messageBox.textContent = `🎵 答案是 ${solName}！請記下。`; } dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextSolfegeQuestion(); }, 2000); return; } state.answered = true; state.combo = 0; state.showAnswerHighlight = true; drawStaff(); updateScoreboard(); audio.playNote(state.currentNote.freqKey); const _sol3 = noteSol(state.currentNote); dom.messageBox.innerHTML = `🔊 答案是 ${pianoKeyHTML(state.currentNote.correctName)}${_sol3 ? ' = ' + escapeHtml(_sol3) : ''}，請聆聽並記下音位，然後作答下一題。`; dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextQuestion(); }, 2500); });
         dom.skipBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; updateScoreboard(); dom.messageBox.textContent = '⏩ 已跳過本題，請作答下一題。'; dom.messageBox.className = 'message-box'; const gt = state.modeConfig && state.modeConfig.gameType; setTimeout(() => { if (gt === 'keysig') nextKeysigQuestion(); else if (gt === 'solfege') nextSolfegeQuestion(); else nextQuestion(); }, 400); });
         
         document.getElementById('rankGameFilter')?.addEventListener('change', () => {
