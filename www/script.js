@@ -3788,6 +3788,16 @@
             });
         } catch (e) { console.error('chord card error:', e); }
         try {
+            if (window.NoteNameTeach) window.NoteNameTeach.mount({
+                switchScreen: switchScreen,
+                playNote: function (key) {
+                    audio.init();
+                    if (window.AudioEngine && window.AudioEngine.unlock) window.AudioEngine.unlock();
+                    audio.playNote(key);
+                }
+            });
+        } catch (e) { console.error('note teach error:', e); }
+        try {
             if (window.ChineseInstrumentChallenge) window.ChineseInstrumentChallenge.mount({
                 getBank: function () { return INSTRUMENT_BANK; },
                 playSound: function (id) {

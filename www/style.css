@@ -6997,6 +6997,213 @@ body.app-shell.app-on-root .sound-toggle {
     .chord-mode-btn { flex: 1 1 140px; }
 }
 
+/* ===== 音名看圖學習 ===== */
+.note-teach-hub-entry {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: min(100%, 720px);
+    margin: 0 auto 12px;
+    min-height: 48px;
+    padding: 12px 18px;
+    border-radius: 999px;
+    border: 3px solid #7d525e;
+    background: #fff;
+    color: #7d525e;
+    font: inherit;
+    font-weight: 900;
+    font-size: 1.05rem;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.app-game-row--teach .app-game-row-icon { background: #fff4ea; }
+.note-teach-entry.btn-start {
+    background: #fff;
+    color: #7d525e;
+    border: 3px solid #7d525e;
+    letter-spacing: 1px;
+    font-size: 1.25rem;
+    box-shadow: 0 4px 0 rgba(125, 82, 94, 0.18);
+}
+.note-teach-entry.btn-start::after { display: none; content: none; animation: none; }
+#screen-note-teach { gap: 8px; }
+#screen-note-teach .game-title { font-size: clamp(1.6rem, 6vw, 2.2rem); margin: 0; }
+#screen-note-teach .game-subtitle { margin-top: 2px; }
+.note-teach-how,
+.note-teach-play,
+.note-teach-sentence {
+    margin: 0;
+    line-height: 1.55;
+    font-weight: 700;
+    color: #2d3142;
+}
+.note-teach-how,
+.note-teach-play { font-size: 0.95rem; }
+.note-teach-topics,
+.note-teach-filters { display: flex; gap: 8px; }
+.note-teach-topics {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+}
+.note-teach-filters { flex-wrap: wrap; }
+.note-teach-seg { display: flex; flex-wrap: wrap; gap: 8px; }
+.note-teach-topic,
+.note-teach-seg button,
+.note-teach-nav button,
+.note-teach-swap {
+    min-height: 44px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 2px solid rgba(125, 82, 94, 0.35);
+    background: #fff;
+    color: #2d3142;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.note-teach-topic { flex: 0 0 auto; }
+.note-teach-topic.is-on,
+.note-teach-seg button.is-on {
+    background: #7d525e;
+    border-color: #5e3b46;
+    color: #fff;
+}
+.note-teach-stage {
+    background: #fff;
+    border-radius: 18px;
+    border: 2px solid rgba(30, 30, 47, 0.08);
+    padding: 8px 10px 12px;
+}
+.note-teach-staff {
+    min-height: 150px;
+    display: block;
+    overflow: visible;
+}
+.note-teach-staff svg { display: block; width: 100%; height: auto; }
+.note-teach-name {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 10px;
+    font-size: 2rem;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+}
+.note-teach-place {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #7d525e;
+}
+.note-teach-sentence { font-size: 0.98rem; text-align: left; }
+.note-teach-swap { margin-top: 8px; }
+.note-teach-dock {
+    position: relative;
+    z-index: 1;
+    background: transparent;
+    padding: 4px 0 6px;
+}
+.note-teach-nav {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr 1fr;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 4px;
+}
+.note-teach-pos {
+    text-align: center;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #6d7285;
+}
+#noteTeachHear {
+    background: #7d525e;
+    border-color: #5e3b46;
+    color: #fff;
+}
+.note-teach-keys {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 2px 2px 8px;
+    touch-action: pan-x;
+}
+.ntk { position: relative; min-width: calc(var(--ntk-n-white, 8) * 46px); }
+.ntk-whites { display: flex; gap: 3px; position: relative; z-index: 1; }
+.ntk-white,
+.ntk-black {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 2px;
+    border: 0;
+    font: inherit;
+    font-weight: 900;
+    line-height: 1;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+.ntk-white {
+    flex: 1 0 44px;
+    min-width: 44px;
+    height: 7.5rem;
+    padding: 0 1px 8px;
+    border-radius: 0 0 10px 10px;
+    border: 2px solid rgba(45, 49, 66, 0.16);
+    background: linear-gradient(180deg, #fff 0%, #eef0f6 58%, #e4e7ef 100%);
+    color: #1e1e2f;
+    box-shadow: 0 4px 0 rgba(45, 49, 66, 0.1);
+}
+.ntk-blacks {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 4.5rem;
+    z-index: 2;
+    pointer-events: none;
+}
+.ntk-black {
+    position: absolute;
+    top: 0;
+    width: calc((100% / var(--ntk-n-white, 8)) * 0.58);
+    height: 100%;
+    transform: translateX(-50%);
+    padding: 0 1px 6px;
+    border-radius: 0 0 7px 7px;
+    border: 2px solid #12141c;
+    background: linear-gradient(180deg, #3a3f52 0%, #1e2130 46%, #12141c 100%);
+    color: #fff;
+    pointer-events: auto;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35);
+}
+.ntk-oct { font-size: 0.68rem; font-weight: 800; opacity: 0.72; }
+.ntk-white.is-selected {
+    background: linear-gradient(180deg, #fff 0%, #ffe4ee 100%);
+    border-color: #c23a75;
+    box-shadow: 0 0 0 3px rgba(194, 58, 117, 0.45);
+    z-index: 3;
+}
+.ntk-black.is-selected {
+    background: linear-gradient(180deg, #8a3d58 0%, #3a1524 100%);
+    border-color: #ffb020;
+    box-shadow: 0 0 0 3px #ffb020;
+    z-index: 4;
+}
+.ntk-fallback { width: 100%; height: auto; }
+@media (min-width: 768px) {
+    .ntk-white { height: 8.8rem; }
+    .ntk-blacks { height: 5.2rem; }
+    .note-teach-name { font-size: 2.4rem; }
+}
+@media (max-width: 420px) {
+    .note-teach-nav button { padding: 8px 6px; font-size: 0.95rem; }
+    .ntk-white { height: 6.6rem; }
+    .ntk-blacks { height: 4rem; }
+}
+
 /* ===== 音名識辨 · 真實鋼琴答題鍵盤 =====
    One octave, C–B. Black keys sit in the gaps and carry both spellings
    (sharp on top, flat below) so C# and D♭ stay separate answers. */
