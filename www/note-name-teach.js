@@ -39,8 +39,8 @@
         { letter: 'C', octave: 4, yFactor: -1 }
     ];
 
-    var HOW_TO = '點琴鍵，或按「上一音」「下一音」。五線譜會亮起同一個音，再按「聽這個音」。';
-    var PLAY_HOW = '學會後返回音名識辨。看譜上的音符，按對應的音名。連續答對會有連擊。不確定可以按「聽&看答案」，或按「跳過」。';
+    var HOW_TO = '點琴鍵就會出聲。五線譜顯示同一個音。「聽這個音」可以再聽一次。';
+    var PLAY_HOW = '回到音名識辨後，看譜按對應的音名。不確定可以按「聽&看答案」，或按「跳過」。';
 
     var TOPICS = [
         {
@@ -200,6 +200,49 @@
         return !note.accidental;
     }
 
+    // Topic chips already name 高音譜 / 低音譜. Clef and spelling rows appear only
+    // when that topic does not already choose them, and they use glyphs so the
+    // same words are not printed twice.
+    function controlsFor(topicId) {
+        var clefLocked = topicId === 'lines' || topicId === 'treble' || topicId === 'bass';
+        var modes = [];
+        if (topicId === 'acc') modes = ['sharp', 'flat'];
+        else if (!topicId) modes = ['natural', 'sharp', 'flat'];
+        return {
+            showClef: !clefLocked,
+            showSpelling: modes.length > 0,
+            modes: modes
+        };
+    }
+
+    // Notehead x that puts the written note (head, plus accidental if any) in
+    // the middle of the staff area after the clef. A left-aligned note on a
+    // wide iPad staff is the bug this corrects.
+    function centeredNoteheadX(noteStartX, staveRight, accidentalWidth) {
+        var acc = accidentalWidth > 0 ? accidentalWidth : 0;
+        var mid = (noteStartX + staveRight) / 2;
+        return mid + acc / 2;
+    }
+
+    function noteheadShift(currentX, noteStartX, staveRight, accidentalWidth) {
+        return centeredNoteheadX(noteStartX, staveRight, accidentalWidth) - currentX;
+    }
+
+    // Shift that puts the written note on the horizontal center of the staff card.
+    // The live bug is a note at x=145 inside a card spanning x=77..823.
+    function cardCenterShift(cardLeft, cardRight, markCenter) {
+        return ((cardLeft + cardRight) / 2) - markCenter;
+    }
+
+    function spellingsAt(clef, midi) {
+        return NOTES.filter(function (note) {
+            return note.clef === clef && note.midi === midi && note.accidental;
+        }).sort(function (a, b) {
+            if (a.accidental === b.accidental) return a.letter < b.letter ? -1 : 1;
+            return a.accidental === '#' ? -1 : 1;
+        });
+    }
+
     function sequence(clef, mode) {
         return NOTES.filter(function (note) {
             return note.clef === clef && modeFits(note, mode);
@@ -287,16 +330,91 @@
             '<span class="ntk-oct">' + key.octave + '</span></button>';
     }
 
+    function blackGroup(clef, key, selectedId) {
+        var spells = spellingsAt(clef, key.midi);
+        if (!spells.length) {
+            spells = [{
+                id: key.id,
+                midi: key.midi,
+                spelling: key.name,
+                octave: key.octave,
+                accidental: String(key.name).indexOf('♭') >= 0 ? 'b' : '#'
+            }];
+        }
+        var buttons = spells.map(function (sp) {
+            var kind = sp.accidental === 'b' ? 'flat' : 'sharp';
+            var on = sp.id === selectedId;
+            return '<button type="button" class="ntk-acc ntk-' + kind + (on ? ' is-selected' : '') + '"' +
+                ' data-note-id="' + escapeHtml(sp.id) + '"' +
+                ' data-midi="' + sp.midi + '"' +
+                ' aria-pressed="' + (on ? 'true' : 'false') + '"' +
+                ' aria-label="音名 ' + escapeHtml(sp.spelling + sp.octave) + '">' +
+                '<span class="ntk-name">' + escapeHtml(sp.spelling) + '</span>' +
+                '<span class="ntk-oct">' + sp.octave + '</span></button>';
+        }).join('');
+        return '<div class="ntk-black" style="--ntk-slot:' + (key.leftIndex + 1) + '">' + buttons + '</div>';
+    }
+
     function keyboardHtml(clef, mode, selectedId) {
         var model = keyboardModel(clef, mode);
         var nWhite = model.whites.length;
-        return '<div class="ntk" style="--ntk-n-white:' + nWhite + '">' +
+        var showBlacks = mode !== 'natural';
+        var blacks = showBlacks ? model.blacks.map(function (key) {
+            return blackGroup(clef, key, selectedId);
+        }).join('') : '';
+        return '<div class="ntk' + (showBlacks ? ' ntk--accidentals' : ' ntk--naturals') + '" style="--ntk-n-white:' + nWhite + '">' +
             '<div class="ntk-whites">' + model.whites.map(function (key) {
                 return keyButton('white', key, selectedId, nWhite);
             }).join('') + '</div>' +
-            '<div class="ntk-blacks">' + model.blacks.map(function (key) {
-                return keyButton('black', key, selectedId, nWhite);
-            }).join('') + '</div></div>';
+            '<div class="ntk-blacks">' + blacks + '</div></div>';
+    }
+
+    function centerStaveNote(stave, staveNote, note) {
+        if (!stave || !staveNote || typeof staveNote.getAbsoluteX !== 'function') return;
+        if (typeof staveNote.setCenterAlignment === 'function') staveNote.setCenterAlignment(true);
+        var accW = 0;
+        if (note && note.accidental && typeof staveNote.getMetrics === 'function') {
+            var metrics = staveNote.getMetrics() || {};
+            accW = metrics.modLeftPx || 0;
+        }
+        var right = stave.getX() + stave.getWidth() - 14;
+        var delta = noteheadShift(staveNote.getAbsoluteX(), stave.getNoteStartX(), right, accW);
+        if (typeof staveNote.setCenterXShift === 'function') {
+            var current = typeof staveNote.getCenterXShift === 'function' ? (staveNote.getCenterXShift() || 0) : 0;
+            staveNote.setCenterXShift(current + delta);
+        }
+    }
+
+    function placeNoteInCard(container, note) {
+        var card = container.closest ? (container.closest('.note-teach-stage') || container) : container;
+        var svg = container.querySelector && container.querySelector('svg');
+        var head = svg && svg.querySelector('.vf-notehead');
+        var group = svg && svg.querySelector('.vf-stavenote');
+        if (!card || !svg || !head || !group || !card.getBoundingClientRect) return false;
+        var cardRect = card.getBoundingClientRect();
+        var svgRect = svg.getBoundingClientRect();
+        var headRect = head.getBoundingClientRect();
+        if (!cardRect.width || !svgRect.width || !headRect.width) return false;
+        var viewW = svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width
+            ? svg.viewBox.baseVal.width : svgRect.width;
+        var scale = viewW / svgRect.width;
+        var accScreen = 0;
+        if (note && note.accidental) {
+            var acc = svg.querySelector('.vf-accidental') || svg.querySelector('[class*="accidental"]');
+            if (acc && acc.getBoundingClientRect) {
+                var accRect = acc.getBoundingClientRect();
+                if (accRect.width) accScreen = (headRect.left + headRect.width / 2) - (accRect.left + accRect.width / 2);
+            } else {
+                accScreen = 14;
+            }
+        }
+        var markCenter = headRect.left + headRect.width / 2 - accScreen / 2;
+        var dxScreen = cardCenterShift(cardRect.left, cardRect.right, markCenter);
+        container.dataset.noteCentered = '1';
+        container.dataset.cardShift = String(Math.round(dxScreen));
+        if (Math.abs(dxScreen) < 1.5) return true;
+        group.setAttribute('transform', 'translate(' + (dxScreen * scale).toFixed(2) + ' 0)');
+        return true;
     }
 
     function renderStaff(container, note) {
@@ -311,18 +429,22 @@
             return false;
         }
         try {
-            var width = Math.max(280, Math.min(container.clientWidth || 360, 560));
-            var height = note.clef === 'bass' ? 188 : 196;
+            var width = Math.max(280, container.clientWidth || 360);
+            var above = Math.max(56, note.yFactor < 0.5 ? Math.round((1 - note.yFactor) * 18) + 44 : 56);
+            var below = note.yFactor >= 4.5 ? 78 : 40;
+            var staveY = above;
+            var height = staveY + 108 + below;
             var renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
             renderer.resize(width, height);
             var context = renderer.getContext();
-            var stave = new VF.Stave(6, note.clef === 'bass' ? 28 : 36, width - 12);
+            var stave = new VF.Stave(10, staveY, Math.max(120, width - 20));
             stave.addClef(note.clef);
             stave.setContext(context).draw();
             var staveNote = new VF.StaveNote({
                 clef: note.clef,
                 keys: [note.vexKey],
-                duration: 'q'
+                duration: 'q',
+                alignCenter: true
             });
             if (note.accidental && VF.Accidental) {
                 staveNote.addModifier(new VF.Accidental(note.accidental === '#' ? '#' : 'b'), 0);
@@ -330,18 +452,26 @@
             if (typeof staveNote.setStyle === 'function') {
                 staveNote.setStyle({ fillStyle: '#9b3d62', strokeStyle: '#9b3d62' });
             }
+            if (typeof staveNote.setStave === 'function') staveNote.setStave(stave);
+            if (typeof staveNote.setCenterAlignment === 'function') staveNote.setCenterAlignment(true);
             var voice = new VF.Voice({ numBeats: 1, beatValue: 4 });
             if (typeof voice.setMode === 'function') voice.setMode(2);
             voice.addTickables([staveNote]);
-            new VF.Formatter().joinVoices([voice]).format([voice], Math.max(80, width - stave.getNoteStartX() - 28));
+            var justify = Math.max(40, width - stave.getNoteStartX() - 16);
+            new VF.Formatter().joinVoices([voice]).format([voice], justify);
+            centerStaveNote(stave, staveNote, note);
             voice.draw(context, stave);
             var svg = container.querySelector('svg');
             if (svg) {
                 svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
-                svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+                svg.setAttribute('preserveAspectRatio', 'xMinYMin meet');
+                svg.style.display = 'block';
                 svg.style.width = '100%';
+                svg.style.maxWidth = 'none';
                 svg.style.height = 'auto';
+                svg.style.overflow = 'visible';
             }
+            placeNoteInCard(container, note);
             var place = placeOf(note.yFactor);
             container.setAttribute('aria-label', (note.clef === 'bass' ? '低音譜號 ' : '高音譜號 ') + note.spelling + note.octave + ' ' + place.label);
             return true;
@@ -354,7 +484,12 @@
 
     function fallbackStaff(note) {
         var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('viewBox', '0 0 320 180');
+        var width = 360;
+        var noteStart = 86;
+        var staveRight = width - 16;
+        var accW = note.accidental ? 18 : 0;
+        var noteX = centeredNoteheadX(noteStart, staveRight, accW);
+        svg.setAttribute('viewBox', '0 0 ' + width + ' 180');
         svg.setAttribute('class', 'ntk-fallback');
         svg.setAttribute('role', 'img');
         var place = placeOf(note.yFactor);
@@ -364,20 +499,19 @@
         var staff = '';
         for (var i = 0; i < 5; i++) {
             var y = base + i * gap;
-            staff += '<line x1="28" y1="' + y + '" x2="300" y2="' + y + '" stroke="#1e1e2f" stroke-width="1.6"/>';
+            staff += '<line x1="24" y1="' + y + '" x2="' + staveRight + '" y2="' + y + '" stroke="#1e1e2f" stroke-width="1.6"/>';
         }
         var noteY = base + note.yFactor * gap;
-        if (note.yFactor >= 5) {
-            staff += '<line x1="132" y1="' + (base + 5 * gap) + '" x2="188" y2="' + (base + 5 * gap) + '" stroke="#1e1e2f" stroke-width="1.6"/>';
-        }
-        if (note.yFactor <= -1) {
-            staff += '<line x1="132" y1="' + (base - gap) + '" x2="188" y2="' + (base - gap) + '" stroke="#1e1e2f" stroke-width="1.6"/>';
-        }
+        var ledger = function (yLine) {
+            staff += '<line x1="' + (noteX - 22) + '" y1="' + yLine + '" x2="' + (noteX + 22) + '" y2="' + yLine + '" stroke="#1e1e2f" stroke-width="1.6"/>';
+        };
+        if (note.yFactor >= 5) ledger(base + 5 * gap);
+        if (note.yFactor <= -1) ledger(base - gap);
         var clef = note.clef === 'bass' ? '𝄢' : '𝄞';
         var acc = note.accidental === '#' ? '♯' : note.accidental === 'b' ? '♭' : '';
-        staff += '<text x="36" y="' + (base + 3.2 * gap) + '" font-size="42" fill="#1e1e2f">' + clef + '</text>';
-        if (acc) staff += '<text x="124" y="' + (noteY + 6) + '" font-size="22" fill="#9b3d62">' + acc + '</text>';
-        staff += '<ellipse cx="164" cy="' + noteY + '" rx="11" ry="8" transform="rotate(-18 164 ' + noteY + ')" fill="#9b3d62"/>';
+        staff += '<text x="32" y="' + (base + 3.2 * gap) + '" font-size="42" fill="#1e1e2f">' + clef + '</text>';
+        if (acc) staff += '<text x="' + (noteX - accW) + '" y="' + (noteY + 6) + '" font-size="22" fill="#9b3d62" text-anchor="middle">' + acc + '</text>';
+        staff += '<ellipse cx="' + noteX + '" cy="' + noteY + '" rx="11" ry="8" transform="rotate(-18 ' + noteX + ' ' + noteY + ')" fill="#9b3d62"/>';
         svg.innerHTML = staff;
         return svg;
     }
@@ -409,6 +543,7 @@
         }
 
         function paintChrome() {
+            var controls = controlsFor(state.topicId);
             if (topicsEl) {
                 topicsEl.querySelectorAll('[data-topic]').forEach(function (btn) {
                     var on = btn.getAttribute('data-topic') === state.topicId;
@@ -417,6 +552,7 @@
                 });
             }
             if (clefsEl) {
+                clefsEl.hidden = !controls.showClef;
                 clefsEl.querySelectorAll('[data-clef]').forEach(function (btn) {
                     var on = btn.getAttribute('data-clef') === state.clef;
                     btn.classList.toggle('is-on', on);
@@ -424,8 +560,12 @@
                 });
             }
             if (modesEl) {
+                modesEl.hidden = !controls.showSpelling;
                 modesEl.querySelectorAll('[data-mode]').forEach(function (btn) {
-                    var on = btn.getAttribute('data-mode') === state.mode;
+                    var mode = btn.getAttribute('data-mode');
+                    var show = controls.modes.indexOf(mode) >= 0;
+                    btn.hidden = !show;
+                    var on = show && mode === state.mode;
                     btn.classList.toggle('is-on', on);
                     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
                 });
@@ -485,6 +625,11 @@
             if (posEl) posEl.textContent = '第 ' + (index + 1) + ' 個 / 共 ' + list.length + ' 個';
             paintKeys(note);
             renderStaff(staffEl, note);
+            if (!staffEl.clientWidth) {
+                requestAnimationFrame(function () {
+                    if (staffEl.clientWidth) renderStaff(staffEl, current());
+                });
+            }
             if (opts && opts.play && playNote) playNote(note.freqKey);
         }
 
@@ -548,13 +693,13 @@
         }
         if (clefsEl) {
             clefsEl.innerHTML =
-                '<button type="button" data-clef="treble" aria-pressed="true">高音譜</button>' +
-                '<button type="button" data-clef="bass" aria-pressed="false">低音譜</button>';
+                '<button type="button" data-clef="treble" aria-pressed="true" aria-label="高音譜" title="高音譜">𝄞</button>' +
+                '<button type="button" data-clef="bass" aria-pressed="false" aria-label="低音譜" title="低音譜">𝄢</button>';
             clefsEl.addEventListener('click', function (event) {
                 var btn = event.target.closest('[data-clef]');
                 if (!btn) return;
                 var clef = btn.getAttribute('data-clef');
-                state.topicId = '';
+                if (state.topicId !== 'middle' && state.topicId !== 'acc') state.topicId = '';
                 state.clef = clef;
                 var list = sequence(clef, state.mode);
                 var currentNote = current();
@@ -571,14 +716,14 @@
         }
         if (modesEl) {
             modesEl.innerHTML =
-                '<button type="button" data-mode="natural">自然音</button>' +
-                '<button type="button" data-mode="sharp">升號</button>' +
-                '<button type="button" data-mode="flat">降號</button>';
+                '<button type="button" data-mode="natural" aria-label="自然音" title="自然音">♮</button>' +
+                '<button type="button" data-mode="sharp" aria-label="升號" title="升號">♯</button>' +
+                '<button type="button" data-mode="flat" aria-label="降號" title="降號">♭</button>';
             modesEl.addEventListener('click', function (event) {
                 var btn = event.target.closest('[data-mode]');
                 if (!btn) return;
                 var mode = btn.getAttribute('data-mode');
-                state.topicId = '';
+                if (!(state.topicId === 'acc' && mode !== 'natural')) state.topicId = '';
                 state.mode = mode;
                 var note = current();
                 if (!modeFits(note, mode)) {
@@ -613,8 +758,16 @@
         if (back) back.addEventListener('click', function () {
             if (switchScreen) switchScreen(returnScreen || 'screen-hub');
         });
+        var howEl = document.getElementById('noteTeachHow');
+        var playEl = document.getElementById('noteTeachPlay');
+        if (howEl) howEl.textContent = HOW_TO;
+        if (playEl) playEl.textContent = PLAY_HOW;
         document.querySelectorAll('.js-open-note-teach').forEach(function (btn) {
             btn.addEventListener('click', openFrom);
+            btn.addEventListener('keydown', function (event) {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                openFrom(event);
+            });
         });
         document.addEventListener('keydown', function (event) {
             if (!screen.classList.contains('active')) return;
@@ -639,6 +792,10 @@
         topics: TOPICS,
         howTo: HOW_TO,
         playHow: PLAY_HOW,
+        controlsFor: controlsFor,
+        centeredNoteheadX: centeredNoteheadX,
+        noteheadShift: noteheadShift,
+        cardCenterShift: cardCenterShift,
         noteById: noteById,
         naturals: naturals,
         lineNames: lineNames,

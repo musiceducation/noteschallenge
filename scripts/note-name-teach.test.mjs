@@ -88,15 +88,51 @@ assert.equal(sharpBlack.leftIndex, flatBlack.leftIndex);
 assert.notEqual(sharpBlack.id, flatBlack.id);
 
 const html = NT.keyboardHtml('treble', 'sharp', 'treble-Cs4');
-assert.match(html, /data-note-id="treble-Cs4"/);
-assert.match(html, /is-selected/);
+assert.match(html, /class="ntk-acc ntk-sharp is-selected"[^>]*data-note-id="treble-Cs4"/);
 assert.match(html, />C#</);
-assert.doesNotMatch(html, /D♭/);
-assert.match(html, /left:7\.6923%/);
+assert.match(html, /D♭/);
+assert.match(html, /data-note-id="treble-Db4"/);
+assert.match(html, /--ntk-slot:1/);
+assert.match(html, /ntk--accidentals/);
 const flatHtml = NT.keyboardHtml('treble', 'flat', 'treble-Db4');
+assert.match(flatHtml, /class="ntk-acc ntk-flat is-selected"[^>]*data-note-id="treble-Db4"/);
 assert.match(flatHtml, /D♭/);
-assert.doesNotMatch(flatHtml, /C#/);
-assert.doesNotMatch(html + flatHtml, /https?:|tut-score|\.jpg/);
+assert.match(flatHtml, /C#/);
+assert.notEqual(
+  flatHtml.indexOf('data-note-id="treble-Cs4"'),
+  flatHtml.indexOf('data-note-id="treble-Db4"')
+);
+const naturalHtml = NT.keyboardHtml('treble', 'natural', 'treble-C4');
+assert.match(naturalHtml, /ntk--naturals/);
+assert.doesNotMatch(naturalHtml, /ntk-acc|C#|D♭/);
+assert.doesNotMatch(html + flatHtml + naturalHtml, /https?:|tut-score|\.jpg/);
+
+function nearCenter(x, left, right) {
+  const ratio = (x - left) / (right - left);
+  assert.ok(ratio > 0.45 && ratio < 0.58, 'notehead ratio ' + ratio);
+}
+const ipadX = NT.centeredNoteheadX(80, 740, 0);
+nearCenter(ipadX, 80, 740);
+assert.ok(Math.abs(ipadX - 410) < 1);
+const phoneX = NT.centeredNoteheadX(48, 320, 0);
+nearCenter(phoneX, 48, 320);
+const accX = NT.centeredNoteheadX(80, 740, 16);
+assert.equal(accX, ipadX + 8);
+assert.ok(NT.noteheadShift(110, 80, 740, 0) > 200, 'wide staff moves a left note toward center');
+assert.ok(NT.noteheadShift(78, 48, 320, 0) > 40, 'phone staff moves a left note toward center');
+assert.equal(NT.cardCenterShift(77, 823, 145), 305);
+assert.ok(Math.abs(145 + NT.cardCenterShift(77, 823, 145) - 450) < 1);
+
+assert.equal(NT.controlsFor('treble').showClef, false);
+assert.equal(NT.controlsFor('treble').showSpelling, false);
+assert.equal(NT.controlsFor('bass').showClef, false);
+assert.equal(NT.controlsFor('lines').showClef, false);
+assert.equal(NT.controlsFor('middle').showClef, true);
+assert.equal(NT.controlsFor('middle').showSpelling, false);
+assert.equal(NT.controlsFor('acc').modes.join(','), 'sharp,flat');
+assert.equal(NT.controlsFor('acc').showClef, true);
+assert.equal(NT.controlsFor('').modes.join(','), 'natural,sharp,flat');
+assert.equal(NT.controlsFor('').showClef, true);
 
 assert.equal(NT.topics.map((topic) => topic.label).join('|'), '線與間|中央 C|高音譜|低音譜|升號降號');
 const joined = NT.topics.map((topic) => topic.blurb).join('') + NT.howTo + NT.playHow;
@@ -123,16 +159,28 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.doesNotMatch(hidden, /openNoteTeachBtn/);
   assert.match(page, /id="screen-note-teach"/);
   assert.match(page, /id="openNoteTeachFromHub"/);
-  assert.match(page, /data-launch="openNoteTeachBtn"/);
-  assert.match(page, /note-name-teach\.js\?v=3/);
+  assert.match(page, /note-name-teach\.js\?v=4/);
   assert.match(page, /chinese-instrument-challenge\.js\?v=3/);
-  assert.match(page, /style\.css\?v=12/);
+  assert.match(page, /style\.css\?v=13/);
   assert.match(page, /bootstrap-instruments\.js\?v=9/);
   assert.match(page, /chord-keyboard\.js\?v=2/);
+  assert.doesNotMatch(page, /不用登入/);
+  assert.doesNotMatch(page, /hub-game-teach/);
+  assert.doesNotMatch(page, /app-game-row--teach/);
+  assert.match(page, /看譜聽音/);
+  const game1 = page.slice(page.indexOf('id="enterGame1"'), page.indexOf('id="enterGame2"'));
+  assert.match(game1, /id="openNoteTeachFromHub"/);
+  assert.match(game1, /看圖學習/);
+  assert.ok(game1.indexOf('hub-card-teach') < game1.indexOf('hub-game-btn'));
   const teach = page.slice(page.indexOf('id="screen-note-teach"'), page.indexOf('介面二：遊戲核心'));
   assert.doesNotMatch(teach, /tut-score|tut-notes|\.jpg|raw\.githubusercontent/);
   assert.match(teach, /聽這個音/);
   assert.match(teach, /聽&amp;看答案|聽&看答案/);
+  assert.match(teach, /看譜聽音/);
+  assert.doesNotMatch(teach, /高音譜<\/button>|低音譜<\/button>/);
+  const teachSrc = fs.readFileSync(new URL('../note-name-teach.js', import.meta.url), 'utf8');
+  assert.match(teachSrc, /aria-label="高音譜" title="高音譜">𝄞/);
+  assert.match(teachSrc, /aria-label="低音譜" title="低音譜">𝄢/);
 }
 
 for (const boot of ['bootstrap-instruments.js', 'www/bootstrap-instruments.js']) {
