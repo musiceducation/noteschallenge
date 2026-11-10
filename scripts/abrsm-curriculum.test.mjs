@@ -103,7 +103,54 @@ assert.deepEqual(
 );
 assert.equal(C.metersFor('abrsm-g2').some((m) => m.id === '6/8'), false);
 assert.equal(C.metersFor('abrsm-g3').some((m) => m.id === '6/8'), true);
-assert.equal(C.metersFor('abrsm-g4').some((m) => m.id === '5/8'), false);
+
+/**
+ * Complete Grade 4 numeric set from Qualification Specification 1.2,
+ * Grade 4 item 1 ("all simple and compound duple, triple and quadruple
+ * time signatures") crossed with the beat units the Grades 1–4 tables use.
+ * Symbols C and cut-C are aliases, not extra metres.
+ */
+const G4_TIME_GRID = [
+  { id: '2/2', family: 'simple', beats: 2, beatUnit: '1/2' },
+  { id: '2/4', family: 'simple', beats: 2, beatUnit: '1/4' },
+  { id: '2/8', family: 'simple', beats: 2, beatUnit: '1/8' },
+  { id: '3/2', family: 'simple', beats: 3, beatUnit: '1/2' },
+  { id: '3/4', family: 'simple', beats: 3, beatUnit: '1/4' },
+  { id: '3/8', family: 'simple', beats: 3, beatUnit: '1/8' },
+  { id: '4/2', family: 'simple', beats: 4, beatUnit: '1/2' },
+  { id: '4/4', family: 'simple', beats: 4, beatUnit: '1/4' },
+  { id: '4/8', family: 'simple', beats: 4, beatUnit: '1/8' },
+  { id: '6/4', family: 'compound', beats: 2, beatUnit: '3/4' },
+  { id: '6/8', family: 'compound', beats: 2, beatUnit: '3/8' },
+  { id: '6/16', family: 'compound', beats: 2, beatUnit: '3/16' },
+  { id: '9/4', family: 'compound', beats: 3, beatUnit: '3/4' },
+  { id: '9/8', family: 'compound', beats: 3, beatUnit: '3/8' },
+  { id: '9/16', family: 'compound', beats: 3, beatUnit: '3/16' },
+  { id: '12/4', family: 'compound', beats: 4, beatUnit: '3/4' },
+  { id: '12/8', family: 'compound', beats: 4, beatUnit: '3/8' },
+  { id: '12/16', family: 'compound', beats: 4, beatUnit: '3/16' }
+];
+const g4meters = host(C.metersFor('abrsm-g4'));
+const g4numeric = g4meters.filter((m) => !m.sameAs);
+assert.deepEqual(g4numeric.map((m) => m.id).sort(), G4_TIME_GRID.map((m) => m.id).sort());
+for (const expected of G4_TIME_GRID) {
+  const got = g4numeric.find((m) => m.id === expected.id);
+  assert.ok(got, expected.id);
+  assert.equal(got.family, expected.family, expected.id);
+  assert.equal(got.beats, expected.beats, expected.id);
+  assert.equal(got.beatUnit, expected.beatUnit, expected.id);
+  assert.ok(got.introduced <= 4, expected.id);
+}
+assert.deepEqual(
+  g4meters.filter((m) => m.sameAs).map((m) => [m.id, m.sameAs]).sort(),
+  [['alla-breve', '2/2'], ['common-time', '4/4']]
+);
+const g4only = g4meters.filter((m) => m.introduced === 4).map((m) => m.id).sort();
+assert.deepEqual(g4only, ['12/16', '12/4', '2/8', '4/8', '6/16', '6/4', '9/16', '9/4']);
+for (const absent of ['2/16', '3/16', '4/16', '6/2', '9/2', '12/2', '5/4', '7/4', '5/8', '7/8']) {
+  assert.equal(g4meters.some((m) => m.id === absent), false, absent);
+}
+assert.equal(C.metersFor('abrsm-g3').some((m) => m.id === '2/8' || m.id === '12/4'), false);
 assert.equal(C.metersFor('abrsm-g5').some((m) => m.id === '7/8'), true);
 assert.equal(C.meters.find((m) => m.id === '5/8').groupingFixed, false);
 assert.equal(C.noteValues.find((n) => n.id === 'demisemiquaver').introduced, 3);

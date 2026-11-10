@@ -212,6 +212,17 @@
         { id: 'tenor', name: 'tenor', introduced: 5, description: 'C clef on the 4th line' }
     ];
 
+    /**
+     * Grade 4 prose (Qualification Specification 1.2, Grade 4 item 1):
+     * "All simple and compound duple, triple and quadruple time signatures".
+     * The page 16 table names the new examples 4/8, 6/4, 9/4, 6/16, 9/16 and
+     * 12/16, but that sentence is the whole grid of beat units already in use:
+     * simple minim / crotchet / quaver, and compound dotted minim / dotted
+     * crotchet / dotted quaver, each duple, triple and quadruple.
+     * 2/8 and 12/4 are the two cells that sentence includes and the bullet
+     * list omitted. Semiquaver simple times (2/16, 3/16, 4/16) and dotted-
+     * semibreve compound times (6/2, 9/2, 12/2) are not in that grid.
+     */
     var METERS = [
         { id: '2/4', introduced: 1, family: 'simple', beats: 2, beatUnit: '1/4' },
         { id: '3/4', introduced: 1, family: 'simple', beats: 3, beatUnit: '1/4' },
@@ -225,9 +236,11 @@
         { id: '6/8', introduced: 3, family: 'compound', beats: 2, beatUnit: '3/8' },
         { id: '9/8', introduced: 3, family: 'compound', beats: 3, beatUnit: '3/8' },
         { id: '12/8', introduced: 3, family: 'compound', beats: 4, beatUnit: '3/8' },
+        { id: '2/8', introduced: 4, family: 'simple', beats: 2, beatUnit: '1/8' },
         { id: '4/8', introduced: 4, family: 'simple', beats: 4, beatUnit: '1/8' },
         { id: '6/4', introduced: 4, family: 'compound', beats: 2, beatUnit: '3/4' },
         { id: '9/4', introduced: 4, family: 'compound', beats: 3, beatUnit: '3/4' },
+        { id: '12/4', introduced: 4, family: 'compound', beats: 4, beatUnit: '3/4' },
         { id: '6/16', introduced: 4, family: 'compound', beats: 2, beatUnit: '3/16' },
         { id: '9/16', introduced: 4, family: 'compound', beats: 3, beatUnit: '3/16' },
         { id: '12/16', introduced: 4, family: 'compound', beats: 4, beatUnit: '3/16' },
