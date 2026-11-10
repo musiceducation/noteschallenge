@@ -126,7 +126,7 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.match(page, /data-launch="openNoteTeachBtn"/);
   assert.match(page, /note-name-teach\.js\?v=3/);
   assert.match(page, /chinese-instrument-challenge\.js\?v=3/);
-  assert.match(page, /style\.css\?v=11/);
+  assert.match(page, /style\.css\?v=12/);
   assert.match(page, /bootstrap-instruments\.js\?v=9/);
   assert.match(page, /chord-keyboard\.js\?v=2/);
   const teach = page.slice(page.indexOf('id="screen-note-teach"'), page.indexOf('介面二：遊戲核心'));
