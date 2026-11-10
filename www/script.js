@@ -3750,6 +3750,16 @@
                 playWrong: function () { audio.playEffect('wrong'); }
             });
         } catch (e) { console.error('chord card error:', e); }
+        try {
+            if (window.NoteNameTeach) window.NoteNameTeach.mount({
+                switchScreen: switchScreen,
+                playNote: function (key) {
+                    audio.init();
+                    if (window.AudioEngine && window.AudioEngine.unlock) window.AudioEngine.unlock();
+                    audio.playNote(key);
+                }
+            });
+        } catch (e) { console.error('note teach error:', e); }
         try { initTutorial(); } catch(e) { console.error('initTutorial error:', e); }
         try { initHub(); } catch(e) { console.error('initHub error:', e); }
         try { initAppShell(); } catch(e) { console.error('initAppShell error:', e); }

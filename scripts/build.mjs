@@ -39,7 +39,7 @@ function checkJson(file) {
 
 console.log("build: validate (root =", root + ")");
 
-for (const f of ["script.js", "bootstrap-instruments.js", "chord-keyboard.js"]) checkJs(f);
+for (const f of ["script.js", "bootstrap-instruments.js", "chord-keyboard.js", "note-name-teach.js", "www/note-name-teach.js"]) checkJs(f);
 for (const f of ["data/instrument-bank.json", "data/instrument-structure.json"]) checkJson(f);
 
 for (const f of ["index.html", "style.css"]) {

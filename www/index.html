@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=6">
+    <link rel="stylesheet" href="style.css?v=8">
     <script src="https://cdn.jsdelivr.net/npm/vexflow@5.0.0/build/cjs/vexflow.min.js" defer></script>
     <script src="https://unpkg.com/lucide@latest" defer></script>
 </head>
@@ -92,6 +92,14 @@
                         <span class="app-game-row-text">
                             <span class="app-game-row-name">音名識辨</span>
                             <span class="app-game-row-desc">五線譜音名 · 反應挑戰</span>
+                        </span>
+                        <span class="app-game-row-chevron" aria-hidden="true">›</span>
+                    </button>
+                    <button type="button" class="app-game-row app-game-row--teach" data-launch="openNoteTeachBtn" role="listitem">
+                        <span class="app-game-row-icon" aria-hidden="true">📖</span>
+                        <span class="app-game-row-text">
+                            <span class="app-game-row-name">看圖學習</span>
+                            <span class="app-game-row-desc">音名教學 · 不用登入</span>
                         </span>
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
                     </button>
@@ -245,6 +253,8 @@
             </div>
             <div class="hub-player-badge" id="hubPlayerBadge"><i data-lucide="check-circle-2"></i> <span id="hubPlayerBadgeText">已選擇學生</span></div>
         </div>
+
+        <button type="button" class="note-teach-hub-entry js-open-note-teach" id="openNoteTeachFromHub">看圖學習 · 音名教學</button>
 
         <div class="hub-games-grid">
             <div class="hub-game-card hub-game1" id="enterGame1" role="button" tabindex="0" aria-label="音名識辨：辨認五線譜音名，快速反應取高分。按一下開始。">
@@ -671,6 +681,7 @@
             </div>
         </div>
 
+        <button class="btn-start note-teach-entry js-open-note-teach" id="openNoteTeachBtn" type="button">看圖學習</button>
         <button class="btn-view-ranks" id="openChordCardBtn" type="button">🎹 先看和弦鍵盤</button>
         <button class="btn-start" id="startBtn"><i data-lucide="play-circle"></i> 開始練習</button>
         <button class="btn-view-ranks" id="viewRanksBtn"><i data-lucide="trophy"></i> 查看排行榜</button>
@@ -725,6 +736,38 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- ===================================== -->
+    <!-- 音名教學：看圖學習（不用登入） -->
+    <!-- ===================================== -->
+    <div id="screen-note-teach" class="screen">
+        <button class="btn-back-hub" id="noteTeachBack" type="button">← 返回</button>
+        <div>
+            <h1 class="game-title">看圖學習</h1>
+            <div class="game-subtitle">音名教學 · 不用登入</div>
+        </div>
+        <p class="note-teach-how" id="noteTeachHow">點琴鍵，或按「上一音」「下一音」。五線譜會亮起同一個音，再按「聽這個音」。</p>
+        <div class="note-teach-topics" id="noteTeachTopics" role="group" aria-label="教學題目"></div>
+        <div class="note-teach-filters">
+            <div class="note-teach-seg" id="noteTeachClefs" role="group" aria-label="譜號"></div>
+            <div class="note-teach-seg" id="noteTeachSpellings" role="group" aria-label="自然音、升號或降號"></div>
+        </div>
+        <div class="note-teach-stage">
+            <div id="noteTeachStaff" class="note-teach-staff" role="img" aria-label="五線譜"></div>
+            <div id="noteTeachName" class="note-teach-name" aria-live="polite"></div>
+        </div>
+        <div class="note-teach-dock">
+            <div class="note-teach-nav">
+                <button type="button" id="noteTeachPrev">上一音</button>
+                <button type="button" id="noteTeachHear">聽這個音</button>
+                <button type="button" id="noteTeachNext">下一音</button>
+            </div>
+            <div id="noteTeachPos" class="note-teach-pos">第 1 個</div>
+            <div id="noteTeachKeys" class="note-teach-keys" aria-label="鋼琴鍵盤"></div>
+        </div>
+        <div id="noteTeachReadout" class="note-teach-readout"></div>
+        <p class="note-teach-play" id="noteTeachPlay">學會後返回音名識辨。看譜上的音符，按對應的音名。連續答對會有連擊。不確定可以按「聽&amp;看答案」，或按「跳過」。</p>
     </div>
 
     <!-- ===================================== -->
@@ -1467,8 +1510,9 @@
         </div>
     </div>
 
+    <script src="note-name-teach.js?v=3" defer></script>
     <script src="chord-keyboard.js?v=2" defer></script>
-    <script src="bootstrap-instruments.js?v=6" data-app-bootstrap defer></script>
+    <script src="bootstrap-instruments.js?v=7" data-app-bootstrap defer></script>
     <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
 </body>
 </html>
