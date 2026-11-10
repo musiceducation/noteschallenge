@@ -1,8 +1,8 @@
 /**
  * 樂器識辨的練習類別。
  * 類別只來自題庫已有的 family / familyZh，不加新族群。
- * 只有「管弦樂全部」的限時挑戰可以寫入舊的樂器識辨排行榜。
- * 中樂聲音是合成示範音色，不是現場錄音。
+ * 只有「管弦樂全部」加上看圖的限時挑戰可以寫入舊的樂器識辨排行榜。
+ * 中樂聲音是合成示範音色，不是現場錄音。聽聽題也用同一句合成聲說明。
  */
 (function (root, factory) {
     var api = factory();
@@ -10,13 +10,15 @@
     if (root) root.InstrumentCategory = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     var STORAGE_KEY = 'g4InstrumentPool';
+    var PROMPT_KEY = 'g4PromptMode';
     var SYNTH_NOTE = '聲音是合成示範音色，不是現場錄音。';
     var Q_TYPES = [
         ['image-name', 0.30],
         ['name-image', 0.25],
         ['name-family', 0.27],
         ['percussion-pitch', 0.08],
-        ['sound-source', 0.10]
+        ['sound-source', 0.10],
+        ['listen-name', 0.25]
     ];
     var SOUND_LABELS = {
         strings: '弓拉或撥動弦線',
@@ -92,17 +94,26 @@
         };
     }
 
-    function recordsRank(poolId) {
-        return !poolId || poolId === 'orchestra';
+    function normalizePrompt(promptMode) {
+        return promptMode === 'listen' || promptMode === 'mix' ? promptMode : 'see';
     }
 
-    function submitsGlobal(poolId, mode) {
-        return recordsRank(poolId) && mode !== 'practice';
+    function isSeePrompt(promptMode) {
+        return normalizePrompt(promptMode) === 'see';
+    }
+
+    function recordsRank(poolId, promptMode) {
+        return (!poolId || poolId === 'orchestra') && isSeePrompt(promptMode);
+    }
+
+    function submitsGlobal(poolId, mode, promptMode) {
+        return recordsRank(poolId, promptMode) && mode !== 'practice';
     }
 
     /**
      * startGame4 always arms the profile timer.
      * Only a ranked timed finish should hand that time to recordGameResult.
+     * Ranked means 管弦樂全部 and 看圖. 聽聽 and 混合 pass ranked=false.
      * Every other finish, including an unranked timed challenge, must reset it.
      */
     function profileTimerAction(ranked, mode) {
@@ -120,6 +131,16 @@
         try { if (store && store.set) store.set(STORAGE_KEY, poolId || 'orchestra'); } catch (e) {}
     }
 
+    function loadPrompt(store) {
+        var id = '';
+        try { id = store && store.get ? (store.get(PROMPT_KEY) || '') : ''; } catch (e) { id = ''; }
+        return normalizePrompt(id);
+    }
+
+    function savePrompt(store, promptMode) {
+        try { if (store && store.set) store.set(PROMPT_KEY, normalizePrompt(promptMode)); } catch (e) {}
+    }
+
     function soundLabel(inst) {
         return (inst && SOUND_LABELS[inst.family]) || '';
     }
@@ -130,6 +151,10 @@
 
     function hasPhoto(inst) {
         return !!(inst && inst.img && /\.(png|jpg|jpeg|avif|webp)$/i.test(inst.img));
+    }
+
+    function hasSynth(inst) {
+        return !!(inst && inst.synthParams);
     }
 
     function uniqueValues(list, read) {
@@ -144,15 +169,22 @@
         return out;
     }
 
-    function availableTypes(instruments) {
+    function availableTypes(instruments, promptMode) {
         var pool = instruments || [];
+        var mode = normalizePrompt(promptMode);
         var photos = pool.filter(hasPhoto);
         var types = [];
-        if (uniqueValues(photos, function (inst) { return inst.nameZh; }).length >= 2) types.push('image-name');
-        if (photos.length >= 2) types.push('name-image');
-        if (uniqueValues(pool, function (inst) { return inst.familyZh; }).length >= 2) types.push('name-family');
-        if (pool.some(function (inst) { return inst.family === 'percussion'; })) types.push('percussion-pitch');
-        if (uniqueValues(pool, soundLabel).length >= 2) types.push('sound-source');
+        if (mode !== 'listen') {
+            if (uniqueValues(photos, function (inst) { return inst.nameZh; }).length >= 2) types.push('image-name');
+            if (photos.length >= 2) types.push('name-image');
+            if (uniqueValues(pool, function (inst) { return inst.familyZh; }).length >= 2) types.push('name-family');
+            if (pool.some(function (inst) { return inst.family === 'percussion'; })) types.push('percussion-pitch');
+            if (uniqueValues(pool, soundLabel).length >= 2) types.push('sound-source');
+        }
+        if (mode !== 'see') {
+            var audible = pool.filter(hasSynth);
+            if (uniqueValues(audible, function (inst) { return inst.nameZh; }).length >= 2) types.push('listen-name');
+        }
         return types;
     }
 
@@ -249,6 +281,7 @@
         var source = pool;
         if (type === 'image-name' || type === 'name-image' || type === 'sound-source') source = photos;
         if (type === 'percussion-pitch') source = pool.filter(function (inst) { return inst.family === 'percussion'; });
+        if (type === 'listen-name') source = pool.filter(hasSynth);
         var correct = pickFrom(source, recent, random);
         if (!correct) return null;
 
@@ -281,6 +314,11 @@
             var methods = uniqueValues(pool, soundLabel).filter(function (label) { return label && label !== answer; });
             if (!answer || !methods.length) return null;
             options = shuffle([answer].concat(shuffle(methods, random).slice(0, 3)), random);
+        } else if (type === 'listen-name') {
+            answer = correct.nameZh;
+            var heard = pickFieldDistractors(correct, pool, 'nameZh', 3, random);
+            if (!heard.length || !hasSynth(correct)) return null;
+            options = shuffle([answer].concat(heard), random);
         } else {
             return null;
         }
@@ -295,10 +333,10 @@
         return { instrument: correct, type: type, answer: answer, options: options, imgOptions: imgOptions };
     }
 
-    function buildQuestions(spec, count, random) {
+    function buildQuestions(spec, count, random, promptMode) {
         var pool = (spec && spec.instruments) || [];
         var total = count > 0 ? count : 0;
-        var types = availableTypes(pool);
+        var types = availableTypes(pool, promptMode);
         if (pool.length < 2 || !types.length || !total) return [];
         var questions = [];
         var recent = [];
@@ -318,6 +356,7 @@
 
     return {
         STORAGE_KEY: STORAGE_KEY,
+        PROMPT_KEY: PROMPT_KEY,
         SYNTH_NOTE: SYNTH_NOTE,
         SOUND_LABELS: SOUND_LABELS,
         isChineseFamily: isChineseFamily,
@@ -328,6 +367,9 @@
         profileTimerAction: profileTimerAction,
         loadSelection: loadSelection,
         saveSelection: saveSelection,
+        normalizePrompt: normalizePrompt,
+        loadPrompt: loadPrompt,
+        savePrompt: savePrompt,
         soundLabel: soundLabel,
         hasPitch: hasPitch,
         availableTypes: availableTypes,

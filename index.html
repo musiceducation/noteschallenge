@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=10">
+    <link rel="stylesheet" href="style.css?v=11">
     <script src="https://cdn.jsdelivr.net/npm/vexflow@5.0.0/build/cjs/vexflow.min.js" defer></script>
     <script src="https://unpkg.com/lucide@latest" defer></script>
 </head>
@@ -1369,9 +1369,19 @@
             </div>
         </div>
 
+        <!-- listen-prompt: 出題方式。預設看圖。排行榜只計管弦樂全部的看圖限時挑戰。 -->
+        <div class="g4-prompt-card" id="g4PromptCard">
+            <div class="g4-pool-heading">出題方式</div>
+            <div class="g4-prompt-row" id="g4PromptModes" role="group" aria-label="出題方式">
+                <button type="button" class="g4-prompt-chip active" data-prompt="see" aria-pressed="true">看圖</button>
+                <button type="button" class="g4-prompt-chip" data-prompt="listen" aria-pressed="false">聽聽</button>
+                <button type="button" class="g4-prompt-chip" data-prompt="mix" aria-pressed="false">混合</button>
+            </div>
+        </div>
+
         <div class="g4-pool-card" id="g4PoolCard">
             <div class="g4-pool-heading">練習類別</div>
-            <p class="g4-pool-note" id="g4PoolNote">預設是全部管弦樂。限時挑戰只把這個範圍計入排行榜。</p>
+            <p class="g4-pool-note" id="g4PoolNote">預設是全部管弦樂、看圖。限時挑戰只把看圖計入排行榜。聽聽和混合不計入。</p>
             <div id="g4PoolGroups"></div>
             <p class="g4-pool-active" id="g4PoolActive" aria-live="polite">現正練習：管弦樂全部。</p>
             <button type="button" class="btn-view-ranks g4-chinese-ten" id="g4ChineseTenBtn">🎯 中國樂器十題挑戰</button>
@@ -1473,6 +1483,8 @@
         <div class="chord-mode-row cn-inst-mode-row" id="cnInstModeRow" hidden role="tablist" aria-label="中國樂器練習方式">
             <button type="button" class="chord-mode-btn active" id="cnInstModeLearn" role="tab" aria-selected="true">📚 看圖溫習</button>
             <button type="button" class="chord-mode-btn" id="cnInstModeChallenge" role="tab" aria-selected="false">🎯 樂器挑戰</button>
+            <!-- listen-prompt: 中國樂器十題的聽聽。成績仍只留在這一頁。 -->
+            <button type="button" class="chord-mode-btn" id="cnInstModeListen" role="tab" aria-selected="false">👂 聽聽</button>
         </div>
 
         <!-- Instruments grid -->
@@ -1486,7 +1498,7 @@
                     <span class="chord-hud-stat">🔥 <span id="cnInstCombo">0</span></span>
                 </div>
                 <div class="quiz-progress-track"><div class="quiz-progress-fill" id="cnInstProgressFill" style="width:0%"></div></div>
-                <p class="chord-challenge-prompt">這是哪一種中國樂器？</p>
+                <p class="chord-challenge-prompt" id="cnInstChallengePrompt">這是哪一種中國樂器？</p>
                 <div id="cnInstChallengeMount"></div>
                 <button type="button" class="cn-inst-replay" id="cnInstReplay">🔊 再聽示範聲</button>
                 <div class="quiz-options" id="cnInstChallengeOptions"></div>
@@ -1586,8 +1598,8 @@
     </div>
 
     <script src="note-name-teach.js?v=3" defer></script>
-    <script src="instrument-category.js?v=1" defer></script>
-    <script src="chinese-instrument-challenge.js?v=2" defer></script>
+    <script src="instrument-category.js?v=2" defer></script>
+    <script src="chinese-instrument-challenge.js?v=3" defer></script>
     <script src="chord-keyboard.js?v=2" defer></script>
     <script src="bootstrap-instruments.js?v=9" data-app-bootstrap defer></script>
     <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>

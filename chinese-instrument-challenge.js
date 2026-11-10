@@ -1,7 +1,8 @@
 /**
  * 中國樂器挑戰：圖鑑裡的十題選擇題。
  * 只從題庫中 family 以 chinese 開頭、而且有相片和中文名的樂器出題。
- * 分數留在這一頁，不寫入樂器識辨排行榜——那份榜是管弦樂計時挑戰。
+ * 分數留在這一頁，不寫入樂器識辨排行榜——那份榜是管弦樂看圖計時挑戰。
+ * 聽聽題先播合成示範聲，答完才顯示相片。
  */
 (function (root, factory) {
     var api = factory();
@@ -83,8 +84,9 @@
         };
     }
 
-    function buildRound(bank, count, random) {
+    function buildRound(bank, count, random, promptMode) {
         var pool = chinesePool(bank);
+        if (promptMode === 'listen') pool = pool.filter(function (inst) { return !!inst.synthParams; });
         var total = count == null ? roundSize(pool.length) : Math.min(count, pool.length);
         if (total < 1) return [];
         return shuffle(pool, random).slice(0, total).map(function (inst) {
@@ -108,7 +110,15 @@
         return 0;
     }
 
-    function renderPrompt(question, reveal) {
+    function renderPrompt(question, reveal, promptMode) {
+        if (promptMode === 'listen' && !reveal) {
+            return '<div class="cn-inst-visual cn-inst-visual--listen">' +
+                '<div class="cn-inst-listen-mark" aria-hidden="true">聽</div>' +
+                '<div class="cn-inst-name cn-inst-name--hidden">？</div>' +
+                '<div class="cn-inst-en">聽完再選名稱</div>' +
+                '<p class="cn-inst-credit">聲音是合成示範音色，不是現場錄音。</p>' +
+            '</div>';
+        }
         var alt = reveal ? question.nameZh : '中國樂器';
         var nameBlock = reveal
             ? '<div class="cn-inst-name">' + escapeHtml(question.nameZh) + '</div>' +
@@ -129,6 +139,7 @@
         var modeRow = document.getElementById('cnInstModeRow');
         var learnBtn = document.getElementById('cnInstModeLearn');
         var challengeBtn = document.getElementById('cnInstModeChallenge');
+        var listenBtn = document.getElementById('cnInstModeListen');
         var panel = document.getElementById('cnInstChallengePanel');
         var playEl = document.getElementById('cnInstChallengePlay');
         var resultEl = document.getElementById('cnInstChallengeResult');
@@ -156,22 +167,23 @@
             }
         }
 
+        function setTab(btn, on) {
+            if (!btn) return;
+            btn.classList.toggle('active', !!on);
+            btn.setAttribute('aria-selected', on ? 'true' : 'false');
+        }
+
         function applyVisibility() {
             var chinese = family === 'chinese';
-            var challenging = chinese && mode === 'challenge';
+            var challenging = chinese && mode !== 'learn';
             if (modeRow) modeRow.hidden = !chinese;
             if (panel) panel.hidden = !challenging;
             if (searchWrap) searchWrap.hidden = challenging;
             if (grid) grid.hidden = challenging;
             if (startBtn) startBtn.hidden = challenging;
-            if (learnBtn) {
-                learnBtn.classList.toggle('active', !challenging);
-                learnBtn.setAttribute('aria-selected', challenging ? 'false' : 'true');
-            }
-            if (challengeBtn) {
-                challengeBtn.classList.toggle('active', challenging);
-                challengeBtn.setAttribute('aria-selected', challenging ? 'true' : 'false');
-            }
+            setTab(learnBtn, !challenging);
+            setTab(challengeBtn, chinese && mode === 'challenge');
+            setTab(listenBtn, chinese && mode === 'listen');
         }
 
         function freshStats() {
@@ -195,10 +207,20 @@
 
         function renderQuestion() {
             var question = round.questions[round.index];
+            var listen = round.prompt === 'listen';
             round.locked = false;
-            if (mountEl) mountEl.innerHTML = renderPrompt(question, false);
+            if (mountEl) mountEl.innerHTML = renderPrompt(question, false, round.prompt);
+            var promptEl = document.getElementById('cnInstChallengePrompt');
+            if (promptEl) promptEl.textContent = listen ? '聽一聽，這是什麼樂器？' : '這是哪一種中國樂器？';
+            var replayBtn = document.getElementById('cnInstReplay');
+            if (replayBtn) {
+                replayBtn.classList.toggle('cn-inst-replay--listen', listen);
+                replayBtn.textContent = listen ? '🔊 再聽一次' : '🔊 再聽示範聲';
+            }
             if (messageEl) {
-                messageEl.textContent = '看相片、聽示範聲，選出樂器名稱。';
+                messageEl.textContent = listen
+                    ? '聽示範聲，選出樂器名稱。相片在作答後才顯示。'
+                    : '看相片、聽示範聲，選出樂器名稱。';
                 messageEl.className = 'message-box';
             }
             if (optionsEl) {
@@ -245,11 +267,12 @@
             applyVisibility();
         }
 
-        function startRound() {
+        function startRound(promptMode) {
             clearAdvance();
-            var questions = buildRound(getBank());
+            var listen = promptMode === 'listen';
+            var questions = buildRound(getBank(), null, null, listen ? 'listen' : 'see');
             if (!questions.length) {
-                mode = 'challenge';
+                mode = listen ? 'listen' : 'challenge';
                 family = 'chinese';
                 applyVisibility();
                 if (playEl) playEl.hidden = false;
@@ -259,8 +282,8 @@
                 if (messageEl) messageEl.textContent = '中國樂器題庫不足，暫時不能出選擇題。';
                 return;
             }
-            round = { questions: questions, index: 0, stats: freshStats(), locked: false };
-            mode = 'challenge';
+            round = { questions: questions, index: 0, stats: freshStats(), locked: false, prompt: listen ? 'listen' : 'see' };
+            mode = listen ? 'listen' : 'challenge';
             family = 'chinese';
             if (playEl) playEl.hidden = false;
             if (resultEl) resultEl.hidden = true;
@@ -289,7 +312,7 @@
                     answer: question.nameZh
                 });
             }
-            if (mountEl) mountEl.innerHTML = renderPrompt(question, true);
+            if (mountEl) mountEl.innerHTML = renderPrompt(question, true, round.prompt);
             if (messageEl) {
                 messageEl.className = 'message-box ' + (isCorrect ? 'correct' : 'wrong');
                 messageEl.textContent = isCorrect
@@ -324,11 +347,19 @@
         if (challengeBtn) {
             challengeBtn.addEventListener('click', function () {
                 if (challengeBtn.classList.contains('active') && playEl && !playEl.hidden) return;
-                startRound();
+                startRound('see');
+            });
+        }
+        if (listenBtn) {
+            listenBtn.addEventListener('click', function () {
+                if (listenBtn.classList.contains('active') && playEl && !playEl.hidden) return;
+                startRound('listen');
             });
         }
         var retryBtn = document.getElementById('cnInstChallengeRetry');
-        if (retryBtn) retryBtn.addEventListener('click', startRound);
+        if (retryBtn) retryBtn.addEventListener('click', function () {
+            startRound(round && round.prompt === 'listen' ? 'listen' : 'see');
+        });
         var toLearnBtn = document.getElementById('cnInstChallengeToLearn');
         if (toLearnBtn) toLearnBtn.addEventListener('click', showLearn);
         var endBtn = document.getElementById('cnInstChallengeEnd');
@@ -351,7 +382,7 @@
             },
             onFamily: function (next) {
                 var entering = next === 'chinese';
-                if (!entering && mode === 'challenge') {
+                if (!entering && mode !== 'learn') {
                     clearAdvance();
                     mode = 'learn';
                 }
@@ -366,7 +397,7 @@
                 applyVisibility();
             },
             startChallenge: function () {
-                startRound();
+                startRound('see');
             }
         };
     }
