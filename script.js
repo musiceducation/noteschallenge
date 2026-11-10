@@ -3742,6 +3742,13 @@
         if (savedSfx && dom.sfxVolume) { dom.sfxVolume.value = savedSfx; if (dom.sfxVolumeVal) dom.sfxVolumeVal.textContent = savedSfx + '%'; }
         if (dom.bgMusic && dom.bgVolume) dom.bgMusic.volume = (parseInt(dom.bgVolume.value, 10) || 18) / 100;
         try { initEvents(); } catch(e) { console.error('initEvents error:', e); }
+        try {
+            if (window.ChordKeyboard) window.ChordKeyboard.mount({
+                switchScreen: switchScreen,
+                playCorrect: function () { audio.playEffect('countdown'); },
+                playWrong: function () { audio.playEffect('wrong'); }
+            });
+        } catch (e) { console.error('chord card error:', e); }
         try { initTutorial(); } catch(e) { console.error('initTutorial error:', e); }
         try { initHub(); } catch(e) { console.error('initHub error:', e); }
         try { initAppShell(); } catch(e) { console.error('initAppShell error:', e); }

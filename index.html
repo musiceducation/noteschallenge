@@ -705,8 +705,60 @@
             </div>
         </div>
 
+        <button class="btn-view-ranks" id="openChordCardBtn" type="button">🎹 先看和弦鍵盤</button>
         <button class="btn-start" id="startBtn"><i data-lucide="play-circle"></i> 開始練習</button>
         <button class="btn-view-ranks" id="viewRanksBtn"><i data-lucide="trophy"></i> 查看排行榜</button>
+    </div>
+
+    <!-- ===================================== -->
+    <!-- 和弦鍵盤圖：一個緊密原位 -->
+    <!-- ===================================== -->
+    <div id="screen-chord-card" class="screen">
+        <button class="btn-back-hub" id="chordCardBack" type="button">← 返回</button>
+        <div>
+            <h1 class="game-title">🎹 和弦鍵盤</h1>
+            <div class="game-subtitle">緊密排列 · 原位 · 根音在最低</div>
+        </div>
+        <div class="chord-mode-row" role="tablist" aria-label="和弦練習方式">
+            <button type="button" class="chord-mode-btn active" id="chordModeLearn" role="tab" aria-selected="true">📚 看圖溫習</button>
+            <button type="button" class="chord-mode-btn" id="chordModeChallenge" role="tab" aria-selected="false">🎯 和弦挑戰</button>
+        </div>
+        <div id="chordLearnPanel">
+            <div class="chord-card-panel">
+                <div class="chord-picker" id="chordRootPicker" role="group" aria-label="根音"></div>
+                <div class="chord-picker" id="chordQualityPicker" role="group" aria-label="和弦性質"></div>
+                <div id="chordCardMount"></div>
+                <p class="chord-card-legend">
+                    <span class="chord-legend-swatch chord-legend-swatch--root" aria-hidden="true"></span> 根音（R）
+                    <span class="chord-legend-swatch chord-legend-swatch--tone" aria-hidden="true"></span> 和弦音
+                </p>
+            </div>
+        </div>
+        <div id="chordChallengePanel" hidden>
+            <div class="chord-card-panel">
+                <div id="chordChallengePlay">
+                    <div class="chord-challenge-hud">
+                        <span class="quiz-qnum" id="chordQNum">第 1 題 / 共 10 題</span>
+                        <span class="chord-hud-stat">💯 <span id="chordScore">0</span></span>
+                        <span class="chord-hud-stat">🔥 <span id="chordCombo">0</span></span>
+                    </div>
+                    <div class="quiz-progress-track"><div class="quiz-progress-fill" id="chordProgressFill" style="width:0%"></div></div>
+                    <p class="chord-challenge-prompt">這是哪個和弦？</p>
+                    <div id="chordChallengeMount"></div>
+                    <div class="quiz-options" id="chordChallengeOptions"></div>
+                    <div class="message-box" id="chordChallengeMessage">看點亮的琴鍵，選出和弦名稱。</div>
+                    <button type="button" class="btn-view-ranks" id="chordChallengeEnd">結束這一輪</button>
+                </div>
+                <div id="chordChallengeResult" hidden>
+                    <h2 class="report-title">和弦挑戰完成</h2>
+                    <div class="report-grid" id="chordReportGrid"></div>
+                    <div id="chordMistakeReview"></div>
+                    <p class="chord-challenge-note">這次成績只留在這一頁，不計入排行榜。</p>
+                    <button type="button" class="btn-start" id="chordChallengeRetry">再挑戰一次</button>
+                    <button type="button" class="btn-view-ranks" id="chordChallengeToLearn">返回看圖溫習</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- ===================================== -->
@@ -1449,6 +1501,7 @@
         </div>
     </div>
 
+    <script src="chord-keyboard.js?v=2" defer></script>
     <script src="bootstrap-instruments.js?v=6" data-app-bootstrap defer></script>
     <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
 </body>

@@ -6761,3 +6761,238 @@ body.app-shell.app-on-root .sound-toggle {
     bottom: calc(72px + var(--app-safe-bottom)) !important;
     right: calc(14px + var(--app-safe-right)) !important;
 }
+
+/* ===== 和弦鍵盤圖：一個緊密原位 ===== */
+.chord-card-panel {
+    background: rgba(255, 255, 255, 0.94);
+    border: 2px solid var(--ds-outline-variant);
+    border-radius: 18px;
+    padding: 16px 14px 14px;
+    box-shadow: var(--ds-shadow-cloud);
+}
+.chord-picker {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+.chord-pick {
+    border: 2px solid var(--ds-outline-variant);
+    background: #fff;
+    color: var(--text-dark);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font: inherit;
+    font-weight: 900;
+    font-size: 0.92rem;
+    cursor: pointer;
+}
+.chord-pick.active {
+    background: #7d525e;
+    border-color: #5e3b46;
+    color: #fff;
+}
+.chord-card-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 10px;
+    margin: 6px 0 12px;
+}
+.chord-card-symbol {
+    font-size: 2.4rem;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: #1e1e2f;
+}
+.chord-card-sep { font-size: 1.4rem; font-weight: 800; color: #8b8498; }
+.chord-card-quality { font-size: 1.15rem; font-weight: 800; color: #7d525e; }
+.chord-kb {
+    position: relative;
+    width: min(100%, 560px);
+    margin: 0 auto;
+    --chord-kb-n-white: 8;
+}
+.chord-kb-whites {
+    display: flex;
+    gap: 3px;
+    position: relative;
+    z-index: 1;
+}
+.chord-kb-white,
+.chord-kb-black {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    font-weight: 900;
+    line-height: 1;
+    box-sizing: border-box;
+}
+.chord-kb-white {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 8.2rem;
+    padding: 0 1px 8px;
+    border-radius: 0 0 10px 10px;
+    border: 2px solid rgba(45, 49, 66, 0.16);
+    background: linear-gradient(180deg, #ffffff 0%, #eef0f6 55%, #e4e7ef 100%);
+    box-shadow: 0 5px 0 rgba(45, 49, 66, 0.11), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    color: #1e1e2f;
+    font-size: 0.78rem;
+}
+.chord-kb-white .chord-kb-name { opacity: 0.72; }
+.chord-kb-blacks {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 5.05rem;
+    z-index: 2;
+    pointer-events: none;
+}
+.chord-kb-black {
+    position: absolute;
+    top: 0;
+    width: calc((100% / var(--chord-kb-n-white, 8)) * 0.62);
+    height: 100%;
+    transform: translateX(-50%);
+    padding: 0 1px 6px;
+    border-radius: 0 0 6px 6px;
+    border: 2px solid #12141c;
+    background: linear-gradient(180deg, #3a3f52 0%, #1e2130 42%, #12141c 100%);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.38), inset 0 -2px 0 rgba(255, 255, 255, 0.06);
+    color: #fff;
+    font-size: 0.62rem;
+}
+.chord-kb-black .chord-kb-name { opacity: 0.8; }
+.chord-kb-key--tone.chord-kb-white {
+    background: linear-gradient(180deg, #e7fff6 0%, #7ddec0 58%, #2fbf9a 100%);
+    border-color: #0e8f72;
+    color: #08382c;
+}
+.chord-kb-key--tone.chord-kb-black {
+    background: linear-gradient(180deg, #1f8f78 0%, #0d6b58 100%);
+    border-color: #06483b;
+    color: #f3fffb;
+}
+.chord-kb-key--root.chord-kb-white {
+    background: linear-gradient(180deg, #ffe7a3 0%, #ffc14d 55%, #f0a020 100%);
+    border-color: #c47a00;
+    color: #4a2d00;
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #e09400;
+    z-index: 1;
+}
+.chord-kb-key--root.chord-kb-black {
+    background: linear-gradient(180deg, #ffbf45 0%, #e09010 100%);
+    border-color: #8a4d00;
+    color: #2a1600;
+    box-shadow: 0 0 0 2px rgba(255, 243, 214, 0.9), 0 0 0 4px #e09400;
+    z-index: 3;
+}
+.chord-kb-key--tone .chord-kb-name,
+.chord-kb-key--root .chord-kb-name { opacity: 1; }
+.chord-kb-root-mark {
+    margin-bottom: 3px;
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: #4a2d00;
+    color: #fff;
+    font-size: 0.58rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+}
+.chord-card-spelling {
+    margin: 12px 0 0;
+    text-align: center;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    color: #1e1e2f;
+}
+.chord-card-spelling .is-root { color: #c47a00; }
+.chord-card-dot { margin: 0 6px; color: #8b8498; }
+.chord-card-legend {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px 14px;
+    flex-wrap: wrap;
+    margin: 12px 0 0;
+    font-size: 0.86rem;
+    font-weight: 800;
+    color: #504446;
+}
+.chord-legend-swatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-right: 4px;
+    vertical-align: -2px;
+}
+.chord-legend-swatch--root { background: linear-gradient(180deg, #ffe7a3, #f0a020); border: 2px solid #c47a00; }
+.chord-legend-swatch--tone { background: linear-gradient(180deg, #e7fff6, #2fbf9a); border: 2px solid #0e8f72; }
+@media (max-width: 640px) {
+    .chord-kb-white { height: 6.5rem; font-size: 0.68rem; }
+    .chord-kb-blacks { height: 4rem; }
+    .chord-kb-black { font-size: 0.55rem; }
+    .chord-card-symbol { font-size: 2rem; }
+}
+
+.chord-mode-row {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.chord-mode-btn {
+    min-height: 48px;
+    padding: 10px 18px;
+    border-radius: 999px;
+    border: 2px solid var(--ds-outline-variant);
+    background: #fff;
+    color: var(--text-dark);
+    font: inherit;
+    font-weight: 900;
+    cursor: pointer;
+}
+.chord-mode-btn.active {
+    background: #7d525e;
+    border-color: #5e3b46;
+    color: #fff;
+}
+.chord-challenge-hud {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    margin-bottom: 8px;
+    font-weight: 900;
+}
+.chord-challenge-prompt {
+    text-align: center;
+    font-weight: 900;
+    font-size: 1.15rem;
+    margin: 8px 0 10px;
+}
+#screen-chord-card .quiz-options { margin-top: 12px; }
+#screen-chord-card .quiz-opt-btn { gap: 10px; }
+#screen-chord-card .message-box { margin-top: 12px; }
+#screen-chord-card .report-title { white-space: normal; }
+.chord-challenge-note {
+    text-align: center;
+    color: var(--text-light);
+    font-weight: 800;
+    font-size: 0.88rem;
+    margin: 8px 0 12px;
+}
+#chordChallengeEnd,
+#chordChallengeToLearn { margin-top: 10px; }
+#chordMistakeReview { margin-top: 8px; text-align: left; }
+@media (max-width: 680px) {
+    #screen-chord-card .quiz-options { grid-template-columns: 1fr; }
+    .chord-mode-btn { flex: 1 1 140px; }
+}
