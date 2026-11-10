@@ -59,4 +59,11 @@ for (const f of ["index.html", "style.css"]) {
   console.log("ok", f);
 }
 
+const rhythmPage = fs.readFileSync(path.join(root, "rhythm/index.html"), "utf8");
+if (rhythmPage.includes("/noteschallenge")) fail("rhythm/index.html still points at /noteschallenge");
+if (!rhythmPage.includes("/rhythm/_next/static/chunks/2etrih5d8jkz5.css?v=2")) {
+  fail("rhythm stylesheet is not cache-busted at /rhythm/");
+}
+console.log("ok", "rhythm/index.html");
+
 console.log("build: done");
