@@ -43,6 +43,8 @@ for (const f of [
   "script.js",
   "bootstrap-instruments.js",
   "chord-keyboard.js",
+  "instrument-category.js",
+  "www/instrument-category.js",
   "chinese-instrument-challenge.js",
   "www/chinese-instrument-challenge.js",
   "note-name-teach.js",

@@ -4468,6 +4468,72 @@ body.is-fullscreen .hub-fullscreen-btn { display: flex; }
 .g4-family-chinese-wind { background: #0E7C6B; }
 .g4-family-chinese-perc { background: #8A6A1F; }
 
+.g4-pool-card {
+    background: #fff;
+    border: 2px solid rgba(10, 143, 92, 0.18);
+    border-radius: 20px;
+    padding: 14px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.g4-pool-heading { font-weight: 900; font-size: 1.05rem; color: #14684a; }
+.g4-pool-note, .g4-pool-active {
+    margin: 0;
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: var(--text-light);
+    line-height: 1.45;
+}
+.g4-pool-group { display: flex; flex-direction: column; gap: 8px; }
+.g4-pool-group-label { font-size: 0.78rem; font-weight: 900; color: #0A8F5C; }
+.g4-pool-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.g4-pool-chip {
+    appearance: none;
+    border: 2px solid #d9efe6;
+    background: #f4fbf8;
+    color: #14684a;
+    border-radius: 999px;
+    padding: 8px 14px;
+    min-height: 44px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+}
+.g4-pool-chip.active {
+    background: #0A8F5C;
+    color: #fff;
+    border-color: #087a4e;
+}
+.g4-pool-chip-chinese { border-color: #f0d2c4; background: #fff8f4; color: #8a3d0c; }
+.g4-pool-chip-chinese.active { background: #B23A3A; border-color: #8d2424; color: #fff; }
+.g4-chinese-ten { align-self: stretch; }
+.g4-pool-live {
+    display: inline-flex;
+    align-self: flex-start;
+    background: #eefaf5;
+    color: #0A8F5C;
+    font-weight: 800;
+    border-radius: 999px;
+    padding: 6px 12px;
+    margin-bottom: 8px;
+}
+.g4-synth-note { margin: 8px 0 0; font-size: 0.82rem; font-weight: 700; color: #8a3d0c; }
+.g4-scope-note { margin: 8px 0 0; font-weight: 800; color: #8a3d0c; }
+.leaderboard-layout.g4-scoped-result .ranking-section { display: none; }
+.leaderboard-layout.g4-scoped-result { grid-template-columns: 1fr; max-width: 640px; margin: 0 auto; }
+@media (max-width: 600px) {
+    #screen-g4-setup.screen.active { width: 100%; padding-bottom: 78px; }
+    .g4-pool-card { padding: 12px; }
+    .g4-pool-chip { font-size: 0.86rem; padding: 8px 12px; }
+    .g4-pool-note, .g4-pool-active, .g4-synth-note { font-size: 0.8rem; }
+}
+@media (min-width: 768px) and (max-width: 1024px) {
+    .g4-pool-row { gap: 10px; }
+    .g4-pool-chip { font-size: 0.95rem; padding: 8px 16px; }
+    .g4-pool-card { padding: 16px 18px 18px; }
+}
+
 /* ── Instrument Encyclopedia Search Box ── */
 .g4-study-search-wrap {
     display: flex; align-items: center; gap: 8px;

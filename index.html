@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=9">
+    <link rel="stylesheet" href="style.css?v=10">
     <script src="https://cdn.jsdelivr.net/npm/vexflow@5.0.0/build/cjs/vexflow.min.js" defer></script>
     <script src="https://unpkg.com/lucide@latest" defer></script>
 </head>
@@ -1355,7 +1355,7 @@
         <button class="btn-back-hub" id="g4BackToHubFromSetup">← 返回主頁</button>
         <div>
             <h1 class="game-title">🎻 樂器識辨</h1>
-            <div class="game-subtitle">聽聲辨樂器 · 認識管弦家族</div>
+            <div class="game-subtitle">聽聲辨樂器 · 先選練習類別</div>
         </div>
         <div class="card" id="g4PlayerCard" style="padding:14px 20px; text-align:center;">
             <div class="hub-player-badge show" id="g4PlayerBadgeDisplay">👋 <span id="g4PlayerBadgeText">準備中...</span></div>
@@ -1367,6 +1367,14 @@
             <div class="mode-card challenge" data-mode="challenge" id="g4ModeChallenge">
                 <div class="mode-icon">⏱️</div><div class="mode-name">限時挑戰</div><div class="mode-desc">限時一分鐘，計入排行榜</div>
             </div>
+        </div>
+
+        <div class="g4-pool-card" id="g4PoolCard">
+            <div class="g4-pool-heading">練習類別</div>
+            <p class="g4-pool-note" id="g4PoolNote">預設是全部管弦樂。限時挑戰只把這個範圍計入排行榜。</p>
+            <div id="g4PoolGroups"></div>
+            <p class="g4-pool-active" id="g4PoolActive" aria-live="polite">現正練習：管弦樂全部。</p>
+            <button type="button" class="btn-view-ranks g4-chinese-ten" id="g4ChineseTenBtn">🎯 中國樂器十題挑戰</button>
         </div>
 
         <button class="btn-view-ranks" id="g4StudyBtn" style="background:linear-gradient(135deg,#EEFAF5,#E8FFF5);color:#00865a;border-color:rgba(0,210,142,0.35);box-shadow:0 5px 0 rgba(0,210,142,0.25);">📚 先看樂器圖鑑</button>
@@ -1394,8 +1402,10 @@
             <div class="quiz-qnum" id="g4QNum">第 1 題 / 共 10 題</div>
             <div class="quiz-progress-track"><div class="quiz-progress-fill" id="g4ProgressFill" style="width:0%"></div></div>
             <div class="quiz-timer-track"><div class="quiz-timer-fill" id="g4TimerFill" style="width:100%"></div></div>
+            <div class="g4-pool-live" id="g4PoolLive">練習範圍：管弦樂全部</div>
             <div class="quiz-question" id="g4Question">載入中...</div>
             <div class="quiz-visual" id="g4Visual"></div>
+            <p class="g4-synth-note" id="g4SynthNote" hidden>聲音是合成示範音色，不是現場錄音。</p>
             <div class="quiz-options" id="g4Options"></div>
         </div>
         <div class="message-box" id="g4Message">🎻 準備好就點選答案！</div>
@@ -1414,6 +1424,7 @@
             <div class="report-section">
                 <h2 class="report-title">🎻 樂器識辨完成！</h2>
                 <div class="report-grid" id="g4ReportGrid"></div>
+                <p class="g4-scope-note" id="g4ScopeNote" hidden>這個類別的成績只留在這一頁，不計入樂器識辨排行榜。</p>
                 <div class="weakness-box" id="g4Weakness"></div>
                 <div id="g4FamilyBreakdown" style="margin-top:12px;"></div>
                 <div class="mistake-review-box" id="g4MistakeReview"></div>
@@ -1439,7 +1450,7 @@
     <div id="screen-g4-study" class="screen">
         <button class="btn-back-hub" id="g4StudyBack">← 返回</button>
         <h1 class="game-title" style="font-size:2.6rem;">📚 樂器圖鑑</h1>
-        <div class="game-subtitle">管弦樂與中國樂器。中樂相片來自維基共享資源，暫未附錄音。</div>
+        <div class="game-subtitle">管弦樂與中國樂器。中樂相片來自維基共享資源。中樂聲音是合成示範音色，不是現場錄音。</div>
 
         <!-- Search -->
         <div class="g4-study-search-wrap" id="g4StudySearchWrap">
@@ -1575,9 +1586,10 @@
     </div>
 
     <script src="note-name-teach.js?v=3" defer></script>
-    <script src="chinese-instrument-challenge.js?v=1" defer></script>
+    <script src="instrument-category.js?v=1" defer></script>
+    <script src="chinese-instrument-challenge.js?v=2" defer></script>
     <script src="chord-keyboard.js?v=2" defer></script>
-    <script src="bootstrap-instruments.js?v=8" data-app-bootstrap defer></script>
+    <script src="bootstrap-instruments.js?v=9" data-app-bootstrap defer></script>
     <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
 </body>
 </html>

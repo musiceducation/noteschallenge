@@ -110,7 +110,7 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.match(html, /樂器挑戰/);
   assert.match(html, /再挑戰一次/);
   assert.match(html, /不計入樂器識辨排行榜/);
-  assert.match(html, /chinese-instrument-challenge\.js/);
+  assert.match(html, /chinese-instrument-challenge\.js\?v=2/);
   assert.match(html, /data-cat="chinese"/);
 }
 
