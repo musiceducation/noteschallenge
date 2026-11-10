@@ -119,7 +119,7 @@
         return '<div class="cn-inst-visual">' +
             '<img class="cn-inst-photo" src="' + escapeHtml(question.img) + '" alt="' + escapeHtml(alt) + '">' +
             nameBlock +
-            '<p class="cn-inst-credit">相片來自維基共享資源。聲音是題庫裡的示範音色，不是現場錄音。</p>' +
+            '<p class="cn-inst-credit">相片來自維基共享資源。聲音是合成示範音色，不是現場錄音。</p>' +
         '</div>';
     }
 
@@ -364,6 +364,9 @@
                 mode = 'learn';
                 round = null;
                 applyVisibility();
+            },
+            startChallenge: function () {
+                startRound();
             }
         };
     }
@@ -388,6 +391,7 @@
         },
         onCodexOpen: function () { if (controller) controller.onCodexOpen(); },
         onFamily: function (family) { if (controller) controller.onFamily(family); },
-        leave: function () { if (controller) controller.leave(); }
+        leave: function () { if (controller) controller.leave(); },
+        startChallenge: function () { if (controller) controller.startChallenge(); }
     };
 });

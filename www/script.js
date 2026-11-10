@@ -4343,11 +4343,17 @@
             document.getElementById('g4StudyBtn').onclick = () => {
                 openInstrumentCodex('screen-g4-setup');
             };
+            const g4ChineseTenBtn = document.getElementById('g4ChineseTenBtn');
+            if (g4ChineseTenBtn) g4ChineseTenBtn.onclick = () => openChineseTenFromSetup();
+            renderG4PoolPicker();
 
             document.getElementById('g4BackToHubFromSetup').onclick = () => switchScreen('screen-hub');
             document.getElementById('g4SetupViewRanks').onclick = () => {
                 const layout = document.getElementById('g4LeaderboardLayout');
-                if (layout) layout.classList.add('view-only');
+                if (layout) {
+                    layout.classList.add('view-only');
+                    layout.classList.remove('g4-scoped-result');
+                }
                 const backBtn = document.getElementById('g4ResultBack');
                 if (backBtn) { backBtn.style.display = ''; backBtn.onclick = () => { backBtn.style.display = 'none'; switchScreen('screen-g4-setup'); }; }
                 renderLocalRankList('game4', 'g4RankList', user);
@@ -4421,6 +4427,15 @@
         });
 
         updateHubLockState();
+    }
+
+    function openChineseTenFromSetup() {
+        openInstrumentCodex('screen-g4-setup');
+        const tab = document.querySelector('#screen-g4-study .study-tab[data-cat="chinese"]');
+        if (tab) tab.click();
+        if (window.ChineseInstrumentChallenge && ChineseInstrumentChallenge.startChallenge) {
+            ChineseInstrumentChallenge.startChallenge();
+        }
     }
 
     function openInstrumentCodex(backScreenId) {
@@ -9333,6 +9348,7 @@
     ];
 
     let g4State = null;
+    let g4SelectedPoolId = 'orchestra';
 
     /** Weighted random pick from G4_Q_TYPES, returns type string */
     function pickG4Type() {
@@ -9372,7 +9388,17 @@
         return wrongs.slice(0, n);
     }
 
-    function generateG4Questions(count) {
+    function generateG4Questions(count, poolId) {
+        const requested = poolId || g4SelectedPoolId || 'orchestra';
+        if (window.InstrumentCategory && typeof InstrumentCategory.buildQuestions === 'function') {
+            const spec = InstrumentCategory.resolve(INSTRUMENT_BANK, requested);
+            return InstrumentCategory.buildQuestions(spec, count, Math.random);
+        }
+        if (requested !== 'orchestra') return [];
+        return generateG4OrchestraQuestions(count);
+    }
+
+    function generateG4OrchestraQuestions(count) {
         // 中國樂器只在圖鑑供學生選讀。計時／練習測驗維持原有管弦樂題庫。
         const pool = INSTRUMENT_BANK.filter(i => !isG4ChineseFamily(i.family));
         const percPool = pool.filter(i => i.family === 'percussion');
@@ -9449,24 +9475,105 @@
         return a;
     }
 
+    function g4PoolStore() {
+        return {
+            get: function (key) {
+                try { return sessionStorage.getItem(key); } catch (e) { return null; }
+            },
+            set: function (key, value) {
+                try { sessionStorage.setItem(key, value); } catch (e) {}
+            }
+        };
+    }
+
+    function g4CurrentSpec() {
+        if (window.InstrumentCategory) return InstrumentCategory.resolve(INSTRUMENT_BANK, g4SelectedPoolId);
+        const pool = INSTRUMENT_BANK.filter(i => !isG4ChineseFamily(i.family));
+        return { id: 'orchestra', label: '管弦樂全部', ranked: true, chinese: false, instruments: pool };
+    }
+
+    function g4SyncPoolCopy() {
+        const spec = g4CurrentSpec();
+        g4SelectedPoolId = spec.id;
+        const ranked = window.InstrumentCategory ? InstrumentCategory.recordsRank(spec.id) : spec.id === 'orchestra';
+        const note = document.getElementById('g4PoolNote');
+        const active = document.getElementById('g4PoolActive');
+        if (note) {
+            if (spec.instruments.length < 2) {
+                note.textContent = '這個類別的樂器太少，暫時不能出題。請改選其他類別。';
+            } else if (ranked) {
+                note.textContent = '預設是全部管弦樂。限時挑戰只把這個範圍計入排行榜。';
+            } else {
+                note.textContent = '這個類別可以單獨練習。成績只留在這一頁，不計入樂器識辨排行榜。';
+            }
+        }
+        if (active) {
+            const synth = spec.chinese && window.InstrumentCategory ? ' ' + InstrumentCategory.SYNTH_NOTE : '';
+            active.textContent = '現正練習：' + spec.label + '。' + synth;
+        }
+        const desc = document.querySelector('#g4ModeChallenge .mode-desc');
+        if (desc) desc.textContent = ranked ? '限時一分鐘，計入排行榜' : '限時一分鐘，不計入排行榜';
+    }
+
+    function renderG4PoolPicker() {
+        const root = document.getElementById('g4PoolGroups');
+        if (!root) return;
+        const catalog = window.InstrumentCategory ? InstrumentCategory.catalog(INSTRUMENT_BANK) : [{ id: 'orchestra', label: '管弦樂全部', group: '管弦樂', chinese: false }];
+        if (window.InstrumentCategory) g4SelectedPoolId = InstrumentCategory.loadSelection(g4PoolStore(), catalog);
+        const groups = [];
+        catalog.forEach(choice => {
+            let group = groups.find(item => item.name === choice.group);
+            if (!group) {
+                group = { name: choice.group || '類別', items: [] };
+                groups.push(group);
+            }
+            group.items.push(choice);
+        });
+        root.innerHTML = groups.map(group => {
+            const chips = group.items.map(choice => {
+                const on = choice.id === g4SelectedPoolId;
+                const cn = choice.chinese ? ' g4-pool-chip-chinese' : '';
+                return `<button type="button" class="g4-pool-chip${cn}${on ? ' active' : ''}" data-pool="${escHtml(choice.id)}" aria-pressed="${on ? 'true' : 'false'}">${escHtml(choice.label)}</button>`;
+            }).join('');
+            return `<div class="g4-pool-group"><div class="g4-pool-group-label">${escHtml(group.name)}</div><div class="g4-pool-row">${chips}</div></div>`;
+        }).join('');
+        root.querySelectorAll('.g4-pool-chip').forEach(btn => {
+            btn.onclick = () => {
+                g4SelectedPoolId = btn.dataset.pool || 'orchestra';
+                if (window.InstrumentCategory) InstrumentCategory.saveSelection(g4PoolStore(), g4SelectedPoolId);
+                root.querySelectorAll('.g4-pool-chip').forEach(el => {
+                    const selected = el === btn;
+                    el.classList.toggle('active', selected);
+                    el.setAttribute('aria-pressed', selected ? 'true' : 'false');
+                });
+                g4SyncPoolCopy();
+            };
+        });
+        g4SyncPoolCopy();
+    }
+
     function startGame4(user, mode) {
+        const spec = g4CurrentSpec();
+        g4SelectedPoolId = spec.id;
         const count = mode === 'practice' ? 10 : 999;
-        const questions = generateG4Questions(Math.min(count, 40));
+        const questions = generateG4Questions(Math.min(count, 40), spec.id);
+        if (!questions.length) {
+            const note = document.getElementById('g4PoolNote');
+            if (note) note.textContent = '這個類別的樂器太少，暫時不能出題。請改選其他類別。';
+            return;
+        }
         markProfilePlayStart();
 
         g4State = {
             user, mode,
+            poolId: spec.id,
+            poolLabel: spec.label,
+            poolChinese: !!spec.chinese,
             questions, currentIdx: 0,
             score: 0, combo: 0, maxCombo: 0,
             counts: { correct: 0, wrong: 0 },
             mistakes: [],
-            familyStats: {
-                strings: { correct: 0, total: 0 },
-                woodwind: { correct: 0, total: 0 },
-                brass: { correct: 0, total: 0 },
-                percussion: { correct: 0, total: 0 },
-                keyboard: { correct: 0, total: 0 },
-            },
+            familyStats: {},
             startTime: Date.now(),
             timeLeft: mode === 'challenge' ? 60 : null,
             timerId: null,
@@ -9503,6 +9610,8 @@
         document.getElementById('g4BackBtn').onclick = () => {
             if (g4State.timerId) clearInterval(g4State.timerId);
             if (g4State._nextTimer) clearTimeout(g4State._nextTimer);
+            if (window.InstrumentCategory) InstrumentCategory.saveSelection(g4PoolStore(), g4SelectedPoolId);
+            _consumeProfilePlaySecs();
             switchScreen('screen-hub');
         };
 
@@ -9516,7 +9625,8 @@
         if (g4State._nextTimer) { clearTimeout(g4State._nextTimer); g4State._nextTimer = null; }
         g4State.currentIdx++;
         if (g4State.mode === 'challenge' && g4State.currentIdx >= g4State.questions.length) {
-            const more = generateG4Questions(20);
+            const more = generateG4Questions(20, g4State.poolId);
+            if (!more.length) { endGame4(); return; }
             g4State.questions = g4State.questions.concat(more);
         }
         renderG4Question();
@@ -9533,6 +9643,8 @@
         const total = g4State.mode === 'practice' ? g4State.questions.length : '∞';
         const num = g4State.currentIdx + 1;
 
+        const poolLive = document.getElementById('g4PoolLive');
+        if (poolLive) poolLive.textContent = '練習範圍：' + (g4State.poolLabel || '管弦樂全部');
         document.getElementById('g4QNum').textContent = `第 ${num} 題${g4State.mode === 'practice' ? ' / 共 ' + total + ' 題' : ''}`;
         const pct = g4State.mode === 'practice' ? (num / g4State.questions.length) * 100 : 0;
         document.getElementById('g4ProgressFill').style.width = pct + '%';
@@ -9637,6 +9749,14 @@
             });
         }
         g4BindSpins(visualEl);
+        const chineseQuestion = isG4ChineseFamily(q.instrument.family);
+        const synthNote = document.getElementById('g4SynthNote');
+        if (synthNote) {
+            synthNote.hidden = !chineseQuestion;
+            if (chineseQuestion && window.InstrumentCategory) synthNote.textContent = InstrumentCategory.SYNTH_NOTE;
+        }
+        if (audioBtn) audioBtn.title = chineseQuestion ? '播放合成示範音色' : '播放樂器聲音';
+        if (chineseQuestion && q.instrument.synthParams && q.type !== 'listen-name') setupAudio();
     }
 
     function handleG4Answer(chosen, correct, btn, q) {
@@ -9645,6 +9765,7 @@
 
         const isCorrect = chosen === correct;
         const family = q.instrument.family;
+        if (!g4State.familyStats[family]) g4State.familyStats[family] = { correct: 0, total: 0 };
         g4State.familyStats[family].total++;
 
         // Highlight buttons
@@ -9694,7 +9815,7 @@
                 'listen-name':      `正確答案是${q.instrument.nameZh}（${q.instrument.nameEn}）`,
                 'name-family':      `${q.instrument.nameZh}（${q.instrument.nameEn}）屬於${q.instrument.familyZh}家族`,
                 'percussion-pitch': `${q.instrument.nameZh}${PERCUSSION_HAS_PITCH.has(q.instrument.id) ? '有' : '沒有'}固定音高`,
-                'sound-source':     `${q.instrument.nameZh}的發聲方式：${SOUND_SOURCE_MAP[q.instrument.family]}`,
+                'sound-source':     `${q.instrument.nameZh}的發聲方式：${(window.InstrumentCategory && InstrumentCategory.soundLabel(q.instrument)) || SOUND_SOURCE_MAP[q.instrument.family] || ''}`,
                 'image-name':       `正確答案是${q.instrument.nameZh}（${q.instrument.nameEn}）`,
                 'name-image':       `正確答案是${q.instrument.nameZh}（${q.instrument.nameEn}）`,
             };
@@ -9724,30 +9845,34 @@
         const totalAnswered = counts.correct + counts.wrong;
         const accuracy = totalAnswered > 0 ? Math.round((counts.correct / totalAnswered) * 100) : 0;
         const practiceNote = mode === 'practice' ? '<div class="report-item"><div class="report-label">模式</div><div class="report-value">📝 練習</div></div>' : '';
+        const poolLabel = g4State.poolLabel || '管弦樂全部';
 
         document.getElementById('g4ReportGrid').innerHTML =
+            `<div class="report-item"><div class="report-label">練習範圍</div><div class="report-value">${escHtml(poolLabel)}</div></div>` +
             `<div class="report-item"><div class="report-label">答對題數</div><div class="report-value">${counts.correct} / ${totalAnswered}</div></div>` +
             `<div class="report-item"><div class="report-label">準確率</div><div class="report-value">${accuracy}%</div></div>` +
             `<div class="report-item"><div class="report-label">總分</div><div class="report-value">${score}</div></div>` +
             `<div class="report-item"><div class="report-label">最高連對</div><div class="report-value">${maxCombo}</div></div>` + practiceNote;
 
-        // Family breakdown
+        // Family breakdown uses labels already stored on the bank.
         const fbEl = document.getElementById('g4FamilyBreakdown');
-        const families = [
-            { key: 'strings', zh: '弦樂', color: '#E8739E' },
-            { key: 'woodwind', zh: '木管', color: '#5DB85D' },
-            { key: 'brass', zh: '銅管', color: '#F5A623' },
-            { key: 'percussion', zh: '敲擊', color: '#4A90D9' },
-            { key: 'keyboard', zh: '鍵盤', color: '#9B59B6' },
-        ];
-        let fbHtml = '<div style="font-weight:800;margin-bottom:8px;">🎼 各家族表現</div>';
-        families.forEach(f => {
-            const s = familyStats[f.key];
-            if (s.total === 0) return;
+        const familyColors = {
+            strings: '#E8739E', woodwind: '#5DB85D', brass: '#F5A623', percussion: '#4A90D9', keyboard: '#9B59B6',
+            'chinese-bowed': '#B23A3A', 'chinese-plucked': '#C45C1A', 'chinese-wind': '#0E7C6B', 'chinese-perc': '#8A6A1F',
+        };
+        const familyOrder = ['strings', 'woodwind', 'brass', 'percussion', 'keyboard', 'chinese-bowed', 'chinese-plucked', 'chinese-wind', 'chinese-perc'];
+        const seenFamilies = new Set(familyOrder);
+        const familyKeys = familyOrder.filter(key => familyStats[key] && familyStats[key].total > 0)
+            .concat(Object.keys(familyStats).filter(key => !seenFamilies.has(key) && familyStats[key] && familyStats[key].total > 0));
+        let fbHtml = familyKeys.length ? '<div style="font-weight:800;margin-bottom:8px;">🎼 各家族表現</div>' : '';
+        familyKeys.forEach(key => {
+            const s = familyStats[key];
+            const sample = INSTRUMENT_BANK.find(i => i.family === key);
+            const zh = (sample && sample.familyZh) || key;
             const pct = Math.round((s.correct / s.total) * 100);
             fbHtml += `<div class="g4-family-bar">
-                <div class="g4-family-bar-label">${f.zh}</div>
-                <div class="g4-family-bar-track"><div class="g4-family-bar-fill" style="width:${pct}%;background:${f.color};"></div></div>
+                <div class="g4-family-bar-label">${escHtml(zh)}</div>
+                <div class="g4-family-bar-track"><div class="g4-family-bar-fill" style="width:${pct}%;background:${familyColors[key] || '#0A8F5C'};"></div></div>
                 <div class="g4-family-bar-val">${pct}%</div>
             </div>`;
         });
@@ -9773,21 +9898,31 @@
             }
         }
 
-        // Save scores
-        saveLocalRank('game4', user, score, accuracy, maxCombo);
-        if (mode !== 'practice') {
-            submitScoreToGAS('game4', user, score, accuracy, maxCombo, '樂器識辨·挑戰');
-            recordGameResult(user, 'game4', score, accuracy, maxCombo, null, counts);
-        } else {
-            _consumeProfilePlaySecs();
+        // Only the full orchestra pool may touch the existing timed leaderboard.
+        const rankedPool = window.InstrumentCategory ? InstrumentCategory.recordsRank(g4State.poolId) : g4State.poolId === 'orchestra';
+        const profileTimerAction = window.InstrumentCategory
+            ? InstrumentCategory.profileTimerAction(rankedPool, mode)
+            : ((rankedPool && mode !== 'practice') ? 'record' : 'reset');
+        const scopeNote = document.getElementById('g4ScopeNote');
+        if (scopeNote) scopeNote.hidden = rankedPool;
+        if (rankedPool) {
+            saveLocalRank('game4', user, score, accuracy, maxCombo);
+            if (profileTimerAction === 'record') {
+                submitScoreToGAS('game4', user, score, accuracy, maxCombo, '樂器識辨·挑戰');
+                recordGameResult(user, 'game4', score, accuracy, maxCombo, null, counts);
+            }
+            renderLocalRankList('game4', 'g4RankList', user);
+            if (mode !== 'practice') setTimeout(() => loadRanks(2, { force: true }).then(() => renderLocalRankList('game4', 'g4RankList', user)).catch(()=>{}), 800);
         }
+        if (profileTimerAction === 'reset') _consumeProfilePlaySecs();
 
-        renderLocalRankList('game4', 'g4RankList', user);
-        if (mode !== 'practice') setTimeout(() => loadRanks(2, { force: true }).then(() => renderLocalRankList('game4', 'g4RankList', user)).catch(()=>{}), 800);
-        document.getElementById('g4PlayAgain').onclick = () => switchScreen('screen-g4-setup');
-        document.getElementById('g4BackToHub').onclick = () => switchScreen('screen-g4-setup');
+        document.getElementById('g4PlayAgain').onclick = () => { renderG4PoolPicker(); switchScreen('screen-g4-setup'); };
+        document.getElementById('g4BackToHub').onclick = () => { renderG4PoolPicker(); switchScreen('screen-g4-setup'); };
         const g4Layout = document.getElementById('g4LeaderboardLayout');
-        if (g4Layout) g4Layout.classList.remove('view-only');
+        if (g4Layout) {
+            g4Layout.classList.remove('view-only');
+            g4Layout.classList.toggle('g4-scoped-result', !rankedPool);
+        }
         const g4RBack = document.getElementById('g4ResultBack');
         if (g4RBack) g4RBack.style.display = 'none';
         switchScreen('screen-game4-result');

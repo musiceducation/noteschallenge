@@ -125,9 +125,9 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.match(page, /id="openNoteTeachFromHub"/);
   assert.match(page, /data-launch="openNoteTeachBtn"/);
   assert.match(page, /note-name-teach\.js\?v=3/);
-  assert.match(page, /chinese-instrument-challenge\.js\?v=1/);
-  assert.match(page, /style\.css\?v=9/);
-  assert.match(page, /bootstrap-instruments\.js\?v=8/);
+  assert.match(page, /chinese-instrument-challenge\.js\?v=2/);
+  assert.match(page, /style\.css\?v=10/);
+  assert.match(page, /bootstrap-instruments\.js\?v=9/);
   assert.match(page, /chord-keyboard\.js\?v=2/);
   const teach = page.slice(page.indexOf('id="screen-note-teach"'), page.indexOf('介面二：遊戲核心'));
   assert.doesNotMatch(teach, /tut-score|tut-notes|\.jpg|raw\.githubusercontent/);
@@ -137,8 +137,8 @@ for (const file of ['index.html', 'www/index.html']) {
 
 for (const boot of ['bootstrap-instruments.js', 'www/bootstrap-instruments.js']) {
   const src = fs.readFileSync(new URL('../' + boot, import.meta.url), 'utf8');
-  assert.match(src, /script\.js\?v=8/);
-  assert.doesNotMatch(src, /script\.js\?v=7/);
+  assert.match(src, /script\.js\?v=9/);
+  assert.doesNotMatch(src, /script\.js\?v=8/);
 }
 assert.match(fs.readFileSync(new URL('../script.js', import.meta.url), 'utf8'), /NoteNameTeach\.mount/);
 assert.match(fs.readFileSync(new URL('../www/script.js', import.meta.url), 'utf8'), /NoteNameTeach\.mount/);
