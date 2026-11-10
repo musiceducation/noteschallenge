@@ -132,6 +132,11 @@ function assertInside(question, pool) {
     question.options.forEach((label) => assert.ok(sounds.has(label), label));
   } else if (question.type === 'percussion-pitch') {
     assert.equal(question.instrument.family, 'percussion');
+  } else if (question.type === 'listen-name') {
+    question.options.forEach((name) => assert.ok(names.has(name), name));
+    assert.equal(question.answer, question.instrument.nameZh);
+    assert.ok(question.instrument.synthParams);
+    assert.equal(question.imgOptions, null);
   } else {
     assert.fail(question.type);
   }
@@ -151,6 +156,7 @@ for (let seed = 1; seed <= 8; seed += 1) {
   for (const question of round) {
     assertInside(question, orchestra.instruments);
     assert.equal(question.instrument.family.startsWith('chinese'), false);
+    assert.notEqual(question.type, 'listen-name');
     if (question.type === 'sound-source') {
       question.options.forEach((label) => assert.ok(westernSounds.has(label)));
       assert.equal(question.options.includes('馬尾弓拉奏'), false);
@@ -167,6 +173,7 @@ for (let seed = 1; seed <= 8; seed += 1) {
   for (const question of round) {
     assertInside(question, chinese.instruments);
     assert.equal(question.type === 'percussion-pitch', false);
+    assert.notEqual(question.type, 'listen-name');
     assert.equal(westernIds.has(question.instrument.id), false);
     if (question.type === 'name-image') {
       question.options.forEach((id) => assert.equal(westernIds.has(id), false));
@@ -207,7 +214,89 @@ for (const question of pairRound) {
 }
 
 assert.equal(IC.availableTypes(IC.resolve(bank, 'chinese-bowed').instruments).includes('sound-source'), false);
+assert.equal(IC.availableTypes(IC.resolve(bank, 'chinese-bowed').instruments).includes('listen-name'), false);
 assert.equal(IC.availableTypes(IC.resolve(bank, 'strings').instruments).includes('percussion-pitch'), false);
+assert.equal(IC.availableTypes(IC.resolve(bank, 'strings').instruments, 'listen').join(','), 'listen-name');
+assert.equal(IC.availableTypes(IC.resolve(bank, 'chinese').instruments, 'see').includes('listen-name'), false);
+assert.ok(IC.availableTypes(IC.resolve(bank, 'chinese').instruments, 'mix').includes('listen-name'));
+assert.ok(IC.availableTypes(IC.resolve(bank, 'chinese').instruments, 'mix').includes('image-name'));
+
+const listenTypes = new Set();
+const mixTypes = new Set();
+for (let seed = 1; seed <= 12; seed += 1) {
+  const heard = IC.buildQuestions(orchestra, 12, mulberry32(seed + 80), 'listen');
+  assert.equal(heard.length, 12);
+  for (const question of heard) {
+    assertInside(question, orchestra.instruments);
+    assert.equal(question.type, 'listen-name');
+    listenTypes.add(question.type);
+    const wrongs = question.options.filter((name) => name !== question.answer);
+    const sameFamily = wrongs.filter((name) => orchestra.instruments.some((inst) => inst.nameZh === name && inst.family === question.instrument.family));
+    assert.ok(sameFamily.length >= 1, question.instrument.id);
+  }
+  for (const question of IC.buildQuestions(orchestra, 12, mulberry32(seed + 120), 'see')) {
+    assert.notEqual(question.type, 'listen-name');
+  }
+  for (const question of IC.buildQuestions(orchestra, 12, mulberry32(seed + 160), 'mix')) {
+    assertInside(question, orchestra.instruments);
+    mixTypes.add(question.type);
+  }
+  for (const question of IC.buildQuestions(chinese, 10, mulberry32(seed + 200), 'listen')) {
+    assertInside(question, chinese.instruments);
+    assert.equal(question.type, 'listen-name');
+    assert.equal(westernIds.has(question.instrument.id), false);
+  }
+}
+assert.ok(listenTypes.has('listen-name'));
+assert.ok(mixTypes.has('listen-name'));
+assert.ok(mixTypes.has('image-name'));
+
+const quiet = [
+  { id: 'a', nameZh: '甲', nameEn: 'A', family: 'strings', familyZh: '弦樂', img: 'img/a.jpg', synthParams: { wave: 'sawtooth' } },
+  { id: 'b', nameZh: '乙', nameEn: 'B', family: 'strings', familyZh: '弦樂', img: 'img/b.jpg' },
+];
+assert.equal(IC.availableTypes(quiet, 'listen').length, 0);
+assert.equal(IC.buildQuestions({ instruments: quiet }, 4, mulberry32(1), 'listen').length, 0);
+assert.equal(IC.buildQuestions({ instruments: quiet }, 4, mulberry32(2), 'mix').some((question) => question.type === 'listen-name'), false);
+const audible = quiet.concat([
+  { id: 'c', nameZh: '丙', nameEn: 'C', family: 'woodwind', familyZh: '木管', img: 'img/c.jpg', synthParams: { wave: 'triangle' } },
+]);
+assert.ok(IC.availableTypes(audible, 'listen').includes('listen-name'));
+const audibleRound = IC.buildQuestions({ instruments: audible }, 6, mulberry32(3), 'listen');
+assert.equal(audibleRound.length, 6);
+for (const question of audibleRound) {
+  assert.equal(question.type, 'listen-name');
+  assert.notEqual(question.instrument.id, 'b');
+  assert.ok(question.instrument.synthParams);
+}
+assert.equal(IC.buildQuestions({ instruments: audible }, 6, mulberry32(4), 'see').some((question) => question.type === 'listen-name'), false);
+
+assert.equal(IC.normalizePrompt('listen'), 'listen');
+assert.equal(IC.normalizePrompt('mix'), 'mix');
+assert.equal(IC.normalizePrompt('see'), 'see');
+assert.equal(IC.normalizePrompt('nope'), 'see');
+assert.equal(IC.loadPrompt(store), 'see');
+IC.savePrompt(store, 'listen');
+assert.equal(IC.loadPrompt(store), 'listen');
+IC.savePrompt(store, 'mix');
+assert.equal(IC.loadPrompt(store), 'mix');
+IC.savePrompt(store, 'nope');
+assert.equal(IC.loadPrompt(store), 'see');
+assert.equal(IC.recordsRank('orchestra', 'see'), true);
+assert.equal(IC.recordsRank('orchestra', 'listen'), false);
+assert.equal(IC.recordsRank('orchestra', 'mix'), false);
+assert.equal(IC.recordsRank('orchestra'), true);
+assert.equal(IC.submitsGlobal('orchestra', 'challenge', 'see'), true);
+assert.equal(IC.submitsGlobal('orchestra', 'challenge', 'listen'), false);
+assert.equal(IC.submitsGlobal('orchestra', 'challenge', 'mix'), false);
+assert.equal(IC.submitsGlobal('orchestra', 'practice', 'see'), false);
+const listenTimed = finishProfileTimer(1_000_000, IC.recordsRank('orchestra', 'listen'), 'challenge', 1_000_000 + 10_000);
+assert.equal(listenTimed.action, 'reset');
+assert.equal(listenTimed.armedAt, 0);
+assert.equal(listenTimed.attributedToGame4, 0);
+const mixTimed = finishProfileTimer(1_000_000, IC.recordsRank('orchestra', 'mix'), 'challenge', 1_000_000 + 8_000);
+assert.equal(mixTimed.attributedToGame4, 0);
+assert.equal(finishProfileTimer(1_000_000, IC.recordsRank('orchestra', 'see'), 'challenge', 1_000_000 + 8_000).attributedToGame4, 8);
 assert.match(IC.SYNTH_NOTE, /合成示範音色/);
 assert.match(IC.SYNTH_NOTE, /不是現場錄音/);
 
@@ -231,6 +320,14 @@ for (const file of ['script.js', 'www/script.js']) {
   const saveAt = end.indexOf("saveLocalRank('game4'");
   const submitAt = end.indexOf("submitScoreToGAS('game4'");
   assert.ok(rankAt >= 0 && rankAt < saveAt && saveAt < submitAt, file);
+  assert.match(end, /recordsRank\(g4State\.poolId, promptMode\)/);
+  assert.match(script, /InstrumentCategory\.savePrompt/);
+  assert.match(script, /InstrumentCategory\.loadPrompt/);
+  assert.match(script, /buildQuestions\(spec, count, Math\.random, mode\)/);
+  assert.match(script, /g4ListenReplay/);
+  assert.match(script, /playInstrumentSound\(q\.instrument\.id\)/);
+  assert.doesNotMatch(script, /g4ListenFrame/);
+  assert.doesNotMatch(script, /videoSrc\?autoplay/);
   assert.match(end, /if \(rankedPool\)/);
   assert.match(end, /renderG4PoolPicker\(\)/);
   assert.match(end, /profileTimerAction === 'record'/);
@@ -251,9 +348,15 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.match(html, /id="g4ChineseTenBtn"/);
   assert.match(html, /id="g4ScopeNote"/);
   assert.match(html, /合成示範音色，不是現場錄音/);
-  assert.match(html, /style\.css\?v=10/);
+  assert.match(html, /style\.css\?v=11/);
   assert.match(html, /bootstrap-instruments\.js\?v=9/);
-  assert.match(html, /instrument-category\.js\?v=1/);
+  assert.match(html, /instrument-category\.js\?v=2/);
+  assert.match(html, /chinese-instrument-challenge\.js\?v=3/);
+  assert.match(html, /id="g4PromptModes"/);
+  assert.match(html, /data-prompt="see"/);
+  assert.match(html, /data-prompt="listen"/);
+  assert.match(html, /data-prompt="mix"/);
+  assert.match(html, /id="cnInstModeListen"/);
   assert.match(html, /data-cat="chinese"/);
   assert.match(html, /id="cnInstModeChallenge"/);
   assert.match(html, /不計入樂器識辨排行榜/);
@@ -265,11 +368,14 @@ for (const file of ['style.css', 'www/style.css']) {
   assert.match(css, /@media \(min-width: 768px\) and \(max-width: 1024px\) \{\s*\.g4-pool-row[\s\S]*?\.g4-pool-chip/);
   assert.match(css, /\.g4-pool-live/);
   assert.match(css, /\.g4-scoped-result/);
+  assert.match(css, /\.g4-prompt-chip/);
+  assert.match(css, /\.g4-listen-replay/);
 }
 
 for (const file of ['bootstrap-instruments.js', 'www/bootstrap-instruments.js']) {
   const js = fs.readFileSync(path.join(root, file), 'utf8');
-  assert.match(js, /script\.js\?v=9/);
+  assert.match(js, /script\.js\?v=10/);
+  assert.equal(js.includes('script.js?v=9'), false);
   assert.equal(js.includes('script.js?v=8'), false);
 }
 

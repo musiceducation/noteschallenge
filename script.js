@@ -9360,6 +9360,7 @@
 
     let g4State = null;
     let g4SelectedPoolId = 'orchestra';
+    let g4SelectedPrompt = 'see';
 
     /** Weighted random pick from G4_Q_TYPES, returns type string */
     function pickG4Type() {
@@ -9399,29 +9400,38 @@
         return wrongs.slice(0, n);
     }
 
-    function generateG4Questions(count, poolId) {
-        const requested = poolId || g4SelectedPoolId || 'orchestra';
-        if (window.InstrumentCategory && typeof InstrumentCategory.buildQuestions === 'function') {
-            const spec = InstrumentCategory.resolve(INSTRUMENT_BANK, requested);
-            return InstrumentCategory.buildQuestions(spec, count, Math.random);
-        }
-        if (requested !== 'orchestra') return [];
-        return generateG4OrchestraQuestions(count);
+    function g4NormalizePrompt(promptMode) {
+        const mode = promptMode || g4SelectedPrompt;
+        if (window.InstrumentCategory && InstrumentCategory.normalizePrompt) return InstrumentCategory.normalizePrompt(mode);
+        return mode === 'listen' || mode === 'mix' ? mode : 'see';
     }
 
-    function generateG4OrchestraQuestions(count) {
+    function generateG4Questions(count, poolId, promptMode) {
+        const requested = poolId || g4SelectedPoolId || 'orchestra';
+        const mode = g4NormalizePrompt(promptMode);
+        if (window.InstrumentCategory && typeof InstrumentCategory.buildQuestions === 'function') {
+            const spec = InstrumentCategory.resolve(INSTRUMENT_BANK, requested);
+            return InstrumentCategory.buildQuestions(spec, count, Math.random, mode);
+        }
+        if (requested !== 'orchestra') return [];
+        return generateG4OrchestraQuestions(count, mode);
+    }
+
+    function generateG4OrchestraQuestions(count, promptMode) {
         // 中國樂器只在圖鑑供學生選讀。計時／練習測驗維持原有管弦樂題庫。
         const pool = INSTRUMENT_BANK.filter(i => !isG4ChineseFamily(i.family));
         const percPool = pool.filter(i => i.family === 'percussion');
         const imgPool = G4_IMG_POOL;
-        const videoPool = pool.filter(i => i.video);
+        const listenPool = pool.filter(i => i.synthParams);
         const questions = [];
         const recentIds = [];
         const recentWindow = Math.min(8, Math.floor(pool.length * 0.5));
         const allSoundSources = Object.values(SOUND_SOURCE_MAP);
 
         for (let i = 0; i < count; i++) {
-            const type = pickG4Type();
+            let type = pickG4Type();
+            if (promptMode === 'listen') type = 'listen-name';
+            else if (promptMode === 'mix' && Math.random() < 0.22) type = 'listen-name';
             let correct, safety = 0;
 
             // Select instrument based on type constraints
@@ -9432,8 +9442,8 @@
                 do { correct = imgPool[Math.floor(Math.random() * imgPool.length)]; safety++; }
                 while (recentIds.includes(correct.id) && safety < 30);
             } else if (type === 'listen-name') {
-                const listenPool = videoPool.length ? videoPool : pool;
-                do { correct = listenPool[Math.floor(Math.random() * listenPool.length)]; safety++; }
+                const source = listenPool.length ? listenPool : pool;
+                do { correct = source[Math.floor(Math.random() * source.length)]; safety++; }
                 while (recentIds.includes(correct.id) && safety < 30);
             } else {
                 do { correct = pool[Math.floor(Math.random() * pool.length)]; safety++; }
@@ -9503,27 +9513,67 @@
         return { id: 'orchestra', label: '管弦樂全部', ranked: true, chinese: false, instruments: pool };
     }
 
+    function g4PromptLabel(mode) {
+        if (mode === 'listen') return '聽聽';
+        if (mode === 'mix') return '混合';
+        return '看圖';
+    }
+
     function g4SyncPoolCopy() {
         const spec = g4CurrentSpec();
         g4SelectedPoolId = spec.id;
-        const ranked = window.InstrumentCategory ? InstrumentCategory.recordsRank(spec.id) : spec.id === 'orchestra';
+        const prompt = g4NormalizePrompt(g4SelectedPrompt);
+        g4SelectedPrompt = prompt;
+        const ranked = window.InstrumentCategory ? InstrumentCategory.recordsRank(spec.id, prompt) : (spec.id === 'orchestra' && prompt === 'see');
+        const canListen = !window.InstrumentCategory || !InstrumentCategory.availableTypes
+            || InstrumentCategory.availableTypes(spec.instruments, 'listen').indexOf('listen-name') !== -1;
         const note = document.getElementById('g4PoolNote');
         const active = document.getElementById('g4PoolActive');
         if (note) {
             if (spec.instruments.length < 2) {
                 note.textContent = '這個類別的樂器太少，暫時不能出題。請改選其他類別。';
+            } else if (prompt !== 'see' && !canListen) {
+                note.textContent = '這個類別沒有足夠的合成示範聲，暫時不能用聽聽出題。';
             } else if (ranked) {
-                note.textContent = '預設是全部管弦樂。限時挑戰只把這個範圍計入排行榜。';
+                note.textContent = '預設是全部管弦樂、看圖。限時挑戰只把看圖計入排行榜。聽聽和混合不計入。';
+            } else if (spec.id === 'orchestra') {
+                note.textContent = '現在是' + g4PromptLabel(prompt) + '。限時挑戰不計入排行榜，成績只留在這一頁。要計入排行榜，請改回看圖。';
             } else {
                 note.textContent = '這個類別可以單獨練習。成績只留在這一頁，不計入樂器識辨排行榜。';
             }
         }
         if (active) {
-            const synth = spec.chinese && window.InstrumentCategory ? ' ' + InstrumentCategory.SYNTH_NOTE : '';
-            active.textContent = '現正練習：' + spec.label + '。' + synth;
+            const hear = prompt !== 'see' || spec.chinese;
+            const synth = hear && window.InstrumentCategory ? ' ' + InstrumentCategory.SYNTH_NOTE : '';
+            active.textContent = '現正練習：' + spec.label + '。出題方式：' + g4PromptLabel(prompt) + '。' + synth;
         }
         const desc = document.querySelector('#g4ModeChallenge .mode-desc');
         if (desc) desc.textContent = ranked ? '限時一分鐘，計入排行榜' : '限時一分鐘，不計入排行榜';
+    }
+
+    function renderG4PromptPicker() {
+        if (window.InstrumentCategory && InstrumentCategory.loadPrompt) {
+            g4SelectedPrompt = InstrumentCategory.loadPrompt(g4PoolStore());
+        }
+        const root = document.getElementById('g4PromptModes');
+        if (!root) return;
+        root.querySelectorAll('[data-prompt]').forEach(btn => {
+            const on = (btn.dataset.prompt || 'see') === g4SelectedPrompt;
+            btn.classList.toggle('active', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+            btn.onclick = () => {
+                g4SelectedPrompt = g4NormalizePrompt(btn.dataset.prompt);
+                if (window.InstrumentCategory && InstrumentCategory.savePrompt) {
+                    InstrumentCategory.savePrompt(g4PoolStore(), g4SelectedPrompt);
+                }
+                root.querySelectorAll('[data-prompt]').forEach(el => {
+                    const selected = el === btn;
+                    el.classList.toggle('active', selected);
+                    el.setAttribute('aria-pressed', selected ? 'true' : 'false');
+                });
+                g4SyncPoolCopy();
+            };
+        });
     }
 
     function renderG4PoolPicker() {
@@ -9560,23 +9610,30 @@
                 g4SyncPoolCopy();
             };
         });
+        renderG4PromptPicker();
         g4SyncPoolCopy();
     }
 
     function startGame4(user, mode) {
         const spec = g4CurrentSpec();
         g4SelectedPoolId = spec.id;
+        const promptMode = g4NormalizePrompt(g4SelectedPrompt);
         const count = mode === 'practice' ? 10 : 999;
-        const questions = generateG4Questions(Math.min(count, 40), spec.id);
+        const questions = generateG4Questions(Math.min(count, 40), spec.id, promptMode);
         if (!questions.length) {
             const note = document.getElementById('g4PoolNote');
-            if (note) note.textContent = '這個類別的樂器太少，暫時不能出題。請改選其他類別。';
+            if (note) {
+                note.textContent = promptMode === 'see'
+                    ? '這個類別的樂器太少，暫時不能出題。請改選其他類別。'
+                    : '這個類別暫時不能用這個出題方式。請改選看圖或其他類別。';
+            }
             return;
         }
         markProfilePlayStart();
 
         g4State = {
             user, mode,
+            promptMode,
             poolId: spec.id,
             poolLabel: spec.label,
             poolChinese: !!spec.chinese,
@@ -9636,7 +9693,7 @@
         if (g4State._nextTimer) { clearTimeout(g4State._nextTimer); g4State._nextTimer = null; }
         g4State.currentIdx++;
         if (g4State.mode === 'challenge' && g4State.currentIdx >= g4State.questions.length) {
-            const more = generateG4Questions(20, g4State.poolId);
+            const more = generateG4Questions(20, g4State.poolId, g4State.promptMode);
             if (!more.length) { endGame4(); return; }
             g4State.questions = g4State.questions.concat(more);
         }
@@ -9655,7 +9712,7 @@
         const num = g4State.currentIdx + 1;
 
         const poolLive = document.getElementById('g4PoolLive');
-        if (poolLive) poolLive.textContent = '練習範圍：' + (g4State.poolLabel || '管弦樂全部');
+        if (poolLive) poolLive.textContent = '練習範圍：' + (g4State.poolLabel || '管弦樂全部') + ' · ' + g4PromptLabel(g4State.promptMode);
         document.getElementById('g4QNum').textContent = `第 ${num} 題${g4State.mode === 'practice' ? ' / 共 ' + total + ' 題' : ''}`;
         const pct = g4State.mode === 'practice' ? (num / g4State.questions.length) * 100 : 0;
         document.getElementById('g4ProgressFill').style.width = pct + '%';
@@ -9682,40 +9739,23 @@
         };
 
         if (q.type === 'listen-name') {
-            questionEl.textContent = '🎵 聽一聽，這是什麼樂器？';
-            const videoSrc = q.instrument.video;
+            questionEl.textContent = '聽一聽，這是什麼樂器？';
             visualEl.innerHTML = `
-                <div class="g4-listen-placeholder" id="g4ListenPlaceholder">
-                    <div class="g4-listen-icon">🎵</div>
-                    <div class="g4-listen-hint">點擊播放演奏示範</div>
+                <div class="g4-listen-stage" id="g4ListenStage">
+                    <button type="button" class="g4-listen-replay" id="g4ListenReplay">🔊 再聽一次</button>
+                    <div class="g4-listen-reveal" id="g4ListenReveal" hidden></div>
                 </div>
-                <div id="g4ListenFrame" style="display:none;text-align:center;"></div>
             `;
-            const loadFrame = () => {
-                const placeholder = document.getElementById('g4ListenPlaceholder');
-                const frame = document.getElementById('g4ListenFrame');
-                if (!frame) return;
-                if (videoSrc) {
-                    frame.innerHTML = `<iframe src="${videoSrc}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen style="width:100%;max-width:320px;height:180px;border-radius:12px;border:none;"></iframe>`;
-                    frame.style.display = '';
-                    if (placeholder) placeholder.style.display = 'none';
-                }
+            const replayListen = () => {
+                audio.playInstrumentSound(q.instrument.id);
+                const replayBtn = document.getElementById('g4ListenReplay');
+                if (!replayBtn) return;
+                replayBtn.classList.add('playing');
+                setTimeout(() => replayBtn.classList.remove('playing'), 600);
             };
-            const placeholderEl = document.getElementById('g4ListenPlaceholder');
-            if (placeholderEl) placeholderEl.onclick = loadFrame;
-            audioBtn.style.display = '';
-            audioBtn.onclick = () => {
-                const frame = document.getElementById('g4ListenFrame');
-                if (frame && frame.querySelector('iframe')) {
-                    const iframe = frame.querySelector('iframe');
-                    const s = iframe.src; iframe.src = ''; iframe.src = s;
-                } else {
-                    loadFrame();
-                }
-                audioBtn.classList.add('playing');
-                setTimeout(() => audioBtn.classList.remove('playing'), 3000);
-            };
-            setTimeout(loadFrame, 400);
+            const replayBtn = document.getElementById('g4ListenReplay');
+            if (replayBtn) replayBtn.onclick = (e) => { e.stopPropagation(); replayListen(); };
+            setTimeout(replayListen, 300);
         } else if (q.type === 'image-name') {
             questionEl.textContent = '🖼️ 這是甚麼樂器？';
             visualEl.innerHTML = g4InstImgHtml(q.instrument, 'g4-visual-img', '樂器圖片');
@@ -9762,9 +9802,10 @@
         g4BindSpins(visualEl);
         const chineseQuestion = isG4ChineseFamily(q.instrument.family);
         const synthNote = document.getElementById('g4SynthNote');
+        const showSynth = chineseQuestion || q.type === 'listen-name';
         if (synthNote) {
-            synthNote.hidden = !chineseQuestion;
-            if (chineseQuestion && window.InstrumentCategory) synthNote.textContent = InstrumentCategory.SYNTH_NOTE;
+            synthNote.hidden = !showSynth;
+            if (showSynth && window.InstrumentCategory) synthNote.textContent = InstrumentCategory.SYNTH_NOTE;
         }
         if (audioBtn) audioBtn.title = chineseQuestion ? '播放合成示範音色' : '播放樂器聲音';
         if (chineseQuestion && q.instrument.synthParams && q.type !== 'listen-name') setupAudio();
@@ -9775,6 +9816,7 @@
         g4State.answered = true;
 
         const isCorrect = chosen === correct;
+        if (q.type === 'listen-name') revealG4ListenAnswer(q);
         const family = q.instrument.family;
         if (!g4State.familyStats[family]) g4State.familyStats[family] = { correct: 0, total: 0 };
         g4State.familyStats[family].total++;
@@ -9809,19 +9851,6 @@
             const chosenLabel = q.type === 'name-image'
                 ? (INSTRUMENT_BANK.find(i => i.id === chosen)?.nameZh || chosen) : chosen;
             const correctLabel = q.type === 'name-image' ? q.instrument.nameZh : correct;
-            // For listen-name: stop video and reveal instrument image
-            if (q.type === 'listen-name') {
-                const frame = document.getElementById('g4ListenFrame');
-                if (frame) { const iframe = frame.querySelector('iframe'); if (iframe) iframe.src = ''; }
-                const visualEl2 = document.getElementById('g4Visual');
-                if (visualEl2 && q.instrument.img) {
-                    g4ClearSpins(visualEl2);
-                    visualEl2.innerHTML = g4InstImgHtml(q.instrument, 'g4-visual-img', q.instrument.nameZh);
-                    g4BindSpins(visualEl2);
-                } else if (visualEl2) {
-                    visualEl2.innerHTML = `<div class="g4-visual-hint" style="font-size:1.1rem;font-weight:700;">${q.instrument.nameZh}<br><span style="font-size:0.85rem;font-weight:400;color:var(--text-light)">${q.instrument.nameEn}</span></div>`;
-                }
-            }
             const explainMap = {
                 'listen-name':      `正確答案是${q.instrument.nameZh}（${q.instrument.nameEn}）`,
                 'name-family':      `${q.instrument.nameZh}（${q.instrument.nameEn}）屬於${q.instrument.familyZh}家族`,
@@ -9844,7 +9873,19 @@
         document.getElementById('g4Combo').textContent = g4State.combo;
 
         g4State._advancing = false;
-        g4State._nextTimer = setTimeout(() => g4AdvanceNext(), isCorrect ? 1000 : 2000);
+        g4State._nextTimer = setTimeout(() => g4AdvanceNext(), (isCorrect && q.type !== 'listen-name') ? 1000 : 2000);
+    }
+
+    function revealG4ListenAnswer(q) {
+        const reveal = document.getElementById('g4ListenReveal');
+        if (!reveal) return;
+        const photo = q.instrument.img ? g4InstImgHtml(q.instrument, 'g4-visual-img', q.instrument.nameZh) : '';
+        const name = escHtml(q.instrument.nameZh || '');
+        const en = escHtml(q.instrument.nameEn || '');
+        reveal.hidden = false;
+        reveal.innerHTML = photo +
+            `<div class="g4-visual-hint" style="font-size:1.1rem;font-weight:700;">${name}<br><span style="font-size:0.85rem;font-weight:400;color:var(--text-light)">${en}</span></div>`;
+        g4BindSpins(reveal);
     }
 
     function endGame4() {
@@ -9860,6 +9901,7 @@
 
         document.getElementById('g4ReportGrid').innerHTML =
             `<div class="report-item"><div class="report-label">練習範圍</div><div class="report-value">${escHtml(poolLabel)}</div></div>` +
+            `<div class="report-item"><div class="report-label">出題方式</div><div class="report-value">${escHtml(g4PromptLabel(g4State.promptMode))}</div></div>` +
             `<div class="report-item"><div class="report-label">答對題數</div><div class="report-value">${counts.correct} / ${totalAnswered}</div></div>` +
             `<div class="report-item"><div class="report-label">準確率</div><div class="report-value">${accuracy}%</div></div>` +
             `<div class="report-item"><div class="report-label">總分</div><div class="report-value">${score}</div></div>` +
@@ -9909,13 +9951,21 @@
             }
         }
 
-        // Only the full orchestra pool may touch the existing timed leaderboard.
-        const rankedPool = window.InstrumentCategory ? InstrumentCategory.recordsRank(g4State.poolId) : g4State.poolId === 'orchestra';
+        // Only 管弦樂全部 + 看圖 + timed may touch the existing game4 leaderboard.
+        const promptMode = g4State.promptMode || 'see';
+        const rankedPool = window.InstrumentCategory ? InstrumentCategory.recordsRank(g4State.poolId, promptMode) : (g4State.poolId === 'orchestra' && promptMode === 'see');
         const profileTimerAction = window.InstrumentCategory
             ? InstrumentCategory.profileTimerAction(rankedPool, mode)
             : ((rankedPool && mode !== 'practice') ? 'record' : 'reset');
         const scopeNote = document.getElementById('g4ScopeNote');
-        if (scopeNote) scopeNote.hidden = rankedPool;
+        if (scopeNote) {
+            scopeNote.hidden = rankedPool;
+            if (!rankedPool && (g4State.poolId === 'orchestra' || !g4State.poolId) && promptMode !== 'see') {
+                scopeNote.textContent = '聽聽和混合的成績只留在這一頁，不計入樂器識辨排行榜。';
+            } else if (!rankedPool) {
+                scopeNote.textContent = '這個類別的成績只留在這一頁，不計入樂器識辨排行榜。';
+            }
+        }
         if (rankedPool) {
             saveLocalRank('game4', user, score, accuracy, maxCombo);
             if (profileTimerAction === 'record') {

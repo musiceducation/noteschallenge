@@ -68,8 +68,29 @@ for (let seed = 1; seed <= 20; seed += 1) {
     assert.match(shown, new RegExp(question.nameZh));
     assert.match(shown, new RegExp(question.nameEn));
     assert.match(shown, /維基共享資源/);
+    const ear = CN.renderPrompt(question, false, 'listen');
+    assert.equal(ear.includes('<img'), false, 'listen prompt hides the photo');
+    assert.equal(ear.includes(question.img), false);
+    assert.equal(ear.includes(question.nameZh), false);
+    if (question.nameEn) assert.equal(ear.includes(question.nameEn), false);
+    assert.match(ear, /合成示範音色，不是現場錄音/);
+    const revealed = CN.renderPrompt(question, true, 'listen');
+    assert.match(revealed, /<img/);
+    assert.match(revealed, new RegExp(question.nameZh));
+  }
+  const heard = CN.buildRound(bank, null, random, 'listen');
+  assert.equal(heard.length, 10);
+  for (const question of heard) {
+    assert.equal(question.options.every((option) => option.family === question.family), true);
+    assert.ok(chinese.find((item) => item.id === question.id).synthParams);
   }
 }
+
+const stripped = bank.map((item) => (item.id === 'erhu' ? { ...item, synthParams: undefined } : item));
+const withoutErhu = CN.buildRound(stripped, null, mulberry32(3), 'listen');
+assert.equal(withoutErhu.some((question) => question.id === 'erhu'), false);
+assert.equal(withoutErhu.length, 10);
+assert.ok(CN.buildRound(stripped, 21, mulberry32(3), 'see').some((question) => question.id === 'erhu'));
 
 const sparse = [
   { id: 'only-a', nameZh: '甲', nameEn: 'A', family: 'chinese-wind', familyZh: '中樂吹管', img: 'img/a.jpg' },
@@ -110,7 +131,9 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.match(html, /樂器挑戰/);
   assert.match(html, /再挑戰一次/);
   assert.match(html, /不計入樂器識辨排行榜/);
-  assert.match(html, /chinese-instrument-challenge\.js\?v=2/);
+  assert.match(html, /chinese-instrument-challenge\.js\?v=3/);
+  assert.match(html, /id="cnInstModeListen"/);
+  assert.match(html, /id="cnInstChallengePrompt"/);
   assert.match(html, /data-cat="chinese"/);
 }
 

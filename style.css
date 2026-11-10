@@ -4532,6 +4532,51 @@ body.is-fullscreen .hub-fullscreen-btn { display: flex; }
 }
 .g4-synth-note { margin: 8px 0 0; font-size: 0.82rem; font-weight: 700; color: #8a3d0c; }
 .g4-scope-note { margin: 8px 0 0; font-weight: 800; color: #8a3d0c; }
+/* listen-prompt: 出題方式 看圖 / 聽聽 / 混合，以及聽聽題的大重播鍵。 */
+.g4-prompt-card {
+    background: #fff;
+    border: 2px solid rgba(10, 143, 92, 0.18);
+    border-radius: 20px;
+    padding: 14px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.g4-prompt-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.g4-prompt-chip {
+    appearance: none;
+    border: 2px solid #d9efe6;
+    background: #f4fbf8;
+    color: #14684a;
+    border-radius: 999px;
+    padding: 8px 18px;
+    min-height: 44px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+}
+.g4-prompt-chip.active { background: #0A8F5C; color: #fff; border-color: #087a4e; }
+.g4-listen-stage { text-align: center; padding: 12px 8px 4px; }
+.g4-listen-replay {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: min(280px, 86%);
+    min-height: 72px;
+    padding: 16px 28px;
+    border: none;
+    border-radius: 20px;
+    background: linear-gradient(135deg, var(--primary-green), #00b87a);
+    color: #fff;
+    font: inherit;
+    font-size: 1.35rem;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(0, 210, 142, 0.28);
+}
+.g4-listen-replay.playing { animation: g4-pulse 0.6s ease-in-out infinite; }
+.g4-listen-reveal { margin-top: 12px; }
+.g4-listen-reveal[hidden] { display: none !important; }
 .leaderboard-layout.g4-scoped-result .ranking-section { display: none; }
 .leaderboard-layout.g4-scoped-result { grid-template-columns: 1fr; max-width: 640px; margin: 0 auto; }
 @media (max-width: 600px) {
@@ -7488,6 +7533,24 @@ body.app-shell.app-on-root .sound-toggle {
     font: inherit;
     font-weight: 900;
     cursor: pointer;
+}
+/* listen-prompt: 中國樂器聽聽題先藏起相片。 */
+.cn-inst-listen-mark {
+    width: min(320px, 78vw);
+    height: min(180px, 36vw);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 18px;
+    background: #eefaf5;
+    color: #0A8F5C;
+    font-size: 4rem;
+    font-weight: 900;
+}
+.cn-inst-replay--listen {
+    min-height: 64px;
+    min-width: min(280px, 86%);
+    font-size: 1.2rem;
 }
 #cnInstChallengePanel .quiz-options { margin-top: 12px; }
 #cnInstChallengePanel .message-box { margin-top: 12px; }
