@@ -340,7 +340,7 @@
     // Canvas offscreen cache for static staff lines + clef
     let _staffCache = null;
     // Note buttons: visibility-only after first build
-    let _noteRowsBuilt = false, _sharpRow = null, _flatRow = null;
+    let _noteRowsBuilt = false, _answerPiano = null;
     // Countdown timer ID for cleanup on screen switch
     let _countdownTimerId = null;
 
@@ -1899,9 +1899,11 @@
     }
     
     function enableGameControls(enabled) {
+        const naturalsOnly = _answerPiano && _answerPiano.classList.contains('answer-piano--naturals');
         noteBtnMap.forEach(btn => {
-            const rowHidden = btn.closest('.note-row')?.style.display === 'none';
-            btn.disabled = rowHidden || !enabled || state.answered;
+            const spelling = btn.dataset.note || '';
+            const hiddenAccidental = naturalsOnly && (spelling.includes('#') || spelling.includes('♭'));
+            btn.disabled = hiddenAccidental || !enabled || state.answered;
         });
         dom.revealBtn.disabled = !enabled || state.answered;
         dom.skipBtn.disabled = !enabled || state.answered;
@@ -1914,11 +1916,19 @@
         return TEXTBOOK_CONFIG[tbKey];
     }
 
+    // Timed clef challenges set forceClef. 零失誤 has no clef picker, so it
+    // uses the same treble challenge bank — sharps and flats included.
+    function noteModeForceClef() {
+        if (state.modeConfig && state.modeConfig.forceClef) return state.modeConfig.forceClef;
+        if (state.currentMode === 'noMiss') return 'treble';
+        return null;
+    }
+
     function generateNote() {
         let clefOptions = [], accidentalChance = 0, noteRange = [0, 10], allowAbove = true, allowBelow = true;
         
         // Challenge modes can force a specific clef
-        const forceClef = state.modeConfig && state.modeConfig.forceClef;
+        const forceClef = noteModeForceClef();
         
         if (forceClef) {
             // Use per-clef, per-grade challenge levels
@@ -1930,6 +1940,9 @@
             const clef = clefOptions[Math.floor(Math.random() * clefOptions.length)];
             const lvl = (CHALLENGE_LEVELS[clef] && CHALLENGE_LEVELS[clef][gradeKey]) || CHALLENGE_LEVELS.treble[3];
             accidentalChance = lvl.accidentalChance;
+            // Grade 3's table is only 0.1, and an unknown grade falls back to it.
+            // A short 零失誤 run still needs sharps and flats to actually appear.
+            if (state.currentMode === 'noMiss') accidentalChance = Math.max(accidentalChance, 0.4);
             allowAbove = lvl.ledgerAbove; allowBelow = lvl.ledgerBelow;
             noteRange = lvl.noteRange;
             // Skip the clef selection below — we already chose
@@ -1975,48 +1988,72 @@
     }
 
     function buildNoteButtons() {
-        // Derive sharp/flat visibility from active config
-        const forceClef = state.modeConfig && state.modeConfig.forceClef;
+        // Both spellings stay on every black key whenever the mode can ask them.
+        // Hiding sharps or flats per question would give the accidental away.
+        const forceClef = noteModeForceClef();
         const gradeKey = state.currentUser ? state.currentUser.grade : 3;
         let hasAccidentals;
         if (forceClef) {
             const clefKey = forceClef === 'mixed' ? 'treble' : forceClef;
             const lvl = (CHALLENGE_LEVELS[clefKey] && CHALLENGE_LEVELS[clefKey][gradeKey]) || CHALLENGE_LEVELS.treble[3];
-            hasAccidentals = lvl.accidentalChance > 0;
+            hasAccidentals = lvl.accidentalChance > 0 || state.currentMode === 'noMiss';
         } else {
             hasAccidentals = _getPracticeConfig().accidentalChance > 0;
         }
-        const showSharp = hasAccidentals;
-        const showFlat  = hasAccidentals;
 
         if (!_noteRowsBuilt) {
             dom.notesGrid.innerHTML = '';
             noteBtnMap.clear();
             const keys = { 'C':'1', 'D':'2', 'E':'3', 'F':'4', 'G':'5', 'A':'6', 'B':'7', 'C#':'Q', 'D#':'W', 'F#':'E', 'G#':'R', 'A#':'T', 'D♭':'A', 'E♭':'S', 'G♭':'D', 'A♭':'F', 'B♭':'G'};
-            const gridFrag = document.createDocumentFragment();
-            const buildRow = (notes, cls) => {
-                const div = document.createElement('div'); div.className = 'note-row';
-                notes.forEach(n => {
-                    const btn = document.createElement('button'); btn.className = `note-btn ${cls}`; btn.dataset.note = n; btn.disabled = true;
-                    btn.setAttribute('aria-label', '音名 ' + n);
-                    const sol = SOLFEGE[n]; btn.innerHTML = `${sol?`<span class="note-sol">${sol}</span>`:''}<span class="note-name">${n}</span><span class="key-hint">${keys[n]}</span>`;
-                    if (window.AudioEngine && window.AudioEngine.onInstantTap) {
-                        window.AudioEngine.onInstantTap(btn, () => handleAnswer(n));
-                    } else {
-                        btn.addEventListener('click', () => handleAnswer(n));
-                    }
-                    noteBtnMap.set(n, btn);
-                    div.appendChild(btn);
-                }); return div;
+            const whites = ['C','D','E','F','G','A','B'];
+            // slot = white-key boundary the black key sits on (1 = between C and D). No key between E–F or B–C.
+            const blacks = [
+                { sharp:'C#', flat:'D♭', slot:1 },
+                { sharp:'D#', flat:'E♭', slot:2 },
+                { sharp:'F#', flat:'G♭', slot:4 },
+                { sharp:'G#', flat:'A♭', slot:5 },
+                { sharp:'A#', flat:'B♭', slot:6 }
+            ];
+            const makeKey = (n, cls) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `note-btn ${cls}`;
+                btn.dataset.note = n;
+                btn.disabled = true;
+                btn.setAttribute('aria-label', '音名 ' + n);
+                const sol = SOLFEGE[n];
+                btn.innerHTML = `${sol ? `<span class="note-sol">${sol}</span>` : ''}<span class="note-name">${n}</span><span class="key-hint">${keys[n] || ''}</span>`;
+                if (window.AudioEngine && window.AudioEngine.onInstantTap) {
+                    window.AudioEngine.onInstantTap(btn, () => handleAnswer(n));
+                } else {
+                    btn.addEventListener('click', () => handleAnswer(n));
+                }
+                noteBtnMap.set(n, btn);
+                return btn;
             };
-            gridFrag.appendChild(buildRow(['C','D','E','F','G','A','B'], 'natural'));
-            _sharpRow = buildRow(['C#','D#','F#','G#','A#'], 'sharp'); gridFrag.appendChild(_sharpRow);
-            _flatRow  = buildRow(['D♭','E♭','G♭','A♭','B♭'], 'flat');  gridFrag.appendChild(_flatRow);
-            dom.notesGrid.appendChild(gridFrag);
+            const piano = document.createElement('div');
+            piano.className = 'answer-piano';
+            piano.id = 'answerPiano';
+            const whiteRow = document.createElement('div');
+            whiteRow.className = 'answer-piano-whites';
+            whites.forEach(n => whiteRow.appendChild(makeKey(n, 'natural')));
+            const blackRow = document.createElement('div');
+            blackRow.className = 'answer-piano-blacks';
+            blacks.forEach(pair => {
+                const group = document.createElement('div');
+                group.className = 'answer-piano-black';
+                group.style.setProperty('--slot', String(pair.slot));
+                group.appendChild(makeKey(pair.sharp, 'sharp'));
+                group.appendChild(makeKey(pair.flat, 'flat'));
+                blackRow.appendChild(group);
+            });
+            piano.appendChild(whiteRow);
+            piano.appendChild(blackRow);
+            dom.notesGrid.appendChild(piano);
+            _answerPiano = piano;
             _noteRowsBuilt = true;
         }
-        if (_sharpRow) _sharpRow.style.display = showSharp ? '' : 'none';
-        if (_flatRow)  _flatRow.style.display  = showFlat  ? '' : 'none';
+        if (_answerPiano) _answerPiano.classList.toggle('answer-piano--naturals', !hasAccidentals);
         noteBtnMap.forEach(btn => btn.classList.remove('correct', 'wrong'));
     }
 
@@ -3759,6 +3796,18 @@
                 }
             });
         } catch (e) { console.error('note teach error:', e); }
+        try {
+            if (window.ChineseInstrumentChallenge) window.ChineseInstrumentChallenge.mount({
+                getBank: function () { return INSTRUMENT_BANK; },
+                playSound: function (id) {
+                    audio.init();
+                    audio.resume();
+                    audio.playInstrumentSound(id);
+                },
+                playCorrect: function () { audio.playEffect('countdown'); },
+                playWrong: function () { audio.playEffect('wrong'); }
+            });
+        } catch (e) { console.error('chinese instrument challenge error:', e); }
         try { initTutorial(); } catch(e) { console.error('initTutorial error:', e); }
         try { initHub(); } catch(e) { console.error('initHub error:', e); }
         try { initAppShell(); } catch(e) { console.error('initAppShell error:', e); }
@@ -4389,6 +4438,7 @@
         const backTo = backScreenId || (isAppShell() ? 'screen-app-root' : 'screen-g4-setup');
         let studyFamily = 'all';
         let studySearch = '';
+        if (window.ChineseInstrumentChallenge) ChineseInstrumentChallenge.onCodexOpen();
         if (typeof renderG4Study === 'function') renderG4Study(studyFamily, studySearch);
 
         document.querySelectorAll('#screen-g4-study .study-tab').forEach(tab => {
@@ -4398,6 +4448,7 @@
                 document.querySelectorAll('#screen-g4-study .study-tab').forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
                 renderG4Study(studyFamily, studySearch);
+                if (window.ChineseInstrumentChallenge) ChineseInstrumentChallenge.onFamily(studyFamily);
             };
         });
 
@@ -4424,6 +4475,7 @@
         const studyBack = document.getElementById('g4StudyBack');
         if (studyBack) {
             studyBack.onclick = () => {
+                if (window.ChineseInstrumentChallenge) ChineseInstrumentChallenge.leave();
                 switchScreen(backTo);
                 if (isAppShell() && backTo === 'screen-app-root') setAppTab('codex');
             };
@@ -4431,6 +4483,7 @@
         const studyStart = document.getElementById('g4StudyStartBtn');
         if (studyStart) {
             studyStart.onclick = () => {
+                if (window.ChineseInstrumentChallenge) ChineseInstrumentChallenge.leave();
                 if (isAppShell()) {
                     switchScreen('screen-app-root');
                     setAppTab('games');
