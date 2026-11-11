@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
+    "test": "node --test scripts/*.test.mjs",
     "validate": "node scripts/build.mjs",
     "cap:sync": "npx cap sync",
     "cap:ios": "npx cap open ios",

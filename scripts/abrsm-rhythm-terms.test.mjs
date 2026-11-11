@@ -85,10 +85,131 @@ assert.equal(A.coverage().transposition, false);
 assert.match(A.coverageText('abrsm-g5'), /5\/4/);
 assert.match(A.coverageText('abrsm-g1'), /柯達伊/);
 
+const tap = A.tapGrades();
+const tapIds = ['abrsm-g1', 'abrsm-g2', 'abrsm-g3', 'abrsm-g4', 'abrsm-g5'];
+assert.deepEqual(Object.keys(tap), tapIds);
+const tokenNames = (id) => host(tap[id].tokens.map((token) => token.n));
+assert.deepEqual(tokenNames('abrsm-g1'), ['ta', 'ta-a', 'ta-a-a-a', 'ti', 'ti-ti', '休', '休二', '休全', '休八']);
+assert.equal(tokenNames('abrsm-g1').some((name) => name === 'ri' || name === '3ti' || name === 'ta-i' || name === 'ta~ta'), false);
+assert.ok(tokenNames('abrsm-g2').includes('ri'));
+assert.ok(tokenNames('abrsm-g2').includes('3ti'));
+assert.ok(tokenNames('abrsm-g2').includes('ta~ta'));
+assert.ok(tokenNames('abrsm-g2').includes('ta-i'));
+assert.equal(tokenNames('abrsm-g2').includes('si4'), false);
+assert.ok(tokenNames('abrsm-g3').includes('si4'));
+assert.equal(tokenNames('abrsm-g3').includes('2ta'), false);
+assert.ok(tokenNames('abrsm-g4').includes('2ta'));
+assert.ok(tokenNames('abrsm-g4').includes('雙附點'));
+assert.equal(tap['abrsm-g1'].syncopation, false);
+assert.equal(tap['abrsm-g5'].syncopation, true);
+assert.equal(tap['1'], undefined);
+assert.equal(tap['中一'], undefined);
+assert.deepEqual(host(tap['abrsm-g1'].meters), ['2/4', '3/4', '4/4']);
+assert.ok(host(tap['abrsm-g2'].meters).includes('3/8'));
+assert.ok(host(tap['abrsm-g2'].meters).includes('2/2'));
+assert.equal(host(tap['abrsm-g2'].meters).includes('6/8'), false);
+assert.ok(host(tap['abrsm-g3'].meters).includes('6/8'));
+assert.ok(host(tap['abrsm-g3'].meters).includes('3/2'));
+assert.equal(host(tap['abrsm-g3'].meters).includes('2/8'), false);
+assert.ok(host(tap['abrsm-g4'].meters).includes('2/8'));
+assert.ok(host(tap['abrsm-g4'].meters).includes('12/4'));
+assert.equal(host(tap['abrsm-g4'].meters).length, 18);
+assert.equal(host(tap['abrsm-g4'].meters).includes('5/4'), false);
+assert.ok(host(tap['abrsm-g5'].meters).includes('5/4'));
+assert.ok(host(tap['abrsm-g5'].meters).includes('7/4'));
+assert.ok(host(tap['abrsm-g5'].meters).includes('5/8'));
+assert.ok(host(tap['abrsm-g5'].meters).includes('7/8'));
+const bpm = { 'abrsm-g1': 72, 'abrsm-g2': 76, 'abrsm-g3': 80, 'abrsm-g4': 84, 'abrsm-g5': 88 };
+const win = { 'abrsm-g1': 1.45, 'abrsm-g2': 1.3, 'abrsm-g3': 1.15, 'abrsm-g4': 1.05, 'abrsm-g5': 0.95 };
+for (const id of tapIds) {
+  assert.equal(tap[id].bpm, bpm[id]);
+  assert.equal(tap[id].winScale, win[id]);
+  assert.equal(tap[id].rankKey, 'abrsm-theory-v1:rhythm-tap:' + id);
+  assert.equal(tap[id].rankKey.includes(':rhythm:abrsm'), false);
+  for (const meter of tap[id].meters) {
+    const spec = A.tapMeter(meter);
+    assert.ok(spec, meter);
+    assert.equal(spec.beats >= 2 && spec.beats <= 7, true);
+    assert.ok(spec.quarters > 0);
+  }
+}
+
+const script = fs.readFileSync(new URL('../script.js', import.meta.url), 'utf8');
+const wwwScript = fs.readFileSync(new URL('../www/script.js', import.meta.url), 'utf8');
+for (const src of [script, wwwScript]) {
+  assert.match(src, /g2SelectedMode === 'tap'/);
+  assert.match(src, /startRhythmChallenge\(user\)/);
+  assert.match(src, /saveSyllabusRank\('rhythm-tap'/);
+  assert.doesNotMatch(src, /節奏挑戰·Lv\./);
+  assert.doesNotMatch(src, /GRADE_CHALLENGE_CONFIG/);
+  assert.doesNotMatch(src, /RCHAL_LEVELS/);
+  assert.doesNotMatch(src, /saveLocalRank\('rchal'/);
+  const startAt = src.indexOf("getElementById('g2StartBtn')");
+  const start = src.slice(startAt, startAt + 700);
+  assert.doesNotMatch(start, /_omLaunch|_durLaunch/);
+  assert.match(src, /function _omLaunch/);
+  assert.match(src, /function _durLaunch/);
+}
+const page = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const wwwPage = fs.readFileSync(new URL('../www/index.html', import.meta.url), 'utf8');
+for (const html of [page, wwwPage]) {
+  assert.match(html, /id="g2ModeTap"/);
+  assert.match(html, /根據譜上音符時值打節奏/);
+  assert.match(html, /id="rankRhythmKind"/);
+  assert.match(html, /value="rhythm-tap"/);
+  assert.match(html, /abrsm-rhythm-terms\.js\?v=3/);
+  assert.match(html, /課堂柯達伊/);
+  assert.match(html, /拍號練習/);
+  assert.match(html, /拍號計時/);
+  assert.match(html, /時值辨別/);
+}
+
+function grab(src, startMark, endMark) {
+  const start = src.indexOf(startMark);
+  const end = src.indexOf(endMark, start + startMark.length);
+  assert.ok(start >= 0 && end > start, startMark);
+  return src.slice(start, end);
+}
+const engine = new Function(
+  grab(script, 'const _BEAM_TOKENS', 'function _generateChallengeRhythm') +
+  grab(script, 'function _generateChallengeRhythm', 'const RC_CHALLENGE_COUNT') +
+  grab(script, 'function getRhythmTokenDuration', 'function formatBeatValue') +
+  '\nreturn { generate: _generateChallengeRhythm, duration: getRhythmTokenDuration };'
+)();
+let g1Bars = 0;
+let g1WithNotes = 0;
+for (const id of tapIds) {
+  const names = new Set(tokenNames(id));
+  for (const meterId of tap[id].meters) {
+    const quarters = A.tapMeter(meterId).quarters;
+    for (let n = 0; n < 12; n++) {
+      const label = engine.generate(tap[id].tokens, quarters, tap[id].syncopation);
+      if (id === 'abrsm-g1') {
+        g1Bars++;
+        if (label.split(' ').some((token) => token && token.indexOf('休') !== 0)) g1WithNotes++;
+      }
+      let pos = 0;
+      for (const token of label.split(' ').filter(Boolean)) {
+        assert.equal(names.has(token), true, id + ' ' + meterId + ' ' + token);
+        const onCrotchet = Math.abs(pos - Math.round(pos)) < 0.01;
+        if (!tap[id].syncopation && !onCrotchet) {
+          assert.ok(token === 'ti' || token === '休八' || token === 'ri', token + ' @ ' + pos);
+        }
+        pos = Math.round((pos + engine.duration(token)) * 1000) / 1000;
+      }
+      assert.ok(Math.abs(pos - quarters) < 0.02, id + ' ' + meterId + ' filled ' + pos + ' / ' + quarters + ' [' + label + ']');
+    }
+  }
+}
+assert.ok(g1WithNotes > g1Bars * 0.7, g1WithNotes + '/' + g1Bars);
+
 const legacy = { difficulty: 'Easy', mode: '節奏挑戰', score: 10 };
 assert.equal(context.AbrsmCurriculum.legacyBoardVisible(legacy), true);
 const row = context.AbrsmCurriculum.rankRecord({ gameKey: 'rhythm', syllabusId: 'abrsm-g3', score: 4, schoolYear: '中三' });
 assert.equal(context.AbrsmCurriculum.legacyBoardVisible(row), false);
 assert.equal(row.storageKey, 'abrsm-theory-v1:rhythm:abrsm-g3');
+const tapRow = context.AbrsmCurriculum.rankRecord({ gameKey: 'rhythm-tap', syllabusId: 'abrsm-g1', score: 8, schoolYear: '中一' });
+assert.equal(tapRow.storageKey, 'abrsm-theory-v1:rhythm-tap:abrsm-g1');
+assert.equal(context.AbrsmCurriculum.legacyBoardVisible(tapRow), false);
 
 console.log('abrsm-rhythm-terms: ok', A.meterQuestions('abrsm-g5').length, 'g5 meter questions');
