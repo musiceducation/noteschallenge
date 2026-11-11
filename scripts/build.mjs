@@ -49,6 +49,10 @@ for (const f of [
   "www/chinese-instrument-challenge.js",
   "note-name-teach.js",
   "www/note-name-teach.js",
+  "abrsm-curriculum.js",
+  "www/abrsm-curriculum.js",
+  "abrsm-note-grade.js",
+  "www/abrsm-note-grade.js",
   "composition-studio.js",
   "www/composition-studio.js"
 ]) checkJs(f);

@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=13">
+    <link rel="stylesheet" href="style.css?v=14">
     <script src="https://cdn.jsdelivr.net/npm/vexflow@5.0.0/build/cjs/vexflow.min.js" defer></script>
     <script src="https://unpkg.com/lucide@latest" defer></script>
 </head>
@@ -599,36 +599,16 @@
                 <div class="mode-icon">📝</div><div class="mode-name">練習模式</div><div class="mode-desc">不限時，可反覆練習</div>
             </div>
             <div class="mode-card challenge" data-mode="classic60">
-                <div class="mode-icon">⏱️</div><div class="mode-name">1分鐘挑戰</div><div class="mode-desc">限時一分鐘，計入排行榜</div>
+                <div class="mode-icon">⏱️</div><div class="mode-name">1分鐘挑戰</div><div class="mode-desc">同一英皇級別，限時一分鐘，計入英皇榜</div>
             </div>
             <div class="mode-card challenge" data-mode="noMiss">
-                <div class="mode-icon"><i data-lucide="flame"></i></div><div class="mode-name">零失誤挑戰</div><div class="mode-desc">不限時 · 含升降號 · 答錯一題即結束（分數 ×1.5）</div>
+                <div class="mode-icon"><i data-lucide="flame"></i></div><div class="mode-name">零失誤練習</div><div class="mode-desc">同一英皇級別，答錯一題即結束，不計入排行榜</div>
             </div>
             <div class="mode-card keysig" data-mode="keysig_practice">
-                <div class="mode-icon">𝄞</div><div class="mode-name">調號辨別</div><div class="mode-desc">認識不同調號</div>
+                <div class="mode-icon">𝄞</div><div class="mode-name">調號辨別</div><div class="mode-desc">跟所選英皇級別的調</div>
             </div>
             <div class="mode-card solfege" data-mode="solfege_practice">
-                <div class="mode-icon"><i data-lucide="mic"></i></div><div class="mode-name">唱名辨別</div><div class="mode-desc">視譜辨認唱名（首調）</div>
-            </div>
-        </div>
-
-        <div class="clef-selector-row" id="clefSelectorRow" style="display:none;">
-            <span class="clef-selector-label">♩ 選擇譜號</span>
-            <div class="clef-selector-btns">
-                <button class="clef-sel-btn active" data-clef="classic60">𝄞 高音譜號</button>
-                <button class="clef-sel-btn" data-clef="bass60">𝄢 低音譜號</button>
-                <button class="clef-sel-btn" data-clef="mixed60">♫ 混合譜號 ×1.2</button>
-            </div>
-        </div>
-
-        <div class="practice-diff-row" id="practiceDiffRow">
-            <span class="practice-diff-label"><i data-lucide="zap"></i> 練習難度</span>
-            <div class="practice-diff-btns">
-                <button class="diff-btn" data-diff="1">初學</button>
-                <button class="diff-btn" data-diff="2">初級</button>
-                <button class="diff-btn active" data-diff="3">中級</button>
-                <button class="diff-btn" data-diff="4">進階</button>
-                <button class="diff-btn" data-diff="5">最高</button>
+                <div class="mode-icon"><i data-lucide="mic"></i></div><div class="mode-name">唱名辨別</div><div class="mode-desc">課堂首調，不是英皇級別</div>
             </div>
         </div>
 
@@ -644,32 +624,21 @@
             <span class="practice-diff-label"><i data-lucide="target"></i> 模式</span>
             <div class="practice-diff-btns">
                 <button class="sol-mode-btn active" data-solmode="practice"><i data-lucide="pencil-line"></i> 練習</button>
-                <button class="sol-mode-btn" data-solmode="challenge"><i data-lucide="timer"></i> 1分鐘挑戰</button>
+                <button class="sol-mode-btn" data-solmode="challenge"><i data-lucide="timer"></i> 1分鐘練習</button>
             </div>
+            <p class="abrsm-coverage">唱名是課堂首調（movable Do），不是英皇考試項目。</p>
         </div>
 
-        <!-- 調號/唱名：年級選擇 -->
-        <div class="keysig-solfege-sub-row" id="keysigGradeRow" style="display:none;">
-            <span class="practice-diff-label"><i data-lucide="book"></i> 年級程度</span>
-            <div class="practice-diff-btns">
-                <button class="ks-grade-btn" data-grade="1">中一</button>
-                <button class="ks-grade-btn" data-grade="2">中二</button>
-                <button class="ks-grade-btn active" data-grade="3">中三</button>
-                <button class="ks-grade-btn" data-grade="4">中四</button>
-                <button class="ks-grade-btn" data-grade="5">中五</button>
-                <button class="ks-grade-btn" data-grade="6">中六</button>
+        <div class="keysig-solfege-sub-row" id="abrsmGradeRow">
+            <span class="practice-diff-label">英皇級別</span>
+            <div class="practice-diff-btns" id="abrsmGradeBtns">
+                <button type="button" class="abrsm-grade-btn active" data-abrsm="abrsm-g1">G1</button>
+                <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g2">G2</button>
+                <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g3">G3</button>
+                <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g4">G4</button>
+                <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g5">G5</button>
             </div>
-        </div>
-        <div class="keysig-solfege-sub-row" id="solfegeGradeRow" style="display:none;">
-            <span class="practice-diff-label"><i data-lucide="book"></i> 年級程度</span>
-            <div class="practice-diff-btns">
-                <button class="sol-grade-btn" data-grade="1">中一</button>
-                <button class="sol-grade-btn" data-grade="2">中二</button>
-                <button class="sol-grade-btn active" data-grade="3">中三</button>
-                <button class="sol-grade-btn" data-grade="4">中四</button>
-                <button class="sol-grade-btn" data-grade="5">中五</button>
-                <button class="sol-grade-btn" data-grade="6">中六</button>
-            </div>
+            <p class="abrsm-coverage" id="abrsmCoverage">難度是英皇樂理 G1。G1 只有大調、高音譜和低音譜，最多一條加線。移調、裝飾音、術語、節奏、和弦與樂器不在這一關，亦不是完整考試準備。</p>
         </div>
 
         <button class="btn-start note-teach-entry js-open-note-teach" id="openNoteTeachBtn" type="button">看圖學習<span class="note-teach-entry-hint">看譜聽音</span></button>
@@ -784,6 +753,7 @@
             <div class="staff-canvas-wrapper" id="canvasWrapper">
                 <canvas id="staffCanvas" aria-label="五線譜題目：辨認音符位置"></canvas>
             </div>
+            <div id="abrsmVf" class="abrsm-vf" hidden></div>
             <!-- 調號辨別：圖片顯示區 -->
             <div id="keysigDisplay" class="keysig-display" style="display:none;">
                 <img id="keysigImg" src="" alt="調號圖片">
@@ -837,7 +807,8 @@
                     <div class="rank-filter"><label>遊戲</label><select id="rankGameFilter"><option value="game1">一：音名識辨</option><option value="game2">二：節奏識辨</option><option value="game3">三：術語識辨</option><option value="game4">四：樂器識辨</option></select></div>
                     <div class="rank-filter"><label>班別</label><select id="rankClassFilter"><option value="0">全部</option><option value="A">A班</option><option value="B">B班</option><option value="C">C班</option><option value="D">D班</option></select></div>
                     <div class="rank-filter"><label>年級</label><select id="rankGradeFilter"><option value="0">全部</option><option value="1" selected>中一</option><option value="2">中二</option><option value="3">中三</option><option value="4">中四</option><option value="5">中五</option><option value="6">中六</option></select></div>
-                    <div class="rank-filter"><label>模式</label><select id="rankModeFilter"><option value="classic60" selected>高音譜號</option><option value="bass60">低音譜號</option><option value="mixed60">混合譜號</option><option value="noMiss">零失誤挑戰</option><option value="keysig60">調號挑戰</option><option value="solfege60">唱名挑戰</option></select></div>
+                    <div class="rank-filter"><label>榜</label><select id="rankModeFilter"><option value="abrsm-notes" selected>英皇音名</option><option value="abrsm-keys">英皇調號</option></select></div>
+                    <div class="rank-filter" id="rankAbrsmFilterWrap"><label>英皇級別</label><select id="rankAbrsmGradeFilter"><option value="0">全部</option><option value="abrsm-g1">G1</option><option value="abrsm-g2">G2</option><option value="abrsm-g3">G3</option><option value="abrsm-g4">G4</option><option value="abrsm-g5">G5</option></select></div>
                     <div class="rank-filter" id="rankDiffFilterWrap" style="display:none;"><label>難度</label><select id="rankDiffFilter"><option value="0">全部難度</option><option value="Easy">Easy</option><option value="Normal">Normal</option><option value="Hard">Hard</option><option value="Expert">Expert</option></select></div>
                 </div>
                 <div class="student-rank-hint" id="studentRankHint" style="display:none;"></div>
@@ -1554,7 +1525,9 @@
         </div>
     </div>
 
-    <script src="note-name-teach.js?v=4" defer></script>
+    <script src="abrsm-curriculum.js?v=1" defer></script>
+    <script src="abrsm-note-grade.js?v=1" defer></script>
+    <script src="note-name-teach.js?v=5" defer></script>
     <script src="instrument-category.js?v=2" defer></script>
     <script src="chinese-instrument-challenge.js?v=3" defer></script>
     <script src="chord-keyboard.js?v=2" defer></script>

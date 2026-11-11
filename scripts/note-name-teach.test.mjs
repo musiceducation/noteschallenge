@@ -134,7 +134,11 @@ assert.equal(NT.controlsFor('acc').showClef, true);
 assert.equal(NT.controlsFor('').modes.join(','), 'natural,sharp,flat');
 assert.equal(NT.controlsFor('').showClef, true);
 
-assert.equal(NT.topics.map((topic) => topic.label).join('|'), '線與間|中央 C|高音譜|低音譜|升號降號');
+assert.equal(NT.topics.map((topic) => topic.label).join('|'), '線與間|中央 C|高音譜|低音譜|升號降號|中音譜|次中音譜');
+assert.equal(NT.lineNames('alto').join(' '), 'F A C E G');
+assert.equal(NT.lineNames('tenor').join(' '), 'D F A C E');
+assert.equal(NT.controlsFor('alto').showClef, false);
+assert.equal(NT.controlsFor('tenor').showClef, false);
 const joined = NT.topics.map((topic) => topic.blurb).join('') + NT.howTo + NT.playHow;
 assert.match(joined, /線/);
 assert.match(joined, /間/);
@@ -159,9 +163,11 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.doesNotMatch(hidden, /openNoteTeachBtn/);
   assert.match(page, /id="screen-note-teach"/);
   assert.match(page, /id="openNoteTeachFromHub"/);
-  assert.match(page, /note-name-teach\.js\?v=4/);
+  assert.match(page, /note-name-teach\.js\?v=5/);
+  assert.match(page, /abrsm-curriculum\.js\?v=1/);
+  assert.match(page, /abrsm-note-grade\.js\?v=1/);
   assert.match(page, /chinese-instrument-challenge\.js\?v=3/);
-  assert.match(page, /style\.css\?v=13/);
+  assert.match(page, /style\.css\?v=14/);
   assert.match(page, /bootstrap-instruments\.js\?v=9/);
   assert.match(page, /chord-keyboard\.js\?v=2/);
   assert.doesNotMatch(page, /不用登入/);
@@ -185,7 +191,7 @@ for (const file of ['index.html', 'www/index.html']) {
 
 for (const boot of ['bootstrap-instruments.js', 'www/bootstrap-instruments.js']) {
   const src = fs.readFileSync(new URL('../' + boot, import.meta.url), 'utf8');
-  assert.match(src, /script\.js\?v=11/);
+  assert.match(src, /script\.js\?v=12/);
   assert.doesNotMatch(src, /script\.js\?v=8/);
 }
 assert.match(fs.readFileSync(new URL('../script.js', import.meta.url), 'utf8'), /NoteNameTeach\.mount/);

@@ -38,6 +38,43 @@
         { letter: 'B', octave: 3, yFactor: -0.5 },
         { letter: 'C', octave: 4, yFactor: -1 }
     ];
+    var LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+    var CLEF_ANCHOR = {
+        treble: { letter: 'F', octave: 5, y: 0 },
+        bass: { letter: 'A', octave: 3, y: 0 },
+        alto: { letter: 'C', octave: 4, y: 2 },
+        tenor: { letter: 'C', octave: 4, y: 1 }
+    };
+    var CLEF_ZH = { treble: '高音譜號', bass: '低音譜號', alto: '中音譜號', tenor: '次中音譜號' };
+
+    function positionAt(clef, yFactor) {
+        var anchor = CLEF_ANCHOR[clef];
+        var steps = Math.round((yFactor - anchor.y) * 2);
+        var idx = LETTERS.indexOf(anchor.letter);
+        var octave = anchor.octave;
+        var dir = steps >= 0 ? -1 : 1;
+        var n = Math.abs(steps);
+        for (var i = 0; i < n; i++) {
+            if (dir < 0) {
+                if (idx === 0) { idx = 6; octave -= 1; }
+                else idx -= 1;
+            } else if (idx === 6) { idx = 0; octave += 1; }
+            else idx += 1;
+        }
+        return { letter: LETTERS[idx], octave: octave, yFactor: yFactor };
+    }
+
+    function extendStaff(clef, bases, maxLedger) {
+        var have = {};
+        bases.forEach(function (base) { have[base.yFactor] = true; });
+        var extra = [];
+        for (var y = -maxLedger; y <= 4 + maxLedger + 1e-9; y += 0.5) {
+            var rounded = Math.round(y * 2) / 2;
+            if (have[rounded]) continue;
+            extra.push(positionAt(clef, rounded));
+        }
+        return bases.concat(extra);
+    }
 
     var HOW_TO = '點琴鍵就會出聲。五線譜顯示同一個音。「聽這個音」可以再聽一次。';
     var PLAY_HOW = '回到音名識辨後，看譜按對應的音名。不確定可以按「聽&看答案」，或按「跳過」。';
@@ -82,6 +119,22 @@
             mode: 'sharp',
             noteId: 'treble-Cs4',
             blurb: '升號 ♯ 把音升高半音，仍寫在原來的音位，例如 C♯ 在 C。降號 ♭ 把音降低半音，寫在高一個音名，例如 D♭ 在 D。C♯ 和 D♭ 是同一個黑鍵，但名稱和譜上的位置都不同。'
+        },
+        {
+            id: 'alto',
+            label: '中音譜',
+            clef: 'alto',
+            mode: 'natural',
+            noteId: 'alto-C4',
+            blurb: '中音譜號把中央 C 放在第三線。這是英皇樂理四級才加入的譜號，不是課堂高音／低音練習的替代。'
+        },
+        {
+            id: 'tenor',
+            label: '次中音譜',
+            clef: 'tenor',
+            mode: 'natural',
+            noteId: 'tenor-C4',
+            blurb: '次中音譜號把中央 C 放在第四線。這是英皇樂理五級才加入的譜號。移調樂器不在看圖學習裡。'
         }
     ];
 
@@ -148,7 +201,10 @@
         return notes;
     }
 
-    var NOTES = buildNotes('treble', TREBLE).concat(buildNotes('bass', BASS));
+    var NOTES = buildNotes('treble', extendStaff('treble', TREBLE, 4))
+        .concat(buildNotes('bass', extendStaff('bass', BASS, 4)))
+        .concat(buildNotes('alto', extendStaff('alto', [], 2)))
+        .concat(buildNotes('tenor', extendStaff('tenor', [], 2)));
     var BY_ID = {};
     NOTES.forEach(function (note) { BY_ID[note.id] = note; });
 
@@ -168,6 +224,12 @@
         if (yFactor === -1) return { kind: 'ledger', label: '上加一線' };
         if (yFactor === 4.5) return { kind: 'ledger', label: '下加間' };
         if (yFactor === -0.5) return { kind: 'ledger', label: '上加間' };
+        if (yFactor === 6) return { kind: 'ledger', label: '下加二線' };
+        if (yFactor === 7) return { kind: 'ledger', label: '下加三線' };
+        if (yFactor === 8) return { kind: 'ledger', label: '下加四線' };
+        if (yFactor === -2) return { kind: 'ledger', label: '上加二線' };
+        if (yFactor === -3) return { kind: 'ledger', label: '上加三線' };
+        if (yFactor === -4) return { kind: 'ledger', label: '上加四線' };
         return { kind: 'ledger', label: '加線' };
     }
 
@@ -204,7 +266,7 @@
     // when that topic does not already choose them, and they use glyphs so the
     // same words are not printed twice.
     function controlsFor(topicId) {
-        var clefLocked = topicId === 'lines' || topicId === 'treble' || topicId === 'bass';
+        var clefLocked = topicId === 'lines' || topicId === 'treble' || topicId === 'bass' || topicId === 'alto' || topicId === 'tenor';
         var modes = [];
         if (topicId === 'acc') modes = ['sharp', 'flat'];
         else if (!topicId) modes = ['natural', 'sharp', 'flat'];
@@ -254,7 +316,7 @@
     function lessonText(note, topic) {
         if (!note) return '';
         var place = placeOf(note.yFactor);
-        var clefName = note.clef === 'bass' ? '低音譜號' : '高音譜號';
+        var clefName = CLEF_ZH[note.clef] || '高音譜號';
         var where = clefName + '的' + place.label;
         var sentence;
         if (!note.accidental && note.letter === 'C' && note.octave === 4) {
@@ -283,7 +345,7 @@
     function keyboardModel(clef, mode) {
         var whites = naturals(clef).map(function (note) {
             return { midi: note.midi, name: note.spelling, octave: note.octave, id: note.id };
-        });
+        }).sort(function (a, b) { return a.midi - b.midi; });
         var blacks = [];
         for (var i = 0; i < whites.length - 1; i++) {
             if (whites[i + 1].midi - whites[i].midi !== 2) continue;
@@ -447,7 +509,8 @@
                 alignCenter: true
             });
             if (note.accidental && VF.Accidental) {
-                staveNote.addModifier(new VF.Accidental(note.accidental === '#' ? '#' : 'b'), 0);
+                var acc = note.accidental === '##' ? '##' : note.accidental === 'bb' ? 'bb' : note.accidental === '#' ? '#' : 'b';
+                staveNote.addModifier(new VF.Accidental(acc), 0);
             }
             if (typeof staveNote.setStyle === 'function') {
                 staveNote.setStyle({ fillStyle: '#9b3d62', strokeStyle: '#9b3d62' });
@@ -473,7 +536,7 @@
             }
             placeNoteInCard(container, note);
             var place = placeOf(note.yFactor);
-            container.setAttribute('aria-label', (note.clef === 'bass' ? '低音譜號 ' : '高音譜號 ') + note.spelling + note.octave + ' ' + place.label);
+            container.setAttribute('aria-label', (CLEF_ZH[note.clef] || '高音譜號') + ' ' + note.spelling + note.octave + ' ' + place.label);
             return true;
         } catch (err) {
             container.innerHTML = '';
@@ -694,7 +757,9 @@
         if (clefsEl) {
             clefsEl.innerHTML =
                 '<button type="button" data-clef="treble" aria-pressed="true" aria-label="高音譜" title="高音譜">𝄞</button>' +
-                '<button type="button" data-clef="bass" aria-pressed="false" aria-label="低音譜" title="低音譜">𝄢</button>';
+                '<button type="button" data-clef="bass" aria-pressed="false" aria-label="低音譜" title="低音譜">𝄢</button>' +
+                '<button type="button" data-clef="alto" aria-pressed="false" aria-label="中音譜" title="中音譜">中</button>' +
+                '<button type="button" data-clef="tenor" aria-pressed="false" aria-label="次中音譜" title="次中音譜">次</button>';
             clefsEl.addEventListener('click', function (event) {
                 var btn = event.target.closest('[data-clef]');
                 if (!btn) return;
