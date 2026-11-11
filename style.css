@@ -761,6 +761,28 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 .ks-mode-btn.active, .sol-mode-btn.active { background: linear-gradient(145deg, #a78bfa, #7c3aed); color: white; box-shadow: 0 3px 0 #5b21b6; }
 .ks-grade-btn.active { background: linear-gradient(145deg, #a78bfa, #7c3aed); color: white; box-shadow: 0 3px 0 #5b21b6; }
 .sol-grade-btn.active { background: linear-gradient(145deg, #34d399, #10b981); color: white; box-shadow: 0 3px 0 #047857; }
+.abrsm-grade-btn {
+    background: white; border: 2.5px solid #E8EDFF; color: var(--text-light);
+    padding: 8px 14px; border-radius: 50px; cursor: pointer;
+    font-weight: 900; font-size: 0.88rem; font-family: inherit;
+    box-shadow: 0 3px 0 #E8EDFF;
+}
+.abrsm-grade-btn.active {
+    background: linear-gradient(145deg, #8b6cff, #5b3fd6);
+    border-color: transparent; color: white; box-shadow: 0 3px 0 #3d2796;
+}
+.abrsm-coverage {
+    flex-basis: 100%; margin: 0; text-align: center;
+    font-size: 0.82rem; line-height: 1.45; color: var(--text-light); font-weight: 700;
+}
+.abrsm-vf[hidden] { display: none; }
+.abrsm-vf:not([hidden]) { display: flex; justify-content: center; width: 100%; min-height: 140px; }
+.abrsm-vf svg { width: 100%; height: auto; max-width: 560px; }
+.abrsm-spell-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; }
+.abrsm-spell-btn {
+    min-width: 52px; padding: 8px 10px; border-radius: 12px; border: 2px solid #d9d3f5;
+    background: #f7f4ff; font-weight: 900; font-family: inherit; cursor: pointer;
+}
 
 /* 調號辨別：圖片顯示 */
 .keysig-display {

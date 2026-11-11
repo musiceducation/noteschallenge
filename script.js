@@ -19,6 +19,10 @@
             'D♭3':138.59,'E♭3':155.56,'G♭3':185.00,'A♭3':207.65,'B♭3':233.08,
             'D♭4':277.18,'E♭4':311.13,'G♭4':369.99,'A♭4':415.30,'B♭4':466.16,
             'D♭5':554.37,'E♭5':622.25,'G♭5':739.99,'A♭5':830.61,'B♭5':932.33,
+            'C1':32.70,'C#1':34.65,'D1':36.71,'D#1':38.89,'E1':41.20,'F1':43.65,'F#1':46.25,'G1':49.00,'G#1':51.91,'A1':55.00,'A#1':58.27,'B1':61.74,
+            'D♭1':34.65,'E♭1':38.89,'G♭1':46.25,'A♭1':51.91,'B♭1':58.27,
+            'C6':1046.50,'C#6':1108.73,'D6':1174.66,'D#6':1244.51,'E6':1318.51,'F6':1396.91,'F#6':1479.98,'G6':1567.98,'G#6':1661.22,'A6':1760.00,'A#6':1864.66,'B6':1975.53,
+            'D♭6':1108.73,'E♭6':1244.51,'G♭6':1479.98,'A♭6':1661.22,'B♭6':1864.66,
         }
     };
 
@@ -54,14 +58,14 @@
 
     const MODE_CONFIG = {
         practice: { name:'練習模式', type:'practice', duration:Infinity, maxWrong:Infinity, scoreMulti:0 },
-        classic60:{ name:'高音譜號挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1, forceClef:'treble' },
-        bass60:   { name:'低音譜號挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1, forceClef:'bass' },
-        mixed60:  { name:'混合譜號挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1.2, forceClef:'mixed' },
-        noMiss:   { name:'零失誤挑戰', type:'challenge', duration:Infinity, maxWrong:1, scoreMulti:1.5 },
+        classic60:{ name:'1分鐘挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1 },
+        bass60:   { name:'1分鐘挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1 },
+        mixed60:  { name:'1分鐘挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1 },
+        noMiss:   { name:'零失誤練習', type:'practice', duration:Infinity, maxWrong:1, scoreMulti:0 },
         keysig_practice:  { name:'調號練習', type:'practice', duration:Infinity, maxWrong:Infinity, scoreMulti:0, gameType:'keysig' },
         keysig60:         { name:'調號挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1, gameType:'keysig' },
         solfege_practice: { name:'唱名練習', type:'practice', duration:Infinity, maxWrong:Infinity, scoreMulti:0, gameType:'solfege' },
-        solfege60:        { name:'唱名挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1, gameType:'solfege' }
+        solfege60:        { name:'唱名計時', type:'practice', duration:60, maxWrong:Infinity, scoreMulti:0, gameType:'solfege' }
     };
 
     const TEXTBOOK_CONFIG = {
@@ -102,8 +106,8 @@
     }
     function noteKeyKind(name) {
         const s = String(name || '');
-        if (s.includes('#') || s.includes('♯')) return 'sharp';
-        if (s.includes('♭')) return 'flat';
+        if (s.includes('##') || s.includes('×') || s.includes('#') || s.includes('♯')) return 'sharp';
+        if (s.includes('𝄫') || s.includes('♭')) return 'flat';
         return 'natural';
     }
     /** Labeled piano key for a pitch-class spelling (C, F#, D♭). */
@@ -1120,7 +1124,8 @@
             lastNoteLetter: null,
             practiceDiff: '3',
             keysigGrade: 1,
-            solfegeGrade: 1
+            solfegeGrade: 1,
+            abrsmGrade: 'abrsm-g1'
         };
     }
 
@@ -1650,6 +1655,12 @@
     }
 
     function drawStaff() {
+        if (state.currentNote && state.currentNote.abrsm) {
+            renderAbrsmNote(state.currentNote);
+            return;
+        }
+        hideAbrsmStaff();
+        if (dom.canvasWrapper) dom.canvasWrapper.style.display = '';
         if(!dom.canvas.logicalWidth) setupHDPI();
         const w = dom.canvas.logicalWidth, h = dom.canvas.logicalHeight, ctx = dom.ctx;
         if (!w || !h) return;
@@ -1796,6 +1807,7 @@
         s.practiceDiff = state.practiceDiff;
         s.keysigGrade = state.keysigGrade;
         s.solfegeGrade = state.solfegeGrade;
+        s.abrsmGrade = state.abrsmGrade || '';
         s.savedName = dom.userName.value;
         const customInp = _customNameInput;
         if (dom.userName.value === '__other__' && customInp) s.savedCustomName = customInp.value;
@@ -1812,6 +1824,8 @@
                 if (s.practiceDiff) state.practiceDiff = s.practiceDiff;
                 if (s.keysigGrade) state.keysigGrade = parseInt(s.keysigGrade);
                 if (s.solfegeGrade) state.solfegeGrade = parseInt(s.solfegeGrade);
+                if (typeof s.abrsmGrade === 'string' && /^abrsm-g[1-5]$/.test(s.abrsmGrade)) state.abrsmGrade = s.abrsmGrade;
+                if (s.lastMode === 'bass60' || s.lastMode === 'mixed60') s.lastMode = 'classic60';
                 if (s.lastMode && MODE_CONFIG[s.lastMode]) {
                     state.currentMode = s.lastMode; state.modeConfig = MODE_CONFIG[s.lastMode];
                     dom.modeCards.forEach(c => c.classList.remove('active'));
@@ -1924,7 +1938,313 @@
         return null;
     }
 
+    const ABRSM_NOTE_MODES = new Set(['practice', 'classic60', 'bass60', 'mixed60', 'noMiss']);
+    const ABRSM_KEY_MODES = new Set(['keysig_practice', 'keysig60']);
+    const ABRSM_CLEF_ZH = { treble: '高音譜號', bass: '低音譜號', alto: '中音譜號', tenor: '次中音譜號' };
+    const CLASSROOM_SPELLINGS = new Set(['C','D','E','F','G','A','B','C#','D#','F#','G#','A#','D♭','E♭','G♭','A♭','B♭']);
+
+    function abrsmReady() {
+        return typeof AbrsmNoteGrade !== 'undefined' && typeof AbrsmCurriculum !== 'undefined';
+    }
+    function ensureAbrsmGrade() {
+        if (!/^abrsm-g[1-5]$/.test(state.abrsmGrade || '')) state.abrsmGrade = 'abrsm-g1';
+    }
+    function usingAbrsmNotes() {
+        return !!(abrsmReady() && ABRSM_NOTE_MODES.has(state.currentMode));
+    }
+    function usingAbrsmKeys() {
+        return !!(abrsmReady() && ABRSM_KEY_MODES.has(state.currentMode));
+    }
+    function vexFlowApi() {
+        if (typeof VexFlow !== 'undefined' && VexFlow.Renderer) return VexFlow;
+        if (typeof Vex !== 'undefined' && Vex.Flow && Vex.Flow.Renderer) return Vex.Flow;
+        return null;
+    }
+    function hideAbrsmStaff() {
+        const host = document.getElementById('abrsmVf');
+        if (!host) return;
+        host.hidden = true;
+        host.innerHTML = '';
+    }
+    function showAbrsmHost() {
+        const host = document.getElementById('abrsmVf');
+        if (!host) return null;
+        host.hidden = false;
+        host.innerHTML = '';
+        if (dom.canvasWrapper) dom.canvasWrapper.style.display = 'none';
+        const imgWrap = document.getElementById('keysigDisplay');
+        if (imgWrap) imgWrap.style.display = 'none';
+        return host;
+    }
+    function spellingToVex(spelling, octave) {
+        const m = String(spelling).match(/^([A-G])(##|bb|#|b)?$/);
+        if (!m) return 'c/' + octave;
+        return m[1].toLowerCase() + (m[2] || '') + '/' + octave;
+    }
+    function fitAbrsmSvg(host) {
+        const svg = host.querySelector('svg');
+        if (!svg) return;
+        svg.style.display = 'block';
+        svg.style.width = '100%';
+        svg.style.height = 'auto';
+        svg.style.maxWidth = '560px';
+    }
+    function renderAbrsmNote(note) {
+        const host = showAbrsmHost();
+        if (!host) return;
+        if (dom.clefBadge) {
+            dom.clefBadge.style.display = '';
+            dom.clefBadge.textContent = ABRSM_CLEF_ZH[note.clef] || '譜號';
+        }
+        const VF = vexFlowApi();
+        if (!VF) {
+            host.textContent = '譜面未能繪出';
+            return;
+        }
+        try {
+            const width = Math.max(300, Math.min(560, host.clientWidth || 420));
+            const above = Math.max(36, note.yFactor < 0 ? Math.round(-note.yFactor * 18) + 28 : 28);
+            const below = note.yFactor > 4 ? Math.round((note.yFactor - 4) * 18) + 36 : 36;
+            const staveY = above;
+            const height = staveY + 110 + below;
+            const renderer = new VF.Renderer(host, VF.Renderer.Backends.SVG);
+            renderer.resize(width, height);
+            const context = renderer.getContext();
+            const stave = new VF.Stave(8, staveY, Math.max(160, width - 16));
+            stave.addClef(note.clef);
+            stave.setContext(context).draw();
+            const staveNote = new VF.StaveNote({ clef: note.clef, keys: [note.vexKey], duration: 'q' });
+            if (note.vexAccidental) staveNote.addModifier(new VF.Accidental(note.vexAccidental), 0);
+            const voice = new VF.Voice({ numBeats: 1, beatValue: 4 });
+            if (typeof voice.setMode === 'function') voice.setMode(2);
+            voice.addTickables([staveNote]);
+            new VF.Formatter().joinVoices([voice]).format([voice], Math.max(48, width - stave.getNoteStartX() - 20));
+            voice.draw(context, stave);
+            fitAbrsmSvg(host);
+            host.setAttribute('aria-label', (ABRSM_CLEF_ZH[note.clef] || '') + ' 音符題');
+        } catch (err) {
+            console.error(err);
+            host.textContent = '譜面未能繪出';
+        }
+    }
+    function renderAbrsmKey(item) {
+        const host = showAbrsmHost();
+        if (!host) return;
+        if (dom.clefBadge) {
+            dom.clefBadge.style.display = '';
+            dom.clefBadge.textContent = ABRSM_CLEF_ZH[item.clef] || '調號';
+        }
+        const VF = vexFlowApi();
+        if (!VF) { host.textContent = '調號未能繪出'; return; }
+        try {
+            const width = Math.max(340, Math.min(560, host.clientWidth || 480));
+            const renderer = new VF.Renderer(host, VF.Renderer.Backends.SVG);
+            renderer.resize(width, 180);
+            const context = renderer.getContext();
+            const stave = new VF.Stave(8, 28, Math.max(200, width - 16));
+            stave.addClef(item.clef);
+            if (item.signature && item.signature.length && item.vexKeySpec) stave.addKeySignature(item.vexKeySpec);
+            stave.setContext(context).draw();
+            const cues = item.cueNotes || [];
+            if (cues.length) {
+                const octave = item.clef === 'bass' ? 3 : 4;
+                const notes = cues.map(spelling => {
+                    const sn = new VF.StaveNote({ clef: item.clef, keys: [spellingToVex(spelling, octave)], duration: 'q' });
+                    const mark = String(spelling).slice(1);
+                    if (mark) sn.addModifier(new VF.Accidental(mark), 0);
+                    return sn;
+                });
+                const voice = new VF.Voice({ numBeats: notes.length, beatValue: 4 });
+                if (typeof voice.setMode === 'function') voice.setMode(2);
+                voice.addTickables(notes);
+                new VF.Formatter().joinVoices([voice]).format([voice], Math.max(80, width - stave.getNoteStartX() - 24));
+                voice.draw(context, stave);
+            }
+            fitAbrsmSvg(host);
+            host.setAttribute('aria-label', '調號題，' + (ABRSM_CLEF_ZH[item.clef] || ''));
+        } catch (err) {
+            console.error(err);
+            host.textContent = '調號未能繪出';
+        }
+    }
+    function generateAbrsmNote() {
+        ensureAbrsmGrade();
+        const pool = AbrsmNoteGrade.notePool(state.abrsmGrade);
+        let pick = pool[Math.floor(Math.random() * pool.length)];
+        let tries = 0;
+        while (tries < 12 && state.lastNoteLetter && pick.letter === state.lastNoteLetter && pick.clef === state.lastNoteClef) {
+            pick = pool[Math.floor(Math.random() * pool.length)];
+            tries++;
+        }
+        state.lastNoteLetter = pick.letter;
+        state.lastNoteClef = pick.clef;
+        return {
+            clef: pick.clef,
+            letter: pick.letter,
+            octave: pick.octave,
+            yFactor: pick.yFactor,
+            accidental: pick.accidental || null,
+            correctName: pick.spelling,
+            freqKey: pick.freqKey,
+            vexKey: pick.vexKey,
+            vexAccidental: pick.vexAccidental,
+            abrsm: true
+        };
+    }
+    function generateAbrsmKeyQuestion() {
+        ensureAbrsmGrade();
+        const pool = AbrsmNoteGrade.keyItems(state.abrsmGrade);
+        const correct = pool[Math.floor(Math.random() * pool.length)];
+        const sameClef = pool.filter(item => item.clef === correct.clef && item.label !== correct.label);
+        const shuffled = sameClef.slice().sort(() => Math.random() - 0.5);
+        const seen = new Set([correct.label]);
+        const distractors = [];
+        shuffled.forEach(item => {
+            if (distractors.length >= 3 || seen.has(item.label)) return;
+            seen.add(item.label);
+            distractors.push(item);
+        });
+        const options = [correct, ...distractors].sort(() => Math.random() - 0.5).map(item => ({
+            id: item.id,
+            name: item.label,
+            clef: item.clef,
+            signature: item.signature,
+            vexKeySpec: item.vexKeySpec,
+            cueNotes: item.cueNotes
+        }));
+        return {
+            abrsm: true,
+            correct: options.find(item => item.id === correct.id),
+            options: options
+        };
+    }
+    function syncAbrsmSpellButtons() {
+        document.querySelectorAll('.abrsm-spell-btn').forEach(btn => {
+            noteBtnMap.delete(btn.dataset.note);
+            btn.remove();
+        });
+        const row = document.getElementById('abrsmSpellRow');
+        if (row) row.remove();
+        if (!usingAbrsmNotes() || !dom.notesGrid) return;
+        const extra = [...new Set(AbrsmNoteGrade.notePool(state.abrsmGrade).map(note => note.spelling))]
+            .filter(spelling => !CLASSROOM_SPELLINGS.has(spelling));
+        if (!extra.length) return;
+        const host = document.createElement('div');
+        host.id = 'abrsmSpellRow';
+        host.className = 'abrsm-spell-row';
+        extra.forEach(spelling => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'abrsm-spell-btn';
+            btn.dataset.note = spelling;
+            btn.disabled = true;
+            btn.setAttribute('aria-label', '音名 ' + spelling);
+            btn.textContent = spelling;
+            if (window.AudioEngine && window.AudioEngine.onInstantTap) {
+                window.AudioEngine.onInstantTap(btn, () => handleAnswer(spelling));
+            } else {
+                btn.addEventListener('click', () => handleAnswer(spelling));
+            }
+            noteBtnMap.set(spelling, btn);
+            host.appendChild(btn);
+        });
+        dom.notesGrid.appendChild(host);
+    }
+    function refreshAbrsmCoverage() {
+        const el = document.getElementById('abrsmCoverage');
+        if (!el) return;
+        ensureAbrsmGrade();
+        const n = String(state.abrsmGrade).replace('abrsm-g', '');
+        const detail = {
+            '1': 'G1 只有大調、高音譜和低音譜，最多一條加線。',
+            '2': 'G2 加入和聲小調，最多兩條加線。旋律小調未到。',
+            '3': 'G3 加入旋律小調，加線可以多過兩條。',
+            '4': 'G4 加入中音譜號，以及重升、重降。',
+            '5': 'G5 加入次中音譜號。'
+        }[n] || '';
+        el.textContent = '難度是英皇樂理 G' + n + '。' + detail + '移調、裝飾音、術語、節奏、和弦與樂器不在這一關，亦不是完整考試準備。唱名是課堂首調，不是級別。';
+    }
+    function syncAbrsmRows() {
+        ensureAbrsmGrade();
+        const row = document.getElementById('abrsmGradeRow');
+        const keysig = ABRSM_KEY_MODES.has(state.currentMode);
+        const note = ABRSM_NOTE_MODES.has(state.currentMode);
+        if (row) row.style.display = (note || keysig) ? '' : 'none';
+        document.querySelectorAll('.abrsm-grade-btn').forEach(btn => {
+            btn.classList.toggle('active', (btn.dataset.abrsm || '') === state.abrsmGrade);
+        });
+        refreshAbrsmCoverage();
+    }
+    function playerBadge() {
+        const grade = state.abrsmGrade ? ' · 英皇 G' + String(state.abrsmGrade).replace('abrsm-g', '') : '';
+        return `👋 ${state.currentUser.name} 同學 · ${state.modeConfig.name}${grade}`;
+    }
+    function saveAbrsmRank(gameKey) {
+        if (!state.currentUser || !state.abrsmGrade || !abrsmReady()) return;
+        const accuracy = state.totalQuestions ? Math.round(((state.totalQuestions - state.wrongCount) / state.totalQuestions) * 100) : 0;
+        const schoolLabels = ['', '中一', '中二', '中三', '中四', '中五', '中六'];
+        const record = AbrsmCurriculum.rankRecord({
+            gameKey: gameKey,
+            syllabusId: state.abrsmGrade,
+            score: state.score,
+            schoolYear: schoolLabels[parseInt(state.currentUser.grade, 10)] || null
+        });
+        record.name = state.currentUser.name;
+        record.class = state.currentUser.class;
+        record.id = state.currentUser.id || '';
+        record.accuracy = accuracy;
+        record.max_combo = state.maxCombo;
+        record.grade = state.currentUser.grade;
+        record.difficulty = state.abrsmGrade;
+        try {
+            const all = JSON.parse(localStorage.getItem(record.storageKey) || '[]');
+            const idx = all.findIndex(row => row.name === record.name && row.class === record.class && String(row.id || '') === String(record.id || '') && row.syllabusId === record.syllabusId);
+            if (idx >= 0) {
+                if (record.score > (all[idx].score || 0)) all[idx] = record;
+            } else all.push(record);
+            localStorage.setItem(record.storageKey, JSON.stringify(all));
+        } catch (err) {
+            console.error(err);
+        }
+    }
+    function renderAbrsmRanks(gameKey) {
+        const wrap = document.getElementById('rankAbrsmFilterWrap');
+        if (wrap) wrap.style.display = '';
+        const want = (document.getElementById('rankAbrsmGradeFilter') || {}).value || '0';
+        const fC = dom.rankClassFilter.value;
+        const fG = parseInt(dom.rankGradeFilter.value, 10);
+        const grades = ['abrsm-g1', 'abrsm-g2', 'abrsm-g3', 'abrsm-g4', 'abrsm-g5'];
+        let rows = [];
+        grades.forEach(id => {
+            if (want !== '0' && want !== id) return;
+            let list = [];
+            try { list = JSON.parse(localStorage.getItem(AbrsmCurriculum.rankStorageKey(gameKey, id)) || '[]'); } catch (err) { list = []; }
+            rows = rows.concat(list);
+        });
+        if (fC !== '0') rows = rows.filter(row => row.class === fC);
+        if (fG !== 0) rows = rows.filter(row => parseInt(row.grade, 10) === fG);
+        rows = rows.filter(row => row && row.legacyBoard === false && AbrsmCurriculum.legacyBoardVisible(row) === false);
+        rows.sort((a, b) => (parseInt(b.score, 10) || 0) - (parseInt(a.score, 10) || 0));
+        if (!rows.length) {
+            dom.rankList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">英皇榜暫時未有紀錄。課堂排行榜不會顯示呢度的分數。</div>';
+            return;
+        }
+        dom.rankList.innerHTML = rows.slice(0, 100).map((item, i) => {
+            const name = escHtml(item.name);
+            const cls = escHtml(item.class);
+            const g = String(item.syllabusId || '').replace('abrsm-g', 'G');
+            const school = item.grade ? `中${['','一','二','三','四','五','六'][item.grade] || item.grade}` : '';
+            return `<div class="rank-item ${i === 0 ? 'first' : i === 1 ? 'second' : i === 2 ? 'third' : ''}">
+                <div class="rank-pos">${i + 1}.</div>
+                <div class="rank-name"><span class="rank-student-name">${name}</span>
+                    <div class="rank-badges"><span class="rank-tag rank-grade-tag">${g}</span>${school ? `<span class="rank-tag">${school}</span>` : ''}<span class="rank-tag rank-class-tag">${cls}班</span></div>
+                </div>
+                <div class="rank-score">${parseInt(item.score, 10) || 0}</div></div>`;
+        }).join('');
+    }
+
     function generateNote() {
+        if (usingAbrsmNotes()) return generateAbrsmNote();
         let clefOptions = [], accidentalChance = 0, noteRange = [0, 10], allowAbove = true, allowBelow = true;
         
         // Challenge modes can force a specific clef
@@ -2000,6 +2320,7 @@
         } else {
             hasAccidentals = _getPracticeConfig().accidentalChance > 0;
         }
+        if (usingAbrsmNotes()) hasAccidentals = true;
 
         if (!_noteRowsBuilt) {
             dom.notesGrid.innerHTML = '';
@@ -2055,6 +2376,7 @@
         }
         if (_answerPiano) _answerPiano.classList.toggle('answer-piano--naturals', !hasAccidentals);
         noteBtnMap.forEach(btn => btn.classList.remove('correct', 'wrong'));
+        syncAbrsmSpellButtons();
     }
 
     function handleAnswer(answer) {
@@ -2170,7 +2492,7 @@
         state.currentUser = { name: playerName, grade: parseInt(dom.userGrade.value), class: dom.userClass.value, id: dom.userId.value };
         markProfilePlayStart();
         buildNoteButtons();
-        dom.inGameUser.textContent = `👋 ${state.currentUser.name} 同學 · ${state.modeConfig.name}`;
+        dom.inGameUser.textContent = playerBadge();
         dom.endBtn.textContent = state.modeConfig.type === 'practice' ? '📊 結束練習' : '🏁 結束挑戰';
 
         state.gameActive = false; 
@@ -2245,14 +2567,17 @@
         const keysigOptions = document.getElementById('keysigOptions');
         const canvasWrapper = document.getElementById('canvasWrapper');
         const clefBadge = document.getElementById('clefBadge');
-        if (keysigDisplay) keysigDisplay.style.display = show ? 'flex' : 'none';
+        const abrsm = show && usingAbrsmKeys();
+        if (keysigDisplay) keysigDisplay.style.display = (show && !abrsm) ? 'flex' : 'none';
         if (keysigOptions) keysigOptions.style.display = show ? 'grid' : 'none';
         if (canvasWrapper) canvasWrapper.style.display = show ? 'none' : '';
-        if (clefBadge) clefBadge.style.display = show ? 'none' : '';
+        if (clefBadge) clefBadge.style.display = (show && !abrsm) ? 'none' : '';
         if (dom.notesGrid) dom.notesGrid.style.display = show ? 'none' : '';
+        if (!abrsm) hideAbrsmStaff();
     }
 
     function generateKeysigQuestion(grade) {
+        if (usingAbrsmKeys()) return generateAbrsmKeyQuestion();
         const pool = getKeysigPool(grade);
         if (pool.length < 2) return null;
         const correct = pool[Math.floor(Math.random() * pool.length)];
@@ -2268,7 +2593,11 @@
         _keysigCurrentQ = q;
         const keysigImg = document.getElementById('keysigImg');
         const keysigOptions = document.getElementById('keysigOptions');
-        if (keysigImg) { keysigImg.src = q.img; keysigImg.alt = '辨別此調號'; }
+        if (q.abrsm) {
+            if (keysigImg) keysigImg.removeAttribute('src');
+            renderAbrsmKey(q.correct);
+        } else if (keysigImg) { keysigImg.src = q.img; keysigImg.alt = '辨別此調號'; }
+        if (keysigOptions) keysigOptions.classList.toggle('abrsm-keys', !!q.abrsm);
         if (!keysigOptions) return;
         keysigOptions.innerHTML = '';
         q.options.forEach(opt => {
@@ -2353,7 +2682,7 @@
 
         showKeysigUI(true);
         showSolfegeUI(false);
-        dom.inGameUser.textContent = `👋 ${state.currentUser.name} 同學 · ${state.modeConfig.name}`;
+        dom.inGameUser.textContent = playerBadge();
         dom.endBtn.textContent = state.modeConfig.type === 'practice' ? '📊 結束練習' : '🏁 結束挑戰';
 
         state.gameActive = false;
@@ -2409,8 +2738,8 @@
         }
     }
 
-    function generateSolfegeNote(grade) {
-        const level = SOLFEGE_LEVELS[grade] || SOLFEGE_LEVELS[3];
+    function generateSolfegeNote() {
+        const level = { keys: ['C', 'G', 'F', 'D'], noteRange: [0, 9] };
         // Pick random key
         const keyId = level.keys[Math.floor(Math.random() * level.keys.length)];
         const keySig = KEY_SIGNATURES.find(k => k.id === keyId);
@@ -2640,8 +2969,7 @@
     }
 
     function nextSolfegeQuestion() {
-        const grade = state.solfegeGrade || state.currentUser.grade || 3;
-        const note = generateSolfegeNote(grade);
+        const note = generateSolfegeNote();
         if (!note) return;
         state.currentNote = note;
         state.answered = false;
@@ -2853,6 +3181,12 @@
     async function submitScore() {
         if (!state.currentUser.name || state.modeConfig.type !== 'challenge') return;
         if (state.score === 0 && state.totalQuestions === 0) return;
+        if (state.currentMode === 'noMiss' || (state.modeConfig && state.modeConfig.gameType === 'solfege')) return;
+        if (ABRSM_NOTE_MODES.has(state.currentMode) || ABRSM_KEY_MODES.has(state.currentMode)) {
+            ensureAbrsmGrade();
+            saveAbrsmRank(ABRSM_KEY_MODES.has(state.currentMode) ? 'keys' : 'notes');
+            return;
+        }
 
         const record = {
             game: 'game1',
@@ -3133,13 +3467,25 @@
         if (!state.currentUser?.name) return;
         if (dom.rankGradeFilter) dom.rankGradeFilter.value = String(state.currentUser.grade || 0);
         if (dom.rankClassFilter) dom.rankClassFilter.value = String(state.currentUser.class || '0');
-        if (dom.rankModeFilter && state.modeConfig?.type === 'challenge') dom.rankModeFilter.value = state.currentMode;
+        if (dom.rankModeFilter && state.modeConfig?.type === 'challenge') {
+            if (state.abrsmGrade && ABRSM_KEY_MODES.has(state.currentMode)) dom.rankModeFilter.value = 'abrsm-keys';
+            else if (state.abrsmGrade && ABRSM_NOTE_MODES.has(state.currentMode)) dom.rankModeFilter.value = 'abrsm-notes';
+            else dom.rankModeFilter.value = state.currentMode;
+            const ag = document.getElementById('rankAbrsmGradeFilter');
+            if (ag && state.abrsmGrade) ag.value = state.abrsmGrade;
+        }
     }
 
     function renderRanks() {
         const gf = document.getElementById('rankGameFilter');
         if (gf && gf.value !== 'game1') { renderRanksForGame(gf.value); return; }
         const fC = dom.rankClassFilter.value, fG = parseInt(dom.rankGradeFilter.value), fM = dom.rankModeFilter.value;
+        const abrsmWrap = document.getElementById('rankAbrsmFilterWrap');
+        if (fM === 'abrsm-notes' || fM === 'abrsm-keys') {
+            renderAbrsmRanks(fM === 'abrsm-keys' ? 'keys' : 'notes');
+            return;
+        }
+        if (abrsmWrap) abrsmWrap.style.display = 'none';
         let f = state.allRanks.filter(r => r.mode === fM); 
         if (fC !== '0') f = f.filter(r => r.class === fC); 
         if (fG !== 0) f = f.filter(r => parseInt(r.grade) === fG);
@@ -3388,12 +3734,9 @@
             if (mode === 'practice' || mode === 'noMiss') {
                 state.currentMode = mode;
                 state.modeConfig = MODE_CONFIG[mode];
-                if (mode === 'practice' && dom.practiceDiffRow) dom.practiceDiffRow.style.display = '';
             } else if (mode === 'classic60') {
-                const activeClef = document.querySelector('.clef-sel-btn.active');
-                state.currentMode = activeClef ? activeClef.dataset.clef : 'classic60';
-                state.modeConfig = MODE_CONFIG[state.currentMode];
-                if (clefSelectorRow) clefSelectorRow.style.display = '';
+                state.currentMode = 'classic60';
+                state.modeConfig = MODE_CONFIG.classic60;
             } else if (mode === 'keysig_practice') {
                 // Default to practice; sub-row lets user toggle challenge
                 const activeKsMode = document.querySelector('.ks-mode-btn.active');
@@ -3408,6 +3751,7 @@
                 state.modeConfig = MODE_CONFIG[state.currentMode];
                 if (solfegeSubRow) solfegeSubRow.style.display = '';
             }
+            syncAbrsmRows();
             saveSettings();
         }));
 
@@ -3418,6 +3762,7 @@
             btn.classList.add('active');
             state.currentMode = btn.dataset.ksmode === 'challenge' ? 'keysig60' : 'keysig_practice';
             state.modeConfig = MODE_CONFIG[state.currentMode];
+            syncAbrsmRows();
             saveSettings();
         }));
         // Keysig grade buttons
@@ -3436,6 +3781,14 @@
             btn.classList.add('active');
             state.currentMode = btn.dataset.solmode === 'challenge' ? 'solfege60' : 'solfege_practice';
             state.modeConfig = MODE_CONFIG[state.currentMode];
+            syncAbrsmRows();
+            saveSettings();
+        }));
+        document.querySelectorAll('.abrsm-grade-btn').forEach(btn => btn.addEventListener('click', () => {
+            audio.init(); audio.playClick('select');
+            state.abrsmGrade = btn.dataset.abrsm;
+            syncAbrsmRows();
+            if (typeof buildNoteButtons === 'function') buildNoteButtons();
             saveSettings();
         }));
         // Solfege grade buttons
@@ -3490,6 +3843,7 @@
               if (solCard) { dom.modeCards.forEach(c => c.classList.remove('active')); solCard.classList.add('active'); }
               document.querySelectorAll('.sol-mode-btn').forEach(b => b.classList.toggle('active', (state.currentMode === 'solfege60') === (b.dataset.solmode === 'challenge')));
           }
+          syncAbrsmRows();
         }
 
         // Practice difficulty selector
@@ -3537,6 +3891,8 @@
             const gfVal = document.getElementById('rankGameFilter').value;
             const mfRow = dom.rankModeFilter?.closest?.('.rank-filter');
             if (mfRow) mfRow.style.display = gfVal === 'game1' ? '' : 'none';
+            const abrsmRankWrap = document.getElementById('rankAbrsmFilterWrap');
+            if (abrsmRankWrap) abrsmRankWrap.style.display = gfVal === 'game1' ? '' : 'none';
             const dfWrap = document.getElementById('rankDiffFilterWrap');
             const dfSel = document.getElementById('rankDiffFilter');
             if (dfWrap && dfSel) {
@@ -3557,7 +3913,7 @@
 
         document.getElementById('rankDiffFilter')?.addEventListener('change', renderRanks);
 
-        [dom.rankClassFilter, dom.rankGradeFilter, dom.rankModeFilter].forEach(f => f.addEventListener('change', renderRanks));
+        [dom.rankClassFilter, dom.rankGradeFilter, dom.rankModeFilter, document.getElementById('rankAbrsmGradeFilter')].forEach(f => { if (f) f.addEventListener('change', renderRanks); });
         const preventInput = () => state.inputFocused = true;
         const allowInput = () => state.inputFocused = false; 
         [dom.userId].forEach(el => { el.addEventListener('focus', preventInput); el.addEventListener('blur', allowInput); });
@@ -4601,6 +4957,8 @@
     // renderRanksForGame — Game 2/3 shared ranks (uses GAS data)
     // ==========================================
     function renderRanksForGame(gameKey) {
+        const abrsmRankWrap = document.getElementById('rankAbrsmFilterWrap');
+        if (abrsmRankWrap) abrsmRankWrap.style.display = 'none';
         if (!dom.rankList) return;
         const fC = dom.rankClassFilter ? dom.rankClassFilter.value : '0';
         const fG = dom.rankGradeFilter ? parseInt(dom.rankGradeFilter.value) : 0;
