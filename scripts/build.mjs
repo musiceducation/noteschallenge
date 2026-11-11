@@ -53,6 +53,8 @@ for (const f of [
   "www/abrsm-curriculum.js",
   "abrsm-note-grade.js",
   "www/abrsm-note-grade.js",
+  "abrsm-rhythm-terms.js",
+  "www/abrsm-rhythm-terms.js",
   "composition-studio.js",
   "www/composition-studio.js"
 ]) checkJs(f);

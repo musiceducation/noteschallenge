@@ -870,21 +870,32 @@
         </div>
         <div class="mode-cards" id="g2ModeCards">
             <div class="mode-card cards active" data-mode="practice" id="g2ModePractice">
-                <div class="mode-icon">🎴</div><div class="mode-name">自由練習</div><div class="mode-desc">自選節奏卡，不限時練習</div>
+                <div class="mode-icon">🎴</div><div class="mode-name">課堂柯達伊</div><div class="mode-desc">節奏名練習，不是英皇級別</div>
             </div>
             <div class="mode-card challenge" data-mode="challenge" id="g2ModeChallenge">
-                <div class="mode-icon">⭐</div><div class="mode-name">節奏挑戰</div><div class="mode-desc">隨機節奏，計入排行榜</div>
+                <div class="mode-icon">𝄞</div><div class="mode-name">拍號練習</div><div class="mode-desc">跟所選英皇級別，不入榜</div>
             </div>
             <div class="mode-card onemin" data-mode="1min" id="g2Mode1Min">
-                <div class="mode-icon">⏱️</div><div class="mode-name">1分鐘挑戰</div><div class="mode-desc">視譜填寫，限時作答</div>
+                <div class="mode-icon">⏱️</div><div class="mode-name">拍號計時</div><div class="mode-desc">同一級別，限時一分鐘，計入英皇榜</div>
             </div>
             <div class="mode-card duration" data-mode="duration" id="g2ModeDuration">
-                <div class="mode-icon">🎵</div><div class="mode-name">時值辨別</div><div class="mode-desc">辨認音符時值，限時作答</div>
+                <div class="mode-icon">🎵</div><div class="mode-name">時值辨別</div><div class="mode-desc">同一英皇級別的音符、休止符和連音</div>
                 <div class="mode-sub-btns">
                     <button class="mode-sub-btn" id="durHelpBtn" title="練習說明">說明</button>
                     <button class="mode-sub-btn" id="durRefBtn" title="音符休止符時值">🎵 時值表</button>
                 </div>
             </div>
+        </div>
+        <div class="keysig-solfege-sub-row" id="g2AbrsmRow">
+            <span class="practice-diff-label">英皇級別</span>
+            <div class="practice-diff-btns" id="g2AbrsmBtns">
+                <button type="button" class="abrsm-grade-btn active" data-abrsm="abrsm-g1">G1</button>
+                <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g2">G2</button>
+                <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g3">G3</button>
+                <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g4">G4</button>
+                <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g5">G5</button>
+            </div>
+            <p class="abrsm-coverage" id="g2AbrsmCoverage"></p>
         </div>
         <button class="btn-start" id="g2StartBtn">🚀 開始練習</button>
         <button class="btn-view-ranks" id="g2SetupViewRanks">🏆 查看排行榜</button>
@@ -1042,70 +1053,19 @@
                 <div class="mode-icon">📝</div><div class="mode-name">練習模式</div><div class="mode-desc">不限時，可反覆練習</div>
             </div>
             <div class="mode-card challenge" data-mode="challenge" id="g3ModeChallenge">
-                <div class="mode-icon">⏱️</div><div class="mode-name">限時挑戰</div><div class="mode-desc">限時一分鐘，計入排行榜</div>
+                <div class="mode-icon">⏱️</div><div class="mode-name">限時挑戰</div><div class="mode-desc">同一英皇級別，限時一分鐘，計入英皇榜</div>
             </div>
         </div>
-        <!-- 練習模式：年級選擇 (中一至中六) -->
-        <div class="difficulty-selector" id="g3PracticeGradeSelector">
-            <div class="diff-title">📚 選擇年級（術語範圍）</div>
-            <div class="diff-cards diff-cards-grade" id="g3PracticeGradeCards">
-                <button class="diff-card diff-p1" data-diff="p1">
-                    <div class="diff-stars">🌱</div>
-                    <div class="diff-name">中一</div>
-                    <div class="diff-desc">全部術語<br>最高程度</div>
-                </button>
-                <button class="diff-card diff-p2" data-diff="p2">
-                    <div class="diff-stars">🌿</div>
-                    <div class="diff-name">中二</div>
-                    <div class="diff-desc">全部術語<br>最高程度</div>
-                </button>
-                <button class="diff-card diff-p3" data-diff="p3">
-                    <div class="diff-stars">🌳</div>
-                    <div class="diff-name">中三</div>
-                    <div class="diff-desc">速度+奏法<br>更多術語</div>
-                </button>
-                <button class="diff-card diff-p4" data-diff="p4">
-                    <div class="diff-stars">⭐</div>
-                    <div class="diff-name">中四</div>
-                    <div class="diff-desc">進階術語<br>基礎調號</div>
-                </button>
-                <button class="diff-card diff-p5" data-diff="p5">
-                    <div class="diff-stars">⭐⭐</div>
-                    <div class="diff-name">中五</div>
-                    <div class="diff-desc">進階調號<br>記號情緒</div>
-                </button>
-                <button class="diff-card diff-p6" data-diff="p6">
-                    <div class="diff-stars">🏆</div>
-                    <div class="diff-name">中六</div>
-                    <div class="diff-desc">全部術語<br>極速挑戰</div>
-                </button>
+        <div class="keysig-solfege-sub-row" id="g3AbrsmRow">
+            <span class="practice-diff-label">英皇級別</span>
+            <div class="practice-diff-btns" id="g3AbrsmBtns">
+                <button type="button" class="abrsm-grade-btn active" data-abrsm="abrsm-g1">G1</button>
+                <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g2">G2</button>
+                <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g3">G3</button>
+                <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g4">G4</button>
+                <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g5">G5</button>
             </div>
-        </div>
-        <!-- 限時挑戰：難度選擇 -->
-        <div class="difficulty-selector" id="g3DiffSelector" style="display:none;">
-            <div class="diff-title">🎯 選擇難度</div>
-            <div class="diff-cards" id="g3DiffCards">
-                <button class="diff-card diff-easy active" data-diff="easy">
-                    <div class="diff-stars">⭐</div>
-                    <div class="diff-name">Easy</div>
-                    <div class="diff-desc">基礎術語<br>力度為主</div>
-                </button>
-                <button class="diff-card diff-normal" data-diff="normal">
-                    <div class="diff-stars">⭐⭐</div>
-                    <div class="diff-name">Normal</div>
-                    <div class="diff-desc">速度+奏法<br>基礎調號</div>
-                </button>
-                <button class="diff-card diff-hard" data-diff="hard">
-                    <div class="diff-stars">⭐⭐⭐</div>
-                    <div class="diff-name">Hard</div>
-                    <div class="diff-desc">進階調號<br>記號+情緒</div>
-                </button>
-                <button class="diff-card diff-expert" data-diff="expert">
-                    <div class="diff-stars">⭐⭐⭐⭐</div>
-                    <div class="diff-name">Expert</div>
-                    <div class="diff-desc">全部術語<br>極速挑戰</div>
-                </button>
-            </div>
+            <p class="abrsm-coverage" id="g3AbrsmCoverage">術語跟英皇級別累積。G1–G3 是意大利文，G4 起加法文，G5 再加德文。裝飾音記號由 G4 開始。未核對欄位的記號不會出題。</p>
         </div>
         <button class="btn-view-ranks" id="g3StudyBtn" style="background:linear-gradient(135deg,#E8F4FF,#F0E8FF);color:var(--primary-blue-dark);border-color:rgba(0,166,237,0.35);box-shadow:0 5px 0 rgba(0,166,237,0.25);">📚 先看術語表溫習</button>
         <button class="btn-start" id="g3StartBtn">🚀 開始練習</button>
@@ -1560,6 +1520,7 @@
     </div>
 
     <script src="abrsm-curriculum.js?v=1" defer></script>
+    <script src="abrsm-rhythm-terms.js?v=2" defer></script>
     <script src="abrsm-note-grade.js?v=1" defer></script>
     <script src="note-name-teach.js?v=5" defer></script>
     <script src="instrument-category.js?v=2" defer></script>
