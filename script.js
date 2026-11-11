@@ -5457,7 +5457,14 @@
         document.getElementById('sqPrompt').textContent = q.prompt;
         const host = document.getElementById('sqOptions');
         host.innerHTML = '';
-        q.options.forEach(opt => {
+        const options = q.options.slice();
+        for (let i = options.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const tmp = options[i];
+            options[i] = options[j];
+            options[j] = tmp;
+        }
+        options.forEach(opt => {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'keysig-opt-btn';
@@ -9569,7 +9576,14 @@
         const optEl = document.getElementById('g3Options');
         optEl.innerHTML = '';
         const G3_LETTERS = ['A', 'B', 'C', 'D'];
-        q.opts.forEach((opt, i) => {
+        const g3Opts = (q.opts || []).slice();
+        for (let n = g3Opts.length - 1; n > 0; n--) {
+            const j = Math.floor(Math.random() * (n + 1));
+            const tmp = g3Opts[n];
+            g3Opts[n] = g3Opts[j];
+            g3Opts[j] = tmp;
+        }
+        g3Opts.forEach((opt, i) => {
             const btn = document.createElement('button');
             btn.className = 'quiz-opt-btn';
             btn.dataset.answer = opt;

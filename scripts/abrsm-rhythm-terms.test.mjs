@@ -34,7 +34,8 @@ assert.equal(g1beat, undefined);
 const common = A.meterQuestions('abrsm-g1').find((item) => item.id === 'common-time-same');
 assert.equal(common.answer, '4/4');
 
-assert.equal(A.values('abrsm-g1').some((item) => item.kind === 'rest'), false);
+const g1rests = A.values('abrsm-g1').filter((item) => item.kind === 'rest').map((item) => item.id).sort();
+assert.deepEqual(host(g1rests), ['crotchet-rest', 'minim-rest', 'quaver-rest', 'semibreve-rest']);
 assert.equal(A.values('abrsm-g1').some((item) => item.id === 'triplet'), false);
 assert.ok(A.values('abrsm-g2').some((item) => item.id === 'triplet'));
 assert.ok(A.values('abrsm-g2').some((item) => item.id === 'crotchet-rest'));
@@ -56,6 +57,27 @@ assert.ok(A.termQuestions('abrsm-g4').some((item) => item.id === 'ornament-trill
 assert.equal(A.termQuestions('abrsm-g4').some((item) => item.id === 'ornament-written-out'), false);
 assert.ok(A.termQuestions('abrsm-g5').some((item) => item.id === 'ornament-written-out' && item.ans === '不用'));
 
+const expected = ['單二拍', '單三拍', '單四拍', '複二拍'];
+const firstSlots = [];
+for (let trial = 0; trial < 24; trial++) {
+  const opts = host(A.pick(expected, '單四拍', 4));
+  assert.deepEqual(opts.slice().sort(), expected.slice().sort());
+  assert.equal(new Set(opts).size, opts.length);
+  firstSlots.push(opts[0]);
+}
+assert.equal(firstSlots.every((slot) => slot === '單四拍'), false);
+
+const questionFirst = [];
+for (let trial = 0; trial < 24; trial++) {
+  const question = A.meterQuestions('abrsm-g1').find((item) => item.id === '2/4-family');
+  const options = host(question.options);
+  assert.ok(options.includes(question.answer));
+  assert.equal(new Set(options).size, options.length);
+  questionFirst.push(options[0]);
+}
+assert.equal(questionFirst.every((slot) => slot === '單二拍'), false);
+
+assert.equal(A.coverage().restsFrom, 'abrsm-g1');
 assert.equal(A.coverage().rhythmComposerThroughG5, false);
 assert.deepEqual(host(A.coverage().rhythmComposerMeters), ['2/4', '3/4', '4/4']);
 assert.equal(A.coverage().examReady, false);

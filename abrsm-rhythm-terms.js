@@ -70,10 +70,10 @@
         { id: 'dotted-quaver', name: '附點八分音符', quarters: 0.75, introduced: 1, kind: 'note' },
         { id: 'dotted-semibreve', name: '附點全音符', quarters: 6, introduced: 2, kind: 'note' },
         { id: 'triplet', name: '三連音', quarters: null, introduced: 2, kind: 'group', parts: 3 },
-        { id: 'semibreve-rest', name: '全休止符', quarters: 4, introduced: 2, kind: 'rest' },
-        { id: 'minim-rest', name: '二分休止符', quarters: 2, introduced: 2, kind: 'rest' },
-        { id: 'crotchet-rest', name: '四分休止符', quarters: 1, introduced: 2, kind: 'rest' },
-        { id: 'quaver-rest', name: '八分休止符', quarters: 0.5, introduced: 2, kind: 'rest' },
+        { id: 'semibreve-rest', name: '全休止符', quarters: 4, introduced: 1, kind: 'rest' },
+        { id: 'minim-rest', name: '二分休止符', quarters: 2, introduced: 1, kind: 'rest' },
+        { id: 'crotchet-rest', name: '四分休止符', quarters: 1, introduced: 1, kind: 'rest' },
+        { id: 'quaver-rest', name: '八分休止符', quarters: 0.5, introduced: 1, kind: 'rest' },
         { id: 'demisemiquaver', name: '三十二分音符', quarters: 0.125, introduced: 3, kind: 'note' },
         { id: 'dotted-semiquaver', name: '附點十六分音符', quarters: 0.375, introduced: 3, kind: 'note' },
         { id: 'breve', name: '二全音符', quarters: 8, introduced: 4, kind: 'note' },
@@ -105,6 +105,17 @@
         });
     }
 
+    function shuffle(list) {
+        var out = list.slice();
+        for (var i = out.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var tmp = out[i];
+            out[i] = out[j];
+            out[j] = tmp;
+        }
+        return out;
+    }
+
     function pick(list, answer, count) {
         var wrong = [];
         list.forEach(function (item) {
@@ -112,7 +123,7 @@
         });
         var opts = [answer];
         for (var i = 0; i < wrong.length && opts.length < count; i++) opts.push(wrong[i]);
-        return opts;
+        return shuffle(opts);
     }
 
     function meterQuestions(gradeId) {
@@ -243,7 +254,7 @@
                 q: '五級要寫出裝飾音的奏法。要不要從奏法反推原來的記號？',
                 sym: '寫出裝飾音',
                 ans: '不用',
-                opts: ['不用', '一定要', '只限顫音', '只限倚音'],
+                opts: shuffle(['不用', '一定要', '只限顫音', '只限倚音']),
                 isText: true,
                 language: 'ornament'
             });
@@ -255,7 +266,7 @@
         return {
             meters: true,
             noteValues: true,
-            restsFrom: 'abrsm-g2',
+            restsFrom: 'abrsm-g1',
             terms: true,
             frenchFrom: 'abrsm-g4',
             germanFrom: 'abrsm-g5',
@@ -273,8 +284,8 @@
 
     function coverageText(gradeId) {
         var n = gradeNumber(gradeId);
-        var meterNote = n < 2 ? 'G1 是 2/4、3/4、4/4 和普通拍號。'
-            : n < 3 ? 'G2 加入 3/8、2/2、3/2、4/2、切開拍號、附點全音符、三連音和休止符。'
+        var meterNote = n < 2 ? 'G1 是 2/4、3/4、4/4 和普通拍號，以及全音符、二分音符、四分音符、八分音符和對應的休止符。'
+            : n < 3 ? 'G2 加入 3/8、2/2、3/2、4/2、切開拍號、附點全音符和三連音。'
             : n < 4 ? 'G3 加入 6/8、9/8、12/8，以及三十二分音符。'
             : n < 5 ? 'G4 加入其餘單拍和複拍，包括 2/8 和 12/4，以及雙附點、二連音和裝飾音記號。'
             : 'G5 加入 5/4、7/4、5/8、7/8。這些拍子要分組，但沒有唯一固定分法。';
@@ -291,6 +302,8 @@
         glossedTerms: glossedTerms,
         termQuestions: termQuestions,
         coverage: coverage,
-        coverageText: coverageText
+        coverageText: coverageText,
+        pick: pick,
+        shuffle: shuffle
     };
 });
