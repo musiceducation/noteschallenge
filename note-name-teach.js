@@ -502,10 +502,11 @@
             var stave = new VF.Stave(10, staveY, Math.max(120, width - 20));
             stave.addClef(note.clef);
             stave.setContext(context).draw();
+            // Whole note: this screen teaches pitch and staff position, not duration.
             var staveNote = new VF.StaveNote({
                 clef: note.clef,
                 keys: [note.vexKey],
-                duration: 'q',
+                duration: 'w',
                 alignCenter: true
             });
             if (note.accidental && VF.Accidental) {
@@ -517,7 +518,7 @@
             }
             if (typeof staveNote.setStave === 'function') staveNote.setStave(stave);
             if (typeof staveNote.setCenterAlignment === 'function') staveNote.setCenterAlignment(true);
-            var voice = new VF.Voice({ numBeats: 1, beatValue: 4 });
+            var voice = new VF.Voice({ numBeats: 4, beatValue: 4 });
             if (typeof voice.setMode === 'function') voice.setMode(2);
             voice.addTickables([staveNote]);
             var justify = Math.max(40, width - stave.getNoteStartX() - 16);
@@ -574,7 +575,7 @@
         var acc = note.accidental === '#' ? '♯' : note.accidental === 'b' ? '♭' : '';
         staff += '<text x="32" y="' + (base + 3.2 * gap) + '" font-size="42" fill="#1e1e2f">' + clef + '</text>';
         if (acc) staff += '<text x="' + (noteX - accW) + '" y="' + (noteY + 6) + '" font-size="22" fill="#9b3d62" text-anchor="middle">' + acc + '</text>';
-        staff += '<ellipse cx="' + noteX + '" cy="' + noteY + '" rx="11" ry="8" transform="rotate(-18 ' + noteX + ' ' + noteY + ')" fill="#9b3d62"/>';
+        staff += '<ellipse cx="' + noteX + '" cy="' + noteY + '" rx="12" ry="8" transform="rotate(-18 ' + noteX + ' ' + noteY + ')" fill="#fff" stroke="#9b3d62" stroke-width="2.2"/>';
         svg.innerHTML = staff;
         return svg;
     }

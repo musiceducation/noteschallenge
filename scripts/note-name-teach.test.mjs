@@ -163,7 +163,7 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.doesNotMatch(hidden, /openNoteTeachBtn/);
   assert.match(page, /id="screen-note-teach"/);
   assert.match(page, /id="openNoteTeachFromHub"/);
-  assert.match(page, /note-name-teach\.js\?v=5/);
+  assert.match(page, /note-name-teach\.js\?v=6/);
   assert.match(page, /abrsm-curriculum\.js\?v=1/);
   assert.match(page, /abrsm-note-grade\.js\?v=1/);
   assert.match(page, /chinese-instrument-challenge\.js\?v=3/);
@@ -187,6 +187,9 @@ for (const file of ['index.html', 'www/index.html']) {
   const teachSrc = fs.readFileSync(new URL('../note-name-teach.js', import.meta.url), 'utf8');
   assert.match(teachSrc, /aria-label="高音譜" title="高音譜">𝄞/);
   assert.match(teachSrc, /aria-label="低音譜" title="低音譜">𝄢/);
+  assert.match(teachSrc, /duration: 'w'/);
+  assert.doesNotMatch(teachSrc, /duration: 'q'/);
+  assert.match(teachSrc, /fill="#fff" stroke="#9b3d62"/);
 }
 
 for (const boot of ['bootstrap-instruments.js', 'www/bootstrap-instruments.js']) {
