@@ -290,9 +290,81 @@
             : n < 5 ? 'G4 加入其餘單拍和複拍，包括 2/8 和 12/4，以及雙附點、二連音和裝飾音記號。'
             : 'G5 加入 5/4、7/4、5/8、7/8。這些拍子要分組，但沒有唯一固定分法。';
         return '難度是英皇樂理 G' + n + '。' + meterNote
-            + '自由練習的柯達伊名是課堂層，不是級別。節奏拍回頁仍只有 2/4、3/4、4/4：它以四分音符為一拍，而且不用休止符，所以未包含 3/8、複拍子和 5/4、7/8。'
+            + '節奏挑戰用同一個級別，按譜上的音符打拍。課堂柯達伊名不是級別。節奏拍回頁仍只有 2/4、3/4、4/4：它以四分音符為一拍，而且不用休止符，所以未包含 3/8、複拍子和 5/4、7/8。'
             + '移調、和弦轉位和終止式不在這一關，亦不是完整考試準備。';
     }
+
+    /** Beat grid for the tap challenge. quarters is the bar length in crotchets. */
+    var TAP_METERS = {
+        '2/4': { id: '2/4', quarters: 2, beats: 2, beatQuarters: 1, vexBeats: 2, vexBeat: 4 },
+        '3/4': { id: '3/4', quarters: 3, beats: 3, beatQuarters: 1, vexBeats: 3, vexBeat: 4 },
+        '4/4': { id: '4/4', quarters: 4, beats: 4, beatQuarters: 1, vexBeats: 4, vexBeat: 4 },
+        '3/8': { id: '3/8', quarters: 1.5, beats: 3, beatQuarters: 0.5, vexBeats: 3, vexBeat: 8 },
+        '2/2': { id: '2/2', quarters: 4, beats: 2, beatQuarters: 2, vexBeats: 2, vexBeat: 2 },
+        '3/2': { id: '3/2', quarters: 6, beats: 3, beatQuarters: 2, vexBeats: 3, vexBeat: 2 },
+        '4/2': { id: '4/2', quarters: 8, beats: 4, beatQuarters: 2, vexBeats: 4, vexBeat: 2 },
+        '6/8': { id: '6/8', quarters: 3, beats: 2, beatQuarters: 1.5, vexBeats: 6, vexBeat: 8 },
+        '9/8': { id: '9/8', quarters: 4.5, beats: 3, beatQuarters: 1.5, vexBeats: 9, vexBeat: 8 },
+        '12/8': { id: '12/8', quarters: 6, beats: 4, beatQuarters: 1.5, vexBeats: 12, vexBeat: 8 },
+        '2/8': { id: '2/8', quarters: 1, beats: 2, beatQuarters: 0.5, vexBeats: 2, vexBeat: 8 },
+        '4/8': { id: '4/8', quarters: 2, beats: 4, beatQuarters: 0.5, vexBeats: 4, vexBeat: 8 },
+        '6/4': { id: '6/4', quarters: 6, beats: 2, beatQuarters: 3, vexBeats: 6, vexBeat: 4 },
+        '9/4': { id: '9/4', quarters: 9, beats: 3, beatQuarters: 3, vexBeats: 9, vexBeat: 4 },
+        '12/4': { id: '12/4', quarters: 12, beats: 4, beatQuarters: 3, vexBeats: 12, vexBeat: 4 },
+        '6/16': { id: '6/16', quarters: 1.5, beats: 2, beatQuarters: 0.75, vexBeats: 6, vexBeat: 16 },
+        '9/16': { id: '9/16', quarters: 2.25, beats: 3, beatQuarters: 0.75, vexBeats: 9, vexBeat: 16 },
+        '12/16': { id: '12/16', quarters: 3, beats: 4, beatQuarters: 0.75, vexBeats: 12, vexBeat: 16 },
+        '5/4': { id: '5/4', quarters: 5, beats: 5, beatQuarters: 1, vexBeats: 5, vexBeat: 4 },
+        '7/4': { id: '7/4', quarters: 7, beats: 7, beatQuarters: 1, vexBeats: 7, vexBeat: 4 },
+        '5/8': { id: '5/8', quarters: 2.5, beats: 5, beatQuarters: 0.5, vexBeats: 5, vexBeat: 8 },
+        '7/8': { id: '7/8', quarters: 3.5, beats: 7, beatQuarters: 0.5, vexBeats: 7, vexBeat: 8 }
+    };
+
+    function tapToken(name, quarters) { return { n: name, d: quarters }; }
+
+    var TAP_G1 = ['ta', 'ta-a', 'ta-a-a-a', 'ti', 'ti-ti', '休', '休二', '休全', '休八'].map(function (name) {
+        return tapToken(name, { 'ta': 1, 'ta-a': 2, 'ta-a-a-a': 4, 'ti': 0.5, 'ti-ti': 1, '休': 1, '休二': 2, '休全': 4, '休八': 0.5 }[name]);
+    });
+    var TAP_G2_EXTRA = [tapToken('ta-i', 1.5), tapToken('ta-a-a', 3), tapToken('ti-ri', 1), tapToken('ti-ri-ti-ri', 1), tapToken('3ti', 1), tapToken('ta~ta', 2), tapToken('ri', 0.25)];
+    var TAP_G3_EXTRA = [tapToken('si4', 0.5)];
+    var TAP_G4_EXTRA = [tapToken('2ta', 1.5), tapToken('雙附點', 1.75)];
+
+    function concatTokens(lists) {
+        var out = [];
+        lists.forEach(function (list) { list.forEach(function (token) { out.push(token); }); });
+        return out;
+    }
+
+    function tapGrade(id, extra) {
+        return {
+            id: id,
+            name: id.replace('abrsm-', '').toUpperCase(),
+            bpm: extra.bpm,
+            winScale: extra.winScale,
+            bars: extra.bars,
+            hpLoss: extra.hpLoss,
+            meters: extra.meters.slice(),
+            tokens: extra.tokens,
+            syncopation: !!extra.syncopation,
+            rankKey: 'abrsm-theory-v1:rhythm-tap:' + id
+        };
+    }
+
+    function tapGrades() {
+        var g1 = TAP_G1;
+        var g2 = concatTokens([g1, TAP_G2_EXTRA]);
+        var g3 = concatTokens([g2, TAP_G3_EXTRA]);
+        var g4 = concatTokens([g3, TAP_G4_EXTRA]);
+        return {
+            'abrsm-g1': tapGrade('abrsm-g1', { bpm: 72, winScale: 1.45, bars: 8, hpLoss: 8, meters: ['2/4', '3/4', '4/4'], tokens: g1 }),
+            'abrsm-g2': tapGrade('abrsm-g2', { bpm: 76, winScale: 1.3, bars: 8, hpLoss: 10, meters: ['2/4', '3/4', '4/4', '3/8', '2/2', '3/2', '4/2'], tokens: g2 }),
+            'abrsm-g3': tapGrade('abrsm-g3', { bpm: 80, winScale: 1.15, bars: 8, hpLoss: 12, meters: ['2/4', '3/4', '4/4', '3/8', '2/2', '3/2', '4/2', '6/8', '9/8', '12/8'], tokens: g3 }),
+            'abrsm-g4': tapGrade('abrsm-g4', { bpm: 84, winScale: 1.05, bars: 6, hpLoss: 14, meters: ['2/4', '3/4', '4/4', '3/8', '2/2', '3/2', '4/2', '6/8', '9/8', '12/8', '2/8', '4/8', '6/4', '9/4', '12/4', '6/16', '9/16', '12/16'], tokens: g4 }),
+            'abrsm-g5': tapGrade('abrsm-g5', { bpm: 88, winScale: 0.95, bars: 6, hpLoss: 16, meters: ['2/4', '3/4', '4/4', '3/8', '2/2', '6/8', '9/8', '12/8', '5/4', '7/4', '5/8', '7/8'], tokens: g4, syncopation: true })
+        };
+    }
+
+    function tapMeter(id) { return TAP_METERS[id] || null; }
 
     return {
         meters: meters,
@@ -304,6 +376,8 @@
         coverage: coverage,
         coverageText: coverageText,
         pick: pick,
-        shuffle: shuffle
+        shuffle: shuffle,
+        tapGrades: tapGrades,
+        tapMeter: tapMeter
     };
 });

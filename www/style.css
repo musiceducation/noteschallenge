@@ -4397,6 +4397,20 @@ body.is-fullscreen .hub-fullscreen-btn { display: flex; }
     box-shadow: 0 0 0 3px rgba(0,166,237,0.15), 0 8px 0 rgba(0,166,237,0.12);
 }
 
+.mode-cards:has(.tap) { grid-template-columns: repeat(5, 1fr); }
+.mode-card.tap { border-color: rgba(99,102,241,0.25); }
+.mode-card.tap.active {
+    background: linear-gradient(145deg, #4F46E5, #4338CA);
+    border-color: #6366F1;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.15), 0 8px 0 rgba(79,70,229,0.12);
+}
+@media (max-width: 980px) {
+    .mode-cards:has(.tap) { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 520px) {
+    .mode-cards:has(.tap) { grid-template-columns: repeat(2, 1fr); }
+}
+
 @media (max-width: 600px) {
     .om-header { padding: 8px 12px 4px; }
     .om-staff-wrap { margin: 4px 10px; min-height: 90px; border-radius: 16px; }

@@ -3504,7 +3504,11 @@
     function renderRanks() {
         const gf = document.getElementById('rankGameFilter');
         if (gf && (gf.value === 'game2' || gf.value === 'game3')) {
-            renderAbrsmRanks(gf.value === 'game3' ? 'terms' : 'rhythm');
+            const rhythmKindWrap = document.getElementById('rankRhythmKindWrap');
+            if (rhythmKindWrap) rhythmKindWrap.style.display = gf.value === 'game2' ? '' : 'none';
+            const kindEl = document.getElementById('rankRhythmKind');
+            const rhythmKey = gf.value === 'game3' ? 'terms' : ((kindEl && kindEl.value === 'rhythm-tap') ? 'rhythm-tap' : 'rhythm');
+            renderAbrsmRanks(rhythmKey);
             return;
         }
         if (gf && gf.value !== 'game1') { renderRanksForGame(gf.value); return; }
@@ -3922,6 +3926,8 @@
             if (mfRow) mfRow.style.display = gfVal === 'game1' ? '' : 'none';
             const abrsmRankWrap = document.getElementById('rankAbrsmFilterWrap');
             if (abrsmRankWrap) abrsmRankWrap.style.display = (gfVal === 'game1' || gfVal === 'game2' || gfVal === 'game3') ? '' : 'none';
+            const rhythmKindWrap = document.getElementById('rankRhythmKindWrap');
+            if (rhythmKindWrap) rhythmKindWrap.style.display = gfVal === 'game2' ? '' : 'none';
             const dfWrap = document.getElementById('rankDiffFilterWrap');
             const dfSel = document.getElementById('rankDiffFilter');
             if (dfWrap && dfSel) {
@@ -3938,7 +3944,7 @@
 
         document.getElementById('rankDiffFilter')?.addEventListener('change', renderRanks);
 
-        [dom.rankClassFilter, dom.rankGradeFilter, dom.rankModeFilter, document.getElementById('rankAbrsmGradeFilter')].forEach(f => { if (f) f.addEventListener('change', renderRanks); });
+        [dom.rankClassFilter, dom.rankGradeFilter, dom.rankModeFilter, document.getElementById('rankAbrsmGradeFilter'), document.getElementById('rankRhythmKind')].forEach(f => { if (f) f.addEventListener('change', renderRanks); });
         const preventInput = () => state.inputFocused = true;
         const allowInput = () => state.inputFocused = false; 
         [dom.userId].forEach(el => { el.addEventListener('focus', preventInput); el.addEventListener('blur', allowInput); });
@@ -4576,6 +4582,8 @@
                     launchSyllabusQuiz(user, 'meter', true);
                 } else if (g2SelectedMode === 'duration') {
                     launchSyllabusQuiz(user, 'value', false);
+                } else if (g2SelectedMode === 'tap') {
+                    startRhythmChallenge(user);
                 } else {
                     enterRCGame(user);
                 }
@@ -5098,9 +5106,19 @@
     function getRhythmTokenDuration(token) {
         switch (token) {
             case '休': return 1;
+            case '休二': return 2;
+            case '休全': return 4;
+            case '休八': return 0.5;
             case 'ta': return 1;
             case 'ta-a': return 2;
             case 'ta-a-a': return 3;
+            case 'ta-a-a-a': return 4;
+            case 'ta~ta': return 2;
+            case '3ti': return 1;
+            case '2ta': return 1.5;
+            case 'si4': return 0.5;
+            case 'ri': return 0.25;
+            case '雙附點': return 1.75;
             case 'ta-i': return 1.5;
             case 'ti': return 0.5;
             case 'ti-ti': return 1;
@@ -5146,6 +5164,9 @@
         'ti-ti-ri':    [{l:'ti',o:0,d:0.5},{l:'ti',o:0.5,d:0.25},{l:'ri',o:0.75,d:0.25}],
         'ti-ri-ti':    [{l:'ti',o:0,d:0.25},{l:'ri',o:0.25,d:0.25},{l:'ti',o:0.5,d:0.5}],
         'ri-ti-ri':    [{l:'ri',o:0,d:0.25},{l:'ti',o:0.25,d:0.5},{l:'ri',o:0.75,d:0.25}],
+        '3ti':         [{l:'ti',o:0,d:1/3},{l:'ti',o:1/3,d:1/3},{l:'ti',o:2/3,d:1/3}],
+        'si4':         [{l:'si',o:0,d:0.125},{l:'si',o:0.125,d:0.125},{l:'si',o:0.25,d:0.125},{l:'si',o:0.375,d:0.125}],
+        '2ta':         [{l:'ta',o:0,d:0.75},{l:'ta',o:0.75,d:0.75}],
     };
 
     function parseRhythmUnits(label) {
@@ -5305,25 +5326,40 @@
     // Long notes (ta-a, ta-a-a): a half/dotted-half starting on the "and" of a beat
     //   is non-standard notation in a children's rhythm exercise.
     const _BEAM_TOKENS = new Set(['ti-ti','ti-ri-ti-ri','ti-ri','ti-ti-ri','ti-ri-ti','ri-ti-ri',
-                                   'ta-a','ta-a-a']);
+                                   'ta-a','ta-a-a','ta-a-a-a','3ti','si4','2ta','ta~ta']);
 
-    function _generateChallengeRhythm(diff) {
-        const tokens = CHALLENGE_TOKEN_SETS[diff] || CHALLENGE_TOKEN_SETS.basic;
-        const target = 4;
+    function _generateChallengeRhythm(tokens, quarters, allowSyncopation) {
+        const list = Array.isArray(tokens) ? tokens : (CHALLENGE_TOKEN_SETS[tokens] || CHALLENGE_TOKEN_SETS.basic);
+        const target = quarters || 4;
         let remaining = target;
         const parts = [];
         let safety = 0;
-        while (remaining > 0.001 && safety++ < 200) {
-            const pos = Math.round((target - remaining) * 1000) / 1000;
-            const onBeat = Math.abs(pos - Math.round(pos)) < 0.01; // at integer beat?
-            let eligible = tokens.filter(t => t.d <= remaining + 0.001);
-            // At non-integer beat positions, only allow non-beaming tokens
-            // to ensure beams never cross beat boundaries
-            if (!onBeat) eligible = eligible.filter(t => !_BEAM_TOKENS.has(t.n));
-            if (!eligible.length) break;
-            const tok = eligible[Math.floor(Math.random() * eligible.length)];
+        const place = (tok) => {
             parts.push(tok.n);
             remaining = Math.round((remaining - tok.d) * 1000) / 1000;
+        };
+        while (remaining > 0.001 && safety++ < 400) {
+            const pos = Math.round((target - remaining) * 1000) / 1000;
+            const onCrotchet = Math.abs(pos - Math.round(pos)) < 0.01;
+            const onQuaver = Math.abs(pos * 2 - Math.round(pos * 2)) < 0.02;
+            let eligible = list.filter(t => t.d <= remaining + 0.001);
+            if (!onCrotchet) {
+                eligible = eligible.filter(t => !_BEAM_TOKENS.has(t.n));
+                if (!allowSyncopation) eligible = eligible.filter(t => t.n === 'ti' || t.n === '休八' || t.n === 'ri');
+                else eligible = eligible.filter(t => t.n === 'ta' || t.n === 'ti' || t.n === '休八' || t.n === 'ri');
+            }
+            if (!onQuaver) eligible = eligible.filter(t => t.n === 'ri');
+            const sounding = eligible.filter(t => t.n.indexOf('休') !== 0);
+            if (sounding.length && Math.random() > 0.22) eligible = sounding;
+            if (!eligible.length) break;
+            place(eligible[Math.floor(Math.random() * eligible.length)]);
+        }
+        const pads = list.filter(t => t.n.indexOf('休') === 0).sort((a, b) => b.d - a.d);
+        let guard = 0;
+        while (remaining > 0.001 && guard++ < 32) {
+            const pad = pads.find(t => t.d <= remaining + 0.001);
+            if (!pad) break;
+            place(pad);
         }
         return parts.join(' ');
     }
@@ -5358,41 +5394,14 @@
     // 🏫 節奏挑戰 — 按年級自動難度 (Grade Rhythm Challenge)
     // ============================================================
 
-    /**
-     * Difficulty Map — per-grade config
-     * measures: number of measures per round
-     * bpm: metronome speed
-     * tokenSet: which pool of rhythm tokens to draw from
-     * winScale: multiplier on timing window (>1 = more lenient)
-     */
-    const GRADE_CHALLENGE_CONFIG = {
-        1: { tokenSet: 'advanced', bpm: 96,  measures: 4, winScale: 1.0 },
-        2: { tokenSet: 'advanced', bpm: 96,  measures: 4, winScale: 1.0 },
-        3: { tokenSet: 'medium',   bpm: 72,  measures: 4, winScale: 1.2 },
-        4: { tokenSet: 'medium',   bpm: 80,  measures: 4, winScale: 1.1 },
-        5: { tokenSet: 'advanced', bpm: 88,  measures: 4, winScale: 1.0 },
-        6: { tokenSet: 'advanced', bpm: 96,  measures: 4, winScale: 1.0 },
-    };
-
-    /* --- Measure generation --- */
-    function _rchgGenerateMeasures(grade) {
-        const cfg = GRADE_CHALLENGE_CONFIG[grade] || GRADE_CHALLENGE_CONFIG[6];
-        const measures = [];
-        for (let i = 0; i < cfg.measures; i++) {
-            measures.push(_generateChallengeRhythm(cfg.tokenSet));
-        }
-        return { measures, bpm: cfg.bpm, winScale: cfg.winScale };
-    }
-
     // ============================================================
     //  節奏挑戰 — DOM-based Rhythm Game
     // ============================================================
 
-    const RCHAL_LEVELS = [
-        { id: 1, name: '初級',  icon: '⭐',       bpm: 72,  tokenSet: 'basic',    bars: 16, winScale: 1.4, hpLoss: 10 },
-        { id: 2, name: '中級',  icon: '⭐⭐',     bpm: 72,  tokenSet: 'medium',   bars: 16, winScale: 1.3, hpLoss: 12 },
-        { id: 3, name: '高級',  icon: '⭐⭐⭐',   bpm: 72,  tokenSet: 'advanced', bars: 16, winScale: 1.2, hpLoss: 14 },
-    ];
+    function _rchalSpec(id) {
+        const grades = window.AbrsmRhythmTerms && AbrsmRhythmTerms.tapGrades && AbrsmRhythmTerms.tapGrades();
+        return (grades && (grades[id] || grades['abrsm-g1'])) || null;
+    }
 
     const rchalState = {
         user: null,
@@ -5489,10 +5498,13 @@
         document.getElementById('sqDone').onclick = () => switchScreen('screen-g2-setup');
     }
     function startRhythmChallenge(user) {
+        const gradeId = document.querySelector('#g2AbrsmBtns .abrsm-grade-btn.active')?.dataset.abrsm || 'abrsm-g1';
+        const spec = _rchalSpec(gradeId);
+        if (!spec) return;
         rchalState.user = user;
         audio.init(); audio.warmUp(); audio.bgStop();
         switchScreen('screen-rc-grade');
-        _rchalShowSelect();
+        _rchalStartLevel(spec);
     }
 
     function _rchalExit() {
@@ -5514,71 +5526,7 @@
 
     /* ── Level Select View (like g3 music terms setup) ── */
     function _rchalShowSelect() {
-        _rchalCleanup();
-        rchalState.phase = 'select';
-        rchalState._selectedLevel = rchalState._selectedLevel || RCHAL_LEVELS[0];
-        const container = document.getElementById('screen-rc-grade');
-        const grade = rchalState.user ? rchalState.user.grade || 1 : 1;
-        const gradeName = ['', '中一', '中二', '中三', '中四', '中五', '中六'][grade] || '';
-        const userName = rchalState.user ? rchalState.user.name : '';
-
-        container.innerHTML = `
-            <div class="rchal-setup-wrap">
-                <button class="rchal-setup-back" id="rchalExitBtn">← 返回主頁</button>
-                <div class="rchal-setup-title-area">
-                    <h1 class="rchal-setup-title">🥁 節奏挑戰</h1>
-                    <div class="rchal-setup-subtitle">聽辨節拍 · 準確擊拍 · 計入排行榜</div>
-                </div>
-                <div class="rchal-setup-player">
-                    <span class="rchal-setup-badge">👋 ${userName} 同學 (${gradeName})</span>
-                </div>
-                <div class="rchal-diff-section">
-                    <div class="rchal-diff-title">🎯 選擇難度</div>
-                    <div class="rchal-diff-cards" id="rchalDiffCards"></div>
-                </div>
-                <button class="rchal-setup-start" id="rchalSetupStart">🚀 開始練習</button>
-                <button class="rchal-setup-ranks" id="rchalSetupRanks">🏆 查看排行榜</button>
-            </div>
-        `;
-        document.getElementById('rchalExitBtn').onclick = _rchalExit;
-
-        const diffGrid = document.getElementById('rchalDiffCards');
-        const diffMeta = [
-            { cls: 'rchal-diff-easy',   desc: '四分+八分音符<br>基本拍型' },
-            { cls: 'rchal-diff-medium', desc: '+十六分音符組<br>附點節奏' },
-            { cls: 'rchal-diff-hard',   desc: '+混合十六分<br>切分節奏' },
-        ];
-        RCHAL_LEVELS.forEach((lvl, i) => {
-            const stars = _rchalGetStars(lvl.id);
-            const starStr = '⭐'.repeat(stars) + '☆'.repeat(3 - stars);
-            const isActive = rchalState._selectedLevel && rchalState._selectedLevel.id === lvl.id;
-            const btn = document.createElement('button');
-            btn.className = `rchal-diff-card ${diffMeta[i].cls}${isActive ? ' active' : ''}`;
-            btn.innerHTML = `
-                <div class="rchal-diff-stars-row">${lvl.icon}</div>
-                <div class="rchal-diff-name">Lv.${lvl.id} ${lvl.name}</div>
-                <div class="rchal-diff-desc">${lvl.bpm} BPM · ${lvl.bars}小節<br>${diffMeta[i].desc}</div>
-                <div class="rchal-diff-record">${starStr}</div>
-            `;
-            btn.onclick = () => {
-                rchalState._selectedLevel = lvl;
-                diffGrid.querySelectorAll('.rchal-diff-card').forEach(c => c.classList.remove('active'));
-                btn.classList.add('active');
-            };
-            diffGrid.appendChild(btn);
-        });
-
-        document.getElementById('rchalSetupStart').onclick = () => {
-            if (rchalState._selectedLevel) _rchalStartLevel(rchalState._selectedLevel);
-        };
-        document.getElementById('rchalSetupRanks').onclick = () => {
-            dom.leaderboardLayout.classList.add('view-only');
-            dom.reportGrid.innerHTML = ''; dom.reportWeakness.innerHTML = '';
-            const gf = document.getElementById('rankGameFilter');
-            if (gf) { gf.value = 'game2'; gf.dispatchEvent(new Event('change')); }
-            loadRanks();
-            switchScreen('screen-leaderboard');
-        };
+        _rchalExit();
     }
 
     /* ── Start a Level (preview phase — auto-show 16 bars) ── */
@@ -5592,10 +5540,12 @@
         rchalState.restZones = []; rchalState.restNoteMap = {};
         _rchalLastTapMs = 0;
 
-        // Generate measures
+        const meterId = lvl.meters[Math.floor(Math.random() * lvl.meters.length)];
+        rchalState.meterId = meterId;
+        rchalState.meter = window.AbrsmRhythmTerms.tapMeter(meterId);
         const measures = [];
         for (let i = 0; i < lvl.bars; i++) {
-            measures.push(_generateChallengeRhythm(lvl.tokenSet));
+            measures.push(_generateChallengeRhythm(lvl.tokens, rchalState.meter.quarters, lvl.syncopation));
         }
         rchalState.measures = measures;
 
@@ -5604,8 +5554,8 @@
             <div class="rchal-header">
                 <button class="rchal-exit" id="rchalExitBtn">✕</button>
                 <div class="rchal-header-center">
-                    <div class="rchal-title">Lv.${lvl.id} ${lvl.name}</div>
-                    <div class="rchal-meta">${lvl.bpm} BPM · ${lvl.bars}小節</div>
+                    <div class="rchal-title">節奏挑戰 · ${lvl.name}</div>
+                    <div class="rchal-meta">${meterId} · ${lvl.bpm} BPM · ${lvl.bars} 小節</div>
                 </div>
                 <div class="rchal-score" id="rchalScore">0</div>
             </div>
@@ -5617,18 +5567,13 @@
                 <div class="rchal-combo" id="rchalCombo"></div>
                 <div class="rchal-judgment" id="rchalJudgment"></div>
             </div>
-            <div class="rchal-beats" id="rchalBeats">
-                <div class="rchal-beat-dot beat-accent">1</div>
-                <div class="rchal-beat-dot">2</div>
-                <div class="rchal-beat-dot">3</div>
-                <div class="rchal-beat-dot">4</div>
-            </div>
-            <div class="rchal-tap" id="rchalTap" style="opacity:0;pointer-events:none;">
+            <div class="rchal-beats" id="rchalBeats">${Array.from({ length: rchalState.meter.beats }, (_, i) => `<div class="rchal-beat-dot${i === 0 ? ' beat-accent' : ''}">${i + 1}</div>`).join('')}</div>
+            <div class="rchal-tap" id="rchalTap" style="opacity:0;pointer-events:none;" aria-label="根據譜上的音符打拍，拍號 ${meterId}">
                 <span class="rchal-tap-emoji">🥁</span>
-                <span class="rchal-tap-label">請在此擊拍</span>
+                <span class="rchal-tap-label">看到音符就打拍</span>
             </div>
-            <div class="rchal-status" id="rchalStatus">👀 請先審視節奏，然後按下方按鈕開始</div>
-            <button class="rchal-ready-btn" id="rchalStartBtn">✋ Ready!</button>
+            <div class="rchal-status" id="rchalStatus">請先看清楚譜上的音符和拍號，再按下面開始</div>
+            <button class="rchal-ready-btn" id="rchalStartBtn">看清楚了，開始</button>
             <div class="rchal-overlay" id="rchalOverlay" style="display:none;"></div>
         `;
 
@@ -5663,20 +5608,21 @@
 
         // Determine bars-per-row based on complexity
         const lvl = rchalState.level;
-        const BARS_PER_ROW = (lvl && lvl.tokenSet === 'basic') ? 4 : 2;
+        const simpleStaff = lvl && lvl.id === 'abrsm-g1';
+        const BARS_PER_ROW = simpleStaff ? 4 : 2;
         const numRows = Math.ceil(numBars / BARS_PER_ROW);
-        const MIN_ROW_H = (lvl && lvl.tokenSet === 'basic') ? 150 : 180;
+        const MIN_ROW_H = simpleStaff ? 150 : 180;
         const totalH = Math.max(numRows * MIN_ROW_H, 320);
         const ROW_H = totalH / numRows;
 
         if (typeof VexFlow === 'undefined') return;
-        const { Renderer, Stave, StaveNote, Voice, Formatter, Beam, Annotation, Stem, Dot } = VexFlow;
+        const { Renderer, Stave, StaveNote, Voice, Formatter, Beam, Annotation, Stem, Dot, Tuplet, StaveTie } = VexFlow;
 
         const renderer = new Renderer(notesEl, Renderer.Backends.SVG);
         renderer.resize(W, totalH);
         const context = renderer.getContext();
 
-        const durMap = { 0.25: '16', 0.5: '8', 0.75: '8', 1: 'q', 1.5: 'q', 2: 'h', 3: 'h' };
+        const durMap = { 0.125: '32', 0.25: '16', 0.5: '8', 0.75: '8', 1: 'q', 1.5: 'q', 2: 'h', 3: 'h', 4: 'w' };
         const dotSet = new Set([0.75, 1.5, 3]);
         const PAD = 4;
         const barW = (W - PAD * 2) / BARS_PER_ROW;
@@ -5701,11 +5647,13 @@
 
             const stave = new Stave(x, y + 40, barW);
             [0, 1, 3, 4].forEach(line => stave.setConfigForLine(line, { visible: false }));
-            if (col === 0 && row === 0) stave.addTimeSignature('4/4');
+            if (col === 0) stave.addTimeSignature(rchalState.meterId || '4/4');
             stave.setContext(context).draw();
 
             const vfNotes = [];
             const beamGroups = [];
+            const tuplets = [];
+            const ties = [];
             const noteGameMap = [];
             const barTapStart = tapIdx;
             let eighthRun = [];
@@ -5718,16 +5666,47 @@
             };
 
             barLabel.split(' ').forEach(token => {
-                const isRest = token === '休';
+                const isRest = token.indexOf('休') === 0;
                 const compound = COMPOUND_TOKENS[token];
 
                 if (isRest) {
                     flushEighthRun();
-                    const note = new StaveNote({ keys: ['b/4'], duration: 'qr' });
+                    const restDur = token === '休全' ? 'wr' : token === '休二' ? 'hr' : token === '休八' ? '8r' : 'qr';
+                    const note = new StaveNote({ keys: ['b/4'], duration: restDur });
                     note.addModifier(new Annotation('休止').setVerticalJustification(3).setFont('Noto Sans TC', 9));
                     vfNotes.push(note);
                     noteGameMap.push({ rest: true, restIdx: restIdx });
                     restIdx++;
+                } else if (token === '3ti' || token === '2ta') {
+                    flushEighthRun();
+                    const spec = token === '3ti'
+                        ? { dur: '8', labels: ['ti', 'ti', 'ti'], num: 3, occupied: 2 }
+                        : { dur: 'q', labels: ['ta', 'ta'], num: 2, occupied: 3 };
+                    const group = [];
+                    spec.labels.forEach(label => {
+                        const note = new StaveNote({ keys: ['b/4'], duration: spec.dur, stemDirection: Stem.UP });
+                        note.addModifier(new Annotation(label).setVerticalJustification(3).setFont('Noto Sans TC', 9));
+                        vfNotes.push(note);
+                        group.push(note);
+                        noteGameMap.push([tapIdx]);
+                        tapIdx++;
+                    });
+                    if (token === '3ti' && group.length > 1) beamGroups.push(group);
+                    if (Tuplet) {
+                        try { tuplets.push(new Tuplet(group, { num_notes: spec.num, notes_occupied: spec.occupied })); } catch (e) {}
+                    }
+                } else if (token === 'ta~ta') {
+                    flushEighthRun();
+                    const first = new StaveNote({ keys: ['b/4'], duration: 'q', stemDirection: Stem.UP });
+                    const second = new StaveNote({ keys: ['b/4'], duration: 'q', stemDirection: Stem.UP });
+                    first.addModifier(new Annotation('ta').setVerticalJustification(3).setFont('Noto Sans TC', 9));
+                    second.addModifier(new Annotation('ta').setVerticalJustification(3).setFont('Noto Sans TC', 9));
+                    vfNotes.push(first, second);
+                    noteGameMap.push([tapIdx], [tapIdx]);
+                    tapIdx++;
+                    if (StaveTie) {
+                        try { ties.push(new StaveTie({ first_note: first, last_note: second, first_indices: [0], last_indices: [0] })); } catch (e) {}
+                    }
                 } else if (compound) {
                     flushEighthRun();
                     const group = [];
@@ -5745,10 +5724,12 @@
                     if (group.length > 1) beamGroups.push(group);
                 } else {
                     const tokenDur = getRhythmTokenDuration(token);
-                    const dur = durMap[tokenDur];
+                    const doubleDot = token === '雙附點';
+                    const dur = doubleDot ? 'q' : durMap[tokenDur];
                     if (!dur) return;
-                    const note = new StaveNote({ keys: ['b/4'], duration: dur, stemDirection: Stem.UP });
-                    if (dotSet.has(tokenDur)) Dot.buildAndAttach([note], { all: true });
+                    const note = new StaveNote(dur === 'w' ? { keys: ['b/4'], duration: dur } : { keys: ['b/4'], duration: dur, stemDirection: Stem.UP });
+                    if (doubleDot) { Dot.buildAndAttach([note], { all: true }); Dot.buildAndAttach([note], { all: true }); }
+                    else if (dotSet.has(tokenDur)) Dot.buildAndAttach([note], { all: true });
                     note.addModifier(new Annotation(token).setVerticalJustification(3).setFont('Noto Sans TC', 9));
                     vfNotes.push(note);
                     noteGameMap.push([tapIdx]);
@@ -5768,7 +5749,8 @@
 
             try {
             const nsx = stave.getNoteStartX();
-            const voice = new Voice({ numBeats: 4, beatValue: 4 });
+            const meterVoice = rchalState.meter || { vexBeats: 4, vexBeat: 4 };
+            const voice = new Voice({ numBeats: meterVoice.vexBeats, beatValue: meterVoice.vexBeat });
             voice.setMode(2);
             voice.addTickables(vfNotes);
             new Formatter().joinVoices([voice]).format([voice], Math.max(barW - (nsx - x) - 16, 40));
@@ -5784,6 +5766,8 @@
             });
             voice.draw(context, stave);
             beams.forEach(b => { if (b) { try { b.draw(); } catch (e) {} } });
+            tuplets.forEach(tuplet => { try { tuplet.setContext(context).draw(); } catch (e) {} });
+            ties.forEach(tie => { try { tie.setContext(context).draw(); } catch (e) {} });
 
             // Map beam SVG elements to their note indices
             const beamElMap = new Map();
@@ -5827,7 +5811,7 @@
     /* ── Build expected taps ── */
     function _rchalBuildTaps(measures, lvl) {
         rchalState.taps = [];
-        const beatMs = 60000 / lvl.bpm;
+        const quarterMs = (60000 / lvl.bpm) / ((rchalState.meter && rchalState.meter.beatQuarters) || 1);
         let beatCursor = 0;
         let tapIdx = 0;
 
@@ -5836,11 +5820,11 @@
             const tokens = label.split(' ');
             tokens.forEach(token => {
                 const dur = getRhythmTokenDuration(token);
-                if (token === '休') {
+                if (token.indexOf('休') === 0) {
                     rchalState.restZones.push({
                         idx: restIdx++,
-                        startMs: beatCursor * beatMs,
-                        endMs: (beatCursor + dur) * beatMs,
+                        startMs: beatCursor * quarterMs,
+                        endMs: (beatCursor + dur) * quarterMs,
                     });
                     beatCursor += dur; return;
                 }
@@ -5851,7 +5835,7 @@
                         rchalState.taps.push({
                             idx: tapIdx,
                             beatPos: beatCursor + sub.o,
-                            absTimeMs: (beatCursor + sub.o) * beatMs,
+                            absTimeMs: (beatCursor + sub.o) * quarterMs,
                             consumed: false, hit: false,
                         });
                         tapIdx++;
@@ -5860,7 +5844,7 @@
                     rchalState.taps.push({
                         idx: tapIdx,
                         beatPos: beatCursor,
-                        absTimeMs: beatCursor * beatMs,
+                        absTimeMs: beatCursor * quarterMs,
                         consumed: false, hit: false,
                     });
                     tapIdx++;
@@ -5887,7 +5871,7 @@
         const beatDots = document.querySelectorAll('#rchalBeats .rchal-beat-dot');
 
         let beat = 0;
-        const totalBeats = 4;
+        const totalBeats = (rchalState.meter && rchalState.meter.beats) || 4;
         const tick = () => {
             if (beat >= totalBeats) {
                 if (statusEl) statusEl.textContent = '';
@@ -5896,7 +5880,7 @@
             }
             // Show beat number in the status bar (no overlay blur)
             if (statusEl) {
-                statusEl.textContent = beat === 0 ? '🥁 Ready! 1' : `🥁 ${beat + 1}`;
+                statusEl.textContent = beat === 0 ? '預備 1' : `預備 ${beat + 1}`;
                 statusEl.style.fontWeight = '900';
                 statusEl.style.fontSize = '1.4rem';
             }
@@ -5926,7 +5910,8 @@
         rchalState.nextTapIdx = 0;
         const lvl = rchalState.level;
         const beatMs = 60000 / lvl.bpm;
-        const totalBeats = lvl.bars * 4;
+        const beatsPerBar = (rchalState.meter && rchalState.meter.beats) || 4;
+        const totalBeats = lvl.bars * beatsPerBar;
         const totalMs = totalBeats * beatMs;
 
         // Show tap zone
@@ -5967,7 +5952,7 @@
         };
         updateRow(0);
         for (let b = 0; b < lvl.bars; b++) {
-            const barStartMs = b * 4 * beatMs;
+            const barStartMs = b * beatsPerBar * beatMs;
             rchalState.timers.push(setTimeout(() => {
                 if (rchalState.phase !== 'playing') return;
                 updateRow(b);
@@ -5981,7 +5966,7 @@
             const baseTime = audio.ctx.currentTime + 0.02;
             for (let b = 0; b < totalBeats; b++) {
                 const t = baseTime + (b * beatMs) / 1000;
-                const beatInBar = b % 4;
+                const beatInBar = b % beatsPerBar;
                 audio.scheduleTick(t, beatInBar === 0);
             }
         }
@@ -5989,7 +5974,7 @@
         for (let b = 0; b < totalBeats; b++) {
             rchalState.timers.push(setTimeout(() => {
                 if (rchalState.phase !== 'playing') return;
-                const beatInBar = b % 4;
+                const beatInBar = b % beatsPerBar;
                 beatDots.forEach((d, i) => d.classList.toggle('active', i === beatInBar));
             }, b * beatMs));
         }
@@ -6254,8 +6239,11 @@
 
         // Save to leaderboard
         if (rchalState.user && rchalState.user.name) {
-            saveLocalRank('rchal', rchalState.user, rchalState.score, accuracy, rchalState.maxCombo, 'Lv.' + rchalState.level.id);
-            submitScoreToGAS('game2', rchalState.user, rchalState.score, accuracy, rchalState.maxCombo, '節奏挑戰·Lv.' + rchalState.level.id);
+            saveSyllabusRank('rhythm-tap', rchalState.level.id, {
+                score: rchalState.score,
+                accuracy: accuracy,
+                maxCombo: rchalState.maxCombo
+            });
         }
 
         // Record to profile
@@ -6307,7 +6295,7 @@
                     <div class="rchal-result-msg">${msg}</div>
                     <div class="rchal-result-btns">
                         <button class="rchal-btn-retry" id="rchalRetry">🔄 再試一次</button>
-                        <button class="rchal-btn-back" id="rchalBackToLevels">📋 選擇關卡</button>
+                        <button class="rchal-btn-back" id="rchalBackToLevels">返回選單</button>
                     </div>
                 </div>
             `;

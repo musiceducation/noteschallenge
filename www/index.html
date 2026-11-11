@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=14">
+    <link rel="stylesheet" href="style.css?v=15">
     <script src="https://cdn.jsdelivr.net/npm/vexflow@5.0.0/build/cjs/vexflow.min.js" defer></script>
     <script src="https://unpkg.com/lucide@latest" defer></script>
 </head>
@@ -809,6 +809,7 @@
                     <div class="rank-filter"><label>年級</label><select id="rankGradeFilter"><option value="0">全部</option><option value="1" selected>中一</option><option value="2">中二</option><option value="3">中三</option><option value="4">中四</option><option value="5">中五</option><option value="6">中六</option></select></div>
                     <div class="rank-filter"><label>榜</label><select id="rankModeFilter"><option value="abrsm-notes" selected>英皇音名</option><option value="abrsm-keys">英皇調號</option></select></div>
                     <div class="rank-filter" id="rankAbrsmFilterWrap"><label>英皇級別</label><select id="rankAbrsmGradeFilter"><option value="0">全部</option><option value="abrsm-g1">G1</option><option value="abrsm-g2">G2</option><option value="abrsm-g3">G3</option><option value="abrsm-g4">G4</option><option value="abrsm-g5">G5</option></select></div>
+                    <div class="rank-filter" id="rankRhythmKindWrap" style="display:none;"><label>節奏榜</label><select id="rankRhythmKind"><option value="rhythm">拍號計時</option><option value="rhythm-tap">節奏挑戰</option></select></div>
                     <div class="rank-filter" id="rankDiffFilterWrap" style="display:none;"><label>難度</label><select id="rankDiffFilter"><option value="0">全部難度</option><option value="Easy">Easy</option><option value="Normal">Normal</option><option value="Hard">Hard</option><option value="Expert">Expert</option></select></div>
                 </div>
                 <div class="student-rank-hint" id="studentRankHint" style="display:none;"></div>
@@ -843,6 +844,9 @@
             </div>
             <div class="mode-card onemin" data-mode="1min" id="g2Mode1Min">
                 <div class="mode-icon">⏱️</div><div class="mode-name">拍號計時</div><div class="mode-desc">同一級別，限時一分鐘，計入英皇榜</div>
+            </div>
+            <div class="mode-card tap" data-mode="tap" id="g2ModeTap">
+                <div class="mode-icon">🥁</div><div class="mode-name">節奏挑戰</div><div class="mode-desc">根據譜上音符時值打節奏</div>
             </div>
             <div class="mode-card duration" data-mode="duration" id="g2ModeDuration">
                 <div class="mode-icon">🎵</div><div class="mode-name">時值辨別</div><div class="mode-desc">同一英皇級別的音符、休止符和連音</div>
@@ -1486,13 +1490,13 @@
     </div>
 
     <script src="abrsm-curriculum.js?v=1" defer></script>
-    <script src="abrsm-rhythm-terms.js?v=2" defer></script>
+    <script src="abrsm-rhythm-terms.js?v=3" defer></script>
     <script src="abrsm-note-grade.js?v=1" defer></script>
     <script src="note-name-teach.js?v=6" defer></script>
     <script src="instrument-category.js?v=2" defer></script>
     <script src="chinese-instrument-challenge.js?v=3" defer></script>
     <script src="chord-keyboard.js?v=2" defer></script>
-    <script src="bootstrap-instruments.js?v=9" data-app-bootstrap defer></script>
+    <script src="bootstrap-instruments.js?v=10" data-app-bootstrap defer></script>
     <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
 </body>
 </html>
