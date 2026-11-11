@@ -2208,6 +2208,30 @@
             console.error(err);
         }
     }
+    function saveSyllabusRank(gameKey, syllabusId, stats) {
+        if (!state.currentUser || !abrsmReady() || !/^abrsm-g[1-5]$/.test(syllabusId || '')) return;
+        const schoolLabels = ['', '中一', '中二', '中三', '中四', '中五', '中六'];
+        const record = AbrsmCurriculum.rankRecord({
+            gameKey: gameKey,
+            syllabusId: syllabusId,
+            score: stats.score || 0,
+            schoolYear: schoolLabels[parseInt(state.currentUser.grade, 10)] || null
+        });
+        record.name = state.currentUser.name;
+        record.class = state.currentUser.class;
+        record.id = state.currentUser.id || '';
+        record.accuracy = stats.accuracy || 0;
+        record.max_combo = stats.maxCombo || 0;
+        record.grade = state.currentUser.grade;
+        record.difficulty = syllabusId;
+        try {
+            const all = JSON.parse(localStorage.getItem(record.storageKey) || '[]');
+            const idx = all.findIndex(row => row.name === record.name && row.class === record.class && String(row.id || '') === String(record.id || '') && row.syllabusId === record.syllabusId);
+            if (idx >= 0) { if (record.score > (all[idx].score || 0)) all[idx] = record; }
+            else all.push(record);
+            localStorage.setItem(record.storageKey, JSON.stringify(all));
+        } catch (err) { console.error(err); }
+    }
     function renderAbrsmRanks(gameKey) {
         const wrap = document.getElementById('rankAbrsmFilterWrap');
         if (wrap) wrap.style.display = '';
@@ -3479,6 +3503,10 @@
 
     function renderRanks() {
         const gf = document.getElementById('rankGameFilter');
+        if (gf && (gf.value === 'game2' || gf.value === 'game3')) {
+            renderAbrsmRanks(gf.value === 'game3' ? 'terms' : 'rhythm');
+            return;
+        }
         if (gf && gf.value !== 'game1') { renderRanksForGame(gf.value); return; }
         const fC = dom.rankClassFilter.value, fG = parseInt(dom.rankGradeFilter.value), fM = dom.rankModeFilter.value;
         const abrsmWrap = document.getElementById('rankAbrsmFilterWrap');
@@ -3893,16 +3921,12 @@
             const mfRow = dom.rankModeFilter?.closest?.('.rank-filter');
             if (mfRow) mfRow.style.display = gfVal === 'game1' ? '' : 'none';
             const abrsmRankWrap = document.getElementById('rankAbrsmFilterWrap');
-            if (abrsmRankWrap) abrsmRankWrap.style.display = gfVal === 'game1' ? '' : 'none';
+            if (abrsmRankWrap) abrsmRankWrap.style.display = (gfVal === 'game1' || gfVal === 'game2' || gfVal === 'game3') ? '' : 'none';
             const dfWrap = document.getElementById('rankDiffFilterWrap');
             const dfSel = document.getElementById('rankDiffFilter');
             if (dfWrap && dfSel) {
-                if (gfVal === 'game2') {
-                    dfWrap.style.display = '';
-                    dfSel.innerHTML = '<option value="節奏挑戰">節奏挑戰</option><option value="1分鐘挑戰">1分鐘挑戰</option><option value="時值辨別">時值辨別</option>';
-                } else if (gfVal === 'game3') {
-                    dfWrap.style.display = '';
-                    dfSel.innerHTML = '<option value="0">全部難度</option><option value="Easy">Easy</option><option value="Normal">Normal</option><option value="Hard">Hard</option><option value="Expert">Expert</option>';
+                if (gfVal === 'game2' || gfVal === 'game3') {
+                    dfWrap.style.display = 'none';
                 } else {
                     dfWrap.style.display = 'none';
                     dfSel.innerHTML = '<option value="0">全部難度</option>';
@@ -4531,13 +4555,27 @@
                 };
             });
 
+            const g2Coverage = document.getElementById('g2AbrsmCoverage');
+            const paintG2 = () => {
+                const id = document.querySelector('#g2AbrsmBtns .abrsm-grade-btn.active')?.dataset.abrsm || 'abrsm-g1';
+                if (g2Coverage && window.AbrsmRhythmTerms) g2Coverage.textContent = AbrsmRhythmTerms.coverageText(id);
+            };
+            document.querySelectorAll('#g2AbrsmBtns .abrsm-grade-btn').forEach(btn => {
+                btn.onclick = () => {
+                    document.querySelectorAll('#g2AbrsmBtns .abrsm-grade-btn').forEach(other => other.classList.remove('active'));
+                    btn.classList.add('active');
+                    paintG2();
+                };
+            });
+            paintG2();
+
             document.getElementById('g2StartBtn').onclick = () => {
                 if (g2SelectedMode === 'challenge') {
-                    startRhythmChallenge(user);
+                    launchSyllabusQuiz(user, 'meter', false);
                 } else if (g2SelectedMode === '1min') {
-                    _omLaunch(user);
+                    launchSyllabusQuiz(user, 'meter', true);
                 } else if (g2SelectedMode === 'duration') {
-                    _durLaunch(user);
+                    launchSyllabusQuiz(user, 'value', false);
                 } else {
                     enterRCGame(user);
                 }
@@ -4602,17 +4640,7 @@
             const badgeText = document.getElementById('g3PlayerBadgeText');
             if (badgeText) badgeText.textContent = `${user.grade ? ['','中一','中二','中三','中四','中五','中六'][user.grade] : ''}${user.class}班 · ${user.name} 同學`;
             let g3SelectedMode = 'practice';
-            // Default practice grade to the student's own grade (clamped to p1–p6)
-            const defaultGrade = Math.min(6, Math.max(1, parseInt(user.grade) || 1));
-            let g3SelectedDiff = 'p' + defaultGrade;
-            const g3DiffSel = document.getElementById('g3DiffSelector');
-            const g3GradeSel = document.getElementById('g3PracticeGradeSelector');
-
-            function _updateSelectors() {
-                const isPractice = g3SelectedMode === 'practice';
-                if (g3GradeSel) g3GradeSel.style.display = isPractice ? '' : 'none';
-                if (g3DiffSel)  g3DiffSel.style.display  = isPractice ? 'none' : '';
-            }
+            let g3SelectedDiff = document.querySelector('#g3AbrsmBtns .abrsm-grade-btn.active')?.dataset.abrsm || 'abrsm-g1';
 
             document.querySelectorAll('#g3ModeCards .mode-card').forEach(c => {
                 c.classList.toggle('active', c.dataset.mode === 'practice');
@@ -4620,38 +4648,15 @@
                     g3SelectedMode = c.dataset.mode;
                     document.querySelectorAll('#g3ModeCards .mode-card').forEach(x => x.classList.remove('active'));
                     c.classList.add('active');
-                    // Reset diff selection when switching modes
-                    if (g3SelectedMode === 'practice') {
-                        g3SelectedDiff = 'p' + defaultGrade;
-                        document.querySelectorAll('#g3PracticeGradeCards .diff-card').forEach(x => x.classList.toggle('active', x.dataset.diff === g3SelectedDiff));
-                    } else {
-                        g3SelectedDiff = (defaultGrade === 1 || defaultGrade === 2) ? 'expert' : 'easy';
-                        document.querySelectorAll('#g3DiffCards .diff-card').forEach(x => x.classList.toggle('active', x.dataset.diff === g3SelectedDiff));
-                    }
-                    _updateSelectors();
                 };
             });
-
-            // Practice grade card selection (p1–p6)
-            document.querySelectorAll('#g3PracticeGradeCards .diff-card').forEach(c => {
-                c.classList.toggle('active', c.dataset.diff === g3SelectedDiff);
+            document.querySelectorAll('#g3AbrsmBtns .abrsm-grade-btn').forEach(c => {
                 c.onclick = () => {
-                    g3SelectedDiff = c.dataset.diff;
-                    document.querySelectorAll('#g3PracticeGradeCards .diff-card').forEach(x => x.classList.remove('active'));
+                    g3SelectedDiff = c.dataset.abrsm;
+                    document.querySelectorAll('#g3AbrsmBtns .abrsm-grade-btn').forEach(x => x.classList.remove('active'));
                     c.classList.add('active');
                 };
             });
-
-            // Challenge difficulty card selection
-            document.querySelectorAll('#g3DiffCards .diff-card').forEach(c => {
-                c.classList.toggle('active', c.dataset.diff === 'easy');
-                c.onclick = () => {
-                    g3SelectedDiff = c.dataset.diff;
-                    document.querySelectorAll('#g3DiffCards .diff-card').forEach(x => x.classList.remove('active'));
-                    c.classList.add('active');
-                };
-            });
-            _updateSelectors();
 
             document.getElementById('g3StartBtn').onclick = () => startGame3(user, g3SelectedMode, g3SelectedDiff);
             document.getElementById('g3StudyBtn').onclick = () => openStudyScreen();
@@ -5410,6 +5415,72 @@
     function _rchalIsUnlocked(lvl) { return true; }
 
     /* ── Launch from g2-setup ── */
+    const syllabusQuiz = { timer: null };
+    function launchSyllabusQuiz(user, kind, timed) {
+        if (!window.AbrsmRhythmTerms) return;
+        if (syllabusQuiz.timer) clearInterval(syllabusQuiz.timer);
+        const grade = document.querySelector('#g2AbrsmBtns .abrsm-grade-btn.active')?.dataset.abrsm || 'abrsm-g1';
+        const bank = (kind === 'value' ? AbrsmRhythmTerms.valueQuestions(grade) : AbrsmRhythmTerms.meterQuestions(grade)).slice();
+        for (let i = bank.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bank[i], bank[j]] = [bank[j], bank[i]]; }
+        Object.assign(syllabusQuiz, { items: bank, index: 0, score: 0, correct: 0, wrong: 0, locked: false, timed, kind, grade, user, left: timed ? 60 : null, timer: null });
+        const title = kind === 'value' ? '時值辨別' : (timed ? '拍號計時' : '拍號練習');
+        const box = document.getElementById('screen-g2-duration');
+        box.innerHTML = `<div class="om-header"><button class="om-exit" id="sqExit">✕</button><div class="om-header-center"><div class="om-title">${title}</div><span class="om-time-left" id="sqTime">${timed ? '60s' : '練習'}</span></div><div class="om-score-wrap"><div class="om-score-val" id="sqScore">0</div><div class="om-score-label">得分</div></div></div><div class="om-prompt" id="sqPrompt"></div><div class="keysig-options" id="sqOptions"></div><p class="abrsm-coverage" id="sqNote"></p>`;
+        document.getElementById('sqNote').textContent = AbrsmRhythmTerms.coverageText(grade);
+        switchScreen('screen-g2-duration');
+        document.getElementById('sqExit').onclick = () => { if (syllabusQuiz.timer) clearInterval(syllabusQuiz.timer); switchScreen('screen-g2-setup'); };
+        if (timed) {
+            syllabusQuiz.timer = setInterval(() => {
+                syllabusQuiz.left -= 1;
+                const el = document.getElementById('sqTime');
+                if (el) el.textContent = syllabusQuiz.left + 's';
+                if (syllabusQuiz.left <= 0) finishSyllabusQuiz();
+            }, 1000);
+        }
+        showSyllabusQuestion();
+    }
+    function showSyllabusQuestion() {
+        const q = syllabusQuiz.items[syllabusQuiz.index % syllabusQuiz.items.length];
+        syllabusQuiz.current = q;
+        syllabusQuiz.locked = false;
+        document.getElementById('sqPrompt').textContent = q.prompt;
+        const host = document.getElementById('sqOptions');
+        host.innerHTML = '';
+        q.options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'keysig-opt-btn';
+            btn.textContent = opt;
+            btn.onclick = () => {
+                if (syllabusQuiz.locked) return;
+                syllabusQuiz.locked = true;
+                const ok = opt === q.answer;
+                if (ok) { syllabusQuiz.correct += 1; syllabusQuiz.score += 10; }
+                else syllabusQuiz.wrong += 1;
+                document.getElementById('sqScore').textContent = syllabusQuiz.score;
+                btn.classList.add(ok ? 'correct' : 'wrong');
+                if (!ok) host.querySelectorAll('button').forEach(other => { if (other.textContent === q.answer) other.classList.add('correct'); });
+                setTimeout(() => { syllabusQuiz.index += 1; showSyllabusQuestion(); }, ok ? 450 : 1000);
+            };
+            host.appendChild(btn);
+        });
+    }
+    function finishSyllabusQuiz() {
+        if (syllabusQuiz.timer) { clearInterval(syllabusQuiz.timer); syllabusQuiz.timer = null; }
+        syllabusQuiz.locked = true;
+        const total = syllabusQuiz.correct + syllabusQuiz.wrong;
+        const accuracy = total ? Math.round(syllabusQuiz.correct / total * 100) : 0;
+        if (syllabusQuiz.timed && syllabusQuiz.user) {
+            state.currentUser = syllabusQuiz.user;
+            saveSyllabusRank('rhythm', syllabusQuiz.grade, { score: syllabusQuiz.score, accuracy, maxCombo: syllabusQuiz.correct });
+        }
+        const box = document.getElementById('screen-g2-duration');
+        const note = document.createElement('div');
+        note.className = 'om-result';
+        note.innerHTML = `<div class="om-result-title">${syllabusQuiz.timed ? '計時結束' : '練習暫停'}</div><div class="om-result-score">${syllabusQuiz.score}</div><p class="abrsm-coverage">${syllabusQuiz.timed ? '分數在英皇榜。' : '練習不入榜。'}</p><button class="om-btn-back" id="sqDone" type="button">返回</button>`;
+        box.appendChild(note);
+        document.getElementById('sqDone').onclick = () => switchScreen('screen-g2-setup');
+    }
     function startRhythmChallenge(user) {
         rchalState.user = user;
         audio.init(); audio.warmUp(); audio.bgStop();
@@ -8900,8 +8971,14 @@
         const clsEl = document.getElementById(gameKey === 'game2' ? 'g2RankClass' : gameKey === 'game4' ? 'g4RankClass' : 'g3RankClass');
         const gradeEl = document.getElementById(gameKey === 'game2' ? 'g2RankGrade' : gameKey === 'game4' ? 'g4RankGrade' : 'g3RankGrade');
         // Prefer GAS data; fall back to localStorage if not yet loaded
-        let data = state.allRanks.filter(r => r.game === gameKey);
-        if (!data.length) data = JSON.parse(localStorage.getItem('musicGameRanks_' + gameKey) || '[]');
+        let data;
+        if (/^abrsm-g[1-5]$/.test(difficulty || '') && window.AbrsmCurriculum) {
+            const storageGame = gameKey === 'game3' ? 'terms' : 'rhythm';
+            data = JSON.parse(localStorage.getItem(AbrsmCurriculum.rankStorageKey(storageGame, difficulty)) || '[]');
+        } else {
+            data = state.allRanks.filter(r => r.game === gameKey);
+            if (!data.length) data = JSON.parse(localStorage.getItem('musicGameRanks_' + gameKey) || '[]');
+        }
         if (clsEl && clsEl.value !== '0') data = data.filter(r => r.class === clsEl.value);
         if (gradeEl && parseInt(gradeEl.value) !== 0) data = data.filter(r => parseInt(r.grade) === parseInt(gradeEl.value));
         if (difficulty) data = data.filter(r => (r.mode_name || '').includes(DIFFICULTY_CONFIG[difficulty]?.label || '') || (r.difficulty || '') === difficulty);
@@ -9373,14 +9450,16 @@
         if (g3TimerHandle) clearInterval(g3TimerHandle);
         audio.init(); audio.warmUp();
 
-        const pool = (G3_DIFF_POOL[difficulty] || G3_DIFF_POOL.easy)();
+        const pool = (window.AbrsmRhythmTerms && /^abrsm-g[1-5]$/.test(difficulty))
+            ? AbrsmRhythmTerms.termQuestions(difficulty)
+            : (G3_DIFF_POOL[difficulty] || G3_DIFF_POOL.easy)();
         // For challenge mode, we need a large shuffled pool; recycle if needed
         for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i+1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
         g3State.questions = pool;
         g3State._pool = pool; // keep reference for recycling
 
         const modeLabel = isChallenge ? '⏱️ 限時挑戰 (60秒)' : '📝 練習模式';
-        const diffEmoji = (DIFFICULTY_CONFIG[difficulty] || {}).emoji || '';
+        const diffEmoji = /^abrsm-g[1-5]$/.test(difficulty) ? ('英皇 ' + difficulty.replace('abrsm-g', 'G')) : ((DIFFICULTY_CONFIG[difficulty] || {}).emoji || '');
         document.getElementById('g3User').textContent = `👋 ${user.name} 同學 — 術語識辨 ${modeLabel} ${diffEmoji}`;
         document.getElementById('g3EndBtn').onclick = () => endGame3();
         document.getElementById('g3BackBtn').onclick = () => { if (g3TimerHandle) clearInterval(g3TimerHandle); switchScreen('screen-hub'); };
@@ -9536,8 +9615,12 @@
         const accuracy = totalAnswered > 0 ? Math.round((correct / totalAnswered) * 100) : 0;
         const diffLabel = (DIFFICULTY_CONFIG[difficulty] || {}).label || 'Easy';
         if (mode !== 'practice') {
+            if (/^abrsm-g[1-5]$/.test(difficulty)) {
+                saveSyllabusRank('terms', difficulty, { score: finalScore, accuracy, maxCombo });
+            } else {
             saveLocalRank('game3', user, finalScore, accuracy, maxCombo, difficulty);
             submitScoreToGAS('game3', user, finalScore, accuracy, maxCombo, '術語識辨·' + diffLabel);
+            }
             recordGameResult(user, 'game3', finalScore, accuracy, maxCombo, difficulty);
         } else {
             _consumeProfilePlaySecs();
