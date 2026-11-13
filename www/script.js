@@ -2262,6 +2262,100 @@
         const grade = ABRSM_NOTE_MODES.has(state.currentMode) ? '' : (state.abrsmGrade ? ' · 英皇 G' + String(state.abrsmGrade).replace('abrsm-g', '') : '');
         return `👋 ${state.currentUser.name} 同學 · ${state.modeConfig.name}${clef}${grade}`;
     }
+    function isSharedRankRow(row) {
+        if (!row || typeof row !== 'object') return false;
+        if (row.rankNamespace === 'abrsm-theory-v1') return true;
+        if (row.game === 'abrsm-theory-v1') return true;
+        if (String(row.mode || '').indexOf('abrsm-theory-v1:') === 0) return true;
+        if (row.legacyBoard === false && String(row.storageKey || '').indexOf('abrsm-theory-v1:') === 0) return true;
+        return false;
+    }
+    function sharedRankStorageKey(row) {
+        if (String(row.storageKey || '').indexOf('abrsm-theory-v1:') === 0) return row.storageKey;
+        if (String(row.mode || '').indexOf('abrsm-theory-v1:') === 0) return row.mode;
+        if (row.gameKey && /^abrsm-g[1-5]$/.test(row.syllabusId || '')) return 'abrsm-theory-v1:' + row.gameKey + ':' + row.syllabusId;
+        if (String(row.gameKey || '').indexOf('notes-clef-') === 0) return 'abrsm-theory-v1:' + row.gameKey;
+        return '';
+    }
+    function publishSharedRank(record) {
+        if (!record || !record.storageKey || !record.name) return;
+        const payload = {
+            action: 'saveRank',
+            rankNamespace: 'abrsm-theory-v1',
+            storageKey: record.storageKey,
+            gameKey: record.gameKey || '',
+            clefChoice: record.clefChoice || '',
+            syllabusId: record.syllabusId || '',
+            legacyBoard: false,
+            game: 'abrsm-theory-v1',
+            mode: record.storageKey,
+            mode_name: record.clefChoice
+                ? ('音名譜號·' + (NOTE_CLEF_LABEL[record.clefChoice] || record.clefChoice))
+                : ((record.gameKey || 'rank') + (record.syllabusId ? '·' + record.syllabusId : '')),
+            name: record.name,
+            grade: record.grade,
+            class: record.class,
+            id: record.id || '',
+            score: record.score || 0,
+            max_combo: record.max_combo || 0,
+            accuracy: record.accuracy || 0,
+            timestamp: new Date().toLocaleString('zh-TW')
+        };
+        gasPostJson(payload).then(result => {
+            if (!result.ok) _showToast('⚠️ 共用排行榜未更新，這部裝置已記下分數。', 'warn');
+        }).catch(() => _showToast('⚠️ 共用排行榜未更新，這部裝置已記下分數。', 'warn'));
+    }
+    function mergeSharedRankRows(rows) {
+        if (!Array.isArray(rows)) return;
+        rows.forEach(row => {
+            if (!isSharedRankRow(row)) return;
+            const storageKey = sharedRankStorageKey(row);
+            if (!storageKey || !row.name) return;
+            const syllabusId = row.syllabusId || '';
+            const clefChoice = row.clefChoice || (storageKey.indexOf(':notes-clef-') >= 0 ? storageKey.split(':notes-clef-')[1] : '');
+            const record = {
+                rankNamespace: 'abrsm-theory-v1',
+                storageKey: storageKey,
+                gameKey: row.gameKey || storageKey.split(':')[1] || '',
+                clefChoice: clefChoice,
+                syllabusId: syllabusId,
+                score: parseInt(row.score, 10) || 0,
+                name: row.name,
+                class: row.class || '',
+                id: row.id || '',
+                accuracy: parseInt(row.accuracy, 10) || 0,
+                max_combo: parseInt(row.max_combo, 10) || 0,
+                grade: row.grade,
+                legacyBoard: false
+            };
+            try {
+                const all = JSON.parse(localStorage.getItem(storageKey) || '[]');
+                const idx = all.findIndex(item => item && item.name === record.name && item.class === record.class && String(item.id || '') === String(record.id || '') && (syllabusId ? item.syllabusId === syllabusId : !item.syllabusId));
+                if (idx >= 0) { if (record.score > (all[idx].score || 0)) all[idx] = record; }
+                else all.push(record);
+                localStorage.setItem(storageKey, JSON.stringify(all));
+            } catch (err) { console.error(err); }
+        });
+    }
+    function usesLocalRankBoard() {
+        const gf = document.getElementById('rankGameFilter');
+        const game = gf ? gf.value : 'game1';
+        if (game === 'game2' || game === 'game3') return true;
+        if (game !== 'game1') return false;
+        const mode = dom.rankModeFilter ? dom.rankModeFilter.value : 'notes-clef';
+        return mode === 'notes-clef' || mode === 'abrsm-notes' || mode === 'abrsm-keys';
+    }
+    function paintStudentRankHint(rows) {
+        if (!dom.studentRankHint) return;
+        const selfIndex = (rows || []).findIndex(isCurrentUserRecord);
+        if (state.currentUser && state.currentUser.name && selfIndex >= 0) {
+            dom.studentRankHint.innerHTML = `🎯 ${escHtml(state.currentUser.name)} 同學目前排第 <strong>${selfIndex + 1}</strong> 名`;
+            dom.studentRankHint.style.display = '';
+        } else {
+            dom.studentRankHint.style.display = 'none';
+            dom.studentRankHint.innerHTML = '';
+        }
+    }
     function saveAbrsmRank(gameKey) {
         if (!state.currentUser || !state.abrsmGrade || !abrsmReady()) return;
         const accuracy = state.totalQuestions ? Math.round(((state.totalQuestions - state.wrongCount) / state.totalQuestions) * 100) : 0;
@@ -2287,6 +2381,7 @@
                 if (record.score > (all[idx].score || 0)) all[idx] = record;
             } else all.push(record);
             localStorage.setItem(record.storageKey, JSON.stringify(all));
+            publishSharedRank(record);
         } catch (err) {
             console.error(err);
         }
@@ -2315,6 +2410,7 @@
             if (idx >= 0) { if (record.score > (all[idx].score || 0)) all[idx] = record; }
             else all.push(record);
             localStorage.setItem(storageKey, JSON.stringify(all));
+            publishSharedRank(record);
         } catch (err) { console.error(err); }
     }
     function saveSyllabusRank(gameKey, syllabusId, stats) {
@@ -2339,6 +2435,7 @@
             if (idx >= 0) { if (record.score > (all[idx].score || 0)) all[idx] = record; }
             else all.push(record);
             localStorage.setItem(record.storageKey, JSON.stringify(all));
+            publishSharedRank(record);
         } catch (err) { console.error(err); }
     }
     function renderNoteClefRanks(clef) {
@@ -2353,6 +2450,7 @@
         if (fG !== 0) rows = rows.filter(row => parseInt(row.grade, 10) === fG);
         rows = rows.filter(row => row && row.legacyBoard === false && !row.syllabusId);
         rows.sort((a, b) => (parseInt(b.score, 10) || 0) - (parseInt(a.score, 10) || 0));
+        paintStudentRankHint(rows);
         if (!rows.length) {
             dom.rankList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個譜號暫時未有紀錄。</div>';
             return;
@@ -2388,6 +2486,7 @@
         if (fG !== 0) rows = rows.filter(row => parseInt(row.grade, 10) === fG);
         rows = rows.filter(row => row && row.legacyBoard === false && AbrsmCurriculum.legacyBoardVisible(row) === false);
         rows.sort((a, b) => (parseInt(b.score, 10) || 0) - (parseInt(a.score, 10) || 0));
+        paintStudentRankHint(rows);
         if (!rows.length) {
             dom.rankList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">英皇榜暫時未有紀錄。課堂排行榜不會顯示呢度的分數。</div>';
             return;
@@ -3537,7 +3636,9 @@
     }
 
     function _applyRanksData(data, { render = true } = {}) {
-        state.allRanks = _normalizeRankRows(data);
+        const list = Array.isArray(data) ? data : [];
+        mergeSharedRankRows(list);
+        state.allRanks = _normalizeRankRows(list.filter(row => !isSharedRankRow(row)));
         _ranksFetchedAt = Date.now();
         _writeRanksCache(state.allRanks);
         if (render && dom.rankList) renderRanks();
@@ -3563,9 +3664,10 @@
         opts = opts || {};
         const force = !!opts.force;
 
-        // Instant paint from memory / localStorage
-        const painted = _paintRanksFromCache();
-        if (!painted && dom.rankList) dom.rankList.innerHTML = _buildSkeletonRanks(6);
+        // Paint the board that is already selected before asking the shared sheet.
+        _paintRanksFromCache();
+        if (usesLocalRankBoard()) renderRanks();
+        else if (!state.allRanks.length && dom.rankList) dom.rankList.innerHTML = _buildSkeletonRanks(6);
 
         // Soft TTL: reuse recent fetch unless forced
         if (!force && state.allRanks.length && _ranksFetchedAt && (Date.now() - _ranksFetchedAt) < RANKS_SOFT_TTL_MS) {
@@ -3598,8 +3700,10 @@
                     await new Promise(r => setTimeout(r, 1200));
                     return loadRanks(retries - 1, opts);
                 }
-                // Keep cached list if we already painted it
-                if (!state.allRanks.length && dom.rankList) {
+                if (usesLocalRankBoard()) {
+                    renderRanks();
+                    _showToast('⚠️ 共用排行榜暫時連不上，先顯示這部裝置的紀錄。', 'warn');
+                } else if (!state.allRanks.length && dom.rankList) {
                     const isTimeout = e.name === 'AbortError';
                     const msg = isTimeout ? '網絡連線太慢了，請檢查網絡' : (e.message || '未知錯誤');
                     dom.rankList.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">❌ 無法連線至排行榜<br><span style="font-size:0.8rem; font-weight:normal;">${msg}</span><br><button class="rank-retry-btn" style="margin-top:12px; padding:8px 20px; border-radius:20px; border:2px solid var(--primary-purple); background:white; color:var(--primary-purple-dark); font-weight:900; cursor:pointer;">🔄 重試</button></div>`;
@@ -3638,8 +3742,28 @@
         return '<div class="rank-reward-banner">🏆 每級前三名將獲得獎勵！</div>';
     }
 
+    function openGame1RankBoard() {
+        dom.leaderboardLayout.classList.add('view-only');
+        dom.reportGrid.innerHTML = '';
+        dom.reportWeakness.innerHTML = '';
+        const gf = document.getElementById('rankGameFilter');
+        if (gf) gf.value = 'game1';
+        const mfRow = dom.rankModeFilter?.closest?.('.rank-filter');
+        if (mfRow) mfRow.style.display = '';
+        if (dom.rankModeFilter) dom.rankModeFilter.value = 'notes-clef';
+        const signedIn = !!(state.currentUser && state.currentUser.name);
+        if (dom.rankGradeFilter) dom.rankGradeFilter.value = signedIn ? String(state.currentUser.grade || 0) : '0';
+        if (dom.rankClassFilter) dom.rankClassFilter.value = signedIn ? String(state.currentUser.class || '0') : '0';
+        switchScreen('screen-leaderboard');
+        loadRanks();
+    }
     function focusLeaderboardToCurrentStudent() {
-        if (!state.currentUser?.name) return;
+        if (!state.currentUser?.name) {
+            if (dom.rankGradeFilter) dom.rankGradeFilter.value = '0';
+            if (dom.rankClassFilter) dom.rankClassFilter.value = '0';
+            if (dom.rankModeFilter) dom.rankModeFilter.value = 'notes-clef';
+            return;
+        }
         if (dom.rankGradeFilter) dom.rankGradeFilter.value = String(state.currentUser.grade || 0);
         if (dom.rankClassFilter) dom.rankClassFilter.value = String(state.currentUser.class || '0');
         if (dom.rankModeFilter && state.modeConfig?.type === 'challenge') {
@@ -3682,7 +3806,7 @@
             return;
         }
         if (abrsmWrap) abrsmWrap.style.display = 'none';
-        let f = state.allRanks.filter(r => r.mode === fM); 
+        let f = state.allRanks.filter(r => r.mode === fM && !isSharedRankRow(r)); 
         if (fC !== '0') f = f.filter(r => r.class === fC); 
         if (fG !== 0) f = f.filter(r => parseInt(r.grade) === fG);
         f.sort((a,b)=> (parseInt(b.score)||0) - (parseInt(a.score)||0) || (parseInt(b.max_combo)||0) - (parseInt(a.max_combo)||0));
@@ -4071,15 +4195,7 @@
             dom.leaderboardLayout.classList.remove('view-only', 'practice-end');
             switchScreen('screen-hub');
         });
-        dom.viewRanksBtn?.addEventListener('click', () => { audio.init(); audio.playClick();
-            dom.leaderboardLayout.classList.add('view-only');
-            dom.reportGrid.innerHTML = '';
-            dom.reportWeakness.innerHTML = '';
-            const gf = document.getElementById('rankGameFilter');
-            if (gf) { gf.value = 'game1'; const mfRow = dom.rankModeFilter?.closest?.('.rank-filter'); if (mfRow) mfRow.style.display = ''; }
-            switchScreen('screen-leaderboard');
-            loadRanks();
-        });
+        dom.viewRanksBtn?.addEventListener('click', () => { audio.init(); audio.playClick(); openGame1RankBoard(); });
         
         dom.revealBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; const gt = state.modeConfig && state.modeConfig.gameType; if (gt === 'keysig') { state.answered = true; state.combo = 0; updateScoreboard(); if (_keysigCurrentQ) { dom.messageBox.textContent = `🔑 答案是 ${_keysigCurrentQ.correct.name}！請記下。`; } dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextKeysigQuestion(); }, 2000); return; } if (gt === 'solfege') { state.answered = true; state.combo = 0; updateScoreboard(); if (state.currentNote) { const solName = getSolfege(state.currentNote.note, state._solfegeKeySig); dom.messageBox.textContent = `🎵 答案是 ${solName}！請記下。`; } dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextSolfegeQuestion(); }, 2000); return; } state.answered = true; state.combo = 0; state.showAnswerHighlight = true; drawStaff(); updateScoreboard(); audio.playNote(state.currentNote.freqKey); const _sol3 = noteSol(state.currentNote); dom.messageBox.innerHTML = `🔊 答案是 ${pianoKeyHTML(state.currentNote.correctName)}${_sol3 ? ' = ' + escapeHtml(_sol3) : ''}，請聆聽並記下音位，然後作答下一題。`; dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextQuestion(); }, 2500); });
         dom.skipBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; updateScoreboard(); dom.messageBox.textContent = '⏩ 已跳過本題，請作答下一題。'; dom.messageBox.className = 'message-box'; const gt = state.modeConfig && state.modeConfig.gameType; setTimeout(() => { if (gt === 'keysig') nextKeysigQuestion(); else if (gt === 'solfege') nextSolfegeQuestion(); else nextQuestion(); }, 400); });
@@ -4918,16 +5034,7 @@
             }
         });
 
-        document.getElementById('hubViewRanksBtn').addEventListener('click', () => {
-            dom.leaderboardLayout.classList.add('view-only');
-            dom.reportGrid.innerHTML = ''; dom.reportWeakness.innerHTML = '';
-            const gf = document.getElementById('rankGameFilter');
-            if (gf) gf.value = 'game1';
-            const mfRow = dom.rankModeFilter?.closest?.('.rank-filter');
-            if (mfRow) mfRow.style.display = '';
-            switchScreen('screen-leaderboard');
-            loadRanks();
-        });
+        document.getElementById('hubViewRanksBtn').addEventListener('click', () => { openGame1RankBoard(); });
 
         // ——— 個人檔案按鈕 ———
         document.getElementById('hubProfileBtn').addEventListener('click', () => {
