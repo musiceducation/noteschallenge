@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { fileURLToPath } from 'node:url';
 
 const rankSync = fs.readFileSync(new URL('../rank-sync.js', import.meta.url), 'utf8');
 const RankSync = new Function(rankSync + '\nreturn RankSync;')();
@@ -308,5 +310,162 @@ assert.equal(
   fs.readFileSync(new URL('../rank-sync.js', import.meta.url), 'utf8'),
   fs.readFileSync(new URL('../www/rank-sync.js', import.meta.url), 'utf8')
 );
+
+function loadGas(source) {
+  const gas = {
+    sheets: {},
+    ContentService: {
+      MimeType: { JSON: 'application/json', TEXT: 'text/plain' },
+      createTextOutput(text) {
+        return { setMimeType() { return this; }, getContent() { return text; } };
+      }
+    }
+  };
+  gas.SpreadsheetApp = {
+    getActiveSpreadsheet() {
+      return {
+        getSheetByName(name) { return gas.sheets[name] || null; },
+        insertSheet(name) {
+          const rows = [];
+          const sheet = {
+            appendRow(values) { rows.push(values.slice()); },
+            getDataRange() { return { getValues() { return rows.map((row) => row.slice()); } }; },
+            setFrozenRows() {},
+            setColumnWidths() {},
+            getLastRow() { return rows.length; },
+            getRange() {
+              const chain = {
+                setFontWeight() { return chain; },
+                setBackground() { return chain; },
+                setFontColor() { return chain; },
+                setValues() { return chain; }
+              };
+              return chain;
+            }
+          };
+          gas.sheets[name] = sheet;
+          return sheet;
+        }
+      };
+    }
+  };
+  vm.createContext(gas);
+  vm.runInContext(source, gas);
+  return gas;
+}
+
+function gasPost(gas, record) {
+  return JSON.parse(gas.doPost({ postData: { contents: JSON.stringify(record) } }).getContent());
+}
+
+function gasGet(gas, parameter) {
+  return JSON.parse(gas.doGet({ parameter: parameter || {} }).getContent());
+}
+
+const repo = fileURLToPath(new URL('..', import.meta.url));
+const appendOnlySrc = execFileSync('git', ['show', '68762b3:Code.gs'], { cwd: repo, encoding: 'utf8' });
+assert.equal(appendOnlySrc.includes("action === 'saveRank'"), false);
+assert.equal(appendOnlySrc.includes("action === 'saveProfileResult'"), true);
+const appendOnly = loadGas(appendOnlySrc);
+
+const appendCases = [
+  'abrsm-theory-v1:notes-clef-alto',
+  'abrsm-theory-v1:notes:abrsm-g1',
+  'abrsm-theory-v1:keys:abrsm-g3',
+  'abrsm-theory-v1:rhythm:abrsm-g2',
+  'abrsm-theory-v1:rhythm-tap:abrsm-g4',
+  'abrsm-theory-v1:terms:abrsm-g5'
+];
+for (const key of appendCases) {
+  const body = RankSync.publishBody(played(key, 20));
+  assert.equal(body.action, 'saveRank', key);
+  assert.equal(['game1', 'game2', 'game3'].includes(body.game), true, key);
+  const accepted = gasPost(appendOnly, body);
+  assert.equal(accepted.ok, true, key);
+  assert.equal(accepted.error, undefined, key);
+  const found = gasGet(appendOnly).filter((row) => row.mode === key);
+  assert.equal(found.length, 1, key);
+  assert.equal(found[0].game, body.game, key);
+  assert.equal(found[0].syllabusId, undefined, key);
+  assert.equal(found[0].storageKey, undefined, key);
+  const empty = memoryStore();
+  RankSync.mergeIntoStore(found, empty);
+  const merged = readRows(empty, key);
+  assert.equal(merged.length, 1, key);
+  assert.equal(merged[0].score, 20, key);
+  if (key.includes('notes-clef-')) {
+    assert.equal(CLEF_BADGE[merged[0].clefChoice], '中音譜號', key);
+    assert.equal(merged[0].syllabusId, '', key);
+  } else {
+    assert.equal(RankSync.gradeBadge(merged[0].syllabusId), key.slice(-1).replace(/(\d)/, 'G$1'), key);
+  }
+}
+
+const keysAgain = 'abrsm-theory-v1:keys:abrsm-g3';
+const lowerAppend = gasPost(appendOnly, RankSync.publishBody(played(keysAgain, 8)));
+assert.equal(lowerAppend.ok, true);
+const both = gasGet(appendOnly).filter((row) => row.mode === keysAgain);
+assert.equal(both.length, 2);
+assert.equal(both.some((row) => row.score === 8), true);
+const remote = memoryStore();
+RankSync.mergeIntoStore(both, remote);
+const best = readRows(remote, keysAgain);
+assert.equal(best.length, 1);
+assert.equal(best[0].score, 20);
+assert.equal(RankSync.gradeBadge(best[0].syllabusId), 'G3');
+
+const rejectedGame = gasPost(appendOnly, {
+  action: 'saveRank',
+  game: 'abrsm-theory-v1',
+  mode: keysAgain,
+  name: STUDENT.name,
+  grade: STUDENT.grade,
+  class: STUDENT.class,
+  id: STUDENT.id,
+  score: 99
+});
+assert.equal(rejectedGame.ok, false);
+assert.equal(rejectedGame.error, 'invalid game');
+
+const ranksBeforeProfile = gasGet(appendOnly).length;
+const profile = {
+  action: 'saveProfileResult',
+  game: 'game1',
+  name: STUDENT.name,
+  grade: '4',
+  class: STUDENT.class,
+  id: STUDENT.id,
+  score: 50,
+  accuracy: 90,
+  max_combo: 3,
+  level: 2,
+  exp: 10,
+  total_played: 4,
+  cleared: 3,
+  fc_count: 1,
+  ap_count: 0
+};
+assert.equal(gasPost(appendOnly, profile).ok, true);
+assert.equal(gasGet(appendOnly).length, ranksBeforeProfile);
+const oldProfiles = gasGet(appendOnly, { action: 'getProfile', name: STUDENT.name, grade: '4', class: STUDENT.class });
+assert.equal(oldProfiles.length, 1);
+assert.equal(Number(oldProfiles[0].score), 50);
+assert.equal(oldProfiles[0].game, 'game1');
+assert.equal(oldProfiles[0].mode, undefined);
+
+const currentRanksBeforeProfile = getRows().length;
+assert.equal(postRank(profile).ok, true);
+assert.equal(getRows().length, currentRanksBeforeProfile);
+const currentProfiles = JSON.parse(gasContext.doGet({
+  parameter: { action: 'getProfile', name: STUDENT.name, grade: '4', class: STUDENT.class }
+}).getContent());
+assert.equal(currentProfiles.length, 1);
+assert.equal(Number(currentProfiles[0].score), 50);
+
+const gameSrc = fs.readFileSync(new URL('../script.js', import.meta.url), 'utf8');
+assert.equal(gameSrc.split('storeSharedRank(').length - 1, 4);
+assert.equal(gameSrc.split('publishSharedRank(').length - 1, 2);
+const loadBody = gameSrc.slice(gameSrc.indexOf('async function loadRanks'), gameSrc.indexOf('function escHtml'));
+assert.doesNotMatch(loadBody, /storeSharedRank|publishSharedRank|publishBody/);
 
 console.log('rank-sync: ok');
