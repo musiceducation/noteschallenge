@@ -27,6 +27,53 @@ const PROFILE_COLUMNS = [
 // name | grade | class | id | mode | mode_name | score | max_combo | total_questions | accuracy | timestamp
 const COLUMNS = ['name','grade','class','id','mode','mode_name','score','max_combo','total_questions','accuracy','timestamp'];
 
+// 新榜只把 canonical storageKey 放在既有 mode 欄。重新部署後，較低分不能覆蓋較高分。
+const SHARED_RANK_SHEET = '共用排行榜';
+
+function parseSharedRankKey(raw) {
+  const key = String(raw || '');
+  const prefix = 'abrsm-theory-v1:';
+  if (key.slice(0, prefix.length) !== prefix) return null;
+  const rest = key.slice(prefix.length);
+  const clef = /^notes-clef-(treble|bass|alto|tenor|mixed)$/.exec(rest);
+  if (clef) {
+    return {
+      storageKey: key,
+      gameKey: 'notes-clef-' + clef[1],
+      syllabusId: '',
+      clefChoice: clef[1]
+    };
+  }
+  const graded = /^(rhythm-tap|notes|keys|rhythm|terms):(abrsm-g[1-5])$/.exec(rest);
+  if (!graded) return null;
+  return {
+    storageKey: key,
+    gameKey: graded[1],
+    syllabusId: graded[2],
+    clefChoice: ''
+  };
+}
+
+function resolveSharedRankPost(rec) {
+  if (!rec) return null;
+  const mode = String(rec.mode || '');
+  const storageKey = String(rec.storageKey || '');
+  const parsed = parseSharedRankKey(storageKey || mode);
+  if (!parsed) return null;
+  if (storageKey && storageKey !== parsed.storageKey) return null;
+  if (mode.indexOf('abrsm-theory-v1:') === 0 && mode !== parsed.storageKey) return null;
+  if (rec.gameKey && String(rec.gameKey) !== parsed.gameKey) return null;
+  if (rec.syllabusId && String(rec.syllabusId) !== parsed.syllabusId) return null;
+  if (rec.clefChoice && String(rec.clefChoice) !== parsed.clefChoice) return null;
+  return parsed;
+}
+
+function jsonOut(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
 // ── 工具：取得或建立指定工作表 ──────────────────────────────
 function getSheet(sheetName) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -152,6 +199,67 @@ function doPost(e) {
       return ContentService
         .createTextOutput(JSON.stringify({ ok: true }))
         .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (rec.action === 'saveRank') {
+      const parsed = resolveSharedRankPost(rec);
+      if (!parsed) return jsonOut({ ok: false, error: 'invalid rank key' });
+      const grade = parseInt(rec.grade, 10);
+      if (isNaN(grade) || grade < 1 || grade > 6) return jsonOut({ ok: false, error: 'invalid grade' });
+      const name = String(rec.name || '').trim().slice(0, 20);
+      if (!name) return jsonOut({ ok: false, error: 'invalid name' });
+      const score = parseInt(rec.score, 10) || 0;
+      const accuracy = Math.max(0, Math.min(100, parseInt(rec.accuracy, 10) || 0));
+      const klass = String(rec.class || '').trim();
+      const sid = String(rec.id || '').trim();
+      const sheet = getSheet(SHARED_RANK_SHEET);
+      const data = sheet.getDataRange().getValues();
+      const headers = data[0].map(function (h) { return String(h); });
+      const col = function (header) { return headers.indexOf(header); };
+      const iName = col('name');
+      const iClass = col('class');
+      const iId = col('id');
+      const iMode = col('mode');
+      const iScore = col('score');
+      let bestRow = -1;
+      let bestScore = -1;
+      for (let r = 1; r < data.length; r++) {
+        const row = data[r];
+        if (String(row[iName] || '').trim() !== name) continue;
+        if (String(row[iClass] || '').trim() !== klass) continue;
+        if (String(row[iId] || '').trim() !== sid) continue;
+        if (String(row[iMode] || '') !== parsed.storageKey) continue;
+        const existing = parseInt(row[iScore], 10) || 0;
+        if (existing > bestScore) {
+          bestScore = existing;
+          bestRow = r;
+        }
+      }
+      if (bestRow >= 1 && score <= bestScore) return jsonOut({ ok: true, kept: true, score: bestScore });
+      if (bestRow >= 1) {
+        sheet.getRange(bestRow + 1, iScore + 1).setValue(score);
+        const iCombo = col('max_combo');
+        const iAcc = col('accuracy');
+        const iTs = col('timestamp');
+        if (iCombo >= 0) sheet.getRange(bestRow + 1, iCombo + 1).setValue(parseInt(rec.max_combo, 10) || 0);
+        if (iAcc >= 0) sheet.getRange(bestRow + 1, iAcc + 1).setValue(accuracy);
+        if (iTs >= 0) sheet.getRange(bestRow + 1, iTs + 1).setValue(new Date().toLocaleString('zh-TW'));
+        return jsonOut({ ok: true, updated: true, score: score });
+      }
+      sheet.appendRow([
+        name,
+        String(grade),
+        klass,
+        sid,
+        parsed.storageKey,
+        String(rec.mode_name || ''),
+        score,
+        parseInt(rec.max_combo, 10) || 0,
+        parseInt(rec.total_questions, 10) || 0,
+        accuracy,
+        new Date().toLocaleString('zh-TW')
+      ]);
+      return jsonOut({ ok: true, score: score });
     }
 
     if (!rec.name || !rec.game) {
@@ -284,6 +392,21 @@ function doGet(e) {
         allRows.push(obj);
       });
     });
+
+    if (!filterGame || filterGame === 'abrsm-theory-v1') {
+      const shared = ss.getSheetByName(SHARED_RANK_SHEET);
+      if (shared) {
+        const data = shared.getDataRange().getValues();
+        if (data.length > 1) {
+          const headers = data[0];
+          data.slice(1).forEach(row => {
+            const obj = { game: 'abrsm-theory-v1' };
+            headers.forEach((h, i) => { obj[h] = row[i]; });
+            allRows.push(obj);
+          });
+        }
+      }
+    }
 
     return ContentService
       .createTextOutput(JSON.stringify(allRows))

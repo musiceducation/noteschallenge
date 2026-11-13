@@ -149,8 +149,10 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.doesNotMatch(controls, /音高範圍仍跟所選英皇級別|自選譜號練習/);
   assert.match(page, /id="userGrade"[\s\S]*中一/);
   const rankSelect = page.slice(page.indexOf('id="rankModeFilter"'), page.indexOf('id="rankAbrsmFilterWrap"'));
+  assert.match(rankSelect, /value="notes-clef" selected>音名譜號/);
   assert.match(rankSelect, /abrsm-notes/);
   assert.match(rankSelect, /abrsm-keys/);
+  assert.ok(rankSelect.indexOf('notes-clef') < rankSelect.indexOf('abrsm-notes'));
   assert.doesNotMatch(rankSelect, /classic60|bass60|mixed60|keysig60|solfege60|noMiss/);
 }
 
@@ -195,5 +197,18 @@ const submitBody = gameSrc.slice(submitAt, legacyAt);
 assert.match(submitBody, /state\.currentMode === 'classic60'[\s\S]{0,80}saveNoteClefRank\(\)/);
 assert.doesNotMatch(submitBody, /saveAbrsmRank\('notes'\)/);
 assert.doesNotMatch(submitBody, /abrsm-theory-v1:notes:abrsm-g/);
+assert.match(gameSrc, /function publishSharedRank/);
+assert.match(gameSrc, /function mergeSharedRankRows/);
+assert.match(gameSrc, /RankSync\.publishBody/);
+assert.match(gameSrc, /RankSync\.commitLocalRank/);
+assert.match(gameSrc, /loadRanks\(2, \{ force: true \}\)/);
+assert.doesNotMatch(gameSrc, /game: 'abrsm-theory-v1'/);
+assert.match(gameSrc, /if \(usesLocalRankBoard\(\)\)/);
+assert.match(gameSrc, /共用排行榜暫時連不上/);
+assert.match(gameSrc, /function paintStudentRankHint/);
+assert.match(gameSrc, /function openGame1RankBoard/);
+assert.doesNotMatch(gameSrc.slice(gameSrc.indexOf('function renderNoteClefRanks'), gameSrc.indexOf('function renderAbrsmRanks')), /目前排第/);
+assert.match(wwwGame, /function publishSharedRank/);
+assert.match(wwwGame, /function openGame1RankBoard/);
 
 console.log('abrsm-note-grade: ok', g5.length, 'g5 notes', k5.length, 'g5 key cards');

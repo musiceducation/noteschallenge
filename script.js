@@ -2261,6 +2261,89 @@
         const grade = ABRSM_NOTE_MODES.has(state.currentMode) ? '' : (state.abrsmGrade ? ' · 英皇 G' + String(state.abrsmGrade).replace('abrsm-g', '') : '');
         return `👋 ${state.currentUser.name} 同學 · ${state.modeConfig.name}${clef}${grade}`;
     }
+    function isSharedRankRow(row) {
+        if (!row || typeof row !== 'object') return false;
+        if (typeof RankSync !== 'undefined' && RankSync.resolveSharedRow(row)) return true;
+        const mode = String(row.mode || row.storageKey || '');
+        if (mode.indexOf('abrsm-theory-v1:') === 0) return true;
+        if (row.game === 'abrsm-theory-v1' || row.rankNamespace === 'abrsm-theory-v1') return true;
+        return false;
+    }
+    const _rankUploadPending = new Set();
+    function postSharedBest(record, quiet) {
+        if (typeof RankSync === 'undefined' || !record) return Promise.resolve(false);
+        const payload = RankSync.publishBody(record);
+        if (!payload) return Promise.resolve(false);
+        const token = RankSync.originId(record) + '@' + payload.score;
+        if (_rankUploadPending.has(token) || RankSync.ackedCovers(localStorage, record)) return Promise.resolve(true);
+        _rankUploadPending.add(token);
+        return gasPostJson(payload).then(result => {
+            const confirmed = RankSync.explicitOk(result);
+            if (confirmed) {
+                RankSync.ackBackfill(localStorage, record);
+                if (!quiet) loadRanks(1, { force: true });
+            } else {
+                _rankUploadPending.delete(token);
+                if (!quiet) _showToast('⚠️ 共用排行榜未更新，這部裝置已記下分數。', 'warn');
+            }
+            return confirmed;
+        }).catch(() => {
+            _rankUploadPending.delete(token);
+            if (!quiet) _showToast('⚠️ 共用排行榜未更新，這部裝置已記下分數。', 'warn');
+            return false;
+        });
+    }
+    function publishSharedRank(record) {
+        postSharedBest(record, false);
+    }
+    function queueDeviceBackfill(remoteRows, attempt) {
+        if (typeof RankSync === 'undefined') return;
+        const pending = {};
+        _rankUploadPending.forEach(token => { pending[token] = true; });
+        const batch = RankSync.planBackfill(localStorage, remoteRows, { limit: 20, pending: pending });
+        if (!batch.length) return;
+        Promise.all(batch.map(record => postSharedBest(record, true))).then(results => {
+            if (results.some(ok => !ok) && (attempt || 0) < 1) setTimeout(() => queueDeviceBackfill(remoteRows, 1), 1500);
+        });
+    }
+    function mergeSharedRankRows(rows) {
+        if (typeof RankSync === 'undefined') return;
+        RankSync.mergeIntoStore(rows, localStorage);
+    }
+    function storeSharedRank(record) {
+        if (typeof RankSync === 'undefined' || !record || !record.storageKey) return;
+        try {
+            RankSync.captureDeviceOrigins(localStorage);
+            const all = JSON.parse(localStorage.getItem(record.storageKey) || '[]');
+            const committed = RankSync.commitLocalRank(all, record);
+            localStorage.setItem(record.storageKey, JSON.stringify(committed.list));
+            if (committed.publish) {
+                RankSync.noteLocalBest(localStorage, committed.publish);
+                publishSharedRank(committed.publish);
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    }
+    function usesLocalRankBoard() {
+        const gf = document.getElementById('rankGameFilter');
+        const game = gf ? gf.value : 'game1';
+        if (game === 'game2' || game === 'game3') return true;
+        if (game !== 'game1') return false;
+        const mode = dom.rankModeFilter ? dom.rankModeFilter.value : 'notes-clef';
+        return mode === 'notes-clef' || mode === 'abrsm-notes' || mode === 'abrsm-keys';
+    }
+    function paintStudentRankHint(rows) {
+        if (!dom.studentRankHint) return;
+        const selfIndex = (rows || []).findIndex(isCurrentUserRecord);
+        if (state.currentUser && state.currentUser.name && selfIndex >= 0) {
+            dom.studentRankHint.innerHTML = `🎯 ${escHtml(state.currentUser.name)} 同學目前排第 <strong>${selfIndex + 1}</strong> 名`;
+            dom.studentRankHint.style.display = '';
+        } else {
+            dom.studentRankHint.style.display = 'none';
+            dom.studentRankHint.innerHTML = '';
+        }
+    }
     function saveAbrsmRank(gameKey) {
         if (!state.currentUser || !state.abrsmGrade || !abrsmReady()) return;
         const accuracy = state.totalQuestions ? Math.round(((state.totalQuestions - state.wrongCount) / state.totalQuestions) * 100) : 0;
@@ -2279,16 +2362,7 @@
         record.grade = state.currentUser.grade;
         record.difficulty = state.abrsmGrade;
         if (String(gameKey).indexOf('notes-clef-') === 0) record.clefChoice = String(gameKey).slice('notes-clef-'.length);
-        try {
-            const all = JSON.parse(localStorage.getItem(record.storageKey) || '[]');
-            const idx = all.findIndex(row => row.name === record.name && row.class === record.class && String(row.id || '') === String(record.id || '') && row.syllabusId === record.syllabusId);
-            if (idx >= 0) {
-                if (record.score > (all[idx].score || 0)) all[idx] = record;
-            } else all.push(record);
-            localStorage.setItem(record.storageKey, JSON.stringify(all));
-        } catch (err) {
-            console.error(err);
-        }
+        storeSharedRank(record);
     }
     function saveNoteClefRank() {
         if (!state.currentUser) return;
@@ -2308,13 +2382,7 @@
             grade: state.currentUser.grade,
             legacyBoard: false
         };
-        try {
-            const all = JSON.parse(localStorage.getItem(storageKey) || '[]');
-            const idx = all.findIndex(row => row.name === record.name && row.class === record.class && String(row.id || '') === String(record.id || ''));
-            if (idx >= 0) { if (record.score > (all[idx].score || 0)) all[idx] = record; }
-            else all.push(record);
-            localStorage.setItem(storageKey, JSON.stringify(all));
-        } catch (err) { console.error(err); }
+        storeSharedRank(record);
     }
     function saveSyllabusRank(gameKey, syllabusId, stats) {
         if (!state.currentUser || !abrsmReady() || !/^abrsm-g[1-5]$/.test(syllabusId || '')) return;
@@ -2332,13 +2400,7 @@
         record.max_combo = stats.maxCombo || 0;
         record.grade = state.currentUser.grade;
         record.difficulty = syllabusId;
-        try {
-            const all = JSON.parse(localStorage.getItem(record.storageKey) || '[]');
-            const idx = all.findIndex(row => row.name === record.name && row.class === record.class && String(row.id || '') === String(record.id || '') && row.syllabusId === record.syllabusId);
-            if (idx >= 0) { if (record.score > (all[idx].score || 0)) all[idx] = record; }
-            else all.push(record);
-            localStorage.setItem(record.storageKey, JSON.stringify(all));
-        } catch (err) { console.error(err); }
+        storeSharedRank(record);
     }
     function renderNoteClefRanks(clef) {
         const gradeWrap = document.getElementById('rankAbrsmFilterWrap');
@@ -2352,6 +2414,7 @@
         if (fG !== 0) rows = rows.filter(row => parseInt(row.grade, 10) === fG);
         rows = rows.filter(row => row && row.legacyBoard === false && !row.syllabusId);
         rows.sort((a, b) => (parseInt(b.score, 10) || 0) - (parseInt(a.score, 10) || 0));
+        paintStudentRankHint(rows);
         if (!rows.length) {
             dom.rankList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個譜號暫時未有紀錄。</div>';
             return;
@@ -2387,6 +2450,7 @@
         if (fG !== 0) rows = rows.filter(row => parseInt(row.grade, 10) === fG);
         rows = rows.filter(row => row && row.legacyBoard === false && AbrsmCurriculum.legacyBoardVisible(row) === false);
         rows.sort((a, b) => (parseInt(b.score, 10) || 0) - (parseInt(a.score, 10) || 0));
+        paintStudentRankHint(rows);
         if (!rows.length) {
             dom.rankList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">英皇榜暫時未有紀錄。課堂排行榜不會顯示呢度的分數。</div>';
             return;
@@ -2394,7 +2458,7 @@
         dom.rankList.innerHTML = rows.slice(0, 100).map((item, i) => {
             const name = escHtml(item.name);
             const cls = escHtml(item.class);
-            const g = String(item.syllabusId || '').replace('abrsm-g', 'G');
+            const g = RankSync.gradeBadge(item.syllabusId);
             const school = item.grade ? `中${['','一','二','三','四','五','六'][item.grade] || item.grade}` : '';
             const clefTag = NOTE_CLEF_LABEL[item.clefChoice] ? `<span class="rank-tag">${NOTE_CLEF_LABEL[item.clefChoice]}</span>` : '';
             return `<div class="rank-item ${i === 0 ? 'first' : i === 1 ? 'second' : i === 2 ? 'third' : ''}">
@@ -3325,15 +3389,15 @@
                 data = text ? JSON.parse(text) : {};
             } catch (_parseErr) {
                 if (!res.ok) {
-                    return { ok: false, error: (text && text.slice(0, 120)) || `HTTP ${res.status}` };
+                    return { ok: false, explicit: false, error: (text && text.slice(0, 120)) || `HTTP ${res.status}` };
                 }
-                return { ok: res.ok };
+                return { ok: res.ok, explicit: false };
             }
             if (!res.ok) {
-                return { ok: false, error: (data && data.error) || (text && text.slice(0, 120)) || `HTTP ${res.status}` };
+                return { ok: false, explicit: false, error: (data && data.error) || (text && text.slice(0, 120)) || `HTTP ${res.status}` };
             }
-            if (typeof data.ok === 'boolean') return data;
-            return { ok: true };
+            if (typeof data.ok === 'boolean') return Object.assign({}, data, { explicit: true });
+            return { ok: true, explicit: false };
         } catch (err) {
             const msg = err && err.name === 'AbortError' ? '逾時' : (err && err.message) || 'network';
             return { ok: false, error: msg };
@@ -3481,7 +3545,7 @@
         } else {
             dom.leaderboardLayout.classList.remove('practice-end');
             focusLeaderboardToCurrentStudent();
-            loadRanks();
+            loadRanks(2, { force: true });
         }
         const reportTitleEl = document.querySelector('.report-title');
         if (reportTitleEl) {
@@ -3536,21 +3600,32 @@
     }
 
     function _applyRanksData(data, { render = true } = {}) {
-        state.allRanks = _normalizeRankRows(data);
+        const list = Array.isArray(data) ? data : [];
+        if (typeof RankSync !== 'undefined') RankSync.captureDeviceOrigins(localStorage);
+        mergeSharedRankRows(list);
+        queueDeviceBackfill(list);
+        state.allRanks = _normalizeRankRows(list.filter(row => !isSharedRankRow(row)));
         _ranksFetchedAt = Date.now();
         _writeRanksCache(state.allRanks);
         if (render && dom.rankList) renderRanks();
     }
 
     function _paintRanksFromCache() {
-        if (state.allRanks.length) {
-            renderRanks();
-            return true;
-        }
         const cached = _readRanksCache();
-        if (cached && cached.data.length) {
+        if (!state.allRanks.length && cached && cached.data.length) {
             state.allRanks = _normalizeRankRows(cached.data);
             _ranksFetchedAt = cached.at || 0;
+        }
+        const plan = (typeof RankSync !== 'undefined')
+            ? RankSync.rankLoadPlan({
+                localBoard: usesLocalRankBoard(),
+                legacyCacheRows: state.allRanks.length,
+                legacyCacheFresh: false,
+                force: false
+            })
+            : { paintLocalImmediately: usesLocalRankBoard() };
+        if (!dom.rankList) return false;
+        if (plan.paintLocalImmediately || state.allRanks.length) {
             renderRanks();
             return true;
         }
@@ -3562,16 +3637,28 @@
         opts = opts || {};
         const force = !!opts.force;
 
-        // Instant paint from memory / localStorage
+        // Local boards read localStorage. An empty legacy cache must not leave them on the loading placeholder.
         const painted = _paintRanksFromCache();
-        if (!painted && dom.rankList) dom.rankList.innerHTML = _buildSkeletonRanks(6);
+        const cacheFresh = !!(state.allRanks.length && _ranksFetchedAt && (Date.now() - _ranksFetchedAt) < RANKS_SOFT_TTL_MS);
+        const plan = (typeof RankSync !== 'undefined')
+            ? RankSync.rankLoadPlan({
+                localBoard: usesLocalRankBoard(),
+                legacyCacheRows: state.allRanks.length,
+                legacyCacheFresh: cacheFresh,
+                force: force
+            })
+            : {
+                paintLocalImmediately: usesLocalRankBoard(),
+                fetchNetwork: force || !cacheFresh,
+                replaceWithConnectionError: !usesLocalRankBoard()
+            };
+        if (!painted && !plan.paintLocalImmediately && dom.rankList) dom.rankList.innerHTML = _buildSkeletonRanks(6);
+        if (!plan.fetchNetwork) return state.allRanks;
 
-        // Soft TTL: reuse recent fetch unless forced
-        if (!force && state.allRanks.length && _ranksFetchedAt && (Date.now() - _ranksFetchedAt) < RANKS_SOFT_TTL_MS) {
-            return state.allRanks;
+        if (_ranksFetchPromise) {
+            if (!force) return _ranksFetchPromise;
+            return _ranksFetchPromise.then(() => loadRanks(retries, opts));
         }
-
-        if (_ranksFetchPromise) return _ranksFetchPromise;
 
         _ranksFetchPromise = (async () => {
             const controller = new AbortController();
@@ -3597,8 +3684,10 @@
                     await new Promise(r => setTimeout(r, 1200));
                     return loadRanks(retries - 1, opts);
                 }
-                // Keep cached list if we already painted it
-                if (!state.allRanks.length && dom.rankList) {
+                if (usesLocalRankBoard()) {
+                    renderRanks();
+                    _showToast('⚠️ 共用排行榜暫時連不上，先顯示這部裝置的紀錄。', 'warn');
+                } else if (!state.allRanks.length && dom.rankList) {
                     const isTimeout = e.name === 'AbortError';
                     const msg = isTimeout ? '網絡連線太慢了，請檢查網絡' : (e.message || '未知錯誤');
                     dom.rankList.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">❌ 無法連線至排行榜<br><span style="font-size:0.8rem; font-weight:normal;">${msg}</span><br><button class="rank-retry-btn" style="margin-top:12px; padding:8px 20px; border-radius:20px; border:2px solid var(--primary-purple); background:white; color:var(--primary-purple-dark); font-weight:900; cursor:pointer;">🔄 重試</button></div>`;
@@ -3637,8 +3726,28 @@
         return '<div class="rank-reward-banner">🏆 每級前三名將獲得獎勵！</div>';
     }
 
+    function openGame1RankBoard() {
+        dom.leaderboardLayout.classList.add('view-only');
+        dom.reportGrid.innerHTML = '';
+        dom.reportWeakness.innerHTML = '';
+        const gf = document.getElementById('rankGameFilter');
+        if (gf) gf.value = 'game1';
+        const mfRow = dom.rankModeFilter?.closest?.('.rank-filter');
+        if (mfRow) mfRow.style.display = '';
+        if (dom.rankModeFilter) dom.rankModeFilter.value = 'notes-clef';
+        const signedIn = !!(state.currentUser && state.currentUser.name);
+        if (dom.rankGradeFilter) dom.rankGradeFilter.value = signedIn ? String(state.currentUser.grade || 0) : '0';
+        if (dom.rankClassFilter) dom.rankClassFilter.value = signedIn ? String(state.currentUser.class || '0') : '0';
+        switchScreen('screen-leaderboard');
+        loadRanks();
+    }
     function focusLeaderboardToCurrentStudent() {
-        if (!state.currentUser?.name) return;
+        if (!state.currentUser?.name) {
+            if (dom.rankGradeFilter) dom.rankGradeFilter.value = '0';
+            if (dom.rankClassFilter) dom.rankClassFilter.value = '0';
+            if (dom.rankModeFilter) dom.rankModeFilter.value = 'notes-clef';
+            return;
+        }
         if (dom.rankGradeFilter) dom.rankGradeFilter.value = String(state.currentUser.grade || 0);
         if (dom.rankClassFilter) dom.rankClassFilter.value = String(state.currentUser.class || '0');
         if (dom.rankModeFilter && state.modeConfig?.type === 'challenge') {
@@ -3681,7 +3790,7 @@
             return;
         }
         if (abrsmWrap) abrsmWrap.style.display = 'none';
-        let f = state.allRanks.filter(r => r.mode === fM); 
+        let f = state.allRanks.filter(r => r.mode === fM && !isSharedRankRow(r)); 
         if (fC !== '0') f = f.filter(r => r.class === fC); 
         if (fG !== 0) f = f.filter(r => parseInt(r.grade) === fG);
         f.sort((a,b)=> (parseInt(b.score)||0) - (parseInt(a.score)||0) || (parseInt(b.max_combo)||0) - (parseInt(a.max_combo)||0));
@@ -4070,15 +4179,7 @@
             dom.leaderboardLayout.classList.remove('view-only', 'practice-end');
             switchScreen('screen-hub');
         });
-        dom.viewRanksBtn?.addEventListener('click', () => { audio.init(); audio.playClick();
-            dom.leaderboardLayout.classList.add('view-only');
-            dom.reportGrid.innerHTML = '';
-            dom.reportWeakness.innerHTML = '';
-            const gf = document.getElementById('rankGameFilter');
-            if (gf) { gf.value = 'game1'; const mfRow = dom.rankModeFilter?.closest?.('.rank-filter'); if (mfRow) mfRow.style.display = ''; }
-            switchScreen('screen-leaderboard');
-            loadRanks();
-        });
+        dom.viewRanksBtn?.addEventListener('click', () => { audio.init(); audio.playClick(); openGame1RankBoard(); });
         
         dom.revealBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; const gt = state.modeConfig && state.modeConfig.gameType; if (gt === 'keysig') { state.answered = true; state.combo = 0; updateScoreboard(); if (_keysigCurrentQ) { dom.messageBox.textContent = `🔑 答案是 ${_keysigCurrentQ.correct.name}！請記下。`; } dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextKeysigQuestion(); }, 2000); return; } if (gt === 'solfege') { state.answered = true; state.combo = 0; updateScoreboard(); if (state.currentNote) { const solName = getSolfege(state.currentNote.note, state._solfegeKeySig); dom.messageBox.textContent = `🎵 答案是 ${solName}！請記下。`; } dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextSolfegeQuestion(); }, 2000); return; } state.answered = true; state.combo = 0; state.showAnswerHighlight = true; drawStaff(); updateScoreboard(); audio.playNote(state.currentNote.freqKey); const _sol3 = noteSol(state.currentNote); dom.messageBox.innerHTML = `🔊 答案是 ${pianoKeyHTML(state.currentNote.correctName)}${_sol3 ? ' = ' + escapeHtml(_sol3) : ''}，請聆聽並記下音位，然後作答下一題。`; dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextQuestion(); }, 2500); });
         dom.skipBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; updateScoreboard(); dom.messageBox.textContent = '⏩ 已跳過本題，請作答下一題。'; dom.messageBox.className = 'message-box'; const gt = state.modeConfig && state.modeConfig.gameType; setTimeout(() => { if (gt === 'keysig') nextKeysigQuestion(); else if (gt === 'solfege') nextSolfegeQuestion(); else nextQuestion(); }, 400); });
@@ -4929,16 +5030,7 @@
             }
         });
 
-        document.getElementById('hubViewRanksBtn').addEventListener('click', () => {
-            dom.leaderboardLayout.classList.add('view-only');
-            dom.reportGrid.innerHTML = ''; dom.reportWeakness.innerHTML = '';
-            const gf = document.getElementById('rankGameFilter');
-            if (gf) gf.value = 'game1';
-            const mfRow = dom.rankModeFilter?.closest?.('.rank-filter');
-            if (mfRow) mfRow.style.display = '';
-            switchScreen('screen-leaderboard');
-            loadRanks();
-        });
+        document.getElementById('hubViewRanksBtn').addEventListener('click', () => { openGame1RankBoard(); });
 
         // ——— 個人檔案按鈕 ———
         document.getElementById('hubProfileBtn').addEventListener('click', () => {
