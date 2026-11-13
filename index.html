@@ -982,7 +982,10 @@
                 <div class="mode-icon">⏱️</div><div class="mode-name">拍號計時</div><div class="mode-desc">同一級別，限時一分鐘，不入榜</div>
             </div>
             <div class="mode-card tap" data-mode="tap" id="g2ModeTap">
-                <div class="mode-icon">🥁</div><div class="mode-name">節奏挑戰</div><div class="mode-desc">根據譜上音符時值打節奏</div>
+                <div class="mode-icon">🥁</div><div class="mode-name">節奏挑戰</div><div class="mode-desc">根據譜上音符時值打節奏，分容易、中等、困難</div>
+            </div>
+            <div class="mode-card complete" data-mode="complete" id="g2ModeComplete">
+                <div class="mode-icon">◻️</div><div class="mode-name">補足小節</div><div class="mode-desc">4/4 未完，選一個時值填滿</div>
             </div>
             <div class="mode-card duration" data-mode="duration" id="g2ModeDuration">
                 <div class="mode-icon">🎵</div><div class="mode-name">時值辨別</div><div class="mode-desc">同一英皇級別的音符、休止符和連音</div>
@@ -1006,6 +1009,15 @@
                 <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g5">G5</button>
             </div>
             <p class="abrsm-coverage" id="g2AbrsmCoverage"></p>
+        </div>
+        <div class="keysig-solfege-sub-row" id="g2LevelRow" style="display:none;">
+            <span class="practice-diff-label">難度</span>
+            <div class="practice-diff-btns" id="g2LevelBtns">
+                <button type="button" class="abrsm-grade-btn active" data-level="easy">容易</button>
+                <button type="button" class="abrsm-grade-btn" data-level="medium">中等</button>
+                <button type="button" class="abrsm-grade-btn" data-level="hard">困難</button>
+            </div>
+            <p class="abrsm-coverage" id="g2LevelCoverage"></p>
         </div>
         <button class="btn-start" id="g2StartBtn">🚀 開始練習</button>
         <button class="btn-view-ranks" id="g2SetupViewRanks">🏆 查看排行榜</button>
@@ -1786,12 +1798,13 @@
 
     <script src="abrsm-curriculum.js?v=1" defer></script>
     <script src="abrsm-rhythm-terms.js?v=3" defer></script>
+    <script src="rhythm-levels.js?v=1" defer></script>
     <script src="abrsm-note-grade.js?v=4" defer></script>
     <script src="note-name-teach.js?v=6" defer></script>
     <script src="instrument-category.js?v=2" defer></script>
     <script src="chinese-instrument-challenge.js?v=3" defer></script>
     <script src="chord-keyboard.js?v=2" defer></script>
-    <script src="rank-sync.js?v=4" defer></script>
+    <script src="rank-sync.js?v=5" defer></script>
     <script src="profile-store.js?v=1" defer></script>
     <script src="ability-radar.js?v=1" defer></script>
     <script src="aural-score.js?v=1" defer></script>

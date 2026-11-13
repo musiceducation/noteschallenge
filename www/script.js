@@ -359,6 +359,31 @@
         }
         return dom.userName.value;
     }
+    function scoredModeNeedsName() {
+        const cfg = state.modeConfig || {};
+        return cfg.type === 'challenge';
+    }
+    function ensurePlayIdentity() {
+        const playerName = getPlayerName();
+        if (!scoredModeNeedsName()) {
+            state.currentUser = playerName ? { name: playerName, grade: parseInt(dom.userGrade.value, 10) || 0, class: dom.userClass.value, id: dom.userId.value } : null;
+            if (dom.nameField) dom.nameField.classList.remove('error');
+            return true;
+        }
+        if (!playerName || playerName === '訪客') {
+            if (dom.nameField) dom.nameField.classList.add('error');
+            alert('❗ 請先選擇姓名，方可開始。');
+            return false;
+        }
+        state.currentUser = { name: playerName, grade: parseInt(dom.userGrade.value, 10) || 0, class: dom.userClass.value, id: dom.userId.value };
+        if (dom.nameField) dom.nameField.classList.remove('error');
+        return true;
+    }
+    function ensureScoredIdentity() {
+        if (state.currentUser && state.currentUser.name && state.currentUser.name !== '訪客') return true;
+        alert('❗ 請先選擇姓名，方可開始。');
+        return false;
+    }
 
     let _customNameInput = null;
     let dom = {};
@@ -2433,7 +2458,8 @@
         const grade = (!keysig && !ABRSM_NOTE_MODES.has(state.currentMode) && state.abrsmGrade)
             ? ' · 英皇 G' + String(state.abrsmGrade).replace('abrsm-g', '')
             : '';
-        return `👋 ${state.currentUser.name} 同學 · ${state.modeConfig.name}${clef}${grade}`;
+        const who = state.currentUser && state.currentUser.name ? state.currentUser.name + ' 同學' : '練習';
+        return `👋 ${who} · ${state.modeConfig.name}${clef}${grade}`;
     }
     function isSharedRankRow(row) {
         if (!row || typeof row !== 'object') return false;
@@ -2711,7 +2737,14 @@
         }).join('');
     }
     function renderAbrsmRanks(gameKey) {
-        const wrap = document.getElementById('rankAbrsmFilterWrap');
+        let wrap = document.getElementById('rankAbrsmFilterWrap');
+        if (!wrap) {
+            const host = document.querySelector('#rankRhythmKindWrap');
+            if (host) {
+                host.insertAdjacentHTML('beforebegin', '<div class="rank-filter" id="rankAbrsmFilterWrap" style="display:none;"><label>舊英皇級別</label><select id="rankAbrsmGradeFilter"><option value="0">全部</option><option value="abrsm-g1">G1</option><option value="abrsm-g2">G2</option><option value="abrsm-g3">G3</option><option value="abrsm-g4">G4</option><option value="abrsm-g5">G5</option></select></div>');
+                wrap = document.getElementById('rankAbrsmFilterWrap');
+            }
+        }
         if (wrap) wrap.style.display = '';
         const want = (document.getElementById('rankAbrsmGradeFilter') || {}).value || '0';
         const fC = dom.rankClassFilter.value;
@@ -2988,15 +3021,8 @@
         if (canvasWrapper) canvasWrapper.style.display = '';
         const clefBadge = document.getElementById('clefBadge');
         if (clefBadge) clefBadge.style.display = '';
-        const playerName = getPlayerName();
-        if (!playerName) {
-            dom.nameField.classList.add('error');
-            alert('❗ 請先請先選擇姓名，方可開始。');
-            return;
-        }
-        dom.nameField.classList.remove('error');
+        if (!ensurePlayIdentity()) return;
         saveSettings();
-        state.currentUser = { name: playerName, grade: parseInt(dom.userGrade.value), class: dom.userClass.value, id: dom.userId.value };
         markProfilePlayStart();
         buildNoteButtons();
         dom.inGameUser.textContent = playerBadge();
@@ -3181,11 +3207,8 @@
 
     function startKeysigGame() {
         audio.init(); audio.warmUp();
-        const playerName = getPlayerName();
-        if (!playerName) { dom.nameField.classList.add('error'); alert('❗ 請先請先選擇姓名，方可開始。'); return; }
-        dom.nameField.classList.remove('error');
+        if (!ensurePlayIdentity()) return;
         saveSettings();
-        state.currentUser = { name: playerName, grade: parseInt(dom.userGrade.value), class: dom.userClass.value, id: dom.userId.value };
 
         showKeysigUI(true);
         showSolfegeUI(false);
@@ -3493,16 +3516,13 @@
 
     function startSolfegeGame() {
         audio.init(); audio.warmUp();
-        const playerName = getPlayerName();
-        if (!playerName) { dom.nameField.classList.add('error'); alert('❗ 請先請先選擇姓名，方可開始。'); return; }
-        dom.nameField.classList.remove('error');
+        if (!ensurePlayIdentity()) return;
         saveSettings();
-        state.currentUser = { name: playerName, grade: parseInt(dom.userGrade.value), class: dom.userClass.value, id: dom.userId.value };
 
         showKeysigUI(false);
         showSolfegeUI(true);
         if (dom.clefBadge) dom.clefBadge.textContent = '高音譜號';
-        dom.inGameUser.textContent = `👋 ${state.currentUser.name} 同學 · ${state.modeConfig.name}`;
+        dom.inGameUser.textContent = playerBadge();
         dom.endBtn.textContent = state.modeConfig.type === 'practice' ? '📊 結束練習' : '🏁 結束挑戰';
 
         state.gameActive = false;
@@ -3691,7 +3711,7 @@
     }
 
     async function submitScore() {
-        if (!state.currentUser.name || state.modeConfig.type !== 'challenge') return;
+        if (!state.currentUser || !state.currentUser.name || state.currentUser.name === '訪客' || state.modeConfig.type !== 'challenge') return;
         if (state.score === 0 && state.totalQuestions === 0) return;
         if (state.modeConfig && state.modeConfig.gameType === 'solfege') return;
         if (state.currentMode === 'noMiss') {
@@ -4077,6 +4097,42 @@
         }
     }
 
+    function renderRhythmLevelRanks(mode) {
+        const wrap = document.getElementById('rankAbrsmFilterWrap');
+        if (wrap) wrap.style.display = 'none';
+        const labels = window.RhythmLevels ? RhythmLevels.LABELS : { easy: '容易', medium: '中等', hard: '困難' };
+        const fC = dom.rankClassFilter.value;
+        const fG = parseInt(dom.rankGradeFilter.value, 10);
+        let rows = [];
+        ['easy', 'medium', 'hard'].forEach(id => {
+            let list = [];
+            try { list = JSON.parse(localStorage.getItem(RhythmLevels.storageKey(mode, id)) || '[]'); } catch (err) { list = []; }
+            list.forEach(row => {
+                if (!row || /^abrsm-g[1-5]$/.test(row.syllabusId || '')) return;
+                rows.push(Object.assign({}, row, { level: row.level || id }));
+            });
+        });
+        if (fC !== '0') rows = rows.filter(row => row.class === fC);
+        if (fG !== 0) rows = rows.filter(row => parseInt(row.grade, 10) === fG);
+        rows.sort((a, b) => (parseInt(b.score, 10) || 0) - (parseInt(a.score, 10) || 0));
+        paintStudentRankHint(rows);
+        if (!rows.length) {
+            dom.rankList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個難度暫時未有紀錄。英皇舊榜不會顯示呢度的分數。</div>';
+            return;
+        }
+        dom.rankList.innerHTML = rows.slice(0, 100).map((item, i) => {
+            const name = escHtml(item.name);
+            const cls = escHtml(item.class);
+            const tag = labels[item.level] || '';
+            const school = item.grade ? `中${['','一','二','三','四','五','六'][item.grade] || item.grade}` : '';
+            return `<div class="rank-item ${i === 0 ? 'first' : i === 1 ? 'second' : i === 2 ? 'third' : ''}">
+                <div class="rank-pos">${i + 1}.</div>
+                <div class="rank-name"><span class="rank-student-name">${name}</span>
+                    <div class="rank-badges"><span class="rank-tag rank-grade-tag">${tag}</span>${school ? `<span class="rank-tag">${school}</span>` : ''}<span class="rank-tag rank-class-tag">${cls}班</span></div>
+                </div>
+                <div class="rank-score">${parseInt(item.score, 10) || 0}</div></div>`;
+        }).join('');
+    }
     function renderRanks() {
         const gf = document.getElementById('rankGameFilter');
         if (gf && (gf.value === 'game2' || gf.value === 'game3')) {
@@ -4086,7 +4142,15 @@
             if (rhythmKindWrap) rhythmKindWrap.style.display = '';
             syncRankKindOptions(gf.value);
             const kindEl = document.getElementById('rankRhythmKind');
-            if (kindEl) kindEl.value = 'classroom';
+            const kind = kindEl ? kindEl.value : 'classroom';
+            if (gf.value === 'game2' && (kind === 'rhythm-tap' || kind === 'rhythm-complete')) {
+                renderRhythmLevelRanks(kind === 'rhythm-complete' ? 'complete' : 'tap');
+                return;
+            }
+            if (gf.value === 'game2' && kind === 'rhythm-tap-legacy') {
+                renderAbrsmRanks('rhythm-tap');
+                return;
+            }
             const abrsmWrapEarly = document.getElementById('rankAbrsmFilterWrap');
             if (abrsmWrapEarly) abrsmWrapEarly.style.display = 'none';
             renderRanksForGame(gf.value, deviceClassroomRows(gf.value));
@@ -5239,7 +5303,7 @@
             return { name: displayName || hubName.value, grade: parseInt(hubGrade.value), class: hubClass.value, seat: hubSeat.value };
         }
 
-        function requireHubLogin(nameFieldEl) {
+        function requireHubLogin(nameFieldEl, silent) {
             if (isAppShell()) {
                 if (window.MusicAppAuth && window.MusicAppAuth.required && !window.MusicAppAuth.signedIn) {
                     try {
@@ -5265,7 +5329,7 @@
             const val = hubName.value;
             if (!val || val === '__guest__' || val === '__other__') {
                 if (nameFieldEl) { nameFieldEl.classList.add('error'); setTimeout(() => nameFieldEl.classList.remove('error'), 1200); }
-                alert('❗ 請先完成身份：點開「③ 選擇姓名」選班上同學。');
+                if (!silent) alert('❗ 請先選擇姓名，方可開始。');
                 return false;
             }
             return true;
@@ -5322,8 +5386,13 @@
             }
         }
         function openSetupTopic(topic) {
-            if (!requireHubLogin(hubNameField)) return;
-            syncFromHub();
+            if (window.WebGoogleAuth && window.WebGoogleAuth.required && !window.WebGoogleAuth.signedIn) return;
+            if (isAppShell() && window.MusicAppAuth && window.MusicAppAuth.required && !window.MusicAppAuth.signedIn) {
+                requireHubLogin(hubNameField);
+                return;
+            }
+            if (requireHubLogin(hubNameField, true)) syncFromHub();
+            else state.currentUser = null;
             if (topic === 'notes' && dom.textbookMode) { dom.textbookMode.value = hubGrade.value; handleTextbookModeChange(); }
             applySetupTopic(topic);
             switchScreen('screen-setup');
@@ -5409,15 +5478,19 @@
 
         const enterGame2El = document.getElementById('enterGame2');
         enterGame2El.addEventListener('click', () => {
-            if (!requireHubLogin(hubNameField)) {
+            if (window.WebGoogleAuth && window.WebGoogleAuth.required && !window.WebGoogleAuth.signedIn) {
                 try { sessionStorage.removeItem('rhythmResumeCompose'); } catch (e) {}
                 return;
             }
-            const user = getHubUser();
-            state.currentUser = { name: user.name, grade: user.grade || 0, class: user.class || '', id: user.seat || '' };
-            // Populate player badge on setup screen
+            if (isAppShell() && window.MusicAppAuth && window.MusicAppAuth.required && !window.MusicAppAuth.signedIn) {
+                requireHubLogin(hubNameField);
+                return;
+            }
+            const named = requireHubLogin(hubNameField, true);
+            const user = named ? getHubUser() : { name: '', grade: 0, class: '', seat: '' };
+            state.currentUser = named ? { name: user.name, grade: user.grade || 0, class: user.class || '', id: user.seat || '' } : null;
             const badgeText = document.getElementById('g2PlayerBadgeText');
-            if (badgeText) badgeText.textContent = `${user.grade ? ['','中一','中二','中三','中四','中五','中六'][user.grade] : ''}${user.class}班 · ${user.name} 同學`;
+            if (badgeText) badgeText.textContent = named ? `${user.grade ? ['','中一','中二','中三','中四','中五','中六'][user.grade] : ''}${user.class}班 · ${user.name} 同學` : '未選擇學生 · 練習可以開始';
 
             let g2SelectedMode = 'practice';
             try {
@@ -5432,6 +5505,16 @@
                 if (g2StartBtn) g2StartBtn.textContent = compose ? '♩ 開始創作' : '🚀 開始練習';
             };
             const g2ModeCards = document.querySelectorAll('#g2ModeCards .mode-card');
+            const paintG2Chooser = () => {
+                const usesLevel = g2SelectedMode === 'tap' || g2SelectedMode === 'complete';
+                const abrsmRow = document.getElementById('g2AbrsmRow');
+                const levelRow = document.getElementById('g2LevelRow');
+                if (abrsmRow) abrsmRow.style.display = usesLevel ? 'none' : '';
+                if (levelRow) levelRow.style.display = usesLevel ? '' : 'none';
+                const levelId = document.querySelector('#g2LevelBtns .abrsm-grade-btn.active')?.dataset.level || 'easy';
+                const levelNote = document.getElementById('g2LevelCoverage');
+                if (levelNote && window.RhythmLevels) levelNote.textContent = RhythmLevels.coverageText(levelId);
+            };
             g2ModeCards.forEach(c => {
                 c.classList.toggle('active', c.dataset.mode === g2SelectedMode);
                 c.onclick = () => {
@@ -5439,9 +5522,18 @@
                     c.classList.add('active');
                     g2SelectedMode = c.dataset.mode;
                     syncG2ModeChrome();
+                    paintG2Chooser();
+                };
+            });
+            document.querySelectorAll('#g2LevelBtns .abrsm-grade-btn').forEach(btn => {
+                btn.onclick = () => {
+                    document.querySelectorAll('#g2LevelBtns .abrsm-grade-btn').forEach(other => other.classList.remove('active'));
+                    btn.classList.add('active');
+                    paintG2Chooser();
                 };
             });
             syncG2ModeChrome();
+            paintG2Chooser();
 
             const g2Coverage = document.getElementById('g2AbrsmCoverage');
             const paintG2 = () => {
@@ -5460,12 +5552,17 @@
             document.getElementById('g2StartBtn').onclick = () => {
                 if (g2SelectedMode === 'challenge') {
                     launchSyllabusQuiz(user, 'meter', false);
-                } else if (g2SelectedMode === '1min') {
-                    launchSyllabusQuiz(user, 'meter', true);
                 } else if (g2SelectedMode === 'duration') {
                     launchSyllabusQuiz(user, 'value', false);
                 } else if (g2SelectedMode === 'tap') {
+                    if (!ensureScoredIdentity()) return;
                     startRhythmChallenge(user);
+                } else if (g2SelectedMode === 'complete') {
+                    if (!ensureScoredIdentity()) return;
+                    launchCompleteMeasure(user);
+                } else if (g2SelectedMode === '1min') {
+                    if (!ensureScoredIdentity()) return;
+                    launchSyllabusQuiz(user, 'meter', true);
                 } else if (g2SelectedMode === 'compose') {
                     openRhythmComposer();
                 } else {
@@ -5937,9 +6034,9 @@
         }
         if (label) label.textContent = '節奏榜';
         if (sel.dataset.kindGame !== 'game2') {
-            sel.innerHTML = '<option value="classroom" selected>課堂舊紀錄</option>';
+            sel.innerHTML = '<option value="rhythm-tap" selected>節奏挑戰</option><option value="rhythm-complete">補足小節</option><option value="rhythm-tap-legacy">節奏挑戰舊英皇</option><option value="classroom">課堂舊紀錄</option>';
             sel.dataset.kindGame = 'game2';
-            sel.value = 'classroom';
+            sel.value = 'rhythm-tap';
         }
     }
     function deviceClassroomRows(gameKey) {
@@ -6498,9 +6595,144 @@
         box.appendChild(note);
         document.getElementById('sqDone').onclick = () => switchScreen('screen-g2-setup');
     }
+    function launchCompleteMeasure(user) {
+        if (!window.RhythmLevels) return;
+        const levelId = document.querySelector('#g2LevelBtns .abrsm-grade-btn.active')?.dataset.level || 'easy';
+        const round = { index: 0, score: 0, correct: 0, wrong: 0, locked: false, levelId, user, total: 8, question: null };
+        const box = document.getElementById('screen-g2-duration');
+        box.innerHTML = `<div class="om-header"><button class="om-exit" id="completeExit">✕</button><div class="om-header-center"><div class="om-title">補足小節 · ${RhythmLevels.LABELS[levelId]}</div><span class="om-time-left" id="completeCount">1 / 8</span></div><div class="om-score-wrap"><div class="om-score-val" id="completeScore">0</div><div class="om-score-label">得分</div></div></div><p class="complete-prompt">這是 4/4。虛線空位還沒有音符，請選一個時值把它填滿。</p><div id="completeStaff" class="complete-staff"></div><div class="complete-choices" id="completeChoices"></div>`;
+        switchScreen('screen-g2-duration');
+        document.getElementById('completeExit').onclick = () => switchScreen('screen-g2-setup');
+        const show = () => {
+            round.locked = false;
+            round.question = RhythmLevels.completionQuestion(levelId, Math.random);
+            const count = document.getElementById('completeCount');
+            if (count) count.textContent = (round.index + 1) + ' / ' + round.total;
+            renderCompleteStaff(round.question);
+            const host = document.getElementById('completeChoices');
+            host.innerHTML = '';
+            const choices = round.question.choices.slice();
+            for (let i = choices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                const tmp = choices[i];
+                choices[i] = choices[j];
+                choices[j] = tmp;
+            }
+            choices.forEach(choice => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'complete-choice';
+                btn.innerHTML = `<span class="complete-choice-symbol">${choice.symbol}</span><span class="complete-choice-label">${choice.label}</span>`;
+                btn.onclick = () => {
+                    if (round.locked) return;
+                    round.locked = true;
+                    const ok = choice.id === round.question.answerId;
+                    if (ok) { round.correct += 1; round.score += 10; }
+                    else round.wrong += 1;
+                    document.getElementById('completeScore').textContent = round.score;
+                    btn.classList.add(ok ? 'correct' : 'wrong');
+                    if (!ok) host.querySelectorAll('button').forEach(other => {
+                        if (other.querySelector('.complete-choice-label')?.textContent === RhythmLevels.CHOICES[round.question.answerId].label) other.classList.add('correct');
+                    });
+                    setTimeout(() => {
+                        round.index += 1;
+                        if (round.index >= round.total) finishCompleteMeasure(round);
+                        else show();
+                    }, ok ? 450 : 900);
+                };
+                host.appendChild(btn);
+            });
+        };
+        show();
+    }
+    function renderCompleteStaff(question) {
+        const host = document.getElementById('completeStaff');
+        if (!host || typeof VexFlow === 'undefined' || !window.RhythmLevels) return;
+        host.innerHTML = '';
+        const width = Math.max(host.clientWidth || 0, 320);
+        const height = 220;
+        const { Renderer, Stave, StaveNote, Voice, Formatter, Beam, Stem } = VexFlow;
+        const renderer = new Renderer(host, Renderer.Backends.SVG);
+        renderer.resize(width, height);
+        const context = renderer.getContext();
+        const stave = new Stave(10, 36, width - 20);
+        stave.addTimeSignature('4/4');
+        stave.setContext(context).draw();
+        const blankToken = { 4: 'ta-a-a-a', 2: 'ta-a', 1: 'ta', 0.5: 'ti', 0.25: 'ri', 0.75: 'ti ri' }[question.blankQuarters] || 'ta';
+        const shownEvents = RhythmLevels.expandBar(question.shown);
+        const allEvents = RhythmLevels.expandBar((question.shown ? question.shown + ' ' : '') + blankToken);
+        const notes = allEvents.map(event => new StaveNote(event.vex === 'w'
+            ? { keys: ['b/4'], duration: event.vex }
+            : { keys: ['b/4'], duration: event.vex, stemDirection: Stem.UP }));
+        const voice = new Voice({ numBeats: 16, beatValue: 16 });
+        voice.setMode(2);
+        voice.addTickables(notes);
+        new Formatter().joinVoices([voice]).format([voice], Math.max(80, width - 120));
+        const shownCount = shownEvents.length;
+        const groups = RhythmLevels.beamGroups(question.shown).map(group => group.map(index => notes[index])).filter(group => group.length > 1);
+        const beams = groups.map(group => {
+            try { return new Beam(group); } catch (err) { return null; }
+        });
+        voice.draw(context, stave);
+        beams.forEach(beam => { if (beam) { try { beam.setContext(context).draw(); } catch (err) {} } });
+        const blankEls = notes.slice(shownCount).map(note => note.getSVGElement && note.getSVGElement()).filter(Boolean);
+        const boxes = blankEls.map(el => el.getBBox());
+        const rawStart = boxes.length ? Math.min.apply(null, boxes.map(box => box.x)) - 8 : stave.getNoteStartX();
+        const rawEnd = boxes.length ? Math.max.apply(null, boxes.map(box => box.x + box.width)) + 12 : rawStart + 48;
+        const blankMid = (rawStart + rawEnd) / 2;
+        const blankWidth = Math.max(72, rawEnd - rawStart);
+        const startX = blankMid - blankWidth / 2;
+        const endX = blankMid + blankWidth / 2;
+        blankEls.forEach(el => el.remove());
+        const svg = host.querySelector('svg');
+        if (!svg || endX - startX < 28) return;
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', String(startX));
+        rect.setAttribute('y', String(stave.getY() + 18));
+        rect.setAttribute('width', String(endX - startX));
+        rect.setAttribute('height', '78');
+        rect.setAttribute('rx', '12');
+        rect.setAttribute('fill', '#fff7e8');
+        rect.setAttribute('stroke', '#7c3aed');
+        rect.setAttribute('stroke-width', '3');
+        rect.setAttribute('stroke-dasharray', '7 5');
+        svg.appendChild(rect);
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', String((startX + endX) / 2));
+        label.setAttribute('y', String(stave.getY() + 66));
+        label.setAttribute('text-anchor', 'middle');
+        label.setAttribute('font-size', '32');
+        label.setAttribute('font-weight', '800');
+        label.setAttribute('fill', '#5b21b6');
+        label.textContent = '？';
+        svg.appendChild(label);
+    }
+    function finishCompleteMeasure(round) {
+        const player = state.currentUser || round.user;
+        if (player && player.name && player.name !== '訪客' && window.RhythmLevels) {
+            storeSharedRank({
+                storageKey: RhythmLevels.storageKey('complete', round.levelId),
+                level: round.levelId,
+                mode: 'complete',
+                name: player.name,
+                class: player.class || '',
+                id: player.id || player.seat || '',
+                grade: player.grade,
+                score: round.score,
+                accuracy: round.total ? Math.round(round.correct / round.total * 100) : 0,
+                max_combo: round.correct
+            });
+        }
+        const box = document.getElementById('screen-g2-duration');
+        const note = document.createElement('div');
+        note.className = 'om-result';
+        note.innerHTML = `<div class="om-result-title">八題完成</div><div class="om-result-score">${round.score}</div><p class="abrsm-coverage">分數記在補足小節的${RhythmLevels.LABELS[round.levelId]}榜，不會寫入英皇級別。</p><button class="om-btn-back" id="completeDone" type="button">返回</button>`;
+        box.appendChild(note);
+        document.getElementById('completeDone').onclick = () => switchScreen('screen-g2-setup');
+    }
     function startRhythmChallenge(user) {
-        const gradeId = document.querySelector('#g2AbrsmBtns .abrsm-grade-btn.active')?.dataset.abrsm || 'abrsm-g1';
-        const spec = _rchalSpec(gradeId);
+        const levelId = document.querySelector('#g2LevelBtns .abrsm-grade-btn.active')?.dataset.level || 'easy';
+        const spec = window.RhythmLevels && RhythmLevels.challengeSpec(levelId);
         if (!spec) return;
         rchalState.user = user;
         audio.init(); audio.warmUp(); audio.bgStop();
@@ -6546,7 +6778,9 @@
         rchalState.meter = window.AbrsmRhythmTerms.tapMeter(meterId);
         const measures = [];
         for (let i = 0; i < lvl.bars; i++) {
-            measures.push(_generateChallengeRhythm(lvl.tokens, rchalState.meter.quarters, lvl.syncopation));
+            measures.push(lvl.levelRank && window.RhythmLevels
+                ? RhythmLevels.buildBar(lvl.id, meterId, Math.random)
+                : _generateChallengeRhythm(lvl.tokens, rchalState.meter.quarters, lvl.syncopation));
         }
         rchalState.measures = measures;
 
@@ -6609,7 +6843,7 @@
 
         // Determine bars-per-row based on complexity
         const lvl = rchalState.level;
-        const simpleStaff = lvl && lvl.id === 'abrsm-g1';
+        const simpleStaff = lvl && (lvl.id === 'abrsm-g1' || lvl.id === 'easy');
         const BARS_PER_ROW = simpleStaff ? 4 : 2;
         const numRows = Math.ceil(numBars / BARS_PER_ROW);
         const MIN_ROW_H = simpleStaff ? 150 : 180;
@@ -7240,11 +7474,27 @@
 
         // Save to leaderboard
         if (rchalState.user && rchalState.user.name) {
-            saveSyllabusRank('rhythm-tap', rchalState.level.id, {
-                score: rchalState.score,
-                accuracy: accuracy,
-                maxCombo: rchalState.maxCombo
-            });
+            if (rchalState.level && rchalState.level.levelRank && window.RhythmLevels) {
+                const player = state.currentUser || rchalState.user;
+                if (player.name && player.name !== '訪客') storeSharedRank({
+                    storageKey: RhythmLevels.storageKey('tap', rchalState.level.id),
+                    level: rchalState.level.id,
+                    mode: 'tap',
+                    name: player.name,
+                    class: player.class || '',
+                    id: player.id || player.seat || '',
+                    grade: player.grade,
+                    score: rchalState.score,
+                    accuracy: accuracy,
+                    max_combo: rchalState.maxCombo
+                });
+            } else {
+                saveSyllabusRank('rhythm-tap', rchalState.level.id, {
+                    score: rchalState.score,
+                    accuracy: accuracy,
+                    maxCombo: rchalState.maxCombo
+                });
+            }
         }
 
         // Record to profile

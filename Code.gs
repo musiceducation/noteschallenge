@@ -45,12 +45,23 @@ function parseSharedRankKey(raw) {
     };
   }
   const graded = /^(rhythm-tap|notes|keys|rhythm|terms):(abrsm-g[1-5])$/.exec(rest);
-  if (!graded) return null;
+  if (graded) {
+    return {
+      storageKey: key,
+      gameKey: graded[1],
+      syllabusId: graded[2],
+      clefChoice: '',
+      level: ''
+    };
+  }
+  const level = /^(rhythm-level|rhythm-complete):(easy|medium|hard)$/.exec(rest);
+  if (!level) return null;
   return {
     storageKey: key,
-    gameKey: graded[1],
-    syllabusId: graded[2],
-    clefChoice: ''
+    gameKey: level[1],
+    syllabusId: '',
+    clefChoice: '',
+    level: level[2]
   };
 }
 
