@@ -1994,6 +1994,45 @@
         svg.style.height = 'auto';
         svg.style.maxWidth = '560px';
     }
+    function centerPlayStaveNote(stave, staveNote, note) {
+        if (!stave || !staveNote || typeof staveNote.getAbsoluteX !== 'function') return;
+        if (typeof staveNote.setCenterAlignment === 'function') staveNote.setCenterAlignment(true);
+        let accW = 0;
+        if (note && note.vexAccidental && typeof staveNote.getMetrics === 'function') {
+            accW = (staveNote.getMetrics() || {}).modLeftPx || 0;
+        }
+        const right = stave.getX() + stave.getWidth() - 14;
+        const target = (stave.getNoteStartX() + right) / 2 + (accW > 0 ? accW / 2 : 0);
+        const delta = target - staveNote.getAbsoluteX();
+        if (typeof staveNote.setCenterXShift === 'function') {
+            const current = typeof staveNote.getCenterXShift === 'function' ? (staveNote.getCenterXShift() || 0) : 0;
+            staveNote.setCenterXShift(current + delta);
+        }
+    }
+    function placePlayNoteInCard(host, note) {
+        const card = host.closest ? host.closest('.staff-container') : null;
+        const svg = host.querySelector('svg');
+        const head = svg && svg.querySelector('.vf-notehead');
+        const group = svg && svg.querySelector('.vf-stavenote');
+        if (!card || !svg || !head || !group) return;
+        const cardRect = card.getBoundingClientRect();
+        const svgRect = svg.getBoundingClientRect();
+        const headRect = head.getBoundingClientRect();
+        if (!cardRect.width || !svgRect.width || !headRect.width) return;
+        const viewW = svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width ? svg.viewBox.baseVal.width : svgRect.width;
+        const scale = viewW / svgRect.width;
+        let accScreen = 0;
+        if (note && note.vexAccidental) {
+            const acc = svg.querySelector('.vf-accidental') || svg.querySelector('[class*="accidental"]');
+            if (acc && acc.getBoundingClientRect) {
+                const accRect = acc.getBoundingClientRect();
+                if (accRect.width) accScreen = (headRect.left + headRect.width / 2) - (accRect.left + accRect.width / 2);
+            } else accScreen = 14;
+        }
+        const dxScreen = ((cardRect.left + cardRect.right) / 2) - (headRect.left + headRect.width / 2 - accScreen / 2);
+        if (Math.abs(dxScreen) < 1.5) return;
+        group.setAttribute('transform', 'translate(' + (dxScreen * scale).toFixed(2) + ' 0)');
+    }
     function renderAbrsmNote(note) {
         const host = showAbrsmHost();
         if (!host) return;
@@ -2008,8 +2047,9 @@
         }
         try {
             const width = Math.max(300, Math.min(560, host.clientWidth || 420));
-            const above = Math.max(36, note.yFactor < 0 ? Math.round(-note.yFactor * 18) + 28 : 28);
-            const below = note.yFactor > 4 ? Math.round((note.yFactor - 4) * 18) + 36 : 36;
+            // Same canvas for every pitch, including four ledger lines above or below.
+            const above = 108;
+            const below = 120;
             const staveY = above;
             const height = staveY + 110 + below;
             const renderer = new VF.Renderer(host, VF.Renderer.Backends.SVG);
@@ -2018,15 +2058,23 @@
             const stave = new VF.Stave(8, staveY, Math.max(160, width - 16));
             stave.addClef(note.clef);
             stave.setContext(context).draw();
-            const staveNote = new VF.StaveNote({ clef: note.clef, keys: [note.vexKey], duration: 'q' });
+            const staveNote = new VF.StaveNote({ clef: note.clef, keys: [note.vexKey], duration: 'w', alignCenter: true });
             if (note.vexAccidental) staveNote.addModifier(new VF.Accidental(note.vexAccidental), 0);
-            const voice = new VF.Voice({ numBeats: 1, beatValue: 4 });
+            if (typeof staveNote.setCenterAlignment === 'function') staveNote.setCenterAlignment(true);
+            const voice = new VF.Voice({ numBeats: 4, beatValue: 4 });
             if (typeof voice.setMode === 'function') voice.setMode(2);
             voice.addTickables([staveNote]);
             new VF.Formatter().joinVoices([voice]).format([voice], Math.max(48, width - stave.getNoteStartX() - 20));
+            centerPlayStaveNote(stave, staveNote, note);
             voice.draw(context, stave);
+            const svg = host.querySelector('svg');
+            if (svg) {
+                svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+                svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+            }
             fitAbrsmSvg(host);
-            host.setAttribute('aria-label', (ABRSM_CLEF_ZH[note.clef] || '') + ' 音符題');
+            placePlayNoteInCard(host, note);
+            host.setAttribute('aria-label', (ABRSM_CLEF_ZH[note.clef] || '') + ' 全音符題');
         } catch (err) {
             console.error(err);
             host.textContent = '譜面未能繪出';

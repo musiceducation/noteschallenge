@@ -7717,3 +7717,20 @@ body.app-shell.app-on-root .sound-toggle {
     .cn-inst-name { font-size: 1.4rem; }
     #screen-g4-study .game-title { font-size: 1.7rem !important; }
 }
+
+/* 音名識辨：譜面同中間反應框保持同一個高度，答題後唔好跳位。 */
+#screen-game .staff-container { min-height: 280px; }
+#screen-game .abrsm-vf:not([hidden]) { min-height: 240px; align-items: center; }
+#screen-game .message-box {
+    height: 5.5rem;
+    min-height: 5.5rem;
+    max-height: 5.5rem;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+#screen-game .message-box.correct,
+#screen-game .message-box.wrong,
+#screen-game .message-box.warning {
+    transform: none;
+    animation: none;
+}
