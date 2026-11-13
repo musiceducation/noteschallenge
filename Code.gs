@@ -379,6 +379,9 @@ function doGet(e) {
       ? [[filterGame, GAME_SHEETS[filterGame]]]
       : Object.entries(GAME_SHEETS);
 
+    // Keep returning the old classroom sheets. The site paints classic60,
+    // bass60, mixed60, and the old rhythm and terms rows onto the current boards.
+    // Do not delete those sheets. A lower score must not replace a higher one.
     sheetsToLoad.forEach(([gameKey, sheetName]) => {
       const sheet = ss.getSheetByName(sheetName);
       if (!sheet) return;

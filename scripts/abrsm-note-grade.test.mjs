@@ -153,7 +153,11 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.match(rankSelect, /abrsm-notes/);
   assert.match(rankSelect, /abrsm-keys/);
   assert.ok(rankSelect.indexOf('notes-clef') < rankSelect.indexOf('abrsm-notes'));
-  assert.doesNotMatch(rankSelect, /classic60|bass60|mixed60|keysig60|solfege60|noMiss/);
+  assert.match(rankSelect, /value="noMiss">零失誤挑戰/);
+  assert.match(rankSelect, /value="keysig60">調號挑戰/);
+  assert.match(rankSelect, /value="solfege60">唱名挑戰/);
+  // Clef challenges fold into 音名譜號. They are not separate dropdown modes.
+  assert.doesNotMatch(rankSelect, /value="classic60"|value="bass60"|value="mixed60"/);
 }
 
 const gameSrc = fs.readFileSync(new URL('../script.js', import.meta.url), 'utf8');

@@ -570,4 +570,56 @@ assert.equal(firstWave.length, 20);
 firstWave.forEach((row) => RankSync.ackBackfill(capped, row));
 assert.equal(RankSync.planBackfill(capped, [], { limit: 20 }).length, 5);
 
+assert.equal(RankSync.legacyClefChoice({ game: 'game1', mode: 'classic60', name: '甲', score: 10 }), 'treble');
+assert.equal(RankSync.legacyClefChoice({ difficulty: 'bass60', name: '甲', score: 4 }), 'bass');
+assert.equal(RankSync.legacyClefChoice({ difficulty: 'mixed60', name: '甲' }), 'mixed');
+assert.equal(RankSync.legacyClefChoice(modeOnly('abrsm-theory-v1:notes-clef-treble', 10)), '');
+assert.equal(RankSync.legacyClefChoice({ mode: 'noMiss', name: '甲', score: 99 }), '');
+assert.equal(RankSync.legacyGame1Mode({ mode: 'noMiss' }), 'noMiss');
+assert.equal(RankSync.legacyGame1Mode({ mode: 'keysig60' }), 'keysig60');
+assert.equal(RankSync.legacyGame1Mode({ difficulty: 'solfege60' }), 'solfege60');
+assert.equal(RankSync.legacyGame1Mode({ mode: 'classic60' }), '');
+assert.equal(RankSync.legacyGame1Mode(modeOnly('abrsm-theory-v1:keys:abrsm-g1', 10)), '');
+
+const currentLow = {
+  name: '甲', class: 'A', id: 15, score: 20,
+  storageKey: 'abrsm-theory-v1:notes-clef-treble', legacyBoard: false
+};
+const classroomHigh = { name: '甲', class: 'A', id: '15', score: 900, mode: 'classic60', grade: 1 };
+const restoredClef = RankSync.keepHigherScore([currentLow, classroomHigh]);
+assert.equal(restoredClef.length, 1);
+assert.equal(restoredClef[0].score, 900);
+assert.equal(RankSync.legacyClefChoice(restoredClef[0]), 'treble');
+
+const currentHigh = {
+  name: '甲', class: 'A', id: '15', score: 900, legacyBoard: false,
+  storageKey: 'abrsm-theory-v1:notes-clef-treble'
+};
+const classroomLow = { name: '甲', class: 'A', id: '15', score: 100, mode: 'classic60' };
+const keptCurrent = RankSync.keepHigherScore([currentHigh, classroomLow]);
+assert.equal(keptCurrent.length, 1);
+assert.equal(keptCurrent[0], currentHigh);
+assert.equal(RankSync.legacyClefChoice(keptCurrent[0]), '');
+const tied = RankSync.keepHigherScore([currentHigh, Object.assign({}, classroomLow, { score: 900 })]);
+assert.equal(tied[0], currentHigh);
+const lowered = RankSync.keepHigherScore([keptCurrent[0], { name: '甲', class: 'A', id: '15', score: 1, mode: 'classic60' }]);
+assert.equal(lowered[0].score, 900);
+
+for (const file of ['index.html', 'www/index.html']) {
+  const page = fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8');
+  assert.match(page, /option value="noMiss">零失誤挑戰/);
+  assert.match(page, /option value="keysig60">調號挑戰/);
+  assert.match(page, /option value="solfege60">唱名挑戰/);
+  assert.match(page, /option value="classroom" selected>課堂舊紀錄/);
+  assert.match(page, /rank-sync\.js\?v=3/);
+}
+for (const file of ['script.js', 'www/script.js']) {
+  const src = fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8');
+  assert.match(src, /RankSync\.legacyClefChoice\(row\) === safe/);
+  assert.match(src, /RankSync\.keepHigherScore\(rows\)/);
+  assert.match(src, /g3RankListMode = 'classroom'/);
+  assert.match(src, /kind === 'classroom'/);
+  assert.doesNotMatch(src, /noteLocalBest\(localStorage,[\s\S]{0,80}classic60/);
+}
+
 console.log('rank-sync: ok');

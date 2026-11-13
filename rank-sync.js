@@ -339,6 +339,52 @@ var RankSync = (function () {
         return !!(result && result.ok === true && result.explicit === true && !result.error);
     }
 
+    // Old classroom modes that are the same 1-minute clef challenge as 音名譜號.
+    var LEGACY_CLEF_MODE = { classic60: 'treble', bass60: 'bass', mixed60: 'mixed' };
+    // These stayed separate games. They are not mixed into a clef or grade board.
+    var LEGACY_GAME1_MODE = { noMiss: '零失誤挑戰', keysig60: '調號挑戰', solfege60: '唱名挑戰' };
+
+    function legacyMode(row) {
+        if (!row || typeof row !== 'object' || Array.isArray(row)) return '';
+        if (resolveSharedRow(row)) return '';
+        return String(row.mode || row.difficulty || '');
+    }
+
+    function legacyClefChoice(row) {
+        return LEGACY_CLEF_MODE[legacyMode(row)] || '';
+    }
+
+    function legacyGame1Mode(row) {
+        var mode = legacyMode(row);
+        return LEGACY_GAME1_MODE[mode] ? mode : '';
+    }
+
+    function rankIdentity(row) {
+        return [
+            String(row.name || '').trim(),
+            String(row.class || '').trim(),
+            String(row.id == null ? '' : row.id).trim()
+        ].join('\n');
+    }
+
+    // First row wins a tie, so the caller can pass the current board before older rows.
+    function keepHigherScore(rows) {
+        var best = {};
+        var order = [];
+        (rows || []).forEach(function (row) {
+            if (!row || !String(row.name || '').trim()) return;
+            var id = rankIdentity(row);
+            var score = parseInt(row.score, 10) || 0;
+            if (!Object.prototype.hasOwnProperty.call(best, id)) {
+                best[id] = row;
+                order.push(id);
+                return;
+            }
+            if (score > (parseInt(best[id].score, 10) || 0)) best[id] = row;
+        });
+        return order.map(function (id) { return best[id]; });
+    }
+
     return {
         parseSharedRankKey: parseSharedRankKey,
         resolveSharedRow: resolveSharedRow,
@@ -356,6 +402,9 @@ var RankSync = (function () {
         planBackfill: planBackfill,
         ackBackfill: ackBackfill,
         ackedCovers: ackedCovers,
-        explicitOk: explicitOk
+        explicitOk: explicitOk,
+        legacyClefChoice: legacyClefChoice,
+        legacyGame1Mode: legacyGame1Mode,
+        keepHigherScore: keepHigherScore
     };
 })();
