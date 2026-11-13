@@ -49,13 +49,31 @@ assert.equal(clefs(pool('abrsm-g1')).includes('alto'), false);
 const practiceAlto = host(G.practicePool(['alto']));
 assert.equal(practiceAlto.every((n) => n.clef === 'alto' && n.gradeId === null), true);
 assert.ok(practiceAlto.some((n) => n.letter === 'C' && n.octave === 4 && n.yFactor === 2 && !n.accidental));
-assert.equal(practiceAlto.some((n) => G.ledgerDepth(n.yFactor) === 4), true);
+assert.equal(practiceAlto.some((n) => n.yFactor === -2 && G.ledgerDepth(n.yFactor) === 2), true);
+assert.equal(practiceAlto.some((n) => n.yFactor === 6 && G.ledgerDepth(n.yFactor) === 2), true);
+assert.equal(practiceAlto.some((n) => n.yFactor < -2 || n.yFactor > 6 || n.yFactor === -2.5 || n.yFactor === 6.5), false);
 assert.equal(practiceAlto.some((n) => n.accidental === '#'), true);
 assert.equal(practiceAlto.some((n) => n.accidental === 'b'), true);
 assert.equal(practiceAlto.some((n) => n.accidental === '##' || n.accidental === 'bb'), false);
 const practiceTenor = host(G.practicePool(['tenor']));
 assert.ok(practiceTenor.some((n) => n.letter === 'C' && n.octave === 4 && n.yFactor === 1 && !n.accidental));
 assert.deepEqual(clefs(host(G.practicePool(['treble', 'bass', 'alto', 'tenor']))), ['alto', 'bass', 'tenor', 'treble']);
+for (const clef of ['treble', 'bass', 'alto', 'tenor']) {
+  const notes = host(G.practicePool([clef]));
+  const ys = [...new Set(notes.map((n) => n.yFactor))].sort((a, b) => a - b);
+  assert.equal(ys[0], -2, clef);
+  assert.equal(ys[ys.length - 1], 6, clef);
+  assert.equal(ys.includes(-2.5), false, clef);
+  assert.equal(ys.includes(6.5), false, clef);
+  const above = G.positionAt(clef, -2);
+  const below = G.positionAt(clef, 6);
+  assert.ok(notes.some((n) => !n.accidental && n.yFactor === -2 && n.letter === above.letter && n.octave === above.octave), clef);
+  assert.ok(notes.some((n) => !n.accidental && n.yFactor === 6 && n.letter === below.letter && n.octave === below.octave), clef);
+  assert.equal(notes.every((n) => n.yFactor >= -2 && n.yFactor <= 6), true, clef);
+}
+const mixedPractice = host(G.practicePool(['treble', 'bass', 'alto', 'tenor']));
+assert.equal(mixedPractice.every((n) => n.yFactor >= -2 && n.yFactor <= 6), true);
+assert.deepEqual(clefs(mixedPractice), ['alto', 'bass', 'tenor', 'treble']);
 
 const g2 = pool('abrsm-g2');
 assert.equal(g2.some((n) => G.ledgerDepth(n.yFactor) === 2), true);
