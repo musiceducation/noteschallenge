@@ -2263,78 +2263,35 @@
     }
     function isSharedRankRow(row) {
         if (!row || typeof row !== 'object') return false;
-        if (row.rankNamespace === 'abrsm-theory-v1') return true;
-        if (row.game === 'abrsm-theory-v1') return true;
-        if (String(row.mode || '').indexOf('abrsm-theory-v1:') === 0) return true;
-        if (row.legacyBoard === false && String(row.storageKey || '').indexOf('abrsm-theory-v1:') === 0) return true;
+        if (typeof RankSync !== 'undefined' && RankSync.resolveSharedRow(row)) return true;
+        const mode = String(row.mode || row.storageKey || '');
+        if (mode.indexOf('abrsm-theory-v1:') === 0) return true;
+        if (row.game === 'abrsm-theory-v1' || row.rankNamespace === 'abrsm-theory-v1') return true;
         return false;
     }
-    function sharedRankStorageKey(row) {
-        if (String(row.storageKey || '').indexOf('abrsm-theory-v1:') === 0) return row.storageKey;
-        if (String(row.mode || '').indexOf('abrsm-theory-v1:') === 0) return row.mode;
-        if (row.gameKey && /^abrsm-g[1-5]$/.test(row.syllabusId || '')) return 'abrsm-theory-v1:' + row.gameKey + ':' + row.syllabusId;
-        if (String(row.gameKey || '').indexOf('notes-clef-') === 0) return 'abrsm-theory-v1:' + row.gameKey;
-        return '';
-    }
     function publishSharedRank(record) {
-        if (!record || !record.storageKey || !record.name) return;
-        const payload = {
-            action: 'saveRank',
-            rankNamespace: 'abrsm-theory-v1',
-            storageKey: record.storageKey,
-            gameKey: record.gameKey || '',
-            clefChoice: record.clefChoice || '',
-            syllabusId: record.syllabusId || '',
-            legacyBoard: false,
-            game: 'abrsm-theory-v1',
-            mode: record.storageKey,
-            mode_name: record.clefChoice
-                ? ('音名譜號·' + (NOTE_CLEF_LABEL[record.clefChoice] || record.clefChoice))
-                : ((record.gameKey || 'rank') + (record.syllabusId ? '·' + record.syllabusId : '')),
-            name: record.name,
-            grade: record.grade,
-            class: record.class,
-            id: record.id || '',
-            score: record.score || 0,
-            max_combo: record.max_combo || 0,
-            accuracy: record.accuracy || 0,
-            timestamp: new Date().toLocaleString('zh-TW')
-        };
+        if (typeof RankSync === 'undefined' || !record) return;
+        const payload = RankSync.publishBody(record);
+        if (!payload) return;
         gasPostJson(payload).then(result => {
             if (!result.ok) _showToast('⚠️ 共用排行榜未更新，這部裝置已記下分數。', 'warn');
+            else loadRanks(1, { force: true });
         }).catch(() => _showToast('⚠️ 共用排行榜未更新，這部裝置已記下分數。', 'warn'));
     }
     function mergeSharedRankRows(rows) {
-        if (!Array.isArray(rows)) return;
-        rows.forEach(row => {
-            if (!isSharedRankRow(row)) return;
-            const storageKey = sharedRankStorageKey(row);
-            if (!storageKey || !row.name) return;
-            const syllabusId = row.syllabusId || '';
-            const clefChoice = row.clefChoice || (storageKey.indexOf(':notes-clef-') >= 0 ? storageKey.split(':notes-clef-')[1] : '');
-            const record = {
-                rankNamespace: 'abrsm-theory-v1',
-                storageKey: storageKey,
-                gameKey: row.gameKey || storageKey.split(':')[1] || '',
-                clefChoice: clefChoice,
-                syllabusId: syllabusId,
-                score: parseInt(row.score, 10) || 0,
-                name: row.name,
-                class: row.class || '',
-                id: row.id || '',
-                accuracy: parseInt(row.accuracy, 10) || 0,
-                max_combo: parseInt(row.max_combo, 10) || 0,
-                grade: row.grade,
-                legacyBoard: false
-            };
-            try {
-                const all = JSON.parse(localStorage.getItem(storageKey) || '[]');
-                const idx = all.findIndex(item => item && item.name === record.name && item.class === record.class && String(item.id || '') === String(record.id || '') && (syllabusId ? item.syllabusId === syllabusId : !item.syllabusId));
-                if (idx >= 0) { if (record.score > (all[idx].score || 0)) all[idx] = record; }
-                else all.push(record);
-                localStorage.setItem(storageKey, JSON.stringify(all));
-            } catch (err) { console.error(err); }
-        });
+        if (typeof RankSync === 'undefined') return;
+        RankSync.mergeIntoStore(rows, localStorage);
+    }
+    function storeSharedRank(record) {
+        if (typeof RankSync === 'undefined' || !record || !record.storageKey) return;
+        try {
+            const all = JSON.parse(localStorage.getItem(record.storageKey) || '[]');
+            const committed = RankSync.commitLocalRank(all, record);
+            localStorage.setItem(record.storageKey, JSON.stringify(committed.list));
+            if (committed.publish) publishSharedRank(committed.publish);
+        } catch (err) {
+            console.error(err);
+        }
     }
     function usesLocalRankBoard() {
         const gf = document.getElementById('rankGameFilter');
@@ -2373,17 +2330,7 @@
         record.grade = state.currentUser.grade;
         record.difficulty = state.abrsmGrade;
         if (String(gameKey).indexOf('notes-clef-') === 0) record.clefChoice = String(gameKey).slice('notes-clef-'.length);
-        try {
-            const all = JSON.parse(localStorage.getItem(record.storageKey) || '[]');
-            const idx = all.findIndex(row => row.name === record.name && row.class === record.class && String(row.id || '') === String(record.id || '') && row.syllabusId === record.syllabusId);
-            if (idx >= 0) {
-                if (record.score > (all[idx].score || 0)) all[idx] = record;
-            } else all.push(record);
-            localStorage.setItem(record.storageKey, JSON.stringify(all));
-            publishSharedRank(record);
-        } catch (err) {
-            console.error(err);
-        }
+        storeSharedRank(record);
     }
     function saveNoteClefRank() {
         if (!state.currentUser) return;
@@ -2403,14 +2350,7 @@
             grade: state.currentUser.grade,
             legacyBoard: false
         };
-        try {
-            const all = JSON.parse(localStorage.getItem(storageKey) || '[]');
-            const idx = all.findIndex(row => row.name === record.name && row.class === record.class && String(row.id || '') === String(record.id || ''));
-            if (idx >= 0) { if (record.score > (all[idx].score || 0)) all[idx] = record; }
-            else all.push(record);
-            localStorage.setItem(storageKey, JSON.stringify(all));
-            publishSharedRank(record);
-        } catch (err) { console.error(err); }
+        storeSharedRank(record);
     }
     function saveSyllabusRank(gameKey, syllabusId, stats) {
         if (!state.currentUser || !abrsmReady() || !/^abrsm-g[1-5]$/.test(syllabusId || '')) return;
@@ -2428,14 +2368,7 @@
         record.max_combo = stats.maxCombo || 0;
         record.grade = state.currentUser.grade;
         record.difficulty = syllabusId;
-        try {
-            const all = JSON.parse(localStorage.getItem(record.storageKey) || '[]');
-            const idx = all.findIndex(row => row.name === record.name && row.class === record.class && String(row.id || '') === String(record.id || '') && row.syllabusId === record.syllabusId);
-            if (idx >= 0) { if (record.score > (all[idx].score || 0)) all[idx] = record; }
-            else all.push(record);
-            localStorage.setItem(record.storageKey, JSON.stringify(all));
-            publishSharedRank(record);
-        } catch (err) { console.error(err); }
+        storeSharedRank(record);
     }
     function renderNoteClefRanks(clef) {
         const gradeWrap = document.getElementById('rankAbrsmFilterWrap');
@@ -2493,7 +2426,7 @@
         dom.rankList.innerHTML = rows.slice(0, 100).map((item, i) => {
             const name = escHtml(item.name);
             const cls = escHtml(item.class);
-            const g = String(item.syllabusId || '').replace('abrsm-g', 'G');
+            const g = RankSync.gradeBadge(item.syllabusId);
             const school = item.grade ? `中${['','一','二','三','四','五','六'][item.grade] || item.grade}` : '';
             const clefTag = NOTE_CLEF_LABEL[item.clefChoice] ? `<span class="rank-tag">${NOTE_CLEF_LABEL[item.clefChoice]}</span>` : '';
             return `<div class="rank-item ${i === 0 ? 'first' : i === 1 ? 'second' : i === 2 ? 'third' : ''}">
@@ -3580,7 +3513,7 @@
         } else {
             dom.leaderboardLayout.classList.remove('practice-end');
             focusLeaderboardToCurrentStudent();
-            loadRanks();
+            loadRanks(2, { force: true });
         }
         const reportTitleEl = document.querySelector('.report-title');
         if (reportTitleEl) {
@@ -3644,14 +3577,21 @@
     }
 
     function _paintRanksFromCache() {
-        if (state.allRanks.length) {
-            renderRanks();
-            return true;
-        }
         const cached = _readRanksCache();
-        if (cached && cached.data.length) {
+        if (!state.allRanks.length && cached && cached.data.length) {
             state.allRanks = _normalizeRankRows(cached.data);
             _ranksFetchedAt = cached.at || 0;
+        }
+        const plan = (typeof RankSync !== 'undefined')
+            ? RankSync.rankLoadPlan({
+                localBoard: usesLocalRankBoard(),
+                legacyCacheRows: state.allRanks.length,
+                legacyCacheFresh: false,
+                force: false
+            })
+            : { paintLocalImmediately: usesLocalRankBoard() };
+        if (!dom.rankList) return false;
+        if (plan.paintLocalImmediately || state.allRanks.length) {
             renderRanks();
             return true;
         }
@@ -3663,17 +3603,28 @@
         opts = opts || {};
         const force = !!opts.force;
 
-        // Paint the board that is already selected before asking the shared sheet.
-        _paintRanksFromCache();
-        if (usesLocalRankBoard()) renderRanks();
-        else if (!state.allRanks.length && dom.rankList) dom.rankList.innerHTML = _buildSkeletonRanks(6);
+        // Local boards read localStorage. An empty legacy cache must not leave them on the loading placeholder.
+        const painted = _paintRanksFromCache();
+        const cacheFresh = !!(state.allRanks.length && _ranksFetchedAt && (Date.now() - _ranksFetchedAt) < RANKS_SOFT_TTL_MS);
+        const plan = (typeof RankSync !== 'undefined')
+            ? RankSync.rankLoadPlan({
+                localBoard: usesLocalRankBoard(),
+                legacyCacheRows: state.allRanks.length,
+                legacyCacheFresh: cacheFresh,
+                force: force
+            })
+            : {
+                paintLocalImmediately: usesLocalRankBoard(),
+                fetchNetwork: force || !cacheFresh,
+                replaceWithConnectionError: !usesLocalRankBoard()
+            };
+        if (!painted && !plan.paintLocalImmediately && dom.rankList) dom.rankList.innerHTML = _buildSkeletonRanks(6);
+        if (!plan.fetchNetwork) return state.allRanks;
 
-        // Soft TTL: reuse recent fetch unless forced
-        if (!force && state.allRanks.length && _ranksFetchedAt && (Date.now() - _ranksFetchedAt) < RANKS_SOFT_TTL_MS) {
-            return state.allRanks;
+        if (_ranksFetchPromise) {
+            if (!force) return _ranksFetchPromise;
+            return _ranksFetchPromise.then(() => loadRanks(retries, opts));
         }
-
-        if (_ranksFetchPromise) return _ranksFetchPromise;
 
         _ranksFetchPromise = (async () => {
             const controller = new AbortController();

@@ -393,7 +393,8 @@ for (const file of ['style.css', 'www/style.css']) {
 
 for (const file of ['bootstrap-instruments.js', 'www/bootstrap-instruments.js']) {
   const js = fs.readFileSync(path.join(root, file), 'utf8');
-  assert.match(js, /script\.js\?v=19/);
+  assert.match(js, /script\.js\?v=20/);
+  assert.equal(js.includes('script.js?v=19'), false);
   assert.equal(js.includes('script.js?v=18'), false);
   assert.equal(js.includes('script.js?v=17'), false);
   assert.equal(js.includes('script.js?v=16'), false);
