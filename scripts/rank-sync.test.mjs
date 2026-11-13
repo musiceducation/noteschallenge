@@ -467,5 +467,107 @@ assert.equal(gameSrc.split('storeSharedRank(').length - 1, 4);
 assert.equal(gameSrc.split('publishSharedRank(').length - 1, 2);
 const loadBody = gameSrc.slice(gameSrc.indexOf('async function loadRanks'), gameSrc.indexOf('function escHtml'));
 assert.doesNotMatch(loadBody, /storeSharedRank|publishSharedRank|publishBody/);
+const applyBody = gameSrc.slice(gameSrc.indexOf('function _applyRanksData'), gameSrc.indexOf('function _paintRanksFromCache'));
+assert.ok(applyBody.indexOf('captureDeviceOrigins') < applyBody.indexOf('mergeSharedRankRows'));
+assert.ok(applyBody.indexOf('mergeSharedRankRows') < applyBody.indexOf('queueDeviceBackfill'));
+
+function localBest(storageKey, score, extra) {
+  return Object.assign({
+    storageKey,
+    name: '舊分數',
+    class: 'B',
+    id: '7',
+    grade: '3',
+    score,
+    accuracy: 90,
+    max_combo: 4
+  }, extra || {});
+}
+
+const backfillKey = 'abrsm-theory-v1:notes-clef-alto';
+const device = memoryStore();
+const legacyBlob = JSON.stringify([{ mode: 'classic60', name: '舊分數', score: 15 }]);
+device.setItem('musicGameRanks_game1', legacyBlob);
+device.setItem(backfillKey, JSON.stringify([
+  localBest(backfillKey, 20),
+  { storageKey: backfillKey, name: '', class: 'B', id: '7', grade: '3', score: 50 },
+  { storageKey: backfillKey, mode: 'classic60', name: '舊分數', class: 'B', id: '7', grade: '3', score: 40 },
+  { storageKey: backfillKey, name: '舊分數', class: 'B', id: '7', grade: '9', score: 30 },
+  { storageKey: 'abrsm-theory-v1:keys:abrsm-g3', name: '舊分數', class: 'B', id: '7', grade: '3', score: 12 },
+  'nope'
+]));
+const rawClef = device.getItem(backfillKey);
+RankSync.captureDeviceOrigins(device);
+assert.equal(device.getItem(backfillKey), rawClef);
+assert.equal(device.getItem('musicGameRanks_game1'), legacyBlob);
+const remote8 = [{ game: 'game1', mode: backfillKey, name: '舊分數', class: 'B', id: '7', grade: '3', score: 8 }];
+let backfillPlan = RankSync.planBackfill(device, remote8);
+assert.equal(backfillPlan.length, 1);
+assert.equal(backfillPlan[0].score, 20);
+assert.equal(backfillPlan[0].grade, '3');
+assert.equal(CLEF_BADGE[backfillPlan[0].clefChoice], '中音譜號');
+const backfillBody = RankSync.publishBody(backfillPlan[0]);
+assert.equal(backfillBody.action, 'saveRank');
+assert.equal(backfillBody.game, 'game1');
+assert.equal(backfillBody.mode, backfillKey);
+assert.equal(gasPost(appendOnly, backfillBody).ok, true);
+const posted = gasGet(appendOnly).filter((row) => row.mode === backfillKey && row.name === '舊分數');
+assert.equal(posted.length, 1);
+assert.equal(Number(posted[0].score), 20);
+const reloaded = memoryStore();
+RankSync.mergeIntoStore(posted, reloaded);
+assert.equal(readRows(reloaded, backfillKey)[0].score, 20);
+assert.equal(RankSync.gradeBadge(readRows(reloaded, backfillKey)[0].syllabusId), '');
+
+assert.equal(RankSync.planBackfill(device, [{ game: 'game1', mode: backfillKey, name: '舊分數', class: 'B', id: '7', score: 27 }]).length, 0);
+assert.equal(RankSync.explicitOk({ ok: false, explicit: true, error: '逾時' }), false);
+assert.equal(RankSync.explicitOk({ ok: true, explicit: false }), false);
+assert.equal(RankSync.explicitOk({ ok: true }), false);
+assert.equal(device.getItem(backfillKey), rawClef);
+assert.equal(RankSync.planBackfill(device, remote8).length, 1);
+RankSync.ackBackfill(device, backfillPlan[0]);
+assert.equal(RankSync.planBackfill(device, remote8).length, 0);
+assert.equal(RankSync.planBackfill(device, remote8).length, 0);
+
+const peer = { game: 'game1', mode: backfillKey, name: '同學乙', class: 'A', id: '2', grade: '4', score: 99 };
+RankSync.mergeIntoStore([peer], device);
+const origin = JSON.parse(device.getItem(RankSync.ORIGIN_KEY));
+assert.equal(Object.values(origin.bests).some((row) => row.name === '同學乙'), false);
+assert.equal(RankSync.planBackfill(device, [peer]).some((row) => row.name === '同學乙'), false);
+assert.equal(device.getItem('musicGameRanks_game1'), legacyBlob);
+
+const mixed = memoryStore();
+mixed.setItem(backfillKey, JSON.stringify([localBest(backfillKey, 20)]));
+RankSync.mergeIntoStore([peer], mixed);
+RankSync.captureDeviceOrigins(mixed);
+const mixedBests = Object.values(JSON.parse(mixed.getItem(RankSync.ORIGIN_KEY)).bests);
+assert.equal(mixedBests.length, 2);
+assert.equal(mixedBests.some((row) => row.name === '同學乙'), true);
+
+const ipad = memoryStore();
+const keysKeyB = 'abrsm-theory-v1:keys:abrsm-g2';
+ipad.setItem(backfillKey, JSON.stringify([
+  localBest(backfillKey, 11, { name: '甲', class: 'A', id: '1', grade: '1' }),
+  localBest(backfillKey, 12, { name: '乙', class: 'C', id: '8', grade: '6' })
+]));
+ipad.setItem(keysKeyB, JSON.stringify([
+  localBest(keysKeyB, 13, { name: '甲', class: 'A', id: '1', grade: '1' })
+]));
+RankSync.captureDeviceOrigins(ipad);
+const ipadPlan = RankSync.planBackfill(ipad, []);
+assert.equal(ipadPlan.length, 3);
+assert.deepEqual(ipadPlan.map((row) => row.grade).sort(), ['1', '1', '6']);
+assert.deepEqual(ipadPlan.map((row) => RankSync.publishBody(row).game).sort(), ['game1', 'game1', 'game1']);
+const capped = memoryStore();
+const many = [];
+for (let n = 1; n <= 25; n++) {
+  many.push(localBest(backfillKey, n, { name: '生' + n, class: 'A', id: String(n), grade: '2' }));
+}
+capped.setItem(backfillKey, JSON.stringify(many));
+RankSync.captureDeviceOrigins(capped);
+const firstWave = RankSync.planBackfill(capped, [], { limit: 20 });
+assert.equal(firstWave.length, 20);
+firstWave.forEach((row) => RankSync.ackBackfill(capped, row));
+assert.equal(RankSync.planBackfill(capped, [], { limit: 20 }).length, 5);
 
 console.log('rank-sync: ok');

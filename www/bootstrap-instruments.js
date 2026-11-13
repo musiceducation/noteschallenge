@@ -6,14 +6,14 @@
     studio.src = new URL("composition-studio.js?v=7", base).href;
     studio.onload = function () {
       var s = document.createElement("script");
-      s.src = new URL("script.js?v=20", base).href;
+      s.src = new URL("script.js?v=21", base).href;
       s.defer = true;
       document.body.appendChild(s);
     };
     studio.onerror = function () {
       console.warn("[bootstrap-instruments] composition-studio.js failed, loading script.js only");
       var s = document.createElement("script");
-      s.src = new URL("script.js?v=20", base).href;
+      s.src = new URL("script.js?v=21", base).href;
       s.defer = true;
       document.body.appendChild(s);
     };

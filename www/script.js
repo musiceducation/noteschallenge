@@ -2270,14 +2270,42 @@
         if (row.game === 'abrsm-theory-v1' || row.rankNamespace === 'abrsm-theory-v1') return true;
         return false;
     }
-    function publishSharedRank(record) {
-        if (typeof RankSync === 'undefined' || !record) return;
+    const _rankUploadPending = new Set();
+    function postSharedBest(record, quiet) {
+        if (typeof RankSync === 'undefined' || !record) return Promise.resolve(false);
         const payload = RankSync.publishBody(record);
-        if (!payload) return;
-        gasPostJson(payload).then(result => {
-            if (!result.ok) _showToast('⚠️ 共用排行榜未更新，這部裝置已記下分數。', 'warn');
-            else loadRanks(1, { force: true });
-        }).catch(() => _showToast('⚠️ 共用排行榜未更新，這部裝置已記下分數。', 'warn'));
+        if (!payload) return Promise.resolve(false);
+        const token = RankSync.originId(record) + '@' + payload.score;
+        if (_rankUploadPending.has(token) || RankSync.ackedCovers(localStorage, record)) return Promise.resolve(true);
+        _rankUploadPending.add(token);
+        return gasPostJson(payload).then(result => {
+            const confirmed = RankSync.explicitOk(result);
+            if (confirmed) {
+                RankSync.ackBackfill(localStorage, record);
+                if (!quiet) loadRanks(1, { force: true });
+            } else {
+                _rankUploadPending.delete(token);
+                if (!quiet) _showToast('⚠️ 共用排行榜未更新，這部裝置已記下分數。', 'warn');
+            }
+            return confirmed;
+        }).catch(() => {
+            _rankUploadPending.delete(token);
+            if (!quiet) _showToast('⚠️ 共用排行榜未更新，這部裝置已記下分數。', 'warn');
+            return false;
+        });
+    }
+    function publishSharedRank(record) {
+        postSharedBest(record, false);
+    }
+    function queueDeviceBackfill(remoteRows, attempt) {
+        if (typeof RankSync === 'undefined') return;
+        const pending = {};
+        _rankUploadPending.forEach(token => { pending[token] = true; });
+        const batch = RankSync.planBackfill(localStorage, remoteRows, { limit: 20, pending: pending });
+        if (!batch.length) return;
+        Promise.all(batch.map(record => postSharedBest(record, true))).then(results => {
+            if (results.some(ok => !ok) && (attempt || 0) < 1) setTimeout(() => queueDeviceBackfill(remoteRows, 1), 1500);
+        });
     }
     function mergeSharedRankRows(rows) {
         if (typeof RankSync === 'undefined') return;
@@ -2286,10 +2314,14 @@
     function storeSharedRank(record) {
         if (typeof RankSync === 'undefined' || !record || !record.storageKey) return;
         try {
+            RankSync.captureDeviceOrigins(localStorage);
             const all = JSON.parse(localStorage.getItem(record.storageKey) || '[]');
             const committed = RankSync.commitLocalRank(all, record);
             localStorage.setItem(record.storageKey, JSON.stringify(committed.list));
-            if (committed.publish) publishSharedRank(committed.publish);
+            if (committed.publish) {
+                RankSync.noteLocalBest(localStorage, committed.publish);
+                publishSharedRank(committed.publish);
+            }
         } catch (err) {
             console.error(err);
         }
@@ -3358,15 +3390,15 @@
                 data = text ? JSON.parse(text) : {};
             } catch (_parseErr) {
                 if (!res.ok) {
-                    return { ok: false, error: (text && text.slice(0, 120)) || `HTTP ${res.status}` };
+                    return { ok: false, explicit: false, error: (text && text.slice(0, 120)) || `HTTP ${res.status}` };
                 }
-                return { ok: res.ok };
+                return { ok: res.ok, explicit: false };
             }
             if (!res.ok) {
-                return { ok: false, error: (data && data.error) || (text && text.slice(0, 120)) || `HTTP ${res.status}` };
+                return { ok: false, explicit: false, error: (data && data.error) || (text && text.slice(0, 120)) || `HTTP ${res.status}` };
             }
-            if (typeof data.ok === 'boolean') return data;
-            return { ok: true };
+            if (typeof data.ok === 'boolean') return Object.assign({}, data, { explicit: true });
+            return { ok: true, explicit: false };
         } catch (err) {
             const msg = err && err.name === 'AbortError' ? '逾時' : (err && err.message) || 'network';
             return { ok: false, error: msg };
@@ -3570,7 +3602,9 @@
 
     function _applyRanksData(data, { render = true } = {}) {
         const list = Array.isArray(data) ? data : [];
+        if (typeof RankSync !== 'undefined') RankSync.captureDeviceOrigins(localStorage);
         mergeSharedRankRows(list);
+        queueDeviceBackfill(list);
         state.allRanks = _normalizeRankRows(list.filter(row => !isSharedRankRow(row)));
         _ranksFetchedAt = Date.now();
         _writeRanksCache(state.allRanks);
