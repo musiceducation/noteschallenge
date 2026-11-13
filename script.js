@@ -2083,12 +2083,6 @@
     function noteClefLabel() {
         return NOTE_CLEF_LABEL[noteClefChoice()];
     }
-    function noteClefIsCustom() {
-        if (!abrsmReady()) return noteClefChoice() !== 'treble' && noteClefChoice() !== 'bass';
-        ensureAbrsmGrade();
-        const official = new Set(AbrsmCurriculum.clefsFor(state.abrsmGrade).map(item => item.id));
-        return noteClefIds().some(id => !official.has(id));
-    }
     function paintNoteClefRow() {
         const row = document.getElementById('clefSelectorRow');
         if (!row) return;
@@ -2099,16 +2093,16 @@
             btn.setAttribute('aria-pressed', btn.dataset.clef === noteClefChoice() ? 'true' : 'false');
         });
         const note = document.getElementById('noteClefNote');
-        if (note) note.hidden = !show || !noteClefIsCustom();
+        if (note) note.hidden = !show || noteClefChoice() !== 'mixed';
     }
-    function timedNoteRankKey() {
-        return 'notes-clef-' + noteClefChoice();
+    function noteClefRankStorageKey() {
+        return 'abrsm-theory-v1:notes-clef-' + noteClefChoice();
+    }
+    function clefPracticeIds() {
+        return state.currentMode === 'classic60' ? noteClefIds() : ['treble', 'bass'];
     }
     function generateAbrsmNote() {
-        ensureAbrsmGrade();
-        const pool = (state.currentMode === 'classic60' && typeof AbrsmNoteGrade.notePoolForClefs === 'function')
-            ? AbrsmNoteGrade.notePoolForClefs(state.abrsmGrade, noteClefIds())
-            : AbrsmNoteGrade.notePool(state.abrsmGrade);
+        const pool = AbrsmNoteGrade.practicePool(clefPracticeIds());
         let pick = pool[Math.floor(Math.random() * pool.length)];
         let tries = 0;
         while (tries < 12 && state.lastNoteLetter && pick.letter === state.lastNoteLetter && pick.clef === state.lastNoteClef) {
@@ -2165,7 +2159,7 @@
         const row = document.getElementById('abrsmSpellRow');
         if (row) row.remove();
         if (!usingAbrsmNotes() || !dom.notesGrid) return;
-        const extra = [...new Set(AbrsmNoteGrade.notePool(state.abrsmGrade).map(note => note.spelling))]
+        const extra = [...new Set(AbrsmNoteGrade.practicePool(clefPracticeIds()).map(note => note.spelling))]
             .filter(spelling => !CLASSROOM_SPELLINGS.has(spelling));
         if (!extra.length) return;
         const host = document.createElement('div');
@@ -2207,8 +2201,7 @@
         ensureAbrsmGrade();
         const row = document.getElementById('abrsmGradeRow');
         const keysig = ABRSM_KEY_MODES.has(state.currentMode);
-        const note = ABRSM_NOTE_MODES.has(state.currentMode);
-        if (row) row.style.display = (note || keysig) ? '' : 'none';
+        if (row) row.style.display = keysig ? '' : 'none';
         document.querySelectorAll('.abrsm-grade-btn').forEach(btn => {
             btn.classList.toggle('active', (btn.dataset.abrsm || '') === state.abrsmGrade);
         });
@@ -2216,8 +2209,8 @@
         paintNoteClefRow();
     }
     function playerBadge() {
-        const grade = state.abrsmGrade ? ' · 英皇 G' + String(state.abrsmGrade).replace('abrsm-g', '') : '';
         const clef = state.currentMode === 'classic60' ? ' · ' + noteClefLabel() : '';
+        const grade = ABRSM_NOTE_MODES.has(state.currentMode) ? '' : (state.abrsmGrade ? ' · 英皇 G' + String(state.abrsmGrade).replace('abrsm-g', '') : '');
         return `👋 ${state.currentUser.name} 同學 · ${state.modeConfig.name}${clef}${grade}`;
     }
     function saveAbrsmRank(gameKey) {
@@ -2249,6 +2242,32 @@
             console.error(err);
         }
     }
+    function saveNoteClefRank() {
+        if (!state.currentUser) return;
+        const storageKey = noteClefRankStorageKey();
+        const accuracy = state.totalQuestions ? Math.round(((state.totalQuestions - state.wrongCount) / state.totalQuestions) * 100) : 0;
+        const record = {
+            rankNamespace: 'abrsm-theory-v1',
+            storageKey: storageKey,
+            gameKey: 'notes-clef-' + noteClefChoice(),
+            clefChoice: noteClefChoice(),
+            score: state.score,
+            name: state.currentUser.name,
+            class: state.currentUser.class,
+            id: state.currentUser.id || '',
+            accuracy: accuracy,
+            max_combo: state.maxCombo,
+            grade: state.currentUser.grade,
+            legacyBoard: false
+        };
+        try {
+            const all = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            const idx = all.findIndex(row => row.name === record.name && row.class === record.class && String(row.id || '') === String(record.id || ''));
+            if (idx >= 0) { if (record.score > (all[idx].score || 0)) all[idx] = record; }
+            else all.push(record);
+            localStorage.setItem(storageKey, JSON.stringify(all));
+        } catch (err) { console.error(err); }
+    }
     function saveSyllabusRank(gameKey, syllabusId, stats) {
         if (!state.currentUser || !abrsmReady() || !/^abrsm-g[1-5]$/.test(syllabusId || '')) return;
         const schoolLabels = ['', '中一', '中二', '中三', '中四', '中五', '中六'];
@@ -2272,6 +2291,35 @@
             else all.push(record);
             localStorage.setItem(record.storageKey, JSON.stringify(all));
         } catch (err) { console.error(err); }
+    }
+    function renderNoteClefRanks(clef) {
+        const gradeWrap = document.getElementById('rankAbrsmFilterWrap');
+        if (gradeWrap) gradeWrap.style.display = 'none';
+        const safe = NOTE_CLEF_IDS.includes(clef) ? clef : 'treble';
+        const fC = dom.rankClassFilter.value;
+        const fG = parseInt(dom.rankGradeFilter.value, 10);
+        let rows = [];
+        try { rows = JSON.parse(localStorage.getItem('abrsm-theory-v1:notes-clef-' + safe) || '[]'); } catch (err) { rows = []; }
+        if (fC !== '0') rows = rows.filter(row => row.class === fC);
+        if (fG !== 0) rows = rows.filter(row => parseInt(row.grade, 10) === fG);
+        rows = rows.filter(row => row && row.legacyBoard === false && !row.syllabusId);
+        rows.sort((a, b) => (parseInt(b.score, 10) || 0) - (parseInt(a.score, 10) || 0));
+        if (!rows.length) {
+            dom.rankList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個譜號暫時未有紀錄。</div>';
+            return;
+        }
+        dom.rankList.innerHTML = rows.slice(0, 100).map((item, i) => {
+            const name = escHtml(item.name);
+            const cls = escHtml(item.class);
+            const school = item.grade ? `中${['','一','二','三','四','五','六'][item.grade] || item.grade}` : '';
+            const clefTag = NOTE_CLEF_LABEL[item.clefChoice] || NOTE_CLEF_LABEL[safe];
+            return `<div class="rank-item ${i === 0 ? 'first' : i === 1 ? 'second' : i === 2 ? 'third' : ''}">
+                <div class="rank-pos">${i + 1}.</div>
+                <div class="rank-name"><span class="rank-student-name">${name}</span>
+                    <div class="rank-badges"><span class="rank-tag">${clefTag}</span>${school ? `<span class="rank-tag">${school}</span>` : ''}<span class="rank-tag rank-class-tag">${cls}班</span></div>
+                </div>
+                <div class="rank-score">${parseInt(item.score, 10) || 0}</div></div>`;
+        }).join('');
     }
     function renderAbrsmRanks(gameKey) {
         const wrap = document.getElementById('rankAbrsmFilterWrap');
@@ -3251,8 +3299,7 @@
         if (state.score === 0 && state.totalQuestions === 0) return;
         if (state.currentMode === 'noMiss' || (state.modeConfig && state.modeConfig.gameType === 'solfege')) return;
         if (state.currentMode === 'classic60') {
-            ensureAbrsmGrade();
-            saveAbrsmRank(timedNoteRankKey());
+            saveNoteClefRank();
             return;
         }
         if (ABRSM_NOTE_MODES.has(state.currentMode) || ABRSM_KEY_MODES.has(state.currentMode)) {
@@ -3391,8 +3438,7 @@
         const reportTitleEl = document.querySelector('.report-title');
         if (reportTitleEl) {
             if (!isPracticeEnd && state.currentMode === 'classic60') {
-                const gradeNo = String(state.abrsmGrade || 'abrsm-g1').replace('abrsm-g', '');
-                reportTitleEl.textContent = `🎉 1分鐘挑戰完成 · ${noteClefLabel()} · G${gradeNo}`;
+                reportTitleEl.textContent = `🎉 1分鐘挑戰完成 · ${noteClefLabel()}`;
             } else {
                 reportTitleEl.textContent = isPracticeEnd ? '📝 練習完成！做得好！' : '🎉 做得好！挑戰完成！';
             }
@@ -3579,8 +3625,7 @@
         if (noteClefWrap) noteClefWrap.style.display = (gf && gf.value === 'game1' && fM === 'notes-clef') ? '' : 'none';
         if (fM === 'notes-clef') {
             const clef = (document.getElementById('rankNoteClefFilter') || {}).value || 'treble';
-            const safe = NOTE_CLEF_IDS.includes(clef) ? clef : 'treble';
-            renderAbrsmRanks('notes-clef-' + safe);
+            renderNoteClefRanks(clef);
             return;
         }
         if (fM === 'abrsm-notes' || fM === 'abrsm-keys') {
