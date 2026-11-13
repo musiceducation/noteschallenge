@@ -4398,6 +4398,20 @@ body.is-fullscreen .hub-fullscreen-btn { display: flex; }
 }
 
 .mode-cards:has(.tap) { grid-template-columns: repeat(5, 1fr); }
+.mode-cards:has(.complete) { grid-template-columns: repeat(3, 1fr); }
+.mode-card.complete { border-color: rgba(124,58,237,0.25); }
+.mode-card.complete.active {
+    background: linear-gradient(145deg, #7c3aed, #5b21b6);
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 3px rgba(124,58,237,0.15), 0 8px 0 rgba(91,33,182,0.12);
+}
+.complete-prompt { text-align: center; font-weight: 800; margin: 8px 16px 0; }
+.complete-staff { height: 220px; min-height: 220px; max-height: 220px; margin: 8px 12px; background: white; border-radius: 16px; overflow: hidden; }
+.complete-choices { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; padding: 8px 12px 16px; }
+.complete-choice { min-width: 112px; min-height: 88px; border-radius: 18px; border: 3px solid #ddd6fe; background: white; font-weight: 800; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; }
+.complete-choice-symbol { font-size: 2rem; line-height: 1; }
+.complete-choice.correct { background: #d1fae5; border-color: #059669; }
+.complete-choice.wrong { background: #fee2e2; border-color: #dc2626; }
 .mode-card.tap { border-color: rgba(99,102,241,0.25); }
 .mode-card.tap.active {
     background: linear-gradient(145deg, #4F46E5, #4338CA);

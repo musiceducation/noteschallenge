@@ -3763,6 +3763,40 @@
         }
     }
 
+    function renderRhythmLevelRanks(mode) {
+        const wrap = document.getElementById('rankAbrsmFilterWrap');
+        if (wrap) wrap.style.display = 'none';
+        const labels = window.RhythmLevels ? RhythmLevels.LABELS : { easy: '容易', medium: '中等', hard: '困難' };
+        const fC = dom.rankClassFilter.value;
+        const fG = parseInt(dom.rankGradeFilter.value, 10);
+        let rows = [];
+        ['easy', 'medium', 'hard'].forEach(id => {
+            let list = [];
+            try { list = JSON.parse(localStorage.getItem(RhythmLevels.storageKey(mode, id)) || '[]'); } catch (err) { list = []; }
+            rows = rows.concat(list);
+        });
+        if (fC !== '0') rows = rows.filter(row => row.class === fC);
+        if (fG !== 0) rows = rows.filter(row => parseInt(row.grade, 10) === fG);
+        rows = rows.filter(row => row && row.rankNamespace === 'rhythm-level-v1' && !row.syllabusId);
+        rows.sort((a, b) => (parseInt(b.score, 10) || 0) - (parseInt(a.score, 10) || 0));
+        paintStudentRankHint(rows);
+        if (!rows.length) {
+            dom.rankList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個難度暫時未有紀錄。英皇舊榜不會顯示呢度的分數。</div>';
+            return;
+        }
+        dom.rankList.innerHTML = rows.slice(0, 100).map((item, i) => {
+            const name = escHtml(item.name);
+            const cls = escHtml(item.class);
+            const tag = labels[item.level] || '';
+            const school = item.grade ? `中${['','一','二','三','四','五','六'][item.grade] || item.grade}` : '';
+            return `<div class="rank-item ${i === 0 ? 'first' : i === 1 ? 'second' : i === 2 ? 'third' : ''}">
+                <div class="rank-pos">${i + 1}.</div>
+                <div class="rank-name"><span class="rank-student-name">${name}</span>
+                    <div class="rank-badges"><span class="rank-tag rank-grade-tag">${tag}</span>${school ? `<span class="rank-tag">${school}</span>` : ''}<span class="rank-tag rank-class-tag">${cls}班</span></div>
+                </div>
+                <div class="rank-score">${parseInt(item.score, 10) || 0}</div></div>`;
+        }).join('');
+    }
     function renderRanks() {
         const gf = document.getElementById('rankGameFilter');
         if (gf && (gf.value === 'game2' || gf.value === 'game3')) {
@@ -3771,7 +3805,12 @@
             const rhythmKindWrap = document.getElementById('rankRhythmKindWrap');
             if (rhythmKindWrap) rhythmKindWrap.style.display = gf.value === 'game2' ? '' : 'none';
             const kindEl = document.getElementById('rankRhythmKind');
-            const rhythmKey = gf.value === 'game3' ? 'terms' : ((kindEl && kindEl.value === 'rhythm-tap') ? 'rhythm-tap' : 'rhythm');
+            const kind = kindEl ? kindEl.value : 'rhythm';
+            if (gf.value === 'game2' && (kind === 'rhythm-tap' || kind === 'rhythm-complete')) {
+                renderRhythmLevelRanks(kind === 'rhythm-complete' ? 'complete' : 'tap');
+                return;
+            }
+            const rhythmKey = gf.value === 'game3' ? 'terms' : (kind === 'rhythm-tap-legacy' ? 'rhythm-tap' : 'rhythm');
             renderAbrsmRanks(rhythmKey);
             return;
         }
@@ -4818,14 +4857,33 @@
 
             let g2SelectedMode = 'practice';
             const g2ModeCards = document.querySelectorAll('#g2ModeCards .mode-card');
+            const paintG2Chooser = () => {
+                const usesLevel = g2SelectedMode === 'tap' || g2SelectedMode === 'complete';
+                const abrsmRow = document.getElementById('g2AbrsmRow');
+                const levelRow = document.getElementById('g2LevelRow');
+                if (abrsmRow) abrsmRow.style.display = usesLevel ? 'none' : '';
+                if (levelRow) levelRow.style.display = usesLevel ? '' : 'none';
+                const levelId = document.querySelector('#g2LevelBtns .abrsm-grade-btn.active')?.dataset.level || 'easy';
+                const levelNote = document.getElementById('g2LevelCoverage');
+                if (levelNote && window.RhythmLevels) levelNote.textContent = RhythmLevels.coverageText(levelId);
+            };
             g2ModeCards.forEach(c => {
                 c.classList.toggle('active', c.dataset.mode === 'practice');
                 c.onclick = () => {
                     g2ModeCards.forEach(x => x.classList.remove('active'));
                     c.classList.add('active');
                     g2SelectedMode = c.dataset.mode;
+                    paintG2Chooser();
                 };
             });
+            document.querySelectorAll('#g2LevelBtns .abrsm-grade-btn').forEach(btn => {
+                btn.onclick = () => {
+                    document.querySelectorAll('#g2LevelBtns .abrsm-grade-btn').forEach(other => other.classList.remove('active'));
+                    btn.classList.add('active');
+                    paintG2Chooser();
+                };
+            });
+            paintG2Chooser();
 
             const g2Coverage = document.getElementById('g2AbrsmCoverage');
             const paintG2 = () => {
@@ -4850,6 +4908,8 @@
                     launchSyllabusQuiz(user, 'value', false);
                 } else if (g2SelectedMode === 'tap') {
                     startRhythmChallenge(user);
+                } else if (g2SelectedMode === 'complete') {
+                    launchCompleteMeasure(user);
                 } else {
                     enterRCGame(user);
                 }
@@ -5766,9 +5826,143 @@
         box.appendChild(note);
         document.getElementById('sqDone').onclick = () => switchScreen('screen-g2-setup');
     }
+    function launchCompleteMeasure(user) {
+        if (!window.RhythmLevels) return;
+        const levelId = document.querySelector('#g2LevelBtns .abrsm-grade-btn.active')?.dataset.level || 'easy';
+        const round = { index: 0, score: 0, correct: 0, wrong: 0, locked: false, levelId, user, total: 8, question: null };
+        const box = document.getElementById('screen-g2-duration');
+        box.innerHTML = `<div class="om-header"><button class="om-exit" id="completeExit">✕</button><div class="om-header-center"><div class="om-title">補足小節 · ${RhythmLevels.LABELS[levelId]}</div><span class="om-time-left" id="completeCount">1 / 8</span></div><div class="om-score-wrap"><div class="om-score-val" id="completeScore">0</div><div class="om-score-label">得分</div></div></div><p class="complete-prompt">這是 4/4。虛線空位還沒有音符，請選一個時值把它填滿。</p><div id="completeStaff" class="complete-staff"></div><div class="complete-choices" id="completeChoices"></div>`;
+        switchScreen('screen-g2-duration');
+        document.getElementById('completeExit').onclick = () => switchScreen('screen-g2-setup');
+        const show = () => {
+            round.locked = false;
+            round.question = RhythmLevels.completionQuestion(levelId, Math.random);
+            const count = document.getElementById('completeCount');
+            if (count) count.textContent = (round.index + 1) + ' / ' + round.total;
+            renderCompleteStaff(round.question);
+            const host = document.getElementById('completeChoices');
+            host.innerHTML = '';
+            const choices = round.question.choices.slice();
+            for (let i = choices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                const tmp = choices[i];
+                choices[i] = choices[j];
+                choices[j] = tmp;
+            }
+            choices.forEach(choice => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'complete-choice';
+                btn.innerHTML = `<span class="complete-choice-symbol">${choice.symbol}</span><span class="complete-choice-label">${choice.label}</span>`;
+                btn.onclick = () => {
+                    if (round.locked) return;
+                    round.locked = true;
+                    const ok = choice.id === round.question.answerId;
+                    if (ok) { round.correct += 1; round.score += 10; }
+                    else round.wrong += 1;
+                    document.getElementById('completeScore').textContent = round.score;
+                    btn.classList.add(ok ? 'correct' : 'wrong');
+                    if (!ok) host.querySelectorAll('button').forEach(other => {
+                        if (other.querySelector('.complete-choice-label')?.textContent === RhythmLevels.CHOICES[round.question.answerId].label) other.classList.add('correct');
+                    });
+                    setTimeout(() => {
+                        round.index += 1;
+                        if (round.index >= round.total) finishCompleteMeasure(round);
+                        else show();
+                    }, ok ? 450 : 900);
+                };
+                host.appendChild(btn);
+            });
+        };
+        show();
+    }
+    function renderCompleteStaff(question) {
+        const host = document.getElementById('completeStaff');
+        if (!host || typeof VexFlow === 'undefined' || !window.RhythmLevels) return;
+        host.innerHTML = '';
+        const width = Math.max(host.clientWidth || 0, 320);
+        const height = 220;
+        const { Renderer, Stave, StaveNote, Voice, Formatter, Beam, Stem } = VexFlow;
+        const renderer = new Renderer(host, Renderer.Backends.SVG);
+        renderer.resize(width, height);
+        const context = renderer.getContext();
+        const stave = new Stave(10, 36, width - 20);
+        stave.addTimeSignature('4/4');
+        stave.setContext(context).draw();
+        const blankToken = { 4: 'ta-a-a-a', 2: 'ta-a', 1: 'ta', 0.5: 'ti', 0.25: 'ri', 0.75: 'ti ri' }[question.blankQuarters] || 'ta';
+        const shownEvents = RhythmLevels.expandBar(question.shown);
+        const allEvents = RhythmLevels.expandBar((question.shown ? question.shown + ' ' : '') + blankToken);
+        const notes = allEvents.map(event => new StaveNote(event.vex === 'w'
+            ? { keys: ['b/4'], duration: event.vex }
+            : { keys: ['b/4'], duration: event.vex, stemDirection: Stem.UP }));
+        const voice = new Voice({ numBeats: 16, beatValue: 16 });
+        voice.setMode(2);
+        voice.addTickables(notes);
+        new Formatter().joinVoices([voice]).format([voice], Math.max(80, width - 120));
+        const shownCount = shownEvents.length;
+        const groups = RhythmLevels.beamGroups(question.shown).map(group => group.map(index => notes[index])).filter(group => group.length > 1);
+        const beams = groups.map(group => {
+            try { return new Beam(group); } catch (err) { return null; }
+        });
+        voice.draw(context, stave);
+        beams.forEach(beam => { if (beam) { try { beam.setContext(context).draw(); } catch (err) {} } });
+        const blankEls = notes.slice(shownCount).map(note => note.getSVGElement && note.getSVGElement()).filter(Boolean);
+        const boxes = blankEls.map(el => el.getBBox());
+        const rawStart = boxes.length ? Math.min.apply(null, boxes.map(box => box.x)) - 8 : stave.getNoteStartX();
+        const rawEnd = boxes.length ? Math.max.apply(null, boxes.map(box => box.x + box.width)) + 12 : rawStart + 48;
+        const blankMid = (rawStart + rawEnd) / 2;
+        const blankWidth = Math.max(72, rawEnd - rawStart);
+        const startX = blankMid - blankWidth / 2;
+        const endX = blankMid + blankWidth / 2;
+        blankEls.forEach(el => el.remove());
+        const svg = host.querySelector('svg');
+        if (!svg || endX - startX < 28) return;
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', String(startX));
+        rect.setAttribute('y', String(stave.getY() + 18));
+        rect.setAttribute('width', String(endX - startX));
+        rect.setAttribute('height', '78');
+        rect.setAttribute('rx', '12');
+        rect.setAttribute('fill', '#fff7e8');
+        rect.setAttribute('stroke', '#7c3aed');
+        rect.setAttribute('stroke-width', '3');
+        rect.setAttribute('stroke-dasharray', '7 5');
+        svg.appendChild(rect);
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', String((startX + endX) / 2));
+        label.setAttribute('y', String(stave.getY() + 66));
+        label.setAttribute('text-anchor', 'middle');
+        label.setAttribute('font-size', '32');
+        label.setAttribute('font-weight', '800');
+        label.setAttribute('fill', '#5b21b6');
+        label.textContent = '？';
+        svg.appendChild(label);
+    }
+    function finishCompleteMeasure(round) {
+        const player = state.currentUser || round.user;
+        if (player && player.name && window.RhythmLevels) {
+            RhythmLevels.saveBest(localStorage, {
+                mode: 'complete',
+                level: round.levelId,
+                name: player.name,
+                class: player.class || '',
+                id: player.id || player.seat || '',
+                grade: player.grade,
+                score: round.score,
+                accuracy: round.total ? Math.round(round.correct / round.total * 100) : 0,
+                maxCombo: round.correct
+            });
+        }
+        const box = document.getElementById('screen-g2-duration');
+        const note = document.createElement('div');
+        note.className = 'om-result';
+        note.innerHTML = `<div class="om-result-title">八題完成</div><div class="om-result-score">${round.score}</div><p class="abrsm-coverage">分數記在補足小節的${RhythmLevels.LABELS[round.levelId]}榜，不會寫入英皇級別。</p><button class="om-btn-back" id="completeDone" type="button">返回</button>`;
+        box.appendChild(note);
+        document.getElementById('completeDone').onclick = () => switchScreen('screen-g2-setup');
+    }
     function startRhythmChallenge(user) {
-        const gradeId = document.querySelector('#g2AbrsmBtns .abrsm-grade-btn.active')?.dataset.abrsm || 'abrsm-g1';
-        const spec = _rchalSpec(gradeId);
+        const levelId = document.querySelector('#g2LevelBtns .abrsm-grade-btn.active')?.dataset.level || 'easy';
+        const spec = window.RhythmLevels && RhythmLevels.challengeSpec(levelId);
         if (!spec) return;
         rchalState.user = user;
         audio.init(); audio.warmUp(); audio.bgStop();
@@ -5813,7 +6007,9 @@
         rchalState.meter = window.AbrsmRhythmTerms.tapMeter(meterId);
         const measures = [];
         for (let i = 0; i < lvl.bars; i++) {
-            measures.push(_generateChallengeRhythm(lvl.tokens, rchalState.meter.quarters, lvl.syncopation));
+            measures.push(lvl.levelRank && window.RhythmLevels
+                ? RhythmLevels.buildBar(lvl.id, meterId, Math.random)
+                : _generateChallengeRhythm(lvl.tokens, rchalState.meter.quarters, lvl.syncopation));
         }
         rchalState.measures = measures;
 
@@ -5876,7 +6072,7 @@
 
         // Determine bars-per-row based on complexity
         const lvl = rchalState.level;
-        const simpleStaff = lvl && lvl.id === 'abrsm-g1';
+        const simpleStaff = lvl && (lvl.id === 'abrsm-g1' || lvl.id === 'easy');
         const BARS_PER_ROW = simpleStaff ? 4 : 2;
         const numRows = Math.ceil(numBars / BARS_PER_ROW);
         const MIN_ROW_H = simpleStaff ? 150 : 180;
@@ -6507,11 +6703,26 @@
 
         // Save to leaderboard
         if (rchalState.user && rchalState.user.name) {
-            saveSyllabusRank('rhythm-tap', rchalState.level.id, {
-                score: rchalState.score,
-                accuracy: accuracy,
-                maxCombo: rchalState.maxCombo
-            });
+            if (rchalState.level && rchalState.level.levelRank && window.RhythmLevels) {
+                const player = state.currentUser || rchalState.user;
+                RhythmLevels.saveBest(localStorage, {
+                    mode: 'tap',
+                    level: rchalState.level.id,
+                    name: player.name,
+                    class: player.class || '',
+                    id: player.id || player.seat || '',
+                    grade: player.grade,
+                    score: rchalState.score,
+                    accuracy: accuracy,
+                    maxCombo: rchalState.maxCombo
+                });
+            } else {
+                saveSyllabusRank('rhythm-tap', rchalState.level.id, {
+                    score: rchalState.score,
+                    accuracy: accuracy,
+                    maxCombo: rchalState.maxCombo
+                });
+            }
         }
 
         // Record to profile

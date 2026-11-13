@@ -856,7 +856,7 @@
                     <div class="rank-filter"><label>榜</label><select id="rankModeFilter"><option value="notes-clef" selected>音名譜號</option><option value="abrsm-notes">英皇音名</option><option value="abrsm-keys">英皇調號</option></select></div>
                     <div class="rank-filter" id="rankNoteClefWrap" style="display:none;"><label>譜號</label><select id="rankNoteClefFilter"><option value="treble">高音譜號</option><option value="bass">低音譜號</option><option value="alto">中音譜號</option><option value="tenor">次中音譜號</option><option value="mixed">混合</option></select></div>
                     <div class="rank-filter" id="rankAbrsmFilterWrap"><label>英皇級別</label><select id="rankAbrsmGradeFilter"><option value="0">全部</option><option value="abrsm-g1">G1</option><option value="abrsm-g2">G2</option><option value="abrsm-g3">G3</option><option value="abrsm-g4">G4</option><option value="abrsm-g5">G5</option></select></div>
-                    <div class="rank-filter" id="rankRhythmKindWrap" style="display:none;"><label>節奏榜</label><select id="rankRhythmKind"><option value="rhythm">拍號計時</option><option value="rhythm-tap">節奏挑戰</option></select></div>
+                    <div class="rank-filter" id="rankRhythmKindWrap" style="display:none;"><label>節奏榜</label><select id="rankRhythmKind"><option value="rhythm">拍號計時</option><option value="rhythm-tap">節奏挑戰</option><option value="rhythm-complete">補足小節</option><option value="rhythm-tap-legacy">節奏挑戰舊英皇</option></select></div>
                     <div class="rank-filter" id="rankDiffFilterWrap" style="display:none;"><label>難度</label><select id="rankDiffFilter"><option value="0">全部難度</option><option value="Easy">Easy</option><option value="Normal">Normal</option><option value="Hard">Hard</option><option value="Expert">Expert</option></select></div>
                 </div>
                 <div class="student-rank-hint" id="studentRankHint" style="display:none;"></div>
@@ -893,7 +893,10 @@
                 <div class="mode-icon">⏱️</div><div class="mode-name">拍號計時</div><div class="mode-desc">同一級別，限時一分鐘，計入英皇榜</div>
             </div>
             <div class="mode-card tap" data-mode="tap" id="g2ModeTap">
-                <div class="mode-icon">🥁</div><div class="mode-name">節奏挑戰</div><div class="mode-desc">根據譜上音符時值打節奏</div>
+                <div class="mode-icon">🥁</div><div class="mode-name">節奏挑戰</div><div class="mode-desc">根據譜上音符時值打節奏，分容易、中等、困難</div>
+            </div>
+            <div class="mode-card complete" data-mode="complete" id="g2ModeComplete">
+                <div class="mode-icon">◻️</div><div class="mode-name">補足小節</div><div class="mode-desc">4/4 未完，選一個時值填滿</div>
             </div>
             <div class="mode-card duration" data-mode="duration" id="g2ModeDuration">
                 <div class="mode-icon">🎵</div><div class="mode-name">時值辨別</div><div class="mode-desc">同一英皇級別的音符、休止符和連音</div>
@@ -913,6 +916,15 @@
                 <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g5">G5</button>
             </div>
             <p class="abrsm-coverage" id="g2AbrsmCoverage"></p>
+        </div>
+        <div class="keysig-solfege-sub-row" id="g2LevelRow" style="display:none;">
+            <span class="practice-diff-label">難度</span>
+            <div class="practice-diff-btns" id="g2LevelBtns">
+                <button type="button" class="abrsm-grade-btn active" data-level="easy">容易</button>
+                <button type="button" class="abrsm-grade-btn" data-level="medium">中等</button>
+                <button type="button" class="abrsm-grade-btn" data-level="hard">困難</button>
+            </div>
+            <p class="abrsm-coverage" id="g2LevelCoverage"></p>
         </div>
         <button class="btn-start" id="g2StartBtn">🚀 開始練習</button>
         <button class="btn-view-ranks" id="g2SetupViewRanks">🏆 查看排行榜</button>
@@ -1538,6 +1550,7 @@
 
     <script src="abrsm-curriculum.js?v=1" defer></script>
     <script src="abrsm-rhythm-terms.js?v=3" defer></script>
+    <script src="rhythm-levels.js?v=1" defer></script>
     <script src="abrsm-note-grade.js?v=4" defer></script>
     <script src="note-name-teach.js?v=6" defer></script>
     <script src="instrument-category.js?v=2" defer></script>
