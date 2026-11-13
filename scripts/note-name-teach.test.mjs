@@ -165,7 +165,7 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.match(page, /id="openNoteTeachFromHub"/);
   assert.match(page, /note-name-teach\.js\?v=6/);
   assert.match(page, /abrsm-curriculum\.js\?v=1/);
-  assert.match(page, /abrsm-note-grade\.js\?v=3/);
+  assert.match(page, /abrsm-note-grade\.js\?v=4/);
   assert.match(page, /chinese-instrument-challenge\.js\?v=3/);
   assert.match(page, /style\.css\?v=16/);
   assert.match(page, /bootstrap-instruments\.js\?v=13/);

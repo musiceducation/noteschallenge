@@ -96,7 +96,9 @@
         return names[pc] + octave;
     }
 
-    var PRACTICE_LEDGER = 4;
+    // Staff lines are y 0..4. y -2 is the second ledger line above; y 6 is the
+    // second ledger line below. The spaces just outside those lines are excluded.
+    var PRACTICE_LEDGER = 2;
     var PRACTICE_ACCIDENTALS = ['', '#', 'b'];
 
     function notesOnClefs(clefs, max, accs, gradeId) {
