@@ -96,12 +96,12 @@
         return names[pc] + octave;
     }
 
-    function notePool(gradeId) {
+    function notesOnClefs(gradeId, clefs) {
         var max = ledgerMax(gradeId);
-        var clefs = curriculum.clefsFor(gradeId).map(function (c) { return c.id; });
         var accs = accidentalsFor(gradeId);
         var notes = [];
         clefs.forEach(function (clef) {
+            if (!ANCHOR[clef]) throw new Error('unknown clef ' + clef);
             positions(clef, max).forEach(function (pos) {
                 accs.forEach(function (acc) {
                     var midi = midiOf(pos.letter, pos.octave, acc);
@@ -122,6 +122,20 @@
             });
         });
         return notes;
+    }
+
+    function notePool(gradeId) {
+        return notesOnClefs(gradeId, curriculum.clefsFor(gradeId).map(function (c) { return c.id; }));
+    }
+
+    function notePoolForClefs(gradeId, clefIds) {
+        var allowed = { treble: 1, bass: 1, alto: 1, tenor: 1 };
+        var clefs = [];
+        (clefIds || []).forEach(function (id) {
+            if (allowed[id] && clefs.indexOf(id) < 0) clefs.push(id);
+        });
+        if (!clefs.length) throw new Error('clef required');
+        return notesOnClefs(gradeId, clefs);
     }
 
     function ledgerDepth(yFactor) {
@@ -189,6 +203,7 @@
         positions: positions,
         ledgerDepth: ledgerDepth,
         notePool: notePool,
+        notePoolForClefs: notePoolForClefs,
         keyItems: keyItems,
         coverage: coverage,
         displaySpelling: displaySpelling

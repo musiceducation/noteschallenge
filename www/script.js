@@ -1126,7 +1126,8 @@
             practiceDiff: '3',
             keysigGrade: 1,
             solfegeGrade: 1,
-            abrsmGrade: 'abrsm-g1'
+            abrsmGrade: 'abrsm-g1',
+            noteClefChoice: 'treble'
         };
     }
 
@@ -1809,6 +1810,7 @@
         s.keysigGrade = state.keysigGrade;
         s.solfegeGrade = state.solfegeGrade;
         s.abrsmGrade = state.abrsmGrade || '';
+        s.noteClefChoice = state.noteClefChoice || 'treble';
         s.savedName = dom.userName.value;
         const customInp = _customNameInput;
         if (dom.userName.value === '__other__' && customInp) s.savedCustomName = customInp.value;
@@ -1826,6 +1828,9 @@
                 if (s.keysigGrade) state.keysigGrade = parseInt(s.keysigGrade);
                 if (s.solfegeGrade) state.solfegeGrade = parseInt(s.solfegeGrade);
                 if (typeof s.abrsmGrade === 'string' && /^abrsm-g[1-5]$/.test(s.abrsmGrade)) state.abrsmGrade = s.abrsmGrade;
+                if (s.noteClefChoice === 'treble' || s.noteClefChoice === 'bass' || s.noteClefChoice === 'alto' || s.noteClefChoice === 'tenor' || s.noteClefChoice === 'mixed') state.noteClefChoice = s.noteClefChoice;
+                else if (s.lastMode === 'bass60') state.noteClefChoice = 'bass';
+                else if (s.lastMode === 'mixed60') state.noteClefChoice = 'mixed';
                 if (s.lastMode === 'bass60' || s.lastMode === 'mixed60') s.lastMode = 'classic60';
                 if (s.lastMode && MODE_CONFIG[s.lastMode]) {
                     state.currentMode = s.lastMode; state.modeConfig = MODE_CONFIG[s.lastMode];
@@ -2068,9 +2073,43 @@
             host.textContent = '調號未能繪出';
         }
     }
+    const NOTE_CLEF_IDS = ['treble', 'bass', 'alto', 'tenor', 'mixed'];
+    const NOTE_CLEF_LABEL = { treble: '高音譜號', bass: '低音譜號', alto: '中音譜號', tenor: '次中音譜號', mixed: '混合' };
+    function noteClefChoice() {
+        return NOTE_CLEF_IDS.includes(state.noteClefChoice) ? state.noteClefChoice : 'treble';
+    }
+    function noteClefIds() {
+        return noteClefChoice() === 'mixed' ? ['treble', 'bass', 'alto', 'tenor'] : [noteClefChoice()];
+    }
+    function noteClefLabel() {
+        return NOTE_CLEF_LABEL[noteClefChoice()];
+    }
+    function noteClefIsCustom() {
+        if (!abrsmReady()) return noteClefChoice() !== 'treble' && noteClefChoice() !== 'bass';
+        ensureAbrsmGrade();
+        const official = new Set(AbrsmCurriculum.clefsFor(state.abrsmGrade).map(item => item.id));
+        return noteClefIds().some(id => !official.has(id));
+    }
+    function paintNoteClefRow() {
+        const row = document.getElementById('clefSelectorRow');
+        if (!row) return;
+        const show = state.currentMode === 'classic60';
+        row.style.display = show ? '' : 'none';
+        document.querySelectorAll('#noteClefBtns .clef-sel-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.clef === noteClefChoice());
+            btn.setAttribute('aria-pressed', btn.dataset.clef === noteClefChoice() ? 'true' : 'false');
+        });
+        const note = document.getElementById('noteClefNote');
+        if (note) note.hidden = !show || !noteClefIsCustom();
+    }
+    function timedNoteRankKey() {
+        return 'notes-clef-' + noteClefChoice();
+    }
     function generateAbrsmNote() {
         ensureAbrsmGrade();
-        const pool = AbrsmNoteGrade.notePool(state.abrsmGrade);
+        const pool = (state.currentMode === 'classic60' && typeof AbrsmNoteGrade.notePoolForClefs === 'function')
+            ? AbrsmNoteGrade.notePoolForClefs(state.abrsmGrade, noteClefIds())
+            : AbrsmNoteGrade.notePool(state.abrsmGrade);
         let pick = pool[Math.floor(Math.random() * pool.length)];
         let tries = 0;
         while (tries < 12 && state.lastNoteLetter && pick.letter === state.lastNoteLetter && pick.clef === state.lastNoteClef) {
@@ -2175,10 +2214,12 @@
             btn.classList.toggle('active', (btn.dataset.abrsm || '') === state.abrsmGrade);
         });
         refreshAbrsmCoverage();
+        paintNoteClefRow();
     }
     function playerBadge() {
         const grade = state.abrsmGrade ? ' · 英皇 G' + String(state.abrsmGrade).replace('abrsm-g', '') : '';
-        return `👋 ${state.currentUser.name} 同學 · ${state.modeConfig.name}${grade}`;
+        const clef = state.currentMode === 'classic60' ? ' · ' + noteClefLabel() : '';
+        return `👋 ${state.currentUser.name} 同學 · ${state.modeConfig.name}${clef}${grade}`;
     }
     function saveAbrsmRank(gameKey) {
         if (!state.currentUser || !state.abrsmGrade || !abrsmReady()) return;
@@ -2197,6 +2238,7 @@
         record.max_combo = state.maxCombo;
         record.grade = state.currentUser.grade;
         record.difficulty = state.abrsmGrade;
+        if (String(gameKey).indexOf('notes-clef-') === 0) record.clefChoice = String(gameKey).slice('notes-clef-'.length);
         try {
             const all = JSON.parse(localStorage.getItem(record.storageKey) || '[]');
             const idx = all.findIndex(row => row.name === record.name && row.class === record.class && String(row.id || '') === String(record.id || '') && row.syllabusId === record.syllabusId);
@@ -2259,10 +2301,11 @@
             const cls = escHtml(item.class);
             const g = String(item.syllabusId || '').replace('abrsm-g', 'G');
             const school = item.grade ? `中${['','一','二','三','四','五','六'][item.grade] || item.grade}` : '';
+            const clefTag = NOTE_CLEF_LABEL[item.clefChoice] ? `<span class="rank-tag">${NOTE_CLEF_LABEL[item.clefChoice]}</span>` : '';
             return `<div class="rank-item ${i === 0 ? 'first' : i === 1 ? 'second' : i === 2 ? 'third' : ''}">
                 <div class="rank-pos">${i + 1}.</div>
                 <div class="rank-name"><span class="rank-student-name">${name}</span>
-                    <div class="rank-badges"><span class="rank-tag rank-grade-tag">${g}</span>${school ? `<span class="rank-tag">${school}</span>` : ''}<span class="rank-tag rank-class-tag">${cls}班</span></div>
+                    <div class="rank-badges"><span class="rank-tag rank-grade-tag">${g}</span>${clefTag}${school ? `<span class="rank-tag">${school}</span>` : ''}<span class="rank-tag rank-class-tag">${cls}班</span></div>
                 </div>
                 <div class="rank-score">${parseInt(item.score, 10) || 0}</div></div>`;
         }).join('');
@@ -2441,7 +2484,7 @@
             }
             setTimeout(() => { if (!state.gameActive) return; if (btn) btn.classList.remove('correct', 'wrong'); nextQuestion(); }, 500);
         } else {
-            const clefLabel = state.currentNote.clef === 'bass' ? '低音' : '高音';
+            const clefLabel = { treble: '高音', bass: '低音', alto: '中音', tenor: '次中音' }[state.currentNote.clef] || '譜號';
             const statKey = `${state.currentNote.correctName} (${clefLabel})`;
             state.wrongNoteStats[statKey] = (state.wrongNoteStats[statKey]||0) + 1; 
             state.combo = 0; 
@@ -2550,7 +2593,8 @@
             dom.timeProgress.style.width = '100%'; 
             dom.timeProgress.style.transition = 'none'; 
             updateScoreboard();
-            dom.messageBox.textContent = `🎵 ${state.modeConfig.name} — 練習開始。`; 
+            const clefStart = state.currentMode === 'classic60' ? `（${noteClefLabel()}）` : '';
+            dom.messageBox.textContent = `🎵 ${state.modeConfig.name}${clefStart} — 練習開始。`; 
             dom.messageBox.className = 'message-box'; 
             nextQuestion();
             if (state.timeLeft !== Infinity) {
@@ -3207,6 +3251,11 @@
         if (!state.currentUser.name || state.modeConfig.type !== 'challenge') return;
         if (state.score === 0 && state.totalQuestions === 0) return;
         if (state.currentMode === 'noMiss' || (state.modeConfig && state.modeConfig.gameType === 'solfege')) return;
+        if (state.currentMode === 'classic60') {
+            ensureAbrsmGrade();
+            saveAbrsmRank(timedNoteRankKey());
+            return;
+        }
         if (ABRSM_NOTE_MODES.has(state.currentMode) || ABRSM_KEY_MODES.has(state.currentMode)) {
             ensureAbrsmGrade();
             saveAbrsmRank(ABRSM_KEY_MODES.has(state.currentMode) ? 'keys' : 'notes');
@@ -3341,7 +3390,14 @@
             loadRanks();
         }
         const reportTitleEl = document.querySelector('.report-title');
-        if (reportTitleEl) reportTitleEl.textContent = isPracticeEnd ? '📝 練習完成！做得好！' : '🎉 做得好！挑戰完成！';
+        if (reportTitleEl) {
+            if (!isPracticeEnd && state.currentMode === 'classic60') {
+                const gradeNo = String(state.abrsmGrade || 'abrsm-g1').replace('abrsm-g', '');
+                reportTitleEl.textContent = `🎉 1分鐘挑戰完成 · ${noteClefLabel()} · G${gradeNo}`;
+            } else {
+                reportTitleEl.textContent = isPracticeEnd ? '📝 練習完成！做得好！' : '🎉 做得好！挑戰完成！';
+            }
+        }
         switchScreen('screen-leaderboard');
     }
 
@@ -3493,7 +3549,11 @@
         if (dom.rankGradeFilter) dom.rankGradeFilter.value = String(state.currentUser.grade || 0);
         if (dom.rankClassFilter) dom.rankClassFilter.value = String(state.currentUser.class || '0');
         if (dom.rankModeFilter && state.modeConfig?.type === 'challenge') {
-            if (state.abrsmGrade && ABRSM_KEY_MODES.has(state.currentMode)) dom.rankModeFilter.value = 'abrsm-keys';
+            if (state.currentMode === 'classic60') {
+                dom.rankModeFilter.value = 'notes-clef';
+                const clefFilter = document.getElementById('rankNoteClefFilter');
+                if (clefFilter) clefFilter.value = noteClefChoice();
+            } else if (state.abrsmGrade && ABRSM_KEY_MODES.has(state.currentMode)) dom.rankModeFilter.value = 'abrsm-keys';
             else if (state.abrsmGrade && ABRSM_NOTE_MODES.has(state.currentMode)) dom.rankModeFilter.value = 'abrsm-notes';
             else dom.rankModeFilter.value = state.currentMode;
             const ag = document.getElementById('rankAbrsmGradeFilter');
@@ -3504,6 +3564,8 @@
     function renderRanks() {
         const gf = document.getElementById('rankGameFilter');
         if (gf && (gf.value === 'game2' || gf.value === 'game3')) {
+            const noteClefWrapEarly = document.getElementById('rankNoteClefWrap');
+            if (noteClefWrapEarly) noteClefWrapEarly.style.display = 'none';
             const rhythmKindWrap = document.getElementById('rankRhythmKindWrap');
             if (rhythmKindWrap) rhythmKindWrap.style.display = gf.value === 'game2' ? '' : 'none';
             const kindEl = document.getElementById('rankRhythmKind');
@@ -3514,6 +3576,14 @@
         if (gf && gf.value !== 'game1') { renderRanksForGame(gf.value); return; }
         const fC = dom.rankClassFilter.value, fG = parseInt(dom.rankGradeFilter.value), fM = dom.rankModeFilter.value;
         const abrsmWrap = document.getElementById('rankAbrsmFilterWrap');
+        const noteClefWrap = document.getElementById('rankNoteClefWrap');
+        if (noteClefWrap) noteClefWrap.style.display = (gf && gf.value === 'game1' && fM === 'notes-clef') ? '' : 'none';
+        if (fM === 'notes-clef') {
+            const clef = (document.getElementById('rankNoteClefFilter') || {}).value || 'treble';
+            const safe = NOTE_CLEF_IDS.includes(clef) ? clef : 'treble';
+            renderAbrsmRanks('notes-clef-' + safe);
+            return;
+        }
         if (fM === 'abrsm-notes' || fM === 'abrsm-keys') {
             renderAbrsmRanks(fM === 'abrsm-keys' ? 'keys' : 'notes');
             return;
@@ -3846,11 +3916,12 @@
         document.querySelectorAll('.sol-grade-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.grade) === state.solfegeGrade));
 
         clefSelBtns.forEach(btn => btn.addEventListener('click', () => {
+            if (!NOTE_CLEF_IDS.includes(btn.dataset.clef)) return;
             audio.init(); audio.playClick('select');
-            clefSelBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            state.currentMode = btn.dataset.clef;
-            state.modeConfig = MODE_CONFIG[state.currentMode];
+            state.currentMode = 'classic60';
+            state.modeConfig = MODE_CONFIG.classic60;
+            state.noteClefChoice = btn.dataset.clef;
+            paintNoteClefRow();
             saveSettings();
         }));
         // Init visibility
@@ -3862,7 +3933,7 @@
           if (keysigGradeRow) keysigGradeRow.style.display = 'none';
           if (solfegeSubRow) solfegeSubRow.style.display = isSolfege ? '' : 'none';
           if (solfegeGradeRow) solfegeGradeRow.style.display = 'none';
-          if (isChallenge) { clefSelBtns.forEach(b => b.classList.toggle('active', b.dataset.clef === state.currentMode));
+          if (isChallenge) { paintNoteClefRow();
               const challengeCard = document.querySelector('.mode-card[data-mode="classic60"]');
               if (challengeCard) { dom.modeCards.forEach(c => c.classList.remove('active')); challengeCard.classList.add('active'); }
           }
@@ -3928,6 +3999,8 @@
             if (abrsmRankWrap) abrsmRankWrap.style.display = (gfVal === 'game1' || gfVal === 'game2' || gfVal === 'game3') ? '' : 'none';
             const rhythmKindWrap = document.getElementById('rankRhythmKindWrap');
             if (rhythmKindWrap) rhythmKindWrap.style.display = gfVal === 'game2' ? '' : 'none';
+            const noteClefWrap = document.getElementById('rankNoteClefWrap');
+            if (noteClefWrap && gfVal !== 'game1') noteClefWrap.style.display = 'none';
             const dfWrap = document.getElementById('rankDiffFilterWrap');
             const dfSel = document.getElementById('rankDiffFilter');
             if (dfWrap && dfSel) {
@@ -3944,7 +4017,7 @@
 
         document.getElementById('rankDiffFilter')?.addEventListener('change', renderRanks);
 
-        [dom.rankClassFilter, dom.rankGradeFilter, dom.rankModeFilter, document.getElementById('rankAbrsmGradeFilter'), document.getElementById('rankRhythmKind')].forEach(f => { if (f) f.addEventListener('change', renderRanks); });
+        [dom.rankClassFilter, dom.rankGradeFilter, dom.rankModeFilter, document.getElementById('rankAbrsmGradeFilter'), document.getElementById('rankRhythmKind'), document.getElementById('rankNoteClefFilter')].forEach(f => { if (f) f.addEventListener('change', renderRanks); });
         const preventInput = () => state.inputFocused = true;
         const allowInput = () => state.inputFocused = false; 
         [dom.userId].forEach(el => { el.addEventListener('focus', preventInput); el.addEventListener('blur', allowInput); });

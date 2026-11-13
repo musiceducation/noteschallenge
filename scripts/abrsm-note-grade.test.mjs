@@ -36,6 +36,17 @@ assert.equal(g1.every((n) => G.ledgerDepth(n.yFactor) <= 1), true);
 assert.equal(g1.some((n) => n.accidental === '##' || n.accidental === 'bb'), false);
 assert.equal(g1.some((n) => n.clef === 'alto' || n.clef === 'tenor'), false);
 
+const altoG1 = host(G.notePoolForClefs('abrsm-g1', ['alto']));
+assert.equal(altoG1.every((n) => n.clef === 'alto'), true);
+assert.equal(altoG1.every((n) => G.ledgerDepth(n.yFactor) <= 1), true);
+assert.ok(altoG1.some((n) => n.letter === 'C' && n.octave === 4 && n.yFactor === 2 && !n.accidental));
+const tenorG1 = host(G.notePoolForClefs('abrsm-g1', ['tenor']));
+assert.ok(tenorG1.some((n) => n.letter === 'C' && n.octave === 4 && n.yFactor === 1 && !n.accidental));
+assert.equal(tenorG1.some((n) => n.accidental === '##'), false);
+const mixedG1 = host(G.notePoolForClefs('abrsm-g1', ['treble', 'bass', 'alto', 'tenor']));
+assert.deepEqual(clefs(mixedG1), ['alto', 'bass', 'tenor', 'treble']);
+assert.equal(clefs(pool('abrsm-g1')).includes('alto'), false);
+
 const g2 = pool('abrsm-g2');
 assert.equal(g2.some((n) => G.ledgerDepth(n.yFactor) === 2), true);
 assert.equal(g2.every((n) => G.ledgerDepth(n.yFactor) <= 2), true);
@@ -95,7 +106,18 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.doesNotMatch(controls, /data-abrsm=""/);
   assert.doesNotMatch(controls, /初學|初級|中級|進階|最高/);
   assert.doesNotMatch(controls, /中一|中二|中三|中四|中五|中六/);
-  assert.doesNotMatch(controls, /id="practiceDiffRow"|id="clefSelectorRow"|id="keysigGradeRow"|id="solfegeGradeRow"/);
+  assert.doesNotMatch(controls, /id="practiceDiffRow"|id="keysigGradeRow"|id="solfegeGradeRow"/);
+  assert.match(controls, /id="clefSelectorRow"/);
+  assert.match(controls, /data-clef="treble"/);
+  assert.match(controls, /data-clef="bass"/);
+  assert.match(controls, /data-clef="alto"/);
+  assert.match(controls, /data-clef="tenor"/);
+  assert.match(controls, /data-clef="mixed"/);
+  assert.match(controls, /高音譜號/);
+  assert.match(controls, /低音譜號/);
+  assert.match(controls, /中音譜號/);
+  assert.match(controls, /次中音譜號/);
+  assert.match(controls, /自選譜號練習/);
   assert.match(page, /id="userGrade"[\s\S]*中一/);
   const rankSelect = page.slice(page.indexOf('id="rankModeFilter"'), page.indexOf('id="rankAbrsmFilterWrap"'));
   assert.match(rankSelect, /abrsm-notes/);
@@ -113,5 +135,14 @@ const abrsmRow = context.AbrsmCurriculum.rankRecord({ gameKey: 'notes', syllabus
 assert.equal(context.AbrsmCurriculum.legacyBoardVisible(abrsmRow), false);
 assert.equal(abrsmRow.storageKey, 'abrsm-theory-v1:notes:abrsm-g1');
 assert.notEqual(abrsmRow.storageKey, 'musicGameRanks_game1');
+const clefRow = context.AbrsmCurriculum.rankRecord({ gameKey: 'notes-clef-alto', syllabusId: 'abrsm-g1', score: 12, schoolYear: '中一' });
+assert.equal(clefRow.storageKey, 'abrsm-theory-v1:notes-clef-alto:abrsm-g1');
+assert.notEqual(clefRow.storageKey, abrsmRow.storageKey);
+assert.match(gameSrc, /notePoolForClefs\(state\.abrsmGrade, noteClefIds\(\)\)/);
+assert.match(gameSrc, /saveAbrsmRank\(timedNoteRankKey\(\)\)/);
+const wwwGame = fs.readFileSync(new URL('../www/script.js', import.meta.url), 'utf8');
+assert.match(wwwGame, /notePoolForClefs\(state\.abrsmGrade, noteClefIds\(\)\)/);
+assert.match(wwwGame, /saveAbrsmRank\(timedNoteRankKey\(\)\)/);
+assert.doesNotMatch(gameSrc.slice(gameSrc.indexOf("state.currentMode === 'classic60'"), gameSrc.indexOf("state.currentMode === 'classic60'") + 220), /saveAbrsmRank\('notes'\)/);
 
 console.log('abrsm-note-grade: ok', g5.length, 'g5 notes', k5.length, 'g5 key cards');
