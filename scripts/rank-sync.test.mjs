@@ -608,6 +608,7 @@ assert.equal(lowered[0].score, 900);
 for (const file of ['index.html', 'www/index.html']) {
   const page = fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8');
   assert.match(page, /option value="noMiss">零失誤挑戰/);
+  assert.match(page, /id="noMissViewRanks">🏆 零失誤排行榜/);
   assert.match(page, /option value="keysig60">調號挑戰/);
   assert.match(page, /option value="solfege60">唱名挑戰/);
   assert.match(page, /option value="classroom" selected>課堂舊紀錄/);

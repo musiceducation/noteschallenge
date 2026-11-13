@@ -211,8 +211,12 @@ assert.match(gameSrc, /if \(usesLocalRankBoard\(\)\)/);
 assert.match(gameSrc, /共用排行榜暫時連不上/);
 assert.match(gameSrc, /function paintStudentRankHint/);
 assert.match(gameSrc, /function openGame1RankBoard/);
+assert.match(gameSrc, /openGame1RankBoard\('noMiss'\)/);
+assert.match(gameSrc, /showNoMissBoard/);
 assert.doesNotMatch(gameSrc.slice(gameSrc.indexOf('function renderNoteClefRanks'), gameSrc.indexOf('function renderAbrsmRanks')), /目前排第/);
 assert.match(wwwGame, /function publishSharedRank/);
 assert.match(wwwGame, /function openGame1RankBoard/);
+assert.match(wwwGame, /openGame1RankBoard\('noMiss'\)/);
+assert.match(wwwGame, /showNoMissBoard/);
 
 console.log('abrsm-note-grade: ok', g5.length, 'g5 notes', k5.length, 'g5 key cards');

@@ -3553,17 +3553,29 @@
         if (state.modeConfig.type === 'challenge') submitScore(); 
         
         dom.leaderboardLayout.classList.remove('view-only');
-        const isPracticeEnd = state.modeConfig.type === 'practice';
+        const showNoMissBoard = state.currentMode === 'noMiss';
+        const isPracticeEnd = state.modeConfig.type === 'practice' && !showNoMissBoard;
         if (isPracticeEnd) {
             dom.leaderboardLayout.classList.add('practice-end');
         } else {
             dom.leaderboardLayout.classList.remove('practice-end');
             focusLeaderboardToCurrentStudent();
+            if (showNoMissBoard) {
+                const gf = document.getElementById('rankGameFilter');
+                if (gf) gf.value = 'game1';
+                const mfRow = dom.rankModeFilter?.closest?.('.rank-filter');
+                if (mfRow) mfRow.style.display = '';
+                if (dom.rankModeFilter) dom.rankModeFilter.value = 'noMiss';
+                if (dom.rankGradeFilter) dom.rankGradeFilter.value = '0';
+                if (dom.rankClassFilter) dom.rankClassFilter.value = '0';
+            }
             loadRanks(2, { force: true });
         }
         const reportTitleEl = document.querySelector('.report-title');
         if (reportTitleEl) {
-            if (!isPracticeEnd && state.currentMode === 'classic60') {
+            if (showNoMissBoard) {
+                reportTitleEl.textContent = '🔥 零失誤挑戰';
+            } else if (!isPracticeEnd && state.currentMode === 'classic60') {
                 reportTitleEl.textContent = `🎉 1分鐘挑戰完成 · ${noteClefLabel()}`;
             } else {
                 reportTitleEl.textContent = isPracticeEnd ? '📝 練習完成！做得好！' : '🎉 做得好！挑戰完成！';
@@ -3740,18 +3752,25 @@
         return '<div class="rank-reward-banner">🏆 每級前三名將獲得獎勵！</div>';
     }
 
-    function openGame1RankBoard() {
+    function openGame1RankBoard(board) {
         dom.leaderboardLayout.classList.add('view-only');
+        dom.leaderboardLayout.classList.remove('practice-end');
         dom.reportGrid.innerHTML = '';
         dom.reportWeakness.innerHTML = '';
         const gf = document.getElementById('rankGameFilter');
         if (gf) gf.value = 'game1';
         const mfRow = dom.rankModeFilter?.closest?.('.rank-filter');
         if (mfRow) mfRow.style.display = '';
-        if (dom.rankModeFilter) dom.rankModeFilter.value = 'notes-clef';
+        const chosen = board || (state.currentMode === 'noMiss' ? 'noMiss' : state.currentMode === 'keysig60' ? 'keysig60' : state.currentMode === 'solfege60' ? 'solfege60' : 'notes-clef');
+        if (dom.rankModeFilter) dom.rankModeFilter.value = chosen;
+        if (chosen === 'notes-clef' && state.currentMode === 'classic60') {
+            const clefFilter = document.getElementById('rankNoteClefFilter');
+            if (clefFilter) clefFilter.value = noteClefChoice();
+        }
+        const historical = chosen === 'noMiss' || chosen === 'keysig60' || chosen === 'solfege60';
         const signedIn = !!(state.currentUser && state.currentUser.name);
-        if (dom.rankGradeFilter) dom.rankGradeFilter.value = signedIn ? String(state.currentUser.grade || 0) : '0';
-        if (dom.rankClassFilter) dom.rankClassFilter.value = signedIn ? String(state.currentUser.class || '0') : '0';
+        if (dom.rankGradeFilter) dom.rankGradeFilter.value = (!historical && signedIn) ? String(state.currentUser.grade || 0) : '0';
+        if (dom.rankClassFilter) dom.rankClassFilter.value = (!historical && signedIn) ? String(state.currentUser.class || '0') : '0';
         switchScreen('screen-leaderboard');
         loadRanks();
     }
@@ -3843,9 +3862,12 @@
                 dom.studentRankHint.innerHTML = '';
             }
         }
-        if (!f.length) { 
-            dom.rankList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個模式暫時未有紀錄，做第一個挑戰者吧！🚀</div>'; 
-            return; 
+        if (!f.length) {
+            const noMissHidden = fM === 'noMiss' && state.allRanks.some(r => r.mode === 'noMiss' || r.difficulty === 'noMiss');
+            dom.rankList.innerHTML = noMissHidden
+                ? '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個年級或班別未有零失誤紀錄。<br>把年級和班別改成「全部」，就可以看到以前的零失誤挑戰。</div>'
+                : '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個模式暫時未有紀錄，做第一個挑戰者吧！🚀</div>';
+            return;
         }
         const MAX_RENDER = 100;
         const fDisplay = f.slice(0, MAX_RENDER);
@@ -4207,6 +4229,16 @@
             switchScreen('screen-hub');
         });
         dom.viewRanksBtn?.addEventListener('click', () => { audio.init(); audio.playClick(); openGame1RankBoard(); });
+        document.getElementById('noMissViewRanks')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            audio.init(); audio.playClick();
+            dom.modeCards.forEach(c => c.classList.remove('active'));
+            document.querySelector('.mode-card[data-mode="noMiss"]')?.classList.add('active');
+            state.currentMode = 'noMiss';
+            state.modeConfig = MODE_CONFIG.noMiss;
+            openGame1RankBoard('noMiss');
+        });
         
         dom.revealBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; const gt = state.modeConfig && state.modeConfig.gameType; if (gt === 'keysig') { state.answered = true; state.combo = 0; updateScoreboard(); if (_keysigCurrentQ) { dom.messageBox.textContent = `🔑 答案是 ${_keysigCurrentQ.correct.name}！請記下。`; } dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextKeysigQuestion(); }, 2000); return; } if (gt === 'solfege') { state.answered = true; state.combo = 0; updateScoreboard(); if (state.currentNote) { const solName = getSolfege(state.currentNote.note, state._solfegeKeySig); dom.messageBox.textContent = `🎵 答案是 ${solName}！請記下。`; } dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextSolfegeQuestion(); }, 2000); return; } state.answered = true; state.combo = 0; state.showAnswerHighlight = true; drawStaff(); updateScoreboard(); audio.playNote(state.currentNote.freqKey); const _sol3 = noteSol(state.currentNote); dom.messageBox.innerHTML = `🔊 答案是 ${pianoKeyHTML(state.currentNote.correctName)}${_sol3 ? ' = ' + escapeHtml(_sol3) : ''}，請聆聽並記下音位，然後作答下一題。`; dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextQuestion(); }, 2500); });
         dom.skipBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; updateScoreboard(); dom.messageBox.textContent = '⏩ 已跳過本題，請作答下一題。'; dom.messageBox.className = 'message-box'; const gt = state.modeConfig && state.modeConfig.gameType; setTimeout(() => { if (gt === 'keysig') nextKeysigQuestion(); else if (gt === 'solfege') nextSolfegeQuestion(); else nextQuestion(); }, 400); });
