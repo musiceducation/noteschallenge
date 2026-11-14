@@ -1126,7 +1126,9 @@
             keysigGrade: 1,
             solfegeGrade: 1,
             abrsmGrade: 'abrsm-g1',
-            noteClefChoice: 'treble'
+            noteClefChoice: 'treble',
+            practiceSource: 'abrsm',
+            practiceCustom: null
         };
     }
 
@@ -1810,6 +1812,11 @@
         s.solfegeGrade = state.solfegeGrade;
         s.abrsmGrade = state.abrsmGrade || '';
         s.noteClefChoice = state.noteClefChoice || 'treble';
+        s.practiceSource = state.practiceSource === 'custom' ? 'custom' : 'abrsm';
+        if (typeof PracticeCustomize !== 'undefined') {
+            s.practiceCustom = PracticeCustomize.normalize(state.practiceCustom || PracticeCustomize.defaultSettings());
+            try { localStorage.setItem(PracticeCustomize.STORAGE_KEY, JSON.stringify(s.practiceCustom)); } catch (err) {}
+        }
         s.savedName = dom.userName.value;
         const customInp = _customNameInput;
         if (dom.userName.value === '__other__' && customInp) s.savedCustomName = customInp.value;
@@ -1828,6 +1835,8 @@
                 if (s.solfegeGrade) state.solfegeGrade = parseInt(s.solfegeGrade);
                 if (typeof s.abrsmGrade === 'string' && /^abrsm-g[1-5]$/.test(s.abrsmGrade)) state.abrsmGrade = s.abrsmGrade;
                 if (s.noteClefChoice === 'treble' || s.noteClefChoice === 'bass' || s.noteClefChoice === 'alto' || s.noteClefChoice === 'tenor' || s.noteClefChoice === 'mixed') state.noteClefChoice = s.noteClefChoice;
+                if (s.practiceSource === 'custom' || s.practiceSource === 'abrsm') state.practiceSource = s.practiceSource;
+                if (s.practiceCustom && typeof s.practiceCustom === 'object') state.practiceCustom = s.practiceCustom;
                 else if (s.lastMode === 'bass60') state.noteClefChoice = 'bass';
                 else if (s.lastMode === 'mixed60') state.noteClefChoice = 'mixed';
                 if (s.lastMode === 'bass60' || s.lastMode === 'mixed60') s.lastMode = 'classic60';
@@ -1860,6 +1869,10 @@
         } catch (e) {
             console.error('Error loading settings:', e);
         }
+        try {
+            const customRaw = localStorage.getItem('musicGamePracticeCustomizeV1');
+            if (customRaw) state.practiceCustom = JSON.parse(customRaw);
+        } catch (err) {}
         buildNoteButtons();
     }
 
@@ -1970,6 +1983,8 @@
         if (!host) return;
         host.hidden = true;
         host.innerHTML = '';
+        const helpers = document.getElementById('staffHelpers');
+        if (helpers) { helpers.hidden = true; helpers.innerHTML = ''; }
     }
     function showAbrsmHost() {
         const host = document.getElementById('abrsmVf');
@@ -2038,7 +2053,7 @@
         if (!host) return;
         if (dom.clefBadge) {
             dom.clefBadge.style.display = '';
-            dom.clefBadge.textContent = ABRSM_CLEF_ZH[note.clef] || '譜號';
+            dom.clefBadge.textContent = note.clefZh || ABRSM_CLEF_ZH[note.clef] || '譜號';
         }
         const VF = vexFlowApi();
         if (!VF) {
@@ -2051,17 +2066,32 @@
             const above = 108;
             const below = 120;
             const staveY = above;
-            const height = staveY + 110 + below;
+            const height = note.grand ? staveY + 250 + below : staveY + 110 + below;
             const renderer = new VF.Renderer(host, VF.Renderer.Backends.SVG);
             renderer.resize(width, height);
             const context = renderer.getContext();
-            const stave = new VF.Stave(8, staveY, Math.max(160, width - 16));
-            stave.addClef(note.clef);
-            stave.setContext(context).draw();
-            const staveNote = new VF.StaveNote({ clef: note.clef, keys: [note.vexKey], duration: 'w', alignCenter: true });
+            const duration = note.vexDuration || 'w';
+            const beats = duration === 'h' ? 2 : duration === 'q' ? 1 : 4;
+            let stave;
+            if (note.grand) {
+                const treble = new VF.Stave(8, staveY, Math.max(160, width - 16));
+                const bass = new VF.Stave(8, staveY + 130, Math.max(160, width - 16));
+                treble.addClef('treble');
+                bass.addClef('bass');
+                if (note.keySpec) { treble.addKeySignature(note.keySpec); bass.addKeySignature(note.keySpec); }
+                treble.setContext(context).draw();
+                bass.setContext(context).draw();
+                stave = note.clef === 'bass' ? bass : treble;
+            } else {
+                stave = new VF.Stave(8, staveY, Math.max(160, width - 16));
+                stave.addClef(note.clef);
+                if (note.keySpec) stave.addKeySignature(note.keySpec);
+                stave.setContext(context).draw();
+            }
+            const staveNote = new VF.StaveNote({ clef: note.clef, keys: [note.vexKey], duration: note.custom ? duration : 'w', alignCenter: true });
             if (note.vexAccidental) staveNote.addModifier(new VF.Accidental(note.vexAccidental), 0);
             if (typeof staveNote.setCenterAlignment === 'function') staveNote.setCenterAlignment(true);
-            const voice = new VF.Voice({ numBeats: 4, beatValue: 4 });
+            const voice = new VF.Voice({ numBeats: note.custom ? beats : 4, beatValue: 4 });
             if (typeof voice.setMode === 'function') voice.setMode(2);
             voice.addTickables([staveNote]);
             new VF.Formatter().joinVoices([voice]).format([voice], Math.max(48, width - stave.getNoteStartX() - 20));
@@ -2074,7 +2104,8 @@
             }
             fitAbrsmSvg(host);
             placePlayNoteInCard(host, note);
-            host.setAttribute('aria-label', (ABRSM_CLEF_ZH[note.clef] || '') + ' 全音符題');
+            host.setAttribute('aria-label', (note.clefZh || ABRSM_CLEF_ZH[note.clef] || '') + ' 音符題');
+            paintStaffHelpers(note);
         } catch (err) {
             console.error(err);
             host.textContent = '譜面未能繪出';
@@ -2149,7 +2180,143 @@
     function clefPracticeIds() {
         return state.currentMode === 'classic60' ? noteClefIds() : ['treble', 'bass'];
     }
+    function usingCustomPractice() {
+        return state.currentMode === 'practice' && state.practiceSource === 'custom' && typeof PracticeCustomize !== 'undefined';
+    }
+    let _customPoolKey = '';
+    let _customPool = [];
+    let _customAnswerIds = [];
+    let _nextTimer = null;
+    let _practiceMount = null;
+    function customSettings() {
+        if (typeof PracticeCustomize === 'undefined') return null;
+        state.practiceCustom = PracticeCustomize.normalize(state.practiceCustom || PracticeCustomize.defaultSettings());
+        return state.practiceCustom;
+    }
+    function customQuestionPool() {
+        const settings = customSettings();
+        const key = JSON.stringify(settings);
+        if (key !== _customPoolKey) {
+            _customPoolKey = key;
+            _customPool = PracticeCustomize.questions(settings);
+        }
+        return _customPool;
+    }
+    function generateCustomPracticeNote() {
+        const pool = customQuestionPool();
+        if (!pool.length) return null;
+        let pick = pool[Math.floor(Math.random() * pool.length)];
+        let tries = 0;
+        while (tries < 12 && state.lastNoteLetter && pick.answerId === state.lastNoteLetter && pick.clefId === state.lastNoteClef) {
+            pick = pool[Math.floor(Math.random() * pool.length)];
+            tries++;
+        }
+        state.lastNoteLetter = pick.answerId;
+        state.lastNoteClef = pick.clefId;
+        return pick;
+    }
+    function paintStaffHelpers(note) {
+        const host = document.getElementById('staffHelpers');
+        if (!host) return;
+        const labels = note && note.helpers || [];
+        if (!labels.length) { host.hidden = true; host.innerHTML = ''; return; }
+        host.hidden = false;
+        host.innerHTML = labels.map(item => `<span>${escapeHtml(item.text)}</span>`).join('');
+    }
+    function customAdvance(fallbackMs, after) {
+        if (_nextTimer) { clearTimeout(_nextTimer); _nextTimer = null; }
+        const nextBtn = document.getElementById('customNextBtn');
+        const card = document.querySelector('#screen-game .staff-container');
+        if (card) card.classList.remove('is-answer-flash');
+        if (!usingCustomPractice()) {
+            if (nextBtn) nextBtn.hidden = true;
+            _nextTimer = setTimeout(after, fallbackMs);
+            return;
+        }
+        const mode = customSettings().next;
+        if (mode === 1) {
+            if (nextBtn) { nextBtn.hidden = false; nextBtn.disabled = false; }
+            return;
+        }
+        if (nextBtn) nextBtn.hidden = true;
+        const ms = mode === 0 ? 280 : mode === 3 ? 1400 : 1200;
+        if (mode === 3 && card) card.classList.add('is-answer-flash');
+        _nextTimer = setTimeout(() => {
+            if (card) card.classList.remove('is-answer-flash');
+            after();
+        }, ms);
+    }
+    function paintCustomAnswers() {
+        const host = document.getElementById('customAnswerGrid');
+        const piano = document.getElementById('answerPiano');
+        _customAnswerIds.forEach(id => noteBtnMap.delete(id));
+        _customAnswerIds = [];
+        if (!host) return;
+        if (!usingCustomPractice()) {
+            host.hidden = true;
+            host.innerHTML = '';
+            if (piano) piano.hidden = false;
+            if (dom.notesGrid) dom.notesGrid.style.display = '';
+            return;
+        }
+        if (piano) piano.hidden = true;
+        if (dom.notesGrid) dom.notesGrid.style.display = 'none';
+        host.hidden = false;
+        host.innerHTML = '';
+        PracticeCustomize.answerButtons(customSettings()).forEach(row => {
+            const line = document.createElement('div');
+            line.className = 'custom-answer-row';
+            row.forEach(item => {
+                if (!item) {
+                    const gap = document.createElement('span');
+                    gap.className = 'custom-answer-btn';
+                    gap.style.visibility = 'hidden';
+                    gap.setAttribute('aria-hidden', 'true');
+                    line.appendChild(gap);
+                    return;
+                }
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'custom-answer-btn';
+                btn.textContent = item.label;
+                btn.disabled = true;
+                btn.dataset.answer = item.id;
+                if (item.key) btn.dataset.key = item.key;
+                btn.addEventListener('click', () => handleAnswer(item.id));
+                noteBtnMap.set(item.id, btn);
+                _customAnswerIds.push(item.id);
+                line.appendChild(btn);
+            });
+            host.appendChild(line);
+        });
+    }
+    function paintPracticeCustomize() {
+        const panel = document.getElementById('practiceCustomize');
+        if (!panel) return;
+        const show = state.currentMode === 'practice';
+        panel.hidden = !show;
+        document.querySelectorAll('[data-practice-source]').forEach(btn => {
+            const on = btn.dataset.practiceSource === (state.practiceSource === 'custom' ? 'custom' : 'abrsm');
+            btn.classList.toggle('active', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        const note = document.getElementById('practiceAbrsmNote');
+        const body = document.getElementById('practiceCustomBody');
+        const custom = show && state.practiceSource === 'custom';
+        if (note) note.hidden = !show || custom;
+        if (body) body.hidden = !custom;
+        if (!custom || typeof PracticeCustomize === 'undefined') return;
+        const settings = customSettings();
+        if (!_practiceMount) {
+            _practiceMount = PracticeCustomize.mount(body, settings, function (next) {
+                state.practiceCustom = next;
+                _customPoolKey = '';
+                saveSettings();
+            });
+        } else _practiceMount.write(settings);
+    }
     function generateAbrsmNote() {
+        if (usingCustomPractice()) return generateCustomPracticeNote();
         const pool = AbrsmNoteGrade.practicePool(clefPracticeIds());
         let pick = pool[Math.floor(Math.random() * pool.length)];
         let tries = 0;
@@ -2255,9 +2422,10 @@
         });
         refreshAbrsmCoverage();
         paintNoteClefRow();
+        paintPracticeCustomize();
     }
     function playerBadge() {
-        const clef = state.currentMode === 'classic60' ? ' · ' + noteClefLabel() : '';
+        const clef = state.currentMode === 'classic60' ? ' · ' + noteClefLabel() : (usingCustomPractice() ? ' · 自訂' : '');
         const grade = ABRSM_NOTE_MODES.has(state.currentMode) ? '' : (state.abrsmGrade ? ' · 英皇 G' + String(state.abrsmGrade).replace('abrsm-g', '') : '');
         return `👋 ${state.currentUser.name} 同學 · ${state.modeConfig.name}${clef}${grade}`;
     }
@@ -2604,6 +2772,7 @@
         if (_answerPiano) _answerPiano.classList.toggle('answer-piano--naturals', !hasAccidentals);
         noteBtnMap.forEach(btn => btn.classList.remove('correct', 'wrong'));
         syncAbrsmSpellButtons();
+        paintCustomAnswers();
     }
 
     function handleAnswer(answer) {
@@ -2616,7 +2785,8 @@
             state.totalQuestions++;
             state.attemptedThisQuestion = true;
         }
-        const correct = answer === state.currentNote.correctName, btn = noteBtnMap.get(answer);
+        const expect = usingCustomPractice() ? state.currentNote.answerId : state.currentNote.correctName;
+        const correct = answer === expect, btn = noteBtnMap.get(answer);
 
         if (correct) {
             state.answered = true; 
@@ -2641,7 +2811,7 @@
                     dom.messageBox.textContent = `🎯 已答對 ${correctCount} 題！表現良好，請繼續練習。`;
                 }
             }
-            setTimeout(() => { if (!state.gameActive) return; if (btn) btn.classList.remove('correct', 'wrong'); nextQuestion(); }, 500);
+            customAdvance(500, () => { if (!state.gameActive) return; if (btn) btn.classList.remove('correct', 'wrong'); nextQuestion(); });
         } else {
             const clefLabel = { treble: '高音', bass: '低音', alto: '中音', tenor: '次中音' }[state.currentNote.clef] || '譜號';
             const statKey = `${state.currentNote.correctName} (${clefLabel})`;
@@ -2655,13 +2825,18 @@
             const _sol2 = noteSol(state.currentNote); const _secs2 = isFirstAttempt ? `（${(elapsed/1000).toFixed(1)}s）` : ''; dom.messageBox.innerHTML = `❌ 回答不正確。正確答案是 ${pianoKeyHTML(state.currentNote.correctName)}${_sol2 ? ' (' + escapeHtml(_sol2) + ')' : ''}${escapeHtml(_secs2)}，請記下正確答案。`; 
             dom.messageBox.className = 'message-box wrong';
             if (btn) btn.classList.add('wrong'); 
-            setTimeout(() => { if (!state.gameActive) return; if (btn) btn.classList.remove('wrong'); if(state.modeConfig.maxWrong !== Infinity) endGame(); else nextQuestion(); }, 1500);
+            customAdvance(1500, () => { if (!state.gameActive) return; if (btn) btn.classList.remove('wrong'); if(state.modeConfig.maxWrong !== Infinity) endGame(); else nextQuestion(); });
         } 
         updateScoreboard();
     }
 
-    function nextQuestion() { 
-        state.currentNote = generateNote(); 
+    function nextQuestion() {
+        const nextBtn = document.getElementById('customNextBtn');
+        if (nextBtn) nextBtn.hidden = true;
+        const card = document.querySelector('#screen-game .staff-container');
+        if (card) card.classList.remove('is-answer-flash');
+        state.currentNote = generateNote();
+        if (!state.currentNote) return; 
         state.answered = false;
         state.attemptedThisQuestion = false;
         state.showAnswerHighlight = false;
@@ -2715,6 +2890,10 @@
             return;
         }
         dom.nameField.classList.remove('error');
+        if (usingCustomPractice() && !customQuestionPool().length) {
+            alert('這個自訂範圍出不到題。請放寬音域，或改位置、調號、臨時記號。');
+            return;
+        }
         saveSettings();
         state.currentUser = { name: playerName, grade: parseInt(dom.userGrade.value), class: dom.userClass.value, id: dom.userId.value };
         markProfilePlayStart();
@@ -4116,6 +4295,19 @@
         document.querySelectorAll('.ks-grade-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.grade) === state.keysigGrade));
         document.querySelectorAll('.sol-grade-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.grade) === state.solfegeGrade));
 
+        document.querySelectorAll('[data-practice-source]').forEach(btn => btn.addEventListener('click', () => {
+            if (state.currentMode !== 'practice') return;
+            audio.init(); audio.playClick('select');
+            state.practiceSource = btn.dataset.practiceSource === 'custom' ? 'custom' : 'abrsm';
+            paintPracticeCustomize();
+            saveSettings();
+        }));
+        document.getElementById('customNextBtn')?.addEventListener('click', () => {
+            if (!state.gameActive || !state.answered) return;
+            const nextBtn = document.getElementById('customNextBtn');
+            if (nextBtn) nextBtn.hidden = true;
+            nextQuestion();
+        });
         clefSelBtns.forEach(btn => btn.addEventListener('click', () => {
             if (!NOTE_CLEF_IDS.includes(btn.dataset.clef)) return;
             audio.init(); audio.playClick('select');
@@ -4236,6 +4428,14 @@
             if (gt === 'keysig') {
                 // No keyboard shortcuts for keysig MCQ (use mouse/touch)
                 if (e.code === 'Space') { e.preventDefault(); dom.skipBtn.click(); }
+                return;
+            }
+            if (usingCustomPractice()) {
+                const typed = e.key.toLowerCase();
+                const customBtn = document.querySelector('#customAnswerGrid [data-key="' + typed + '"]');
+                if (customBtn && !customBtn.disabled) { e.preventDefault(); customBtn.click(); return; }
+                if (e.code === 'Space') { e.preventDefault(); dom.skipBtn.click(); return; }
+                if (e.key.toUpperCase() === 'H') { e.preventDefault(); if (!dom.revealBtn.disabled) dom.revealBtn.click(); return; }
                 return;
             }
             const note = { '1':'C', '2':'D', '3':'E', '4':'F', '5':'G', '6':'A', '7':'B', 'Q':'C#','W':'D#','E':'F#','R':'G#','T':'A#', 'A':'D♭','S':'E♭','D':'G♭','F':'A♭','G':'B♭' }[e.key.toUpperCase()]; 

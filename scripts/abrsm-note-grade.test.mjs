@@ -180,15 +180,15 @@ const wwwGame = fs.readFileSync(new URL('../www/script.js', import.meta.url), 'u
 assert.match(wwwGame, /AbrsmNoteGrade\.practicePool\(clefPracticeIds\(\)\)/);
 assert.match(wwwGame, /saveNoteClefRank\(\)/);
 const playRender = gameSrc.slice(gameSrc.indexOf('function renderAbrsmNote'), gameSrc.indexOf('function renderAbrsmKey'));
-assert.match(playRender, /duration: 'w'/);
+assert.match(playRender, /duration: note\.custom \? duration : 'w'/);
 assert.match(playRender, /alignCenter: true/);
 assert.match(playRender, /setCenterAlignment/);
-assert.match(playRender, /numBeats: 4/);
+assert.match(playRender, /numBeats: note\.custom \? beats : 4/);
 assert.doesNotMatch(playRender, /duration: 'q'/);
 assert.match(playRender, /const above = 108/);
 assert.match(playRender, /const below = 120/);
 const wwwPlay = wwwGame.slice(wwwGame.indexOf('function renderAbrsmNote'), wwwGame.indexOf('function renderAbrsmKey'));
-assert.match(wwwPlay, /duration: 'w'/);
+assert.match(wwwPlay, /duration: note\.custom \? duration : 'w'/);
 assert.doesNotMatch(wwwPlay, /duration: 'q'/);
 assert.match(fs.readFileSync(new URL('../style.css', import.meta.url), 'utf8'), /#screen-game \.message-box \{[\s\S]*height: 5\.5rem/);
 assert.match(fs.readFileSync(new URL('../note-name-teach.js', import.meta.url), 'utf8'), /duration: 'w'/);

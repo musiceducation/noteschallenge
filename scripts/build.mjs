@@ -41,6 +41,8 @@ console.log("build: validate (root =", root + ")");
 
 for (const f of [
   "script.js",
+  "practice-customize.js",
+  "www/practice-customize.js",
   "bootstrap-instruments.js",
   "chord-keyboard.js",
   "instrument-category.js",

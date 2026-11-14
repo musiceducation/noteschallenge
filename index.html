@@ -626,7 +626,7 @@
             </div>
         </div>
 
-        <!-- Custom settings removed — difficulty is controlled by practice diff buttons / challenge mode -->
+        <!-- 練習模式可在下方選擇英皇練習或自訂音域 -->
 
         <div class="mode-cards" id="modeCards">
             <div class="mode-card practice active" data-mode="practice">
@@ -661,6 +661,18 @@
                 <button class="sol-mode-btn" data-solmode="challenge"><i data-lucide="timer"></i> 1分鐘練習</button>
             </div>
             <p class="abrsm-coverage">唱名是課堂首調（movable Do），不是英皇考試項目。</p>
+        </div>
+
+        <div id="practiceCustomize" class="practice-customize">
+            <div class="practice-source-row" role="group" aria-label="練習範圍">
+                <span class="practice-diff-label">練習範圍</span>
+                <div class="practice-diff-btns">
+                    <button type="button" class="practice-source-btn active" data-practice-source="abrsm">英皇級別</button>
+                    <button type="button" class="practice-source-btn" data-practice-source="custom">自訂</button>
+                </div>
+            </div>
+            <p class="abrsm-coverage" id="practiceAbrsmNote">沿用現有英皇練習：高音譜與低音譜，上下各兩條加線，含升號與降號。成績不入榜。</p>
+            <div id="practiceCustomBody" hidden></div>
         </div>
 
         <div class="clef-selector-row" id="clefSelectorRow" style="display:none;">
@@ -800,6 +812,7 @@
                 <canvas id="staffCanvas" aria-label="五線譜題目：辨認音符位置"></canvas>
             </div>
             <div id="abrsmVf" class="abrsm-vf" hidden></div>
+            <div id="staffHelpers" class="staff-helpers" hidden></div>
             <!-- 調號辨別：圖片顯示區 -->
             <div id="keysigDisplay" class="keysig-display" style="display:none;">
                 <img id="keysigImg" src="" alt="調號圖片">
@@ -809,6 +822,7 @@
         <div class="message-box" id="messageBox">專心看譜，準備開始！🎵</div>
 
         <div class="notes-grid" id="notesGrid"></div>
+        <div class="custom-answer-grid" id="customAnswerGrid" hidden></div>
 
         <!-- 調號辨別：選項按鈕 -->
         <div class="keysig-options" id="keysigOptions" style="display:none;"></div>
@@ -827,6 +841,7 @@
         <div class="action-row">
             <button class="btn-action" id="revealBtn" disabled>🔔 聽&amp;看答案 <small style="opacity:.65;font-size:.7em">[H]</small></button>
             <button class="btn-action" id="skipBtn" disabled>⏩ 跳過</button>
+            <button class="btn-action" id="customNextBtn" type="button" hidden>下一題</button>
             <button class="btn-action" id="endBtn" disabled>🏁 結束挑戰</button>
         </div>
     </div>
@@ -1536,6 +1551,7 @@
         </div>
     </div>
 
+    <script src="practice-customize.js?v=1" defer></script>
     <script src="abrsm-curriculum.js?v=1" defer></script>
     <script src="abrsm-rhythm-terms.js?v=3" defer></script>
     <script src="abrsm-note-grade.js?v=4" defer></script>
