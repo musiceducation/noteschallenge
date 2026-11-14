@@ -4464,6 +4464,36 @@
     }
 
 
+    function resumeRhythmReturn() {
+        let params;
+        try { params = new URLSearchParams(location.search); } catch (e) { return; }
+        if (params.get('g2') !== 'setup') return;
+        params.delete('g2');
+        const qs = params.toString();
+        try {
+            history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
+        } catch (e) {}
+        const card = document.getElementById('enterGame2');
+        if (!card) return;
+        if (!isAppShell()) {
+            const name = document.getElementById('hubName');
+            const val = name && name.value;
+            if (!val) return;
+            if (val === '__other__') {
+                const custom = document.getElementById('hubCustomNameInput');
+                if (custom && !String(custom.value || '').trim()) {
+                    try {
+                        const saved = JSON.parse(localStorage.getItem('musicGameSettingsV4') || '{}');
+                        if (saved && saved.savedCustomName) custom.value = saved.savedCustomName;
+                    } catch (e) {}
+                }
+                if (!custom || !String(custom.value || '').trim()) return;
+            }
+        }
+        try { sessionStorage.setItem('rhythmResumeCompose', '1'); } catch (e) {}
+        card.click();
+    }
+
     // Initialize on DOM ready.
     // When script.js is loaded dynamically (e.g. after bootstrap fetch), DOMContentLoaded has
     // already fired; we must run init immediately in that case or initHub never runs and name lists stay empty.
@@ -4524,6 +4554,7 @@
         try { initTutorial(); } catch(e) { console.error('initTutorial error:', e); }
         try { initHub(); } catch(e) { console.error('initHub error:', e); }
         try { initAppShell(); } catch(e) { console.error('initAppShell error:', e); }
+        try { resumeRhythmReturn(); } catch(e) { console.error('rhythm return error:', e); }
         try { initLightbox(); } catch(e) { console.error('initLightbox error:', e); }
         // Prefetch ranks so opening 排行榜 feels instant
         setTimeout(() => { _paintRanksFromCache(); loadRanks(1); }, 300);
@@ -4867,9 +4898,39 @@
             }
         });
 
+        function openRhythmComposer() {
+            try {
+                if (new URLSearchParams(location.search).get('app') === '1') sessionStorage.setItem('rhythmReturnApp', '1');
+                else sessionStorage.removeItem('rhythmReturnApp');
+            } catch (e) {}
+            if (!isAppShell()) {
+                try {
+                    const raw = localStorage.getItem('musicGameSettingsV4');
+                    const s = raw ? JSON.parse(raw) : {};
+                    const nameEl = document.getElementById('hubName');
+                    const gradeEl = document.getElementById('hubGrade');
+                    const classEl = document.getElementById('hubClass');
+                    if (s && typeof s === 'object' && !Array.isArray(s) && nameEl && nameEl.value) {
+                        s.savedName = nameEl.value;
+                        if (gradeEl) s.userGrade = gradeEl.value;
+                        if (classEl) s.userClass = classEl.value;
+                        if (nameEl.value === '__other__') {
+                            const custom = document.getElementById('hubCustomNameInput');
+                            if (custom) s.savedCustomName = custom.value.trim();
+                        }
+                        localStorage.setItem('musicGameSettingsV4', JSON.stringify(s));
+                    }
+                } catch (e) {}
+            }
+            window.location.href = 'rhythm/';
+        }
+
         const enterGame2El = document.getElementById('enterGame2');
         enterGame2El.addEventListener('click', () => {
-            if (!requireHubLogin(hubNameField)) return;
+            if (!requireHubLogin(hubNameField)) {
+                try { sessionStorage.removeItem('rhythmResumeCompose'); } catch (e) {}
+                return;
+            }
             const user = getHubUser();
             state.currentUser = { name: user.name, grade: user.grade || 0, class: user.class || '', id: user.seat || '' };
             // Populate player badge on setup screen
@@ -4877,15 +4938,28 @@
             if (badgeText) badgeText.textContent = `${user.grade ? ['','中一','中二','中三','中四','中五','中六'][user.grade] : ''}${user.class}班 · ${user.name} 同學`;
 
             let g2SelectedMode = 'practice';
+            try {
+                if (sessionStorage.getItem('rhythmResumeCompose') === '1') g2SelectedMode = 'compose';
+                sessionStorage.removeItem('rhythmResumeCompose');
+            } catch (e) {}
+            const g2AbrsmRow = document.getElementById('g2AbrsmRow');
+            const g2StartBtn = document.getElementById('g2StartBtn');
+            const syncG2ModeChrome = () => {
+                const compose = g2SelectedMode === 'compose';
+                if (g2AbrsmRow) g2AbrsmRow.style.display = compose ? 'none' : '';
+                if (g2StartBtn) g2StartBtn.textContent = compose ? '♩ 開始創作' : '🚀 開始練習';
+            };
             const g2ModeCards = document.querySelectorAll('#g2ModeCards .mode-card');
             g2ModeCards.forEach(c => {
-                c.classList.toggle('active', c.dataset.mode === 'practice');
+                c.classList.toggle('active', c.dataset.mode === g2SelectedMode);
                 c.onclick = () => {
                     g2ModeCards.forEach(x => x.classList.remove('active'));
                     c.classList.add('active');
                     g2SelectedMode = c.dataset.mode;
+                    syncG2ModeChrome();
                 };
             });
+            syncG2ModeChrome();
 
             const g2Coverage = document.getElementById('g2AbrsmCoverage');
             const paintG2 = () => {
@@ -4910,6 +4984,8 @@
                     launchSyllabusQuiz(user, 'value', false);
                 } else if (g2SelectedMode === 'tap') {
                     startRhythmChallenge(user);
+                } else if (g2SelectedMode === 'compose') {
+                    openRhythmComposer();
                 } else {
                     enterRCGame(user);
                 }
@@ -5061,18 +5137,6 @@
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 enterGame4El.click();
-            }
-        });
-
-        const enterRhythmComposerEl = document.getElementById('enterRhythmComposer');
-        enterRhythmComposerEl?.addEventListener('click', () => {
-            if (!requireHubLogin(hubNameField)) return;
-            window.location.href = 'rhythm/';
-        });
-        enterRhythmComposerEl?.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                enterRhythmComposerEl.click();
             }
         });
 

@@ -4397,12 +4397,19 @@ body.is-fullscreen .hub-fullscreen-btn { display: flex; }
     box-shadow: 0 0 0 3px rgba(0,166,237,0.15), 0 8px 0 rgba(0,166,237,0.12);
 }
 
-.mode-cards:has(.tap) { grid-template-columns: repeat(5, 1fr); }
+.mode-cards:has(.tap) { grid-template-columns: repeat(3, 1fr); }
 .mode-card.tap { border-color: rgba(99,102,241,0.25); }
 .mode-card.tap.active {
     background: linear-gradient(145deg, #4F46E5, #4338CA);
     border-color: #6366F1;
     box-shadow: 0 0 0 3px rgba(99,102,241,0.15), 0 8px 0 rgba(79,70,229,0.12);
+}
+.mode-card.compose { border-color: rgba(36,49,38,0.28); }
+.mode-card.compose.active {
+    background: linear-gradient(145deg, #3d5a40, #243126);
+    border-color: #243126;
+    color: #fff;
+    box-shadow: 0 0 0 3px rgba(36,49,38,0.15), 0 8px 0 rgba(36,49,38,0.12);
 }
 @media (max-width: 980px) {
     .mode-cards:has(.tap) { grid-template-columns: repeat(3, 1fr); }
