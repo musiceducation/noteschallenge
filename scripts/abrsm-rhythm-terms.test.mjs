@@ -138,6 +138,11 @@ const script = fs.readFileSync(new URL('../script.js', import.meta.url), 'utf8')
 const wwwScript = fs.readFileSync(new URL('../www/script.js', import.meta.url), 'utf8');
 for (const src of [script, wwwScript]) {
   assert.match(src, /g2SelectedMode === 'tap'/);
+  assert.match(src, /g2SelectedMode === 'compose'/);
+  assert.match(src, /openRhythmComposer\(\)/);
+  assert.match(src, /window\.location\.href = 'rhythm\/'/);
+  assert.match(src, /params\.get\('g2'\) !== 'setup'/);
+  assert.doesNotMatch(src, /enterRhythmComposer/);
   assert.match(src, /startRhythmChallenge\(user\)/);
   assert.match(src, /saveSyllabusRank\('rhythm-tap'/);
   assert.doesNotMatch(src, /節奏挑戰·Lv\./);
@@ -154,6 +159,10 @@ const page = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const wwwPage = fs.readFileSync(new URL('../www/index.html', import.meta.url), 'utf8');
 for (const html of [page, wwwPage]) {
   assert.match(html, /id="g2ModeTap"/);
+  assert.match(html, /id="g2ModeCompose"/);
+  assert.match(html, /節奏創作/);
+  assert.match(html, /排 1–8 小節 · 試聽 · 打拍/);
+  assert.doesNotMatch(html, /id="enterRhythmComposer"|data-launch="enterRhythmComposer"/);
   assert.match(html, /根據譜上音符時值打節奏/);
   assert.match(html, /id="rankRhythmKind"/);
   assert.match(html, /value="rhythm-tap"/);

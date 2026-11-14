@@ -167,8 +167,8 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.match(page, /abrsm-curriculum\.js\?v=1/);
   assert.match(page, /abrsm-note-grade\.js\?v=4/);
   assert.match(page, /chinese-instrument-challenge\.js\?v=3/);
-  assert.match(page, /style\.css\?v=16/);
-  assert.match(page, /bootstrap-instruments\.js\?v=14/);
+  assert.match(page, /style\.css\?v=17/);
+  assert.match(page, /bootstrap-instruments\.js\?v=15/);
   assert.match(page, /chord-keyboard\.js\?v=2/);
   assert.doesNotMatch(page, /不用登入/);
   assert.doesNotMatch(page, /hub-game-teach/);
@@ -194,7 +194,8 @@ for (const file of ['index.html', 'www/index.html']) {
 
 for (const boot of ['bootstrap-instruments.js', 'www/bootstrap-instruments.js']) {
   const src = fs.readFileSync(new URL('../' + boot, import.meta.url), 'utf8');
-  assert.match(src, /script\.js\?v=23/);
+  assert.match(src, /script\.js\?v=24/);
+  assert.doesNotMatch(src, /script\.js\?v=23/);
   assert.doesNotMatch(src, /script\.js\?v=22/);
   assert.doesNotMatch(src, /script\.js\?v=21/);
   assert.doesNotMatch(src, /script\.js\?v=20/);
@@ -203,8 +204,12 @@ for (const boot of ['bootstrap-instruments.js', 'www/bootstrap-instruments.js'])
 }
 assert.match(fs.readFileSync(new URL('../script.js', import.meta.url), 'utf8'), /NoteNameTeach\.mount/);
 assert.match(fs.readFileSync(new URL('../www/script.js', import.meta.url), 'utf8'), /NoteNameTeach\.mount/);
-assert.match(fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8'), /id="enterRhythmComposer"/);
-assert.doesNotMatch(fs.readFileSync(new URL('../www/index.html', import.meta.url), 'utf8'), /id="enterRhythmComposer"/);
+for (const file of ['index.html', 'www/index.html']) {
+  const page = fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8');
+  assert.match(page, /id="g2ModeCompose"/);
+  assert.doesNotMatch(page, /id="enterRhythmComposer"|data-launch="enterRhythmComposer"/);
+  assert.match(page, /id="enterCompositionStudio"[^>]*hidden/);
+}
 assert.equal(
   fs.readFileSync(new URL('../note-name-teach.js', import.meta.url), 'utf8'),
   fs.readFileSync(new URL('../www/note-name-teach.js', import.meta.url), 'utf8')

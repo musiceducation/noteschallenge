@@ -2026,18 +2026,6 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 .hub-card-teach:focus-visible { outline: 3px solid #c23a75; outline-offset: 2px; }
 .hub-game1.is-locked .hub-card-teach { opacity: 1; }
 .hub-game-studio .hub-game-name { color: #C23A75; }
-.hub-game-rhythm {
-    border-color: rgba(36, 49, 38, 0.35);
-    background: linear-gradient(165deg, #fff 45%, #eef3ea 100%);
-}
-.hub-game-rhythm::after { background: #243126; }
-.hub-game-rhythm .hub-game-btn {
-    background: linear-gradient(135deg, #243126, #1b281e);
-    box-shadow: 0 4px 14px rgba(36, 49, 38, 0.28);
-}
-.hub-game-rhythm .hub-game-tag { background: #243126; }
-.hub-game-rhythm .hub-game-name { color: #243126; }
-.illust-rhythm { background: linear-gradient(160deg, #f4f7f1 0%, #e4eee0 55%, #d5e3cf 100%); }
 .hub-game-desc {
     font-size: 0.78rem;
     color: var(--text-light);
@@ -4409,12 +4397,19 @@ body.is-fullscreen .hub-fullscreen-btn { display: flex; }
     box-shadow: 0 0 0 3px rgba(0,166,237,0.15), 0 8px 0 rgba(0,166,237,0.12);
 }
 
-.mode-cards:has(.tap) { grid-template-columns: repeat(5, 1fr); }
+.mode-cards:has(.tap) { grid-template-columns: repeat(3, 1fr); }
 .mode-card.tap { border-color: rgba(99,102,241,0.25); }
 .mode-card.tap.active {
     background: linear-gradient(145deg, #4F46E5, #4338CA);
     border-color: #6366F1;
     box-shadow: 0 0 0 3px rgba(99,102,241,0.15), 0 8px 0 rgba(79,70,229,0.12);
+}
+.mode-card.compose { border-color: rgba(36,49,38,0.28); }
+.mode-card.compose.active {
+    background: linear-gradient(145deg, #3d5a40, #243126);
+    border-color: #243126;
+    color: #fff;
+    box-shadow: 0 0 0 3px rgba(36,49,38,0.15), 0 8px 0 rgba(36,49,38,0.12);
 }
 @media (max-width: 980px) {
     .mode-cards:has(.tap) { grid-template-columns: repeat(3, 1fr); }
@@ -6872,7 +6867,6 @@ html.app-three.app-shell .bg-dots { opacity: 0 !important; visibility: hidden; }
 .app-game-row--3 .app-game-row-icon { background: #edf9ff; }
 .app-game-row--4 .app-game-row-icon { background: #eefaf5; }
 .app-game-row--studio .app-game-row-icon { background: #fff0f6; }
-.app-game-row--rhythm .app-game-row-icon { background: #eef3ea; }
 .app-game-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .app-game-row-name { font-size: 1.02rem; font-weight: 800; color: #2d3142; }
 .app-game-row-desc { font-size: 0.75rem; color: #7b8194; font-weight: 600; }
