@@ -7734,3 +7734,55 @@ body.app-shell.app-on-root .sound-toggle {
     transform: none;
     animation: none;
 }
+
+/* 練習模式自訂：譜號、音域、調號、音名 */
+.practice-customize { margin: 8px 0 14px; }
+.practice-customize[hidden] { display: none !important; }
+.practice-source-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px; }
+.practice-source-btn, .pc-choice, .pc-spell {
+    background: white; border: 2.5px solid #E8EDFF; color: var(--text-light);
+    padding: 8px 14px; border-radius: 50px; cursor: pointer;
+    font-weight: 900; font-size: 0.88rem; font-family: inherit;
+    box-shadow: 0 3px 0 #E8EDFF;
+}
+.practice-source-btn.active, .pc-choice.is-on, .pc-spell.is-on {
+    background: linear-gradient(145deg, #8b6cff, #5b3fd6);
+    border-color: transparent; color: white; box-shadow: 0 3px 0 #3d2796;
+}
+.pc-block { margin: 12px 0; }
+.pc-block h3, .pc-range-card h3 { margin: 0 0 8px; font-size: 0.95rem; font-weight: 900; color: var(--text-dark); }
+.pc-help, .pc-range-span, .pc-status { margin: 6px 0 0; font-size: 0.82rem; font-weight: 700; color: var(--text-light); line-height: 1.45; }
+.pc-status.is-empty { color: #b4332a; }
+.pc-choices, .pc-keys { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.pc-ranges { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.pc-range-card { background: white; border: 3px solid #E8EDFF; border-radius: 18px; padding: 12px 14px 16px; min-width: 180px; }
+.pc-staff-block { display: flex; gap: 8px; align-items: flex-start; justify-content: center; }
+.pc-staff-name { writing-mode: vertical-rl; font-weight: 900; font-size: 0.78rem; color: var(--text-light); }
+.pc-staff { position: relative; width: 92px; margin: 0 auto; }
+.pc-line { position: absolute; left: 8px; right: 8px; height: 2px; background: #2a2d3c; }
+.pc-ledger { left: 30px; right: 30px; }
+.pc-note {
+    position: absolute; left: 34px; width: 22px; height: 16px; margin-top: -8px;
+    border-radius: 50%; border: 2px solid #c9c3e4; background: #fff; padding: 0; cursor: pointer;
+}
+.pc-note.is-in { background: #6d4aff; border-color: #3d2796; }
+.pc-note.is-end { box-shadow: 0 0 0 3px rgba(109, 74, 255, 0.35); }
+.pc-select-label { display: flex; flex-direction: column; gap: 6px; font-weight: 900; color: var(--text-light); align-items: center; }
+.pc-select { font: inherit; font-weight: 800; padding: 8px 12px; border-radius: 12px; border: 2.5px solid #E8EDFF; background: white; color: var(--text-dark); }
+.pc-spell-grid { display: flex; flex-direction: column; gap: 6px; align-items: center; margin-top: 8px; }
+.pc-spell-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.pc-spell { min-width: 46px; padding: 6px 8px; }
+.pc-spell:disabled { opacity: 0.35; cursor: not-allowed; }
+.custom-answer-grid { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.custom-answer-grid[hidden] { display: none !important; }
+.custom-answer-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.custom-answer-btn {
+    min-width: 58px; min-height: 48px; padding: 8px 10px; border-radius: 12px;
+    border: 2px solid #d9d3f5; background: #f7f4ff; font-weight: 900; font-family: inherit; cursor: pointer;
+}
+.custom-answer-btn:disabled { opacity: 0.55; cursor: default; }
+.custom-answer-btn.correct { background: #14c38e; color: white; border-color: transparent; }
+.custom-answer-btn.wrong { background: #ff4a6b; color: white; border-color: transparent; }
+.staff-helpers { display: flex; flex-wrap: wrap; gap: 6px 10px; justify-content: center; font-weight: 800; font-size: 0.82rem; color: #5b3fd6; }
+.staff-helpers[hidden] { display: none !important; }
+#screen-game .staff-container.is-answer-flash { box-shadow: 0 0 0 4px rgba(109, 74, 255, 0.45); }

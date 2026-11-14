@@ -155,7 +155,7 @@ for (const file of ['index.html', 'www/index.html']) {
   const page = fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8');
   const setup = page.slice(page.indexOf('id="screen-setup"'), page.indexOf('id="screen-chord-card"'));
   const cardStart = setup.indexOf('id="setupUserCard"');
-  const cardEnd = setup.indexOf('Custom settings removed', cardStart);
+  const cardEnd = setup.indexOf('id="modeCards"', cardStart);
   const hidden = setup.slice(cardStart, cardEnd);
   assert.match(setup, /id="openNoteTeachBtn"/);
   assert.match(setup, /看圖學習/);
