@@ -156,7 +156,8 @@ for (const html of [page, wwwPage]) {
   assert.match(html, /id="g2ModeTap"/);
   assert.match(html, /根據譜上音符時值打節奏/);
   assert.match(html, /id="rankRhythmKind"/);
-  assert.match(html, /value="rhythm-tap"/);
+  assert.match(html, /value="classroom" selected>課堂舊紀錄/);
+  assert.doesNotMatch(html, /value="rhythm-tap"|英皇術語|計入英皇榜/);
   assert.match(html, /abrsm-rhythm-terms\.js\?v=3/);
   assert.match(html, /課堂柯達伊/);
   assert.match(html, /拍號練習/);

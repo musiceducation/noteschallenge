@@ -575,6 +575,29 @@ assert.equal(RankSync.legacyClefChoice({ difficulty: 'bass60', name: '甲', scor
 assert.equal(RankSync.legacyClefChoice({ difficulty: 'mixed60', name: '甲' }), 'mixed');
 assert.equal(RankSync.legacyClefChoice(modeOnly('abrsm-theory-v1:notes-clef-treble', 10)), '');
 assert.equal(RankSync.legacyClefChoice({ mode: 'noMiss', name: '甲', score: 99 }), '');
+assert.equal(RankSync.legacyClefChoice({ mode: 'noMiss-bass', name: '甲', score: 40 }), '');
+assert.equal(RankSync.noMissModeKey('bass'), 'noMiss-bass');
+assert.equal(RankSync.noMissModeKey('mixed'), 'noMiss-mixed');
+assert.equal(RankSync.noMissModeKey('soprano'), 'noMiss-treble');
+assert.equal(RankSync.legacyNoMissClef({ mode: 'noMiss', name: '甲', score: 99 }), 'treble');
+assert.equal(RankSync.legacyNoMissClef({ difficulty: 'noMiss', name: '甲', score: 12 }), 'treble');
+assert.equal(RankSync.legacyNoMissClef({ mode: 'noMiss', clefChoice: 'bass', name: '甲' }), 'bass');
+assert.equal(RankSync.legacyNoMissClef({ mode: 'noMiss-bass' }), 'bass');
+assert.equal(RankSync.legacyNoMissClef({ difficulty: 'noMiss-alto' }), 'alto');
+assert.equal(RankSync.legacyNoMissClef({ mode: 'noMiss-tenor' }), 'tenor');
+assert.equal(RankSync.legacyNoMissClef({ mode: 'noMiss-mixed' }), 'mixed');
+assert.equal(RankSync.legacyNoMissClef({ mode: 'noMiss-treble' }), 'treble');
+assert.equal(RankSync.legacyNoMissClef({ mode: 'classic60' }), '');
+assert.equal(RankSync.legacyNoMissClef(modeOnly('abrsm-theory-v1:notes-clef-treble', 10)), '');
+const legacyTreble = { name: '甲', class: 'A', id: '15', score: 40, mode: 'noMiss' };
+const newTreble = { name: '甲', class: 'A', id: '15', score: 70, mode: 'noMiss-treble' };
+const mergedNoMiss = RankSync.keepHigherScore([newTreble, legacyTreble]);
+assert.equal(mergedNoMiss.length, 1);
+assert.equal(mergedNoMiss[0].score, 70);
+assert.equal(RankSync.legacyNoMissClef(mergedNoMiss[0]), 'treble');
+const keptLegacy = RankSync.keepHigherScore([legacyTreble, { name: '甲', class: 'A', id: '15', score: 10, mode: 'noMiss-treble' }]);
+assert.equal(keptLegacy[0].score, 40);
+assert.equal(RankSync.legacyNoMissClef(keptLegacy[0]), 'treble');
 assert.equal(RankSync.legacyGame1Mode({ mode: 'noMiss' }), 'noMiss');
 assert.equal(RankSync.legacyGame1Mode({ mode: 'keysig60' }), 'keysig60');
 assert.equal(RankSync.legacyGame1Mode({ difficulty: 'solfege60' }), 'solfege60');
@@ -612,15 +635,20 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.match(page, /option value="keysig60">調號挑戰/);
   assert.match(page, /option value="solfege60">唱名挑戰/);
   assert.match(page, /option value="classroom" selected>課堂舊紀錄/);
-  assert.match(page, /rank-sync\.js\?v=3/);
+  assert.match(page, /rank-sync\.js\?v=4/);
+  assert.doesNotMatch(page, /零失誤練習|英皇音名|英皇調號|英皇級別<\/label>|英皇術語|計入英皇榜/);
+  assert.doesNotMatch(page, /value="abrsm-notes"|value="abrsm-keys"|value="rhythm-tap"|id="rankAbrsmGradeFilter"/);
 }
 for (const file of ['script.js', 'www/script.js']) {
   const src = fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8');
   assert.match(src, /RankSync\.legacyClefChoice\(row\) === safe/);
+  assert.match(src, /RankSync\.legacyNoMissClef\(row\)/);
   assert.match(src, /RankSync\.keepHigherScore\(rows\)/);
   assert.match(src, /g3RankListMode = 'classroom'/);
-  assert.match(src, /kind === 'classroom'/);
+  assert.match(src, /sel\.value = 'classroom'/);
+  assert.match(src, /saveNoMissRank\(\)/);
   assert.doesNotMatch(src, /noteLocalBest\(localStorage,[\s\S]{0,80}classic60/);
+  assert.doesNotMatch(src, /零失誤練習/);
 }
 
 console.log('rank-sync: ok');
