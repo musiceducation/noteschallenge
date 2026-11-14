@@ -2403,17 +2403,30 @@
         record.difficulty = syllabusId;
         storeSharedRank(record);
     }
+    function readRankList(key) {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(key) || '[]');
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (err) {
+            return [];
+        }
+    }
     function renderNoteClefRanks(clef) {
         const gradeWrap = document.getElementById('rankAbrsmFilterWrap');
         if (gradeWrap) gradeWrap.style.display = 'none';
         const safe = NOTE_CLEF_IDS.includes(clef) ? clef : 'treble';
         const fC = dom.rankClassFilter.value;
         const fG = parseInt(dom.rankGradeFilter.value, 10);
-        let rows = [];
-        try { rows = JSON.parse(localStorage.getItem('abrsm-theory-v1:notes-clef-' + safe) || '[]'); } catch (err) { rows = []; }
-        if (fC !== '0') rows = rows.filter(row => row.class === fC);
+        const stored = readRankList('abrsm-theory-v1:notes-clef-' + safe)
+            .filter(row => row && row.legacyBoard === false && !row.syllabusId);
+        const legacy = (state.allRanks || []).concat(readRankList('musicGameRanks_game1'))
+            .filter(row => typeof RankSync !== 'undefined' && RankSync.legacyClefChoice(row) === safe);
+        // Filter first so a higher score in another school year cannot hide this year's record.
+        // Current board is listed first, so an equal score keeps the new row.
+        let rows = stored.concat(legacy);
+        if (fC !== '0') rows = rows.filter(row => String(row.class) === String(fC));
         if (fG !== 0) rows = rows.filter(row => parseInt(row.grade, 10) === fG);
-        rows = rows.filter(row => row && row.legacyBoard === false && !row.syllabusId);
+        if (typeof RankSync !== 'undefined') rows = RankSync.keepHigherScore(rows);
         rows.sort((a, b) => (parseInt(b.score, 10) || 0) - (parseInt(a.score, 10) || 0));
         paintStudentRankHint(rows);
         if (!rows.length) {
@@ -2425,10 +2438,11 @@
             const cls = escHtml(item.class);
             const school = item.grade ? `中${['','一','二','三','四','五','六'][item.grade] || item.grade}` : '';
             const clefTag = NOTE_CLEF_LABEL[item.clefChoice] || NOTE_CLEF_LABEL[safe];
+            const legacyTag = (typeof RankSync !== 'undefined' && RankSync.legacyClefChoice(item)) ? '<span class="rank-tag">課堂</span>' : '';
             return `<div class="rank-item ${i === 0 ? 'first' : i === 1 ? 'second' : i === 2 ? 'third' : ''}">
                 <div class="rank-pos">${i + 1}.</div>
                 <div class="rank-name"><span class="rank-student-name">${name}</span>
-                    <div class="rank-badges"><span class="rank-tag">${clefTag}</span>${school ? `<span class="rank-tag">${school}</span>` : ''}<span class="rank-tag rank-class-tag">${cls}班</span></div>
+                    <div class="rank-badges"><span class="rank-tag">${clefTag}</span>${legacyTag}${school ? `<span class="rank-tag">${school}</span>` : ''}<span class="rank-tag rank-class-tag">${cls}班</span></div>
                 </div>
                 <div class="rank-score">${parseInt(item.score, 10) || 0}</div></div>`;
         }).join('');
@@ -3540,17 +3554,29 @@
         if (state.modeConfig.type === 'challenge') submitScore(); 
         
         dom.leaderboardLayout.classList.remove('view-only');
-        const isPracticeEnd = state.modeConfig.type === 'practice';
+        const showNoMissBoard = state.currentMode === 'noMiss';
+        const isPracticeEnd = state.modeConfig.type === 'practice' && !showNoMissBoard;
         if (isPracticeEnd) {
             dom.leaderboardLayout.classList.add('practice-end');
         } else {
             dom.leaderboardLayout.classList.remove('practice-end');
             focusLeaderboardToCurrentStudent();
+            if (showNoMissBoard) {
+                const gf = document.getElementById('rankGameFilter');
+                if (gf) gf.value = 'game1';
+                const mfRow = dom.rankModeFilter?.closest?.('.rank-filter');
+                if (mfRow) mfRow.style.display = '';
+                if (dom.rankModeFilter) dom.rankModeFilter.value = 'noMiss';
+                if (dom.rankGradeFilter) dom.rankGradeFilter.value = '0';
+                if (dom.rankClassFilter) dom.rankClassFilter.value = '0';
+            }
             loadRanks(2, { force: true });
         }
         const reportTitleEl = document.querySelector('.report-title');
         if (reportTitleEl) {
-            if (!isPracticeEnd && state.currentMode === 'classic60') {
+            if (showNoMissBoard) {
+                reportTitleEl.textContent = '🔥 零失誤挑戰';
+            } else if (!isPracticeEnd && state.currentMode === 'classic60') {
                 reportTitleEl.textContent = `🎉 1分鐘挑戰完成 · ${noteClefLabel()}`;
             } else {
                 reportTitleEl.textContent = isPracticeEnd ? '📝 練習完成！做得好！' : '🎉 做得好！挑戰完成！';
@@ -3727,18 +3753,25 @@
         return '<div class="rank-reward-banner">🏆 每級前三名將獲得獎勵！</div>';
     }
 
-    function openGame1RankBoard() {
+    function openGame1RankBoard(board) {
         dom.leaderboardLayout.classList.add('view-only');
+        dom.leaderboardLayout.classList.remove('practice-end');
         dom.reportGrid.innerHTML = '';
         dom.reportWeakness.innerHTML = '';
         const gf = document.getElementById('rankGameFilter');
         if (gf) gf.value = 'game1';
         const mfRow = dom.rankModeFilter?.closest?.('.rank-filter');
         if (mfRow) mfRow.style.display = '';
-        if (dom.rankModeFilter) dom.rankModeFilter.value = 'notes-clef';
+        const chosen = board || (state.currentMode === 'noMiss' ? 'noMiss' : state.currentMode === 'keysig60' ? 'keysig60' : state.currentMode === 'solfege60' ? 'solfege60' : 'notes-clef');
+        if (dom.rankModeFilter) dom.rankModeFilter.value = chosen;
+        if (chosen === 'notes-clef' && state.currentMode === 'classic60') {
+            const clefFilter = document.getElementById('rankNoteClefFilter');
+            if (clefFilter) clefFilter.value = noteClefChoice();
+        }
+        const historical = chosen === 'noMiss' || chosen === 'keysig60' || chosen === 'solfege60';
         const signedIn = !!(state.currentUser && state.currentUser.name);
-        if (dom.rankGradeFilter) dom.rankGradeFilter.value = signedIn ? String(state.currentUser.grade || 0) : '0';
-        if (dom.rankClassFilter) dom.rankClassFilter.value = signedIn ? String(state.currentUser.class || '0') : '0';
+        if (dom.rankGradeFilter) dom.rankGradeFilter.value = (!historical && signedIn) ? String(state.currentUser.grade || 0) : '0';
+        if (dom.rankClassFilter) dom.rankClassFilter.value = (!historical && signedIn) ? String(state.currentUser.class || '0') : '0';
         switchScreen('screen-leaderboard');
         loadRanks();
     }
@@ -3770,12 +3803,23 @@
             const noteClefWrapEarly = document.getElementById('rankNoteClefWrap');
             if (noteClefWrapEarly) noteClefWrapEarly.style.display = 'none';
             const rhythmKindWrap = document.getElementById('rankRhythmKindWrap');
-            if (rhythmKindWrap) rhythmKindWrap.style.display = gf.value === 'game2' ? '' : 'none';
+            if (rhythmKindWrap) rhythmKindWrap.style.display = '';
+            syncRankKindOptions(gf.value);
             const kindEl = document.getElementById('rankRhythmKind');
-            const rhythmKey = gf.value === 'game3' ? 'terms' : ((kindEl && kindEl.value === 'rhythm-tap') ? 'rhythm-tap' : 'rhythm');
+            const kind = kindEl ? kindEl.value : (gf.value === 'game3' ? 'terms' : 'classroom');
+            if (kind === 'classroom') {
+                const abrsmWrapEarly = document.getElementById('rankAbrsmFilterWrap');
+                if (abrsmWrapEarly) abrsmWrapEarly.style.display = 'none';
+                renderRanksForGame(gf.value, deviceClassroomRows(gf.value));
+                return;
+            }
+            const abrsmWrapEarly = document.getElementById('rankAbrsmFilterWrap');
+            if (abrsmWrapEarly) abrsmWrapEarly.style.display = '';
+            const rhythmKey = gf.value === 'game3' ? 'terms' : (kind === 'rhythm-tap' ? 'rhythm-tap' : 'rhythm');
             renderAbrsmRanks(rhythmKey);
             return;
         }
+
         if (gf && gf.value !== 'game1') { renderRanksForGame(gf.value); return; }
         const fC = dom.rankClassFilter.value, fG = parseInt(dom.rankGradeFilter.value), fM = dom.rankModeFilter.value;
         const abrsmWrap = document.getElementById('rankAbrsmFilterWrap');
@@ -3791,7 +3835,10 @@
             return;
         }
         if (abrsmWrap) abrsmWrap.style.display = 'none';
-        let f = state.allRanks.filter(r => r.mode === fM && !isSharedRankRow(r)); 
+        let f = state.allRanks.filter(r => (r.mode === fM || r.difficulty === fM) && !isSharedRankRow(r));
+        if (typeof RankSync !== 'undefined' && RankSync.legacyGame1Mode({ mode: fM })) {
+            f = f.concat(readRankList('musicGameRanks_game1').filter(r => RankSync.legacyGame1Mode(r) === fM));
+        }
         if (fC !== '0') f = f.filter(r => r.class === fC); 
         if (fG !== 0) f = f.filter(r => parseInt(r.grade) === fG);
         f.sort((a,b)=> (parseInt(b.score)||0) - (parseInt(a.score)||0) || (parseInt(b.max_combo)||0) - (parseInt(a.max_combo)||0));
@@ -3817,9 +3864,12 @@
                 dom.studentRankHint.innerHTML = '';
             }
         }
-        if (!f.length) { 
-            dom.rankList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個模式暫時未有紀錄，做第一個挑戰者吧！🚀</div>'; 
-            return; 
+        if (!f.length) {
+            const noMissHidden = fM === 'noMiss' && state.allRanks.some(r => r.mode === 'noMiss' || r.difficulty === 'noMiss');
+            dom.rankList.innerHTML = noMissHidden
+                ? '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個年級或班別未有零失誤紀錄。<br>把年級和班別改成「全部」，就可以看到以前的零失誤挑戰。</div>'
+                : '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個模式暫時未有紀錄，做第一個挑戰者吧！🚀</div>';
+            return;
         }
         const MAX_RENDER = 100;
         const fDisplay = f.slice(0, MAX_RENDER);
@@ -4181,6 +4231,16 @@
             switchScreen('screen-hub');
         });
         dom.viewRanksBtn?.addEventListener('click', () => { audio.init(); audio.playClick(); openGame1RankBoard(); });
+        document.getElementById('noMissViewRanks')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            audio.init(); audio.playClick();
+            dom.modeCards.forEach(c => c.classList.remove('active'));
+            document.querySelector('.mode-card[data-mode="noMiss"]')?.classList.add('active');
+            state.currentMode = 'noMiss';
+            state.modeConfig = MODE_CONFIG.noMiss;
+            openGame1RankBoard('noMiss');
+        });
         
         dom.revealBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; const gt = state.modeConfig && state.modeConfig.gameType; if (gt === 'keysig') { state.answered = true; state.combo = 0; updateScoreboard(); if (_keysigCurrentQ) { dom.messageBox.textContent = `🔑 答案是 ${_keysigCurrentQ.correct.name}！請記下。`; } dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextKeysigQuestion(); }, 2000); return; } if (gt === 'solfege') { state.answered = true; state.combo = 0; updateScoreboard(); if (state.currentNote) { const solName = getSolfege(state.currentNote.note, state._solfegeKeySig); dom.messageBox.textContent = `🎵 答案是 ${solName}！請記下。`; } dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextSolfegeQuestion(); }, 2000); return; } state.answered = true; state.combo = 0; state.showAnswerHighlight = true; drawStaff(); updateScoreboard(); audio.playNote(state.currentNote.freqKey); const _sol3 = noteSol(state.currentNote); dom.messageBox.innerHTML = `🔊 答案是 ${pianoKeyHTML(state.currentNote.correctName)}${_sol3 ? ' = ' + escapeHtml(_sol3) : ''}，請聆聽並記下音位，然後作答下一題。`; dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextQuestion(); }, 2500); });
         dom.skipBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; state.answered = true; state.combo = 0; updateScoreboard(); dom.messageBox.textContent = '⏩ 已跳過本題，請作答下一題。'; dom.messageBox.className = 'message-box'; const gt = state.modeConfig && state.modeConfig.gameType; setTimeout(() => { if (gt === 'keysig') nextKeysigQuestion(); else if (gt === 'solfege') nextSolfegeQuestion(); else nextQuestion(); }, 400); });
@@ -4192,7 +4252,8 @@
             const abrsmRankWrap = document.getElementById('rankAbrsmFilterWrap');
             if (abrsmRankWrap) abrsmRankWrap.style.display = (gfVal === 'game1' || gfVal === 'game2' || gfVal === 'game3') ? '' : 'none';
             const rhythmKindWrap = document.getElementById('rankRhythmKindWrap');
-            if (rhythmKindWrap) rhythmKindWrap.style.display = gfVal === 'game2' ? '' : 'none';
+            if (rhythmKindWrap) rhythmKindWrap.style.display = (gfVal === 'game2' || gfVal === 'game3') ? '' : 'none';
+            if (gfVal === 'game2' || gfVal === 'game3') syncRankKindOptions(gfVal);
             const noteClefWrap = document.getElementById('rankNoteClefWrap');
             if (noteClefWrap && gfVal !== 'game1') noteClefWrap.style.display = 'none';
             const dfWrap = document.getElementById('rankDiffFilterWrap');
@@ -4941,7 +5002,8 @@
                 if (layout) layout.classList.add('view-only');
                 const backBtn = document.getElementById('g3ResultBack');
                 if (backBtn) { backBtn.style.display = ''; backBtn.onclick = () => { backBtn.style.display = 'none'; switchScreen('screen-g3-setup'); }; }
-                renderLocalRankList('game3', 'g3RankList', user, g3SelectedDiff);
+                g3RankListMode = 'classroom';
+                renderLocalRankList('game3', 'g3RankList', user, 'classroom');
                 switchScreen('screen-game3-result');
             };
             switchScreen('screen-g3-setup');
@@ -5216,14 +5278,51 @@
     // ==========================================
     // renderRanksForGame — Game 2/3 shared ranks (uses GAS data)
     // ==========================================
-    function renderRanksForGame(gameKey) {
+    function syncRankKindOptions(game) {
+        const sel = document.getElementById('rankRhythmKind');
+        const label = document.getElementById('rankRhythmKindLabel');
+        if (!sel) return;
+        const prev = sel.value;
+        if (game === 'game3') {
+            if (label) label.textContent = '術語榜';
+            if (sel.dataset.kindGame !== 'game3') {
+                sel.innerHTML = '<option value="classroom">課堂舊紀錄</option><option value="terms">英皇術語</option>';
+                sel.dataset.kindGame = 'game3';
+                sel.value = prev === 'terms' ? 'terms' : 'classroom';
+            }
+            return;
+        }
+        if (label) label.textContent = '節奏榜';
+        if (sel.dataset.kindGame !== 'game2') {
+            sel.innerHTML = '<option value="classroom">課堂舊紀錄</option><option value="rhythm">拍號計時</option><option value="rhythm-tap">節奏挑戰</option>';
+            sel.dataset.kindGame = 'game2';
+            sel.value = (prev === 'rhythm' || prev === 'rhythm-tap' || prev === 'classroom') ? prev : 'classroom';
+        }
+    }
+    function deviceClassroomRows(gameKey) {
+        return readRankList('musicGameRanks_' + gameKey).filter(row => row && row.name && !(typeof RankSync !== 'undefined' && RankSync.resolveSharedRow(row))).map(row => ({
+            game: gameKey,
+            name: row.name,
+            grade: row.grade,
+            class: row.class,
+            id: row.id || row.seat || '',
+            mode: row.mode || row.difficulty || gameKey,
+            mode_name: row.mode_name || row.difficulty || row.mode || '',
+            score: row.score,
+            accuracy: row.accuracy,
+            max_combo: row.max_combo,
+            difficulty: row.difficulty || ''
+        }));
+    }
+    function renderRanksForGame(gameKey, extraRows) {
         const abrsmRankWrap = document.getElementById('rankAbrsmFilterWrap');
         if (abrsmRankWrap) abrsmRankWrap.style.display = 'none';
         if (!dom.rankList) return;
         const fC = dom.rankClassFilter ? dom.rankClassFilter.value : '0';
         const fG = dom.rankGradeFilter ? parseInt(dom.rankGradeFilter.value) : 0;
         const fD = document.getElementById('rankDiffFilter')?.value || '0';
-        let data = state.allRanks.filter(r => r.game === gameKey || r.mode === gameKey);
+        let data = state.allRanks.filter(r => (r.game === gameKey || r.mode === gameKey) && !isSharedRankRow(r));
+        if (Array.isArray(extraRows) && extraRows.length) data = data.concat(extraRows);
         if (fC !== '0') data = data.filter(r => r.class === fC);
         if (fG !== 0) data = data.filter(r => parseInt(r.grade) === fG);
         if (fD !== '0') data = data.filter(r => (r.mode_name || '').includes(fD));
@@ -9218,6 +9317,7 @@
         switchScreen('screen-rc-result');
     }
 
+    let g3RankListMode = 'classroom';
     function renderLocalRankList(gameKey, listId, currentUser, difficulty) {
         const listEl = document.getElementById(listId);
         if (!listEl) return;
@@ -9225,7 +9325,10 @@
         const gradeEl = document.getElementById(gameKey === 'game2' ? 'g2RankGrade' : gameKey === 'game4' ? 'g4RankGrade' : 'g3RankGrade');
         // Prefer GAS data; fall back to localStorage if not yet loaded
         let data;
-        if (/^abrsm-g[1-5]$/.test(difficulty || '') && window.AbrsmCurriculum) {
+        if (difficulty === 'classroom') {
+            data = (state.allRanks || []).filter(r => r.game === gameKey && !isSharedRankRow(r));
+            data = data.concat(deviceClassroomRows(gameKey));
+        } else if (/^abrsm-g[1-5]$/.test(difficulty || '') && window.AbrsmCurriculum) {
             const storageGame = gameKey === 'game3' ? 'terms' : 'rhythm';
             data = JSON.parse(localStorage.getItem(AbrsmCurriculum.rankStorageKey(storageGame, difficulty)) || '[]');
         } else {
@@ -9234,7 +9337,7 @@
         }
         if (clsEl && clsEl.value !== '0') data = data.filter(r => r.class === clsEl.value);
         if (gradeEl && parseInt(gradeEl.value) !== 0) data = data.filter(r => parseInt(r.grade) === parseInt(gradeEl.value));
-        if (difficulty) data = data.filter(r => (r.mode_name || '').includes(DIFFICULTY_CONFIG[difficulty]?.label || '') || (r.difficulty || '') === difficulty);
+        if (difficulty && difficulty !== 'classroom') data = data.filter(r => (r.mode_name || '').includes(DIFFICULTY_CONFIG[difficulty]?.label || '') || (r.difficulty || '') === difficulty);
         data.sort((a,b) => (b.score||0) - (a.score||0));
         const seen = new Set();
         data = data.filter(r => {
@@ -9266,6 +9369,7 @@
                     <span class="rank-tag rank-class-tag">${escHtml(item.class||'')}班</span>
                     ${seatTxt?`<span class="rank-tag rank-seat-tag">${seatTxt}</span>`:''}
                     ${isSelf?'<span class="rank-tag" style="background:var(--primary-purple)">我</span>':''}
+                    ${(difficulty === 'classroom' && (item.mode_name || item.mode)) ? `<span class="rank-tag">${escHtml(String(item.mode_name || item.mode))}</span>` : ''}
                     <span class="rank-tag" style="background:#CBD5E1;color:#333;">${item.accuracy||0}% 正確</span>
                 </div></div>
                 <div class="rank-score">${item.score||0}</div></div>`;
@@ -9609,8 +9713,8 @@
     document.getElementById('g3StudyStartBtn').addEventListener('click', () => switchScreen('screen-g3-setup'));
 
     // Rank filter listeners — set up once (use current game state for user)
-    document.getElementById('g3RankClass').addEventListener('change', () => renderLocalRankList('game3','g3RankList', g3State.user, g3State.difficulty));
-    document.getElementById('g3RankGrade').addEventListener('change', () => renderLocalRankList('game3','g3RankList', g3State.user, g3State.difficulty));
+    document.getElementById('g3RankClass').addEventListener('change', () => renderLocalRankList('game3','g3RankList', g3State.user, g3RankListMode));
+    document.getElementById('g3RankGrade').addEventListener('change', () => renderLocalRankList('game3','g3RankList', g3State.user, g3RankListMode));
     document.getElementById('g4RankClass').addEventListener('change', () => renderLocalRankList('game4','g4RankList', g4State?.user));
     document.getElementById('g4RankGrade').addEventListener('change', () => renderLocalRankList('game4','g4RankList', g4State?.user));
 
@@ -9912,8 +10016,9 @@
             }
         }
 
+        g3RankListMode = difficulty;
         renderLocalRankList('game3', 'g3RankList', user, difficulty);
-        if (mode !== 'practice') setTimeout(() => loadRanks(2, { force: true }).then(() => renderLocalRankList('game3', 'g3RankList', user, difficulty)).catch(()=>{}), 800);
+        if (mode !== 'practice') setTimeout(() => loadRanks(2, { force: true }).then(() => renderLocalRankList('game3', 'g3RankList', user, g3RankListMode)).catch(()=>{}), 800);
         document.getElementById('g3PlayAgain').onclick = () => switchScreen('screen-g3-setup');
         document.getElementById('g3BackToHub').onclick = () => switchScreen('screen-g3-setup');
         const g3Layout = document.getElementById('g3LeaderboardLayout');

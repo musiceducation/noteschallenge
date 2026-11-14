@@ -636,7 +636,10 @@
                 <div class="mode-icon">⏱️</div><div class="mode-name">1分鐘挑戰</div><div class="mode-desc">限時一分鐘，自選譜號，記入譜號榜</div>
             </div>
             <div class="mode-card challenge" data-mode="noMiss">
-                <div class="mode-icon"><i data-lucide="flame"></i></div><div class="mode-name">零失誤練習</div><div class="mode-desc">答錯一題即結束，不計入排行榜</div>
+                <div class="mode-icon"><i data-lucide="flame"></i></div><div class="mode-name">零失誤練習</div><div class="mode-desc">答錯一題即結束。以前的零失誤挑戰紀錄可以在這裡查看。</div>
+                <div class="mode-sub-btns">
+                    <button type="button" class="mode-sub-btn" id="noMissViewRanks">🏆 零失誤排行榜</button>
+                </div>
             </div>
             <div class="mode-card keysig" data-mode="keysig_practice">
                 <div class="mode-icon">𝄞</div><div class="mode-name">調號辨別</div><div class="mode-desc">跟所選英皇級別的調</div>
@@ -853,10 +856,10 @@
                     <div class="rank-filter"><label>遊戲</label><select id="rankGameFilter"><option value="game1">一：音名識辨</option><option value="game2">二：節奏識辨</option><option value="game3">三：術語識辨</option><option value="game4">四：樂器識辨</option></select></div>
                     <div class="rank-filter"><label>班別</label><select id="rankClassFilter"><option value="0">全部</option><option value="A">A班</option><option value="B">B班</option><option value="C">C班</option><option value="D">D班</option></select></div>
                     <div class="rank-filter"><label>年級</label><select id="rankGradeFilter"><option value="0">全部</option><option value="1" selected>中一</option><option value="2">中二</option><option value="3">中三</option><option value="4">中四</option><option value="5">中五</option><option value="6">中六</option></select></div>
-                    <div class="rank-filter"><label>榜</label><select id="rankModeFilter"><option value="notes-clef" selected>音名譜號</option><option value="abrsm-notes">英皇音名</option><option value="abrsm-keys">英皇調號</option></select></div>
+                    <div class="rank-filter"><label>榜</label><select id="rankModeFilter"><option value="notes-clef" selected>音名譜號</option><option value="abrsm-notes">英皇音名</option><option value="abrsm-keys">英皇調號</option><option value="noMiss">零失誤挑戰</option><option value="keysig60">調號挑戰</option><option value="solfege60">唱名挑戰</option></select></div>
                     <div class="rank-filter" id="rankNoteClefWrap" style="display:none;"><label>譜號</label><select id="rankNoteClefFilter"><option value="treble">高音譜號</option><option value="bass">低音譜號</option><option value="alto">中音譜號</option><option value="tenor">次中音譜號</option><option value="mixed">混合</option></select></div>
                     <div class="rank-filter" id="rankAbrsmFilterWrap"><label>英皇級別</label><select id="rankAbrsmGradeFilter"><option value="0">全部</option><option value="abrsm-g1">G1</option><option value="abrsm-g2">G2</option><option value="abrsm-g3">G3</option><option value="abrsm-g4">G4</option><option value="abrsm-g5">G5</option></select></div>
-                    <div class="rank-filter" id="rankRhythmKindWrap" style="display:none;"><label>節奏榜</label><select id="rankRhythmKind"><option value="rhythm">拍號計時</option><option value="rhythm-tap">節奏挑戰</option></select></div>
+                    <div class="rank-filter" id="rankRhythmKindWrap" style="display:none;"><label id="rankRhythmKindLabel">節奏榜</label><select id="rankRhythmKind"><option value="classroom" selected>課堂舊紀錄</option><option value="rhythm">拍號計時</option><option value="rhythm-tap">節奏挑戰</option></select></div>
                     <div class="rank-filter" id="rankDiffFilterWrap" style="display:none;"><label>難度</label><select id="rankDiffFilter"><option value="0">全部難度</option><option value="Easy">Easy</option><option value="Normal">Normal</option><option value="Hard">Hard</option><option value="Expert">Expert</option></select></div>
                 </div>
                 <div class="student-rank-hint" id="studentRankHint" style="display:none;"></div>
@@ -1543,7 +1546,7 @@
     <script src="instrument-category.js?v=2" defer></script>
     <script src="chinese-instrument-challenge.js?v=3" defer></script>
     <script src="chord-keyboard.js?v=2" defer></script>
-    <script src="rank-sync.js?v=2" defer></script>
+    <script src="rank-sync.js?v=3" defer></script>
     <script src="bootstrap-instruments.js?v=14" data-app-bootstrap defer></script>
     <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
 </body>

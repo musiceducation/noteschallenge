@@ -153,7 +153,11 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.match(rankSelect, /abrsm-notes/);
   assert.match(rankSelect, /abrsm-keys/);
   assert.ok(rankSelect.indexOf('notes-clef') < rankSelect.indexOf('abrsm-notes'));
-  assert.doesNotMatch(rankSelect, /classic60|bass60|mixed60|keysig60|solfege60|noMiss/);
+  assert.match(rankSelect, /value="noMiss">零失誤挑戰/);
+  assert.match(rankSelect, /value="keysig60">調號挑戰/);
+  assert.match(rankSelect, /value="solfege60">唱名挑戰/);
+  // Clef challenges fold into 音名譜號. They are not separate dropdown modes.
+  assert.doesNotMatch(rankSelect, /value="classic60"|value="bass60"|value="mixed60"/);
 }
 
 const gameSrc = fs.readFileSync(new URL('../script.js', import.meta.url), 'utf8');
@@ -207,8 +211,12 @@ assert.match(gameSrc, /if \(usesLocalRankBoard\(\)\)/);
 assert.match(gameSrc, /共用排行榜暫時連不上/);
 assert.match(gameSrc, /function paintStudentRankHint/);
 assert.match(gameSrc, /function openGame1RankBoard/);
+assert.match(gameSrc, /openGame1RankBoard\('noMiss'\)/);
+assert.match(gameSrc, /showNoMissBoard/);
 assert.doesNotMatch(gameSrc.slice(gameSrc.indexOf('function renderNoteClefRanks'), gameSrc.indexOf('function renderAbrsmRanks')), /目前排第/);
 assert.match(wwwGame, /function publishSharedRank/);
 assert.match(wwwGame, /function openGame1RankBoard/);
+assert.match(wwwGame, /openGame1RankBoard\('noMiss'\)/);
+assert.match(wwwGame, /showNoMissBoard/);
 
 console.log('abrsm-note-grade: ok', g5.length, 'g5 notes', k5.length, 'g5 key cards');
