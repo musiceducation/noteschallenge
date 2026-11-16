@@ -58,7 +58,13 @@ for (const f of [
   "abrsm-rhythm-terms.js",
   "www/abrsm-rhythm-terms.js",
   "composition-studio.js",
-  "www/composition-studio.js"
+  "www/composition-studio.js",
+  "aural-score.js",
+  "www/aural-score.js",
+  "aural-audio.js",
+  "www/aural-audio.js",
+  "aural-interval.js",
+  "www/aural-interval.js"
 ]) checkJs(f);
 for (const f of ["data/instrument-bank.json", "data/instrument-structure.json"]) checkJson(f);
 

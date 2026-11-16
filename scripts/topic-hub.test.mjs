@@ -13,10 +13,15 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.doesNotMatch(hub, /遊戲一|遊戲二|遊戲三|遊戲四/);
   assert.match(hub, /id="enterCompositionStudio"/);
   assert.match(hub, /hidden/);
+  assert.match(hub, /id="enterAural"/);
+  assert.match(hub, /聽力/);
+  assert.ok(hub.indexOf('id="enterAural"') > hub.indexOf('id="enterGame4"'), file + ' aural after instruments');
   const app = page.slice(page.indexOf('class="app-game-list"'), page.indexOf('id="appTabCodex"'));
   const appIds = [...app.matchAll(/data-launch="(enterGame1|enterKeysig|enterSolfege|enterChord|enterGame2|enterGame3|enterGame4)"/g)].map((m) => m[1]);
   assert.deepEqual(appIds, order, file + ' app list');
   assert.doesNotMatch(app, /遊戲一|遊戲二|遊戲三|遊戲四/);
+  assert.match(app, /data-launch="enterAural"/);
+  assert.match(app, /聽力/);
 }
 
 const notes = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');

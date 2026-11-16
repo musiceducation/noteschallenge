@@ -567,7 +567,7 @@
                 maxCombo: 0, fcCount: 0, apCount: 0,
             },
             diffClears: { easy: 0, normal: 0, hard: 0, expert: 0 },
-            gameBests: { game1: 0, game2: 0, game3: 0, game4: 0 },
+            gameBests: { game1: 0, game2: 0, game3: 0, game4: 0, listening: 0, 'aural-interval': 0 },
             history: [], // recent sessions for progress trend
         };
     }
@@ -575,7 +575,8 @@
     function _expForLevel(lvl) { return lvl * 100; }
 
     const PROFILE_GAME_LABELS = {
-        game1: '音名識辨', keysig: '調號辨別', solfege: '唱名辨別', chord: '和弦練習', game2: '節奏識辨', game3: '術語識辨', game4: '樂器識辨'
+        game1: '音名識辨', keysig: '調號辨別', solfege: '唱名辨別', chord: '和弦練習', game2: '節奏識辨', game3: '術語識辨', game4: '樂器識辨',
+        listening: '聽力', 'aural-interval': '音程聽辨'
     };
 
     let _profilePlayStartedAt = 0;
@@ -937,6 +938,7 @@
         setBest('pgbRhythm', bests.game2);
         setBest('pgbTerms', bests.game3);
         setBest('pgbInstr', bests.game4);
+        setBest('pgbListening', bests.listening);
         setBest('pgbGame1', bests.game1);
         setBest('pgbGame2', bests.game2);
         setBest('pgbGame3', bests.game3);
@@ -1595,6 +1597,11 @@
             audio.bgPlay();
             try { window.AppOrientation && window.AppOrientation.lockPortrait(); } catch (e) {}
         }
+
+        const auralScreen = screenId === 'screen-aural' || (screenId && screenId.indexOf('screen-aural-') === 0);
+        const leftAural = prevScreenId === 'screen-aural' || (prevScreenId && prevScreenId.indexOf('screen-aural-') === 0);
+        if (auralScreen) audio.bgPause();
+        else if (leftAural) audio.bgPlay();
         
         // 當切換到遊戲畫面時，需要重新計算 Canvas 的大小
         if (screenId === 'screen-game') {
@@ -4539,6 +4546,7 @@
         vpBest('vpRhythm', gb.game2);
         vpBest('vpTerms', gb.game3);
         vpBest('vpInstr', gb.game4);
+        vpBest('vpListening', gb.listening);
         vpBest('vpGame1', gb.game1);
         vpBest('vpGame2', gb.game2);
         vpBest('vpGame3', gb.game3);
@@ -4864,6 +4872,29 @@
             }
         });
 
+        window.addEventListener('aural-result', (ev) => {
+            const detail = ev && ev.detail;
+            if (!detail || detail.mode !== 'challenge') return;
+            const gameKey = String(detail.gameKey || '');
+            if (!window.AuralScore || AuralScore.gameKeys.indexOf(gameKey) < 0) return;
+            const u = getHubUser();
+            if (!u || !u.name || (_profileApi() && _profileApi().isGuest(u))) return;
+            const score = parseInt(detail.score, 10) || 0;
+            const accuracy = parseInt(detail.accuracy, 10) || 0;
+            const maxCombo = parseInt(detail.maxCombo, 10) || 0;
+            const profile = loadProfile(u);
+            profile.gameBests = AuralScore.applyListeningBests(profile.gameBests, gameKey, score);
+            saveProfile(profile);
+            recordGameResult(
+                { name: u.name, grade: u.grade, class: u.class || '', seat: u.seat || '' },
+                gameKey, score, accuracy, maxCombo, 'challenge'
+            );
+        });
+        window.addEventListener('aural-navigate', (ev) => {
+            const id = ev && ev.detail && ev.detail.screen;
+            if (id) switchScreen(id);
+        });
+
         window.addEventListener('musicapp:cloud-profile', (ev) => {
             const data = ev && ev.detail;
             if (!data) return;
@@ -5020,6 +5051,19 @@
                     el.click();
                 }
             });
+        });
+
+        const enterAuralEl = document.getElementById('enterAural');
+        enterAuralEl?.addEventListener('click', () => {
+            if (!requireHubLogin(hubNameField)) return;
+            syncFromHub();
+            switchScreen('screen-aural');
+        });
+        enterAuralEl?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                enterAuralEl.click();
+            }
         });
 
         const enterGame2El = document.getElementById('enterGame2');

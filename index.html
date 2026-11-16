@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=16">
+    <link rel="stylesheet" href="style.css?v=17">
     <script src="https://cdn.jsdelivr.net/npm/vexflow@5.0.0/build/cjs/vexflow.min.js" defer></script>
     <script src="https://unpkg.com/lucide@latest" defer></script>
 </head>
@@ -140,6 +140,14 @@
                         <span class="app-game-row-text">
                             <span class="app-game-row-name">樂器識辨</span>
                             <span class="app-game-row-desc">聽聲辨樂器</span>
+                        </span>
+                        <span class="app-game-row-chevron" aria-hidden="true">›</span>
+                    </button>
+                    <button type="button" class="app-game-row app-game-row--aural" data-launch="enterAural" role="listitem">
+                        <span class="app-game-row-icon" aria-hidden="true">👂</span>
+                        <span class="app-game-row-text">
+                            <span class="app-game-row-name">聽力</span>
+                            <span class="app-game-row-desc">音程聽辨 · 練習或挑戰</span>
                         </span>
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
                     </button>
@@ -368,6 +376,23 @@
                 <div class="hub-game-desc" aria-hidden="true">聽音辨認樂器 · 認識管弦樂家族</div>
                 <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
             </div>
+            <div class="hub-game-card hub-topic-aural" id="enterAural" role="button" tabindex="0" aria-label="聽力：音程聽辨，可選旋律或和聲，練習或 1 分鐘挑戰。按一下開始。">
+                <div class="hub-game-tag" aria-hidden="true">聽力</div>
+                <div class="hub-game-illust illust-aural" aria-hidden="true">
+                    <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="74" cy="62" r="28" fill="#cffafe" stroke="#0e7490" stroke-width="3"/>
+                        <circle cx="64" cy="56" r="3" fill="#0e7490"/>
+                        <circle cx="84" cy="56" r="3" fill="#0e7490"/>
+                        <path d="M64 70c4 8 16 8 20 0" stroke="#0e7490" stroke-width="3" stroke-linecap="round"/>
+                        <path d="M118 48c10 8 10 24 0 32" stroke="#0e7490" stroke-width="4" stroke-linecap="round"/>
+                        <path d="M130 38c16 12 16 40 0 52" stroke="#0e7490" stroke-width="4" stroke-linecap="round"/>
+                        <text x="150" y="78" font-size="32" fill="#0e7490" font-family="serif">♩</text>
+                    </svg>
+                </div>
+                <div class="hub-game-name" aria-hidden="true">聽力</div>
+                <div class="hub-game-desc" aria-hidden="true">音程聽辨 · 練習或挑戰</div>
+                <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
+            </div>
             <!-- 節奏拍回：靜態檔在 rhythm/。不寫入學生分數或排行榜。 -->
             <div class="hub-game-card hub-game-rhythm" id="enterRhythmComposer" role="button" tabindex="0" aria-label="節奏：用五線譜排 1 到 8 小節，沒有休止符，試聽後打拍評分。樂譜只留在這台裝置。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">節奏</div>
@@ -572,6 +597,7 @@
             <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♬</span><span class="pgb-name">節奏</span></div><div class="pgb-score" id="pgbRhythm">---</div></div>
             <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">𝄞</span><span class="pgb-name">術語</span></div><div class="pgb-score" id="pgbTerms">---</div></div>
             <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">🎻</span><span class="pgb-name">樂器</span></div><div class="pgb-score" id="pgbInstr">---</div></div>
+            <div class="profile-game-best" data-axis="listening" data-game-key="listening"><div class="pgb-top"><span class="pgb-icon">👂</span><span class="pgb-name">聽力</span></div><div class="pgb-score" id="pgbListening">---</div></div>
         </div>
         </div>
         </div>
@@ -666,6 +692,7 @@
                 <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♬</span><span class="pgb-name">節奏</span></div><div class="pgb-score" id="vpRhythm">---</div></div>
                 <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">𝄞</span><span class="pgb-name">術語</span></div><div class="pgb-score" id="vpTerms">---</div></div>
                 <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">🎻</span><span class="pgb-name">樂器</span></div><div class="pgb-score" id="vpInstr">---</div></div>
+                <div class="profile-game-best" data-axis="listening" data-game-key="listening"><div class="pgb-top"><span class="pgb-icon">👂</span><span class="pgb-name">聽力</span></div><div class="pgb-score" id="vpListening">---</div></div>
             </div>
         </div>
     </div>
@@ -1609,6 +1636,66 @@
     </div>
 
     <!-- ===================================== -->
+    <!-- 聽力：音程聽辨                         -->
+    <!-- ===================================== -->
+    <div id="screen-aural" class="screen">
+        <button class="btn-back-hub" id="auralBackHub" type="button">← 返回主頁</button>
+        <h1 class="game-title">👂 聽力</h1>
+        <p class="game-subtitle">先聽，再選。練習分不會入榜。</p>
+        <div class="aural-menu" id="auralMenu">
+            <button type="button" class="aural-menu-card" id="auralOpenInterval" data-aural-game="interval">
+                <span class="aural-menu-name">音程聽辨</span>
+                <span class="aural-menu-desc">聽兩個音，選出音程。可選旋律或和聲。</span>
+            </button>
+            <!-- aural-games -->
+        </div>
+    </div>
+
+    <div id="screen-aural-interval" class="screen aural-screen">
+        <button class="btn-back-hub" id="auralIntervalBack" type="button">← 返回聽力</button>
+        <div id="auralIntervalSetup">
+            <h1 class="game-title">音程聽辨</h1>
+            <p class="game-subtitle">第 1 級問度數。第 2、3 級再分大、小、純。</p>
+            <div class="aural-choice-row" id="auralIntervalModes" role="group" aria-label="模式">
+                <button type="button" class="aural-choice is-on" data-mode="practice">練習模式</button>
+                <button type="button" class="aural-choice" data-mode="challenge">1 分鐘挑戰</button>
+            </div>
+            <div class="aural-choice-row" id="auralIntervalLevels" role="group" aria-label="級別">
+                <button type="button" class="aural-choice is-on" data-level="1" data-hint="聽兩個音，選二度至八度。這一級用大音程和純音程。">第 1 級 · 度數</button>
+                <button type="button" class="aural-choice" data-level="2" data-hint="二度、三度分大和小。四度、五度、八度是純音程。">第 2 級 · 大小／純</button>
+                <button type="button" class="aural-choice" data-level="3" data-hint="二度至八度，包括六度、七度的大和小。">第 3 級 · 全部音程</button>
+            </div>
+            <p class="aural-hint" id="auralIntervalLevelHint">聽兩個音，選二度至八度。這一級用大音程和純音程。</p>
+            <div class="aural-choice-row" id="auralIntervalVoicing" role="group" aria-label="奏法">
+                <button type="button" class="aural-choice is-on" data-harmonic="0">旋律（先後）</button>
+                <button type="button" class="aural-choice" data-harmonic="1">和聲（同時）</button>
+            </div>
+            <button type="button" class="btn-start aural-start" id="auralIntervalStart">開始</button>
+        </div>
+        <div id="auralIntervalPlay" hidden>
+            <div class="aural-hud">
+                <span class="aural-score" id="auralIntervalScore">0</span>
+                <span id="auralIntervalMeta">準備</span>
+            </div>
+            <div class="aural-play-layout">
+                <div class="aural-play-side">
+                    <button type="button" class="aural-replay" id="auralIntervalReplay">🔊 再聽一次</button>
+                    <p class="aural-prompt" id="auralIntervalPrompt">聽兩個音，選出音程。</p>
+                    <p class="aural-feedback" id="auralIntervalFeedback" aria-live="polite"></p>
+                    <button type="button" class="aural-end" id="auralIntervalEnd">結束練習</button>
+                </div>
+                <div class="aural-options" id="auralIntervalOptions" role="group" aria-label="音程選項"></div>
+            </div>
+        </div>
+        <div id="auralIntervalResult" hidden>
+            <h2 class="aural-result-title" id="auralIntervalResultTitle">完成</h2>
+            <p class="aural-result-body" id="auralIntervalResultBody"></p>
+            <div id="auralIntervalBoard"></div>
+            <button type="button" class="btn-start aural-start" id="auralIntervalAgain">再玩一次</button>
+        </div>
+    </div>
+
+    <!-- ===================================== -->
     <!-- 教學圖片 Lightbox Modal               -->
     <!-- ===================================== -->
     <div id="imgLightbox" class="img-lightbox" style="display:none;" role="dialog" aria-modal="true" aria-label="教學圖表">
@@ -1634,6 +1721,9 @@
     <script src="chord-keyboard.js?v=2" defer></script>
     <script src="rank-sync.js?v=3" defer></script>
     <script src="profile-store.js?v=1" defer></script>
+    <script src="aural-score.js?v=1" defer></script>
+    <script src="aural-audio.js?v=1" defer></script>
+    <script src="aural-interval.js?v=1" defer></script>
     <script src="bootstrap-instruments.js?v=14" data-app-bootstrap defer></script>
     <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
 </body>
