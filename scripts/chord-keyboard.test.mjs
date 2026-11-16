@@ -102,6 +102,20 @@ assert.match(aug, /Ab/);
 assert.match(aug, /增三和弦/);
 assert.equal((aug.match(/chord-kb-name">G#/g) || []).length, 0);
 
+const prompt = CK.renderCard('C', '7', { prompt: true, interactive: true });
+assert.match(prompt, /class="chord-card-symbol">C7</);
+assert.match(prompt, /屬七和弦/);
+assert.doesNotMatch(prompt, /chord-kb-key--root|chord-kb-key--tone|chord-card-spelling|chord-kb-root-mark/);
+assert.match(prompt, /data-midi="60"/);
+assert.match(prompt, /請在鍵盤彈出這個和弦/);
+assert.doesNotMatch(prompt, /選出和弦名稱/);
+const picked = CK.renderCard('C', '', { prompt: true, interactive: true, selected: [60, 64] });
+assert.equal((picked.match(/chord-kb-key--picked/g) || []).length, 2);
+assert.equal(CK.voicingMatches('C', '', CK.voicingMidis('C', '')), true);
+assert.equal(CK.voicingMatches('C', '7', [60, 64, 67, 70]), true);
+assert.equal(CK.voicingMatches('C', '7', [60, 64, 67]), false);
+assert.equal(CK.voicingMatches('C', '', [72, 64, 67]), false);
+
 const hidden = CK.renderCard('C', '7', { reveal: false });
 assert.doesNotMatch(hidden, /chord-card-symbol|chord-card-quality|chord-card-spelling|屬七和弦|C7/);
 assert.equal((hidden.match(/chord-kb-key--root/g) || []).length, 1);

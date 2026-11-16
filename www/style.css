@@ -7083,7 +7083,26 @@ body.app-shell.app-on-root .sound-toggle {
     z-index: 3;
 }
 .chord-kb-key--tone .chord-kb-name,
-.chord-kb-key--root .chord-kb-name { opacity: 1; }
+.chord-kb-key--root .chord-kb-name,
+.chord-kb-key--picked .chord-kb-name { opacity: 1; }
+.chord-kb--play .chord-kb-white,
+.chord-kb--play .chord-kb-black {
+    cursor: pointer;
+    font-family: inherit;
+}
+.chord-kb--play .chord-kb-white { appearance: none; -webkit-appearance: none; }
+.chord-kb--play .chord-kb-blacks { pointer-events: none; }
+.chord-kb--play .chord-kb-black { pointer-events: auto; appearance: none; -webkit-appearance: none; }
+.chord-kb-key--picked.chord-kb-white {
+    background: linear-gradient(180deg, #efe7ff 0%, #c4b5fd 58%, #8b5cf6 100%);
+    border-color: #6d28d9;
+    color: #2e1065;
+}
+.chord-kb-key--picked.chord-kb-black {
+    background: linear-gradient(180deg, #8b5cf6 0%, #5b21b6 100%);
+    border-color: #2e1065;
+    color: #f5f3ff;
+}
 .chord-kb-root-mark {
     margin-bottom: 3px;
     padding: 1px 4px;
@@ -7168,6 +7187,8 @@ body.app-shell.app-on-root .sound-toggle {
     font-size: 1.15rem;
     margin: 8px 0 10px;
 }
+.chord-challenge-confirm { margin: 12px auto 0; min-width: 8rem; }
+.chord-challenge-confirm:disabled { opacity: 0.45; cursor: default; transform: none; }
 #screen-chord-card .quiz-options { margin-top: 12px; }
 #screen-chord-card .quiz-opt-btn { gap: 10px; }
 #screen-chord-card .message-box { margin-top: 12px; }
