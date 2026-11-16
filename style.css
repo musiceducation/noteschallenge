@@ -7902,29 +7902,16 @@ body.app-shell.app-on-root .sound-toggle {
 .lobby-head .hub-aside-stat-label { display: block; font-size: 0.68rem; font-weight: 800; color: var(--text-light); }
 .lobby-head .hub-aside-stat span:last-child { display: block; font-size: 1.05rem; font-weight: 900; color: var(--text-dark); }
 .lobby-fields[hidden] { display: none !important; }
-.hub-topic-listen {
-    cursor: default;
-    pointer-events: none;
-    border-color: rgba(180, 170, 168, 0.4);
-    background: linear-gradient(160deg, #fff 46%, #f6f4f3 100%);
-}
-.hub-topic-listen .hub-game-btn,
-.hub-topic-listen .hub-game-tag {
-    background: #e4dedc;
-    color: #6e6764;
-    box-shadow: none;
-}
-.hub-topic-listen .hub-game-name { color: #7a726f; }
-#screen-hub .hub-game-card:not(.hub-topic-listen) {
+#screen-hub .hub-game-card {
     transition: transform 0.16s ease, box-shadow 0.16s ease;
 }
-#screen-hub .hub-game-card:not(.hub-topic-listen):active,
+#screen-hub .hub-game-card:active,
 #screen-hub .hub-game-card.is-pressed {
     transform: translateY(-4px);
     box-shadow: 0 14px 26px rgba(80, 50, 60, 0.18);
 }
 @media (hover: hover) and (pointer: fine) {
-    #screen-hub .hub-game-card:not(.hub-topic-listen):hover {
+    #screen-hub .hub-game-card:hover {
         transform: translateY(-4px);
         box-shadow: 0 14px 26px rgba(80, 50, 60, 0.18);
     }
@@ -8161,8 +8148,8 @@ body:has(#screen-hub.screen.active) .bg-dots { opacity: 0; }
     box-shadow: none;
 }
 #screen-hub .hub-games-grid .hub-topic-listen .hub-game-btn {
-    background: url("img/ui/ui-soon-pill.webp") center / 100% 100% no-repeat;
-    color: #4e465c;
+    background: url("img/ui/ui-start-pill.webp") center / 100% 100% no-repeat;
+    color: #2C1810;
 }
 #hubViewRanksBtn,
 #hubViewRanksBtn:hover:not(:disabled),
@@ -8393,6 +8380,106 @@ body {
     background: linear-gradient(160deg, #FFD15A, #FF9F1C);
     color: #3A2208;
     box-shadow: 0 12px 24px rgba(255, 159, 28, 0.35);
+}
+
+/* Listening chooser and games. Surfaces are cream paper; start buttons reuse the pill image. */
+.aural-menu { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; width: min(980px, 100%); margin: 0 auto; }
+.aural-menu-card {
+    text-align: left;
+    border-radius: 18px;
+    padding: 16px 18px;
+    cursor: pointer;
+    border: 3px solid #E8B15A;
+    background: #FFF8EE;
+    font-family: inherit;
+    color: #2C1810;
+    min-height: 96px;
+    touch-action: manipulation;
+    box-shadow: 0 8px 18px rgba(18, 36, 79, 0.16);
+}
+.aural-menu-card:active { transform: translateY(2px); }
+.aural-menu-name { display: block; font-size: 1.25rem; font-weight: 900; }
+#auralOpenInterval .aural-menu-name { color: #4C2DB5; }
+#auralOpenRhythm .aural-menu-name { color: #C4233A; }
+#auralOpenQuality .aural-menu-name { color: #0E7490; }
+.aural-menu-desc { display: block; margin-top: 6px; color: #5C4636; font-weight: 700; font-size: 0.92rem; line-height: 1.4; }
+.aural-choice-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.aural-choice {
+    border: 2px solid #E8B15A;
+    background: #FFF8EE;
+    color: #2C1810;
+    border-radius: 999px;
+    padding: 8px 14px;
+    min-height: 44px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.aural-choice.is-on { background: #FF9F1C; color: #3A2208; border-color: #C2410C; }
+.aural-hint { margin: 0; color: #fff3df; font-weight: 700; text-align: center; }
+.aural-screen, #screen-aural { align-items: stretch; }
+.aural-hud { display: flex; align-items: baseline; gap: 14px; color: #fff8ee; }
+.aural-score { font-size: 2rem; font-weight: 900; color: #FFD15A; }
+.aural-play-layout { display: grid; grid-template-columns: minmax(220px, 280px) 1fr; gap: 16px; align-items: center; }
+.aural-replay, .aural-end {
+    width: 100%;
+    min-height: 48px;
+    border-radius: 16px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.aural-replay { border: none; color: #3A2208; background: #FFD15A; font-size: 1.05rem; }
+.aural-end { margin-top: 8px; border: 2px solid #E8B15A; background: #FFF8EE; color: #2C1810; }
+.aural-prompt, .aural-feedback { margin: 8px 0 0; font-weight: 800; color: #fff8ee; }
+.aural-options, .aural-rhythm-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.aural-opt, .aural-rhythm-opt {
+    min-height: 64px;
+    border-radius: 16px;
+    border: 2px solid #E8B15A;
+    background: #FFF8EE;
+    font-size: 1.15rem;
+    font-weight: 800;
+    font-family: inherit;
+    color: #2C1810;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.aural-opt:disabled, .aural-rhythm-opt:disabled { cursor: default; }
+.aural-opt.is-correct, .aural-rhythm-opt.is-correct { background: #d1fae5; border-color: #059669; }
+.aural-opt.is-wrong, .aural-rhythm-opt.is-wrong { background: #ffe4e6; border-color: #e11d48; }
+.aural-result-title { margin: 0; color: #fff8ee; }
+.aural-result-body { font-weight: 700; line-height: 1.45; color: #fff3df; }
+.aural-board-title { margin: 8px 0; font-size: 1rem; color: #fff8ee; }
+.aural-board-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255, 248, 238, 0.25); font-weight: 800; color: #fff8ee; }
+.aural-board-row.is-self { color: #FFD15A; }
+.aural-rhythm-opt { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 10px; min-height: 84px; }
+.aural-rhythm-svg { width: 100%; height: 48px; }
+.aural-rhythm-syl { font-weight: 800; color: #5C4636; font-size: 0.92rem; }
+#auralRhythmCue { font-weight: 900; color: #FFD15A; }
+.app-game-row--aural .app-game-row-icon { background: #FFF8EE; }
+@media (max-width: 800px) {
+    .aural-menu, .aural-play-layout { grid-template-columns: 1fr; }
+}
+@media (orientation: landscape) and (min-width: 1024px) and (max-height: 1024px) {
+    body:has(#screen-aural.screen.active),
+    body:has(#screen-aural-interval.screen.active),
+    body:has(#screen-aural-rhythm.screen.active),
+    body:has(#screen-aural-quality.screen.active) {
+        height: 100dvh;
+        max-height: 100dvh;
+        overflow: hidden;
+    }
+    #screen-aural.screen.active {
+        height: 100dvh;
+        max-height: 100dvh;
+        overflow: hidden;
+        justify-content: center;
+        gap: 10px;
+    }
+    #screen-aural .game-title { font-size: 1.8rem; }
 }
 
 

@@ -12,6 +12,9 @@ for (const file of ['index.html', 'www/index.html']) {
   names.forEach((name) => assert.match(hub, new RegExp(name), file));
   assert.doesNotMatch(hub, /遊戲一|遊戲二|遊戲三|遊戲四/);
   assert.match(hub, /id="enterCompositionStudio"/);
+  assert.match(hub, /id="enterAural"/);
+  assert.match(hub, /音程 · 節奏 · 色彩/);
+  assert.doesNotMatch(hub, /即將推出/);
   assert.match(hub, /hidden/);
   const app = page.slice(page.indexOf('class="app-game-list"'), page.indexOf('id="appTabCodex"'));
   const appIds = [...app.matchAll(/data-launch="(enterGame1|enterKeysig|enterSolfege|enterChord|enterGame2|enterGame3|enterGame4)"/g)].map((m) => m[1]);

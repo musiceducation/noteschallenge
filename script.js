@@ -657,7 +657,7 @@
                 maxCombo: 0, fcCount: 0, apCount: 0,
             },
             diffClears: { easy: 0, normal: 0, hard: 0, expert: 0 },
-            gameBests: { game1: 0, game2: 0, game3: 0, game4: 0 },
+            gameBests: { game1: 0, game2: 0, game3: 0, game4: 0, listening: 0, 'aural-interval': 0, 'aural-rhythm': 0, 'aural-quality': 0 },
             history: [], // recent sessions for progress trend
         };
     }
@@ -665,7 +665,8 @@
     function _expForLevel(lvl) { return lvl * 100; }
 
     const PROFILE_GAME_LABELS = {
-        game1: '音名識辨', keysig: '調號辨別', solfege: '唱名辨別', chord: '和弦練習', game2: '節奏識辨', game3: '術語識辨', game4: '樂器識辨'
+        game1: '音名識辨', keysig: '調號辨別', solfege: '唱名辨別', chord: '和弦練習', game2: '節奏識辨', game3: '術語識辨', game4: '樂器識辨',
+        listening: '聽力', 'aural-interval': '音程聽辨', 'aural-rhythm': '節奏聽寫', 'aural-quality': '和弦色彩'
     };
 
     let _profilePlayStartedAt = 0;
@@ -1028,7 +1029,7 @@
         setBest('pgbRhythm', bests.game2);
         setBest('pgbTerms', bests.game3);
         setBest('pgbInstr', bests.game4);
-        const listenBest = ['listenInterval', 'listenRhythm', 'listenColor'].reduce((max, key) => Math.max(max, Number(bests[key]) || 0), 0);
+        const listenBest = ['aural-interval', 'aural-rhythm', 'aural-quality', 'listening', 'listenInterval', 'listenRhythm', 'listenColor'].reduce((max, key) => Math.max(max, Number(bests[key]) || 0), 0);
         setBest('pgbListen', listenBest);
         setBest('pgbGame1', bests.game1);
         setBest('pgbGame2', bests.game2);
@@ -1681,6 +1682,11 @@
                 }
             } catch (e) {}
         }
+
+        const auralScreen = screenId === 'screen-aural' || (screenId && screenId.indexOf('screen-aural-') === 0);
+        const leftAural = prevScreenId === 'screen-aural' || (prevScreenId && prevScreenId.indexOf('screen-aural-') === 0);
+        if (auralScreen) audio.bgPause();
+        else if (leftAural && screenId !== 'screen-composition-studio') audio.bgPlay();
 
         // 創作工作室：暫停背景樂；鎖定橫向（離開後恢復直向）
         if (screenId === 'screen-composition-studio') {
@@ -5080,6 +5086,30 @@
             });
         }
 
+        window.addEventListener('aural-result', (ev) => {
+            const detail = ev && ev.detail;
+            if (!detail || detail.mode !== 'challenge') return;
+            if (window.WebGoogleAuth && window.WebGoogleAuth.tester) return;
+            const gameKey = String(detail.gameKey || '');
+            if (!window.AuralScore || AuralScore.gameKeys.indexOf(gameKey) < 0) return;
+            const u = getHubUser();
+            if (!u || !u.name || (_profileApi() && _profileApi().isGuest(u))) return;
+            const score = parseInt(detail.score, 10) || 0;
+            const accuracy = parseInt(detail.accuracy, 10) || 0;
+            const maxCombo = parseInt(detail.maxCombo, 10) || 0;
+            const profile = loadProfile(u);
+            profile.gameBests = AuralScore.applyListeningBests(profile.gameBests, gameKey, score);
+            saveProfile(profile);
+            recordGameResult(
+                { name: u.name, grade: u.grade, class: u.class || '', seat: u.seat || '' },
+                gameKey, score, accuracy, maxCombo, 'challenge'
+            );
+        });
+        window.addEventListener('aural-navigate', (ev) => {
+            const id = ev && ev.detail && ev.detail.screen;
+            if (id) switchScreen(id);
+        });
+
         window.addEventListener('chord-local-best', (ev) => {
             const score = parseInt(ev && ev.detail && ev.detail.score, 10) || 0;
             const u = getHubUser();
@@ -5319,7 +5349,7 @@
             switchScreen('screen-setup');
         }
 
-        document.querySelectorAll('#screen-hub .hub-game-card:not(.hub-topic-listen)').forEach((card) => {
+        document.querySelectorAll('#screen-hub .hub-game-card').forEach((card) => {
             const press = () => card.classList.add('is-pressed');
             const release = () => card.classList.remove('is-pressed');
             card.addEventListener('pointerdown', press);
@@ -5327,6 +5357,19 @@
             card.addEventListener('pointercancel', release);
             card.addEventListener('pointerleave', release);
         });
+        const enterAuralEl = document.getElementById('enterAural');
+        enterAuralEl?.addEventListener('click', () => {
+            if (!requireHubLogin(hubNameField)) return;
+            syncFromHub();
+            switchScreen('screen-aural');
+        });
+        enterAuralEl?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                enterAuralEl.click();
+            }
+        });
+
         const enterGame1El = document.getElementById('enterGame1');
         enterGame1El.addEventListener('click', () => openSetupTopic('notes'));
         enterGame1El.addEventListener('keydown', (e) => {
