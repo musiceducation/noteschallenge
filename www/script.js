@@ -5614,6 +5614,21 @@
         // ——— 個人檔案按鈕 ———
         const hubPresenceBtn = document.getElementById('hubPresenceBtn');
         const presenceBackBtn = document.getElementById('presenceBackBtn');
+        function formatMacauTime(iso) {
+            const date = new Date(iso);
+            if (!iso || Number.isNaN(date.getTime())) return '';
+            const parts = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'Asia/Macau',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hourCycle: 'h23'
+            }).formatToParts(date);
+            const get = (type) => (parts.find((part) => part.type === type) || {}).value || '';
+            return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')} 澳門時間`;
+        }
         function paintPresence(data) {
             const online = document.getElementById('presenceOnline');
             const log = document.getElementById('presenceLog');
@@ -5628,7 +5643,7 @@
             if (log) {
                 log.innerHTML = events.length
                     ? events.map((row) => {
-                        const when = row.at ? String(row.at).replace('T', ' ').slice(0, 16) : '';
+                        const when = formatMacauTime(row.at);
                         const what = eventLabel[row.event] || row.event || '';
                         const where = row.screen ? ' · ' + row.screen : '';
                         return `<li><span>${escHtml(when)}</span> <strong>${escHtml(row.name || '')}</strong> ${escHtml(what + where)}</li>`;
