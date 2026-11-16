@@ -171,14 +171,23 @@
         });
     }
 
-    function keyFace(kind, key) {
-        var roleClass = key.role ? ' chord-kb-key--' + key.role : '';
-        var mark = key.role === 'root' ? '<span class="chord-kb-root-mark">R</span>' : '';
+    function keyFace(kind, key, options) {
+        var interactive = !!(options && options.interactive);
+        var showRoles = !options || options.showRoles !== false;
+        var selected = (options && options.selected) || [];
+        var picked = selected.indexOf(key.midi) !== -1;
+        var roleClass = showRoles && key.role ? ' chord-kb-key--' + key.role : '';
+        if (picked) roleClass += ' chord-kb-key--picked';
+        var mark = showRoles && key.role === 'root' ? '<span class="chord-kb-root-mark">R</span>' : '';
         var style = kind === 'black'
             ? ' style="left:' + (((key.leftIndex + 1) / 8) * 100) + '%"'
             : '';
-        return '<div class="chord-kb-' + kind + roleClass + '"' + style + ' aria-hidden="true">' +
-            mark + '<span class="chord-kb-name">' + escapeHtml(key.name) + '</span></div>';
+        var tag = interactive ? 'button' : 'div';
+        var extra = interactive
+            ? ' type="button" data-midi="' + key.midi + '" aria-pressed="' + (picked ? 'true' : 'false') + '"'
+            : ' aria-hidden="true"';
+        return '<' + tag + ' class="chord-kb-' + kind + roleClass + '"' + style + extra + '>' +
+            mark + '<span class="chord-kb-name">' + escapeHtml(key.name) + '</span></' + tag + '>';
     }
 
     var CONFUSIONS = {
@@ -195,7 +204,6 @@
         dim7: ['dim', 'm7b5', 'm7']
     };
     var ROUND_LENGTH = 10;
-    var OPTION_LETTERS = ['A', 'B', 'C', 'D'];
 
     function shuffle(list, random) {
         var arr = list.slice();
@@ -270,32 +278,60 @@
         return 0;
     }
 
+    function voicingMidis(root, type) {
+        return keyboardModel(root, type).tones.map(function (tone) { return tone.midi; })
+            .sort(function (a, b) { return a - b; });
+    }
+
+    function voicingMatches(root, type, midis) {
+        var expected = voicingMidis(root, type);
+        var got = (midis || []).map(function (midi) { return parseInt(midi, 10); })
+            .sort(function (a, b) { return a - b; });
+        if (expected.length !== got.length) return false;
+        for (var i = 0; i < expected.length; i++) {
+            if (expected[i] !== got[i]) return false;
+        }
+        return true;
+    }
+
     function renderCard(root, type, options) {
-        var reveal = !options || options.reveal !== false;
+        var prompt = !!(options && options.prompt);
+        var reveal = prompt ? false : (!options || options.reveal !== false);
+        var interactive = !!(options && options.interactive);
+        var faceOptions = {
+            interactive: interactive,
+            showRoles: !prompt,
+            selected: (options && options.selected) || []
+        };
         var model = keyboardModel(root, type);
         var spoken = model.tones.map(function (tone) {
             return tone.name + (tone.root ? '（根音）' : '');
         }).join('、');
         var aria = reveal
             ? model.label + '，原位緊密排列：' + spoken
-            : '原位緊密和弦。金色琴鍵和 R 是根音，綠色是其他和弦音。請選出和弦名稱。';
+            : prompt
+                ? model.label + '。請在鍵盤彈出這個和弦。'
+                : '原位緊密和弦。金色琴鍵和 R 是根音，綠色是其他和弦音。請選出和弦名稱。';
         var heading = '';
         var spelling = '';
-        if (reveal) {
-            spelling = '<p class="chord-card-spelling">' + model.tones.map(function (tone) {
-                return '<span class="' + (tone.root ? 'is-root' : '') + '">' + escapeHtml(tone.name) + '</span>';
-            }).join('<span class="chord-card-dot" aria-hidden="true">–</span>') + '</p>';
+        if (reveal || prompt) {
             heading = '<div class="chord-card-heading">' +
                 '<span class="chord-card-symbol">' + escapeHtml(model.symbol) + '</span>' +
                 '<span class="chord-card-sep" aria-hidden="true">·</span>' +
                 '<span class="chord-card-quality">' + escapeHtml(model.qualityZh) + '</span>' +
             '</div>';
         }
-        return '<div class="chord-card"' + (reveal ? ' data-symbol="' + escapeHtml(model.symbol) + '"' : '') + '>' +
+        if (reveal) {
+            spelling = '<p class="chord-card-spelling">' + model.tones.map(function (tone) {
+                return '<span class="' + (tone.root ? 'is-root' : '') + '">' + escapeHtml(tone.name) + '</span>';
+            }).join('<span class="chord-card-dot" aria-hidden="true">–</span>') + '</p>';
+        }
+        var kbClass = 'chord-kb' + (interactive ? ' chord-kb--play' : '');
+        return '<div class="chord-card"' + ((reveal || prompt) ? ' data-symbol="' + escapeHtml(model.symbol) + '"' : '') + '>' +
             heading +
-            '<div class="chord-kb" style="--chord-kb-n-white:8" role="img" aria-label="' + escapeHtml(aria) + '">' +
-                '<div class="chord-kb-whites">' + model.whites.map(function (key) { return keyFace('white', key); }).join('') + '</div>' +
-                '<div class="chord-kb-blacks">' + model.blacks.map(function (key) { return keyFace('black', key); }).join('') + '</div>' +
+            '<div class="' + kbClass + '" style="--chord-kb-n-white:8" role="' + (interactive ? 'group' : 'img') + '" aria-label="' + escapeHtml(aria) + '">' +
+                '<div class="chord-kb-whites">' + model.whites.map(function (key) { return keyFace('white', key, faceOptions); }).join('') + '</div>' +
+                '<div class="chord-kb-blacks">' + model.blacks.map(function (key) { return keyFace('black', key, faceOptions); }).join('') + '</div>' +
             '</div>' +
             spelling +
         '</div>';
@@ -367,7 +403,7 @@
         var playEl = document.getElementById('chordChallengePlay');
         var resultEl = document.getElementById('chordChallengeResult');
         var challengeMount = document.getElementById('chordChallengeMount');
-        var optionsEl = document.getElementById('chordChallengeOptions');
+        var confirmBtn = document.getElementById('chordChallengeConfirm');
         var messageEl = document.getElementById('chordChallengeMessage');
         var qNumEl = document.getElementById('chordQNum');
         var scoreEl = document.getElementById('chordScore');
@@ -411,21 +447,40 @@
             if (fillEl) fillEl.style.width = (answered / round.questions.length * 100) + '%';
         }
 
-        function renderQuestion() {
+        function toneCount(question) {
+            return qualityOf(question.type).intervals.length;
+        }
+
+        function paintChallenge() {
             var question = round.questions[round.index];
+            if (challengeMount) {
+                challengeMount.innerHTML = renderCard(question.root, question.type, {
+                    prompt: true,
+                    interactive: !round.locked,
+                    selected: round.selected
+                });
+            }
+            if (confirmBtn) confirmBtn.disabled = round.locked || round.selected.length !== toneCount(question);
+            updateHud();
+        }
+
+        function chosenLabel(question, midis) {
+            var model = keyboardModel(question.root, question.type);
+            var byMidi = {};
+            model.whites.concat(model.blacks).forEach(function (key) { byMidi[key.midi] = key.name; });
+            return midis.slice().sort(function (a, b) { return a - b; }).map(function (midi) {
+                return byMidi[midi] || String(midi);
+            }).join('、');
+        }
+
+        function renderQuestion() {
             round.locked = false;
-            if (challengeMount) challengeMount.innerHTML = renderCard(question.root, question.type, { reveal: false });
+            round.selected = [];
             if (messageEl) {
-                messageEl.textContent = '看點亮的琴鍵，選出和弦名稱。';
+                messageEl.textContent = '請在鍵盤彈出這個和弦，再按確認。點多一次可以取消。';
                 messageEl.className = 'message-box';
             }
-            if (!optionsEl) return;
-            optionsEl.innerHTML = question.options.map(function (option, index) {
-                return '<button type="button" class="quiz-opt-btn" data-type="' + escapeHtml(option.type) + '">' +
-                    '<span class="opt-letter">' + OPTION_LETTERS[index] + '</span>' +
-                    '<span class="opt-text">' + escapeHtml(option.label) + '</span></button>';
-            }).join('');
-            updateHud();
+            paintChallenge();
         }
 
         function showResult() {
@@ -443,6 +498,9 @@
                     '<div class="report-item"><div class="report-label">答錯</div><div class="report-value">' + stats.wrong + '</div></div>' +
                     '<div class="report-item"><div class="report-label">最高連對</div><div class="report-value">' + stats.maxCombo + '</div></div>';
             }
+            try {
+                window.dispatchEvent(new CustomEvent('chord-local-best', { detail: { score: stats.score || 0 } }));
+            } catch (err) {}
             if (mistakesEl) {
                 mistakesEl.innerHTML = stats.mistakes.length
                     ? '<div class="mistake-review-title">錯題回顧</div>' + stats.mistakes.map(function (item) {
@@ -456,31 +514,28 @@
 
         function startRound() {
             clearAdvance();
-            round = { questions: buildRound(ROUND_LENGTH), index: 0, stats: freshStats(), locked: false };
+            round = { questions: buildRound(ROUND_LENGTH), index: 0, stats: freshStats(), locked: false, selected: [] };
             if (playEl) playEl.hidden = false;
             if (resultEl) resultEl.hidden = true;
             showMode('challenge');
             renderQuestion();
         }
 
-        function answerQuestion(button) {
+        function submitChord() {
             if (!round || round.locked) return;
             var question = round.questions[round.index];
-            var chosenType = button.getAttribute('data-type') || '';
-            var isCorrect = chosenType === question.type;
+            if (round.selected.length !== toneCount(question)) return;
+            var isCorrect = voicingMatches(question.root, question.type, round.selected);
             round.locked = true;
             var pts = applyAnswer(round.stats, isCorrect);
-            if (optionsEl) {
-                optionsEl.querySelectorAll('.quiz-opt-btn').forEach(function (el) { el.disabled = true; });
-            }
-            button.classList.add(isCorrect ? 'correct' : 'wrong');
-            if (!isCorrect && optionsEl) {
-                optionsEl.querySelectorAll('.quiz-opt-btn').forEach(function (el) {
-                    if ((el.getAttribute('data-type') || '') === question.type) el.classList.add('correct');
+            if (!isCorrect) {
+                round.stats.mistakes.push({
+                    chosen: chosenLabel(question, round.selected),
+                    answer: question.label
                 });
-                round.stats.mistakes.push({ chosen: optionLabel(question.root, chosenType), answer: question.label });
             }
             if (challengeMount) challengeMount.innerHTML = renderCard(question.root, question.type, { reveal: true });
+            if (confirmBtn) confirmBtn.disabled = true;
             if (messageEl) {
                 messageEl.className = 'message-box ' + (isCorrect ? 'correct' : 'wrong');
                 messageEl.textContent = isCorrect
@@ -501,13 +556,20 @@
             }, 1200);
         }
 
-        if (optionsEl) {
-            optionsEl.addEventListener('click', function (event) {
-                var button = event.target.closest('.quiz-opt-btn');
-                if (!button || button.disabled) return;
-                answerQuestion(button);
+        if (challengeMount) {
+            challengeMount.addEventListener('click', function (event) {
+                if (!round || round.locked) return;
+                var key = event.target.closest('[data-midi]');
+                if (!key) return;
+                var midi = parseInt(key.getAttribute('data-midi'), 10);
+                if (isNaN(midi)) return;
+                var at = round.selected.indexOf(midi);
+                if (at >= 0) round.selected.splice(at, 1);
+                else round.selected.push(midi);
+                paintChallenge();
             });
         }
+        if (confirmBtn) confirmBtn.addEventListener('click', submitChord);
         if (learnBtn) {
             learnBtn.addEventListener('click', function () {
                 clearAdvance();
@@ -549,6 +611,8 @@
         symbolOf: symbolOf,
         keyboardModel: keyboardModel,
         renderCard: renderCard,
+        voicingMatches: voicingMatches,
+        voicingMidis: voicingMidis,
         buildQuestion: buildQuestion,
         buildRound: buildRound,
         distractorTypes: distractorTypes,

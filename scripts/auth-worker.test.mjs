@@ -158,7 +158,12 @@ test('verifyGoogleIdToken rejects bad audience, issuer, expiry, unverified email
   const none = await verifyGoogleIdToken(noneToken, opts);
   assert.equal(none.error, 'unsupported alg');
 
-  const tampered = (await googleToken(baseClaims(now))).replace(/.$/, (c) => (c === 'a' ? 'b' : 'a'));
+  const raw = await googleToken(baseClaims(now));
+  const parts = raw.split('.');
+  const sig = parts[2];
+  const flipAt = Math.floor(sig.length / 2);
+  const flipped = sig[flipAt] === 'A' ? 'B' : 'A';
+  const tampered = parts[0] + '.' + parts[1] + '.' + sig.slice(0, flipAt) + flipped + sig.slice(flipAt + 1);
   const badSig = await verifyGoogleIdToken(tampered, opts);
   assert.equal(badSig.ok, false);
 });

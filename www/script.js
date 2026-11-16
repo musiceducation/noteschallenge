@@ -195,17 +195,40 @@
           sharpNotes:[], flatNotes:['B','E','A','D','G'], scale:['D♭','E♭','F','G♭','A♭','B♭','C'] }
     ];
 
-    function getKeysigPool(grade) {
-        const g0 = parseInt(grade, 10);
-        const cap = (g0 === 1 || g0 === 2) ? 6 : grade;
-        let pool = KEY_SIGNATURES.filter(k => k.grade <= cap);
-        // Ensure at least 2 options for question generation; expand grade if needed
-        if (pool.length < 2) {
-            for (let g = cap + 1; g <= 6 && pool.length < 2; g++) {
-                pool = KEY_SIGNATURES.filter(k => k.grade <= g);
-            }
-        }
-        return pool;
+    function keysigAccidentalCount(sig) {
+        return Math.max(sig.sharps || 0, sig.flats || 0);
+    }
+
+    // Classroom pools by how many sharps or flats the major key uses.
+    // 1 = 0–1, 2 = up to 2, 3 = up to 3, 4 = up to 4, 5 = every major in KEY_SIGNATURES.
+    function keysigAccMax() {
+        const n = parseInt(state.keysigAccMax, 10);
+        return n >= 1 && n <= 5 ? n : 1;
+    }
+
+    function getKeysigPool(maxAcc) {
+        const cap = parseInt(maxAcc, 10);
+        const limit = cap >= 1 && cap <= 5 ? cap : 1;
+        return KEY_SIGNATURES.filter(k => keysigAccidentalCount(k) <= limit);
+    }
+
+    const KEYSIG_ACC_NOTES = {
+        1: '0–1 個升降號：C、G、F。',
+        2: '最多 2 個升降號：C、G、F、D、B♭。',
+        3: '最多 3 個升降號：C、G、F、D、B♭、A、E♭。',
+        4: '最多 4 個升降號：C、G、F、D、B♭、A、E♭、E、A♭。',
+        5: '全部大調：C、G、F、D、B♭、A、E♭、E、A♭、B、D♭。'
+    };
+
+    function paintKeysigAcc() {
+        const max = keysigAccMax();
+        document.querySelectorAll('.ks-acc-btn').forEach(btn => {
+            const on = parseInt(btn.dataset.acc, 10) === max;
+            btn.classList.toggle('active', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        const note = document.getElementById('keysigAccNote');
+        if (note) note.textContent = KEYSIG_ACC_NOTES[max];
     }
 
     // 首調唱名法 (moveable Do): maps each key's scale degrees to solfège names
@@ -441,12 +464,18 @@
     const PROFILE_HISTORY_KEY = 'musicGameProfileHistory';
     const _profileCache = new Map();
 
+    function _profileApi() {
+        return (typeof ProfileStore !== 'undefined') ? ProfileStore : null;
+    }
     function _getProfileKey(user) {
+        const api = _profileApi();
+        if (api) return api.profileKey(user);
         if (!user || !user.name) return null;
         return `${PROFILE_STORAGE_KEY}_${user.grade}_${user.class}_${user.name}`;
     }
 
     function loadProfile(user) {
+        const api = _profileApi();
         const key = _getProfileKey(user);
         if (!key) return _defaultProfile(user);
         if (_profileCache.has(key)) return _profileCache.get(key);
@@ -454,19 +483,38 @@
             const saved = localStorage.getItem(key);
             if (saved) {
                 const p = JSON.parse(saved);
-                // Ensure all fields exist (backward compat)
                 const profile = Object.assign(_defaultProfile(user), p);
                 _profileCache.set(key, profile);
                 return profile;
+            }
+            if (api && !api.isGuest(user)) {
+                const pointer = api.readPointer(localStorage);
+                if (pointer && pointer.key && pointer.key !== key) {
+                    const old = api.readJson(localStorage.getItem(pointer.key), null);
+                    if (api.sameNamedPerson(old, user)) {
+                        const moved = Object.assign(_defaultProfile(user), api.relabel(old, user));
+                        localStorage.setItem(key, JSON.stringify(moved));
+                        _profileCache.set(key, moved);
+                        return moved;
+                    }
+                }
             }
         } catch(e) { console.warn('Profile load error, resetting:', e); }
         return _defaultProfile(user);
     }
 
     function saveProfile(profile, opts) {
-        const key = `${PROFILE_STORAGE_KEY}_${profile.grade}_${profile.class}_${profile.name}`;
-        _profileCache.set(key, profile); // Update cache
-        try { localStorage.setItem(key, JSON.stringify(profile)); } catch(e) { _showToast('⚠️ 儲存空間不足，個人資料可能未能保存', 'warn'); }
+        const api = _profileApi();
+        const key = api ? api.profileKey(profile) : `${PROFILE_STORAGE_KEY}_${profile.grade}_${profile.class}_${profile.name}`;
+        _profileCache.set(key, profile);
+        const wrote = api ? api.safeSet(localStorage, key, JSON.stringify(profile)) : { ok: true };
+        if (!api) {
+            try { localStorage.setItem(key, JSON.stringify(profile)); } catch(e) { _showToast('⚠️ 儲存空間不足，個人資料可能未能保存', 'warn'); }
+        } else if (!wrote.ok) {
+            _showToast('⚠️ 儲存空間不足，個人資料可能未能保存', 'warn');
+        } else if (!api.isGuest(profile)) {
+            api.writePointer(localStorage, profile);
+        }
         try {
             if (!(opts && opts.skipRemote) && window.MusicAppAuth && typeof window.MusicAppAuth.syncGameData === 'function' && window.MusicAppAuth.signedIn) {
                 window.MusicAppAuth.syncGameData(profile).catch(function () {});
@@ -493,7 +541,7 @@
         const hubEmail = document.getElementById('hubAccountEmail');
         const profileBtn = document.getElementById('profileSignOutBtn');
         const emailEl = document.getElementById('profileEmail');
-        if (row) row.hidden = !email;
+        if (row) row.hidden = true;
         if (hubEmail) hubEmail.textContent = email ? ('已登入：' + email) : '';
         if (profileBtn) profileBtn.hidden = !email;
         if (emailEl) {
@@ -558,7 +606,7 @@
     function _expForLevel(lvl) { return lvl * 100; }
 
     const PROFILE_GAME_LABELS = {
-        game1: '音名識辨', game2: '節奏識辨', game3: '術語識辨', game4: '樂器識辨'
+        game1: '音名識辨', keysig: '調號辨別', solfege: '唱名辨別', chord: '和弦練習', game2: '節奏識辨', game3: '術語識辨', game4: '樂器識辨'
     };
 
     let _profilePlayStartedAt = 0;
@@ -677,7 +725,8 @@
         profile.stats.totalAccuracy += accuracy;
         profile.stats.accuracyCount++;
         if (maxCombo > profile.stats.maxCombo) profile.stats.maxCombo = maxCombo;
-        if (score > (profile.gameBests[gameKey] || 0)) profile.gameBests[gameKey] = score;
+        const practiceResult = difficulty === 'practice' || difficulty === 'keysig_practice' || difficulty === 'solfege_practice';
+        if (!practiceResult && score > (profile.gameBests[gameKey] || 0)) profile.gameBests[gameKey] = score;
 
         // Play time (seconds)
         const playSecs = _consumeProfilePlaySecs();
@@ -718,7 +767,7 @@
         addProfileExp(profile, expGain);
 
         saveProfile(profile);
-        submitProfileResultToGAS(gameKey, user, score, accuracy, maxCombo, profile);
+        if (!practiceResult) submitProfileResultToGAS(gameKey, user, score, accuracy, maxCombo, profile);
         return profile;
     }
 
@@ -745,11 +794,8 @@
             if (!Array.isArray(rows) || rows.length === 0) return;
 
             const existing = loadProfile(user);
-            const profile = _defaultProfile(user);
-            profile.avatar = existing.avatar || profile.avatar;
-            profile.signature = existing.signature || profile.signature;
+            let profile = _defaultProfile(user);
             profile.registeredAt = existing.registeredAt || rows[0].timestamp || profile.registeredAt;
-            profile.totalPlayTime = existing.totalPlayTime || 0;
 
             let latestLevel = 1;
             let latestExp = 0;
@@ -786,10 +832,7 @@
             profile.stats.apCount = latestApCount;
             profile.history = rows.map(_historyEntryFromRow).slice(-30);
             // Prefer longer local history if GAS returned fewer rows (offline sessions)
-            if (Array.isArray(existing.history) && existing.history.length > profile.history.length) {
-                profile.history = existing.history.slice(-30);
-            }
-
+            profile = _profileApi() ? _profileApi().mergeProfile(existing, profile) : profile;
             saveProfile(profile);
         } catch (e) {
             console.error('Profile 讀取失敗：', e);
@@ -862,11 +905,8 @@
                 profile.stats.fcCount = latestFcCount;
                 profile.stats.apCount = latestApCount;
                 profile.history = rows.map(_historyEntryFromRow).slice(-30);
-                if (Array.isArray(existing.history) && existing.history.length > profile.history.length) {
-                    profile.history = existing.history.slice(-30);
-                }
-
-                saveProfile(profile);
+                const merged = _profileApi() ? _profileApi().mergeProfile(existing, profile) : profile;
+                saveProfile(merged);
             });
 
             console.log(`✅ 已批次同步 ${Object.keys(byStudent).length} 位同學的檔案`);
@@ -920,18 +960,20 @@
         document.getElementById('psFCCount').textContent = s.fcCount;
         document.getElementById('psAPCount').textContent = s.apCount;
 
-        // Difficulty achievements
-        document.getElementById('pdEasy').textContent = (p.diffClears.easy || 0) + ' 次通關';
-        document.getElementById('pdNormal').textContent = (p.diffClears.normal || 0) + ' 次通關';
-        document.getElementById('pdHard').textContent = (p.diffClears.hard || 0) + ' 次通關';
-        document.getElementById('pdExpert').textContent = (p.diffClears.expert || 0) + ' 次通關';
-
-        // Game bests
-        document.getElementById('pgbGame1').textContent = p.gameBests.game1 || '---';
-        document.getElementById('pgbGame2').textContent = p.gameBests.game2 || '---';
-        document.getElementById('pgbGame3').textContent = p.gameBests.game3 || '---';
-        const pgb4 = document.getElementById('pgbGame4');
-        if (pgb4) pgb4.textContent = p.gameBests.game4 || '---';
+        const bestText = (value) => (value ? String(value) : '---');
+        const setBest = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = bestText(value); };
+        const bests = p.gameBests || {};
+        setBest('pgbNotes', bests.game1);
+        setBest('pgbKeysig', bests.keysig);
+        setBest('pgbSolfege', bests.solfege);
+        setBest('pgbChord', bests.chord);
+        setBest('pgbRhythm', bests.game2);
+        setBest('pgbTerms', bests.game3);
+        setBest('pgbInstr', bests.game4);
+        setBest('pgbGame1', bests.game1);
+        setBest('pgbGame2', bests.game2);
+        setBest('pgbGame3', bests.game3);
+        setBest('pgbGame4', bests.game4);
 
         // Progress trend + recent sessions
         const trendEl = document.getElementById('profileProgressTrend');
@@ -981,7 +1023,7 @@
 
         // Avatar grid with category filter
         const grid = document.getElementById('profileAvatarGrid');
-        const avSection = grid.closest('.profile-avatars-section');
+        const avSection = grid.closest('.profile-avatars-section') || grid.closest('.profile-identity-card') || grid.parentElement;
         let avCatFilter = avSection.querySelector('.avatar-cat-filter');
         if (!avCatFilter) {
             avCatFilter = document.createElement('div');
@@ -1020,6 +1062,9 @@
             el.textContent = av;
             el.style.background = info.bg;
             grid.querySelectorAll('.profile-avatar-opt').forEach(el => el.classList.toggle('selected', el.dataset.av === av));
+            const status = document.getElementById('profileSaveStatus');
+            if (status) status.textContent = '已儲存頭像';
+            _showToast('已儲存頭像', 'success');
         };
 
         // Signature
@@ -1030,6 +1075,9 @@
             p.signature = val;
             saveProfile(p);
             document.getElementById('profileSig').textContent = val || '按此編輯簽名';
+            const status = document.getElementById('profileSaveStatus');
+            if (status) status.textContent = '已儲存簽名';
+            _showToast('已儲存簽名', 'success');
         };
     }
 
@@ -1157,7 +1205,7 @@
             slowNoteStats: {},
             lastNoteLetter: null,
             practiceDiff: '3',
-            keysigGrade: 1,
+            keysigAccMax: 1,
             solfegeGrade: 1,
             abrsmGrade: 'abrsm-g1',
             noteClefChoice: 'treble',
@@ -1840,17 +1888,48 @@
     }
 
     function saveSettings() {
-        const s = {};
-        s.lastMode = state.currentMode;
-        s.practiceDiff = state.practiceDiff;
-        s.keysigGrade = state.keysigGrade;
-        s.solfegeGrade = state.solfegeGrade;
-        s.abrsmGrade = state.abrsmGrade || '';
-        s.noteClefChoice = state.noteClefChoice || 'treble';
-        s.savedName = dom.userName.value;
+        const api = _profileApi();
+        let s = {};
+        try { s = JSON.parse(localStorage.getItem('musicGameSettingsV4') || '{}') || {}; } catch (e) { s = {}; }
+        if (!s || typeof s !== 'object' || Array.isArray(s)) s = {};
+        const patch = {
+            lastMode: state.currentMode,
+            practiceDiff: state.practiceDiff,
+            keysigAccMax: keysigAccMax(),
+            solfegeGrade: state.solfegeGrade,
+            abrsmGrade: state.abrsmGrade || '',
+            noteClefChoice: state.noteClefChoice || 'treble'
+        };
+        if (dom.userName && dom.userName.value) patch.savedName = dom.userName.value;
+        if (dom.userGrade && dom.userGrade.value) patch.userGrade = dom.userGrade.value;
+        if (dom.userClass && dom.userClass.value) patch.userClass = dom.userClass.value;
+        if (dom.userId && dom.userId.value) patch.userId = dom.userId.value;
         const customInp = _customNameInput;
-        if (dom.userName.value === '__other__' && customInp) s.savedCustomName = customInp.value;
-        try { localStorage.setItem('musicGameSettingsV4', JSON.stringify(s)); } catch(e) { /* QuotaExceeded — skip silently */ }
+        if (dom.userName && dom.userName.value === '__other__' && customInp) patch.savedCustomName = customInp.value;
+        const hubGradeEl = document.getElementById('hubGrade');
+        const hubClassEl = document.getElementById('hubClass');
+        const hubNameEl = document.getElementById('hubName');
+        const hubSeatEl = document.getElementById('hubSeat');
+        const hubCustomEl = document.getElementById('hubCustomNameInput');
+        if (hubGradeEl && hubGradeEl.value) patch.userGrade = hubGradeEl.value;
+        if (hubClassEl && hubClassEl.value) patch.userClass = hubClassEl.value;
+        if (hubNameEl && hubNameEl.value) patch.savedName = hubNameEl.value;
+        if (hubSeatEl && hubSeatEl.value) patch.userId = hubSeatEl.value;
+        if (hubNameEl && hubNameEl.value === '__other__' && hubCustomEl && hubCustomEl.value) patch.savedCustomName = hubCustomEl.value;
+        const apiUser = state.currentUser;
+        if (apiUser && apiUser.name && !(api && api.isGuest(apiUser))) {
+            if (!patch.savedName) patch.savedName = apiUser.name;
+            if (!patch.userGrade && apiUser.grade) patch.userGrade = String(apiUser.grade);
+            if (!patch.userClass && apiUser.class) patch.userClass = apiUser.class;
+            if (!patch.userId && apiUser.id) patch.userId = String(apiUser.id);
+        }
+        const next = api ? api.mergeSettings(s, patch) : Object.assign(s, patch);
+        const wrote = api ? api.safeSet(localStorage, 'musicGameSettingsV4', JSON.stringify(next)) : { ok: true };
+        if (!api) {
+            try { localStorage.setItem('musicGameSettingsV4', JSON.stringify(next)); } catch (e) { _showToast('⚠️ 儲存空間不足，身份資料可能未能保存', 'warn'); }
+        } else if (!wrote.ok) {
+            _showToast('⚠️ 儲存空間不足，身份資料可能未能保存', 'warn');
+        }
     }
 
     function loadSavedSettings() {
@@ -1860,8 +1939,11 @@
             const s = JSON.parse(stored);
             if (s) {
 
+                if (s.userGrade && dom.userGrade) dom.userGrade.value = s.userGrade;
+                if (s.userClass && dom.userClass) dom.userClass.value = s.userClass;
+                if (s.userId && dom.userId) dom.userId.value = s.userId;
                 if (s.practiceDiff) state.practiceDiff = s.practiceDiff;
-                if (s.keysigGrade) state.keysigGrade = parseInt(s.keysigGrade);
+                if (s.keysigAccMax) state.keysigAccMax = parseInt(s.keysigAccMax, 10);
                 if (s.solfegeGrade) state.solfegeGrade = parseInt(s.solfegeGrade);
                 if (typeof s.abrsmGrade === 'string' && /^abrsm-g[1-5]$/.test(s.abrsmGrade)) state.abrsmGrade = s.abrsmGrade;
                 if (s.noteClefChoice === 'treble' || s.noteClefChoice === 'bass' || s.noteClefChoice === 'alto' || s.noteClefChoice === 'tenor' || s.noteClefChoice === 'mixed') state.noteClefChoice = s.noteClefChoice;
@@ -1982,7 +2064,8 @@
     }
 
     const ABRSM_NOTE_MODES = new Set(['practice', 'classic60', 'bass60', 'mixed60', 'noMiss']);
-    const ABRSM_KEY_MODES = new Set(['keysig_practice', 'keysig60']);
+    // 調號辨別 uses accidental-count pools, not 英皇 G1–G5.
+    const ABRSM_KEY_MODES = new Set();
     const ABRSM_CLEF_ZH = { treble: '高音譜號', bass: '低音譜號', alto: '中音譜號', tenor: '次中音譜號' };
     const CLASSROOM_SPELLINGS = new Set(['C','D','E','F','G','A','B','C#','D#','F#','G#','A#','D♭','E♭','G♭','A♭','B♭']);
 
@@ -2286,17 +2369,24 @@
     function syncAbrsmRows() {
         ensureAbrsmGrade();
         const row = document.getElementById('abrsmGradeRow');
-        const keysig = ABRSM_KEY_MODES.has(state.currentMode);
-        if (row) row.style.display = keysig ? '' : 'none';
-        document.querySelectorAll('.abrsm-grade-btn').forEach(btn => {
+        const accRow = document.getElementById('keysigAccRow');
+        const noteMode = ABRSM_NOTE_MODES.has(state.currentMode);
+        const keysig = state.currentMode === 'keysig_practice' || state.currentMode === 'keysig60';
+        if (row) row.style.display = noteMode ? '' : 'none';
+        if (accRow) accRow.style.display = keysig ? '' : 'none';
+        document.querySelectorAll('#abrsmGradeBtns .abrsm-grade-btn').forEach(btn => {
             btn.classList.toggle('active', (btn.dataset.abrsm || '') === state.abrsmGrade);
         });
         refreshAbrsmCoverage();
+        paintKeysigAcc();
         paintNoteClefRow();
     }
     function playerBadge() {
         const clef = (state.currentMode === 'classic60' || state.currentMode === 'noMiss') ? ' · ' + noteClefLabel() : '';
-        const grade = ABRSM_NOTE_MODES.has(state.currentMode) ? '' : (state.abrsmGrade ? ' · 英皇 G' + String(state.abrsmGrade).replace('abrsm-g', '') : '');
+        const keysig = state.currentMode === 'keysig_practice' || state.currentMode === 'keysig60';
+        const grade = (!keysig && !ABRSM_NOTE_MODES.has(state.currentMode) && state.abrsmGrade)
+            ? ' · 英皇 G' + String(state.abrsmGrade).replace('abrsm-g', '')
+            : '';
         return `👋 ${state.currentUser.name} 同學 · ${state.modeConfig.name}${clef}${grade}`;
     }
     function isSharedRankRow(row) {
@@ -2940,18 +3030,16 @@
         const keysigOptions = document.getElementById('keysigOptions');
         const canvasWrapper = document.getElementById('canvasWrapper');
         const clefBadge = document.getElementById('clefBadge');
-        const abrsm = show && usingAbrsmKeys();
-        if (keysigDisplay) keysigDisplay.style.display = (show && !abrsm) ? 'flex' : 'none';
+        if (keysigDisplay) keysigDisplay.style.display = show ? 'flex' : 'none';
         if (keysigOptions) keysigOptions.style.display = show ? 'grid' : 'none';
         if (canvasWrapper) canvasWrapper.style.display = show ? 'none' : '';
-        if (clefBadge) clefBadge.style.display = (show && !abrsm) ? 'none' : '';
+        if (clefBadge) clefBadge.style.display = show ? 'none' : '';
         if (dom.notesGrid) dom.notesGrid.style.display = show ? 'none' : '';
-        if (!abrsm) hideAbrsmStaff();
+        hideAbrsmStaff();
     }
 
-    function generateKeysigQuestion(grade) {
-        if (usingAbrsmKeys()) return generateAbrsmKeyQuestion();
-        const pool = getKeysigPool(grade);
+    function generateKeysigQuestion(maxAcc) {
+        const pool = getKeysigPool(maxAcc);
         if (pool.length < 2) return null;
         const correct = pool[Math.floor(Math.random() * pool.length)];
         // Pick 3 distractors
@@ -3035,8 +3123,7 @@
     }
 
     function nextKeysigQuestion() {
-        const grade = state.keysigGrade || state.currentUser.grade || 3;
-        const q = generateKeysigQuestion(grade);
+        const q = generateKeysigQuestion(keysigAccMax());
         if (!q) return;
         state.answered = false;
         state.attemptedThisQuestion = false;
@@ -3681,7 +3768,11 @@
         // Record to profile
         const _g1Accuracy = state.totalQuestions ? Math.round(((state.totalQuestions - state.wrongCount) / state.totalQuestions) * 100) : 0;
         if (state.currentUser) {
-            recordGameResult(state.currentUser, 'game1', state.score, _g1Accuracy, state.maxCombo, state.currentMode);
+            const modeNow = state.currentMode;
+            const bucket = (modeNow === 'keysig60' || modeNow === 'keysig_practice') ? 'keysig'
+                : (modeNow === 'solfege60' || modeNow === 'solfege_practice') ? 'solfege'
+                : 'game1';
+            recordGameResult(state.currentUser, bucket, state.score, _g1Accuracy, state.maxCombo, modeNow);
         }
 
         if (state.modeConfig.type === 'challenge') submitScore(); 
@@ -4197,7 +4288,6 @@
         const clefSelectorRow = document.getElementById('clefSelectorRow');
         const clefSelBtns = document.querySelectorAll('.clef-sel-btn');
         const keysigSubRow = document.getElementById('keysigSubRow');
-        const keysigGradeRow = document.getElementById('keysigGradeRow');
         const solfegeSubRow = document.getElementById('solfegeSubRow');
         const solfegeGradeRow = document.getElementById('solfegeGradeRow');
 
@@ -4206,7 +4296,6 @@
             if (clefSelectorRow) clefSelectorRow.style.display = 'none';
             if (dom.practiceDiffRow) dom.practiceDiffRow.style.display = 'none';
             if (keysigSubRow) keysigSubRow.style.display = 'none';
-            if (keysigGradeRow) keysigGradeRow.style.display = 'none';
             if (solfegeSubRow) solfegeSubRow.style.display = 'none';
             if (solfegeGradeRow) solfegeGradeRow.style.display = 'none';
         }
@@ -4252,12 +4341,10 @@
             syncAbrsmRows();
             saveSettings();
         }));
-        // Keysig grade buttons
-        document.querySelectorAll('.ks-grade-btn').forEach(btn => btn.addEventListener('click', () => {
+        document.querySelectorAll('.ks-acc-btn').forEach(btn => btn.addEventListener('click', () => {
             audio.init(); audio.playClick('select');
-            document.querySelectorAll('.ks-grade-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            state.keysigGrade = parseInt(btn.dataset.grade);
+            state.keysigAccMax = parseInt(btn.dataset.acc, 10);
+            paintKeysigAcc();
             saveSettings();
         }));
 
@@ -4293,11 +4380,9 @@
             handleSolfegeAnswer(btn.dataset.sol);
         }));
 
-        // Init keysig/solfege grade from student profile
-        if (!state.keysigGrade) state.keysigGrade = parseInt(state.currentUser?.grade) || 1;
         if (!state.solfegeGrade) state.solfegeGrade = parseInt(state.currentUser?.grade) || 1;
-        document.querySelectorAll('.ks-grade-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.grade) === state.keysigGrade));
         document.querySelectorAll('.sol-grade-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.grade) === state.solfegeGrade));
+        paintKeysigAcc();
 
         clefSelBtns.forEach(btn => btn.addEventListener('click', () => {
             if (!NOTE_CLEF_IDS.includes(btn.dataset.clef)) return;
@@ -4316,7 +4401,6 @@
           const isSolfege = state.currentMode === 'solfege_practice' || state.currentMode === 'solfege60';
           if (clefSelectorRow) clefSelectorRow.style.display = isChallenge ? '' : 'none';
           if (keysigSubRow) keysigSubRow.style.display = isKeysig ? '' : 'none';
-          if (keysigGradeRow) keysigGradeRow.style.display = 'none';
           if (solfegeSubRow) solfegeSubRow.style.display = isSolfege ? '' : 'none';
           if (solfegeGradeRow) solfegeGradeRow.style.display = 'none';
           if (isChallenge) { paintNoteClefRow();
@@ -4581,9 +4665,17 @@
         document.getElementById('vpAPCount').textContent = apCount;
 
         const gb = rs ? rs.gameBests : p.gameBests;
-        document.getElementById('vpGame1').textContent = gb.game1 || '---';
-        document.getElementById('vpGame2').textContent = gb.game2 || '---';
-        document.getElementById('vpGame3').textContent = gb.game3 || '---';
+        const vpBest = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value || '---'; };
+        vpBest('vpNotes', gb.game1);
+        vpBest('vpKeysig', gb.keysig);
+        vpBest('vpSolfege', gb.solfege);
+        vpBest('vpChord', gb.chord);
+        vpBest('vpRhythm', gb.game2);
+        vpBest('vpTerms', gb.game3);
+        vpBest('vpInstr', gb.game4);
+        vpBest('vpGame1', gb.game1);
+        vpBest('vpGame2', gb.game2);
+        vpBest('vpGame3', gb.game3);
         const vp4 = document.getElementById('vpGame4');
         if (vp4) vp4.textContent = gb.game4 || '---';
     }
@@ -4932,6 +5024,17 @@
             });
         }
 
+        window.addEventListener('chord-local-best', (ev) => {
+            const score = parseInt(ev && ev.detail && ev.detail.score, 10) || 0;
+            const u = getHubUser();
+            if (!u || !u.name || (_profileApi() && _profileApi().isGuest(u))) return;
+            const profile = loadProfile(u);
+            if (score > (profile.gameBests.chord || 0)) {
+                profile.gameBests.chord = score;
+                saveProfile(profile);
+            }
+        });
+
         window.addEventListener('musicapp:cloud-profile', (ev) => {
             const data = ev && ev.detail;
             if (!data) return;
@@ -4942,11 +5045,13 @@
                 if (typeof data.exp === 'number' && data.exp > (local.exp || 0)) local.exp = data.exp;
                 if (typeof data.level === 'number' && data.level > (local.level || 1)) local.level = data.level;
                 if (data.gameBests && typeof data.gameBests === 'object') {
-                    local.gameBests = Object.assign({}, local.gameBests || {}, data.gameBests);
-                    Object.keys(data.gameBests).forEach((k) => {
-                        local.gameBests[k] = Math.max(local.gameBests[k] || 0, data.gameBests[k] || 0);
-                    });
+                    local.gameBests = _profileApi()
+                        ? _profileApi().mergeBests(local.gameBests, data.gameBests)
+                        : local.gameBests;
                 }
+                if (data.avatar) local.avatar = data.avatar;
+                if (typeof data.signature === 'string' && data.signature.trim()) local.signature = data.signature;
+                if (typeof data.totalPlayTime === 'number') local.totalPlayTime = Math.max(local.totalPlayTime || 0, data.totalPlayTime);
                 saveProfile(local);
             } catch (e) {}
         });
@@ -5042,7 +5147,12 @@
                 const savedName = s.savedName;
                 const blocked = !isAppShell() && (savedName === '__guest__' || savedName === '__other__');
                 if (savedName && !blocked) { hubName.value = savedName; const sel = hubName.selectedOptions[0]; if (sel && sel.dataset.seat) hubSeat.value = sel.dataset.seat; }
+                if (s.userId && (!hubSeat.value || hubSeat.value === '--')) hubSeat.value = s.userId;
                 _handleHubNameMode();
+                if (s.savedName === '__other__' && s.savedCustomName) {
+                    const custom = document.getElementById('hubCustomNameInput');
+                    if (custom) custom.value = s.savedCustomName;
+                }
                 hubName.dispatchEvent(new Event('change'));
             } catch(e) {}
         }
@@ -5115,19 +5225,62 @@
         }
 
         // Game 1 entry — sync hub → setup then show setup
-        const enterGame1El = document.getElementById('enterGame1');
-        enterGame1El.addEventListener('click', () => {
+        function applySetupTopic(topic) {
+            const title = document.getElementById('setupTitle');
+            const subtitle = document.getElementById('setupSubtitle');
+            const copy = {
+                notes: ['🎵 音名識辨', '練習、1分鐘挑戰、零失誤挑戰'],
+                keysig: ['𝄞 調號辨別', '看調號圖片，按升降號數目練習'],
+                solfege: ['🎤 唱名辨別', '課堂首調，不是英皇級別']
+            };
+            const text = copy[topic] || copy.notes;
+            if (title) title.textContent = text[0];
+            if (subtitle) subtitle.textContent = text[1];
+            document.querySelectorAll('#modeCards .mode-card').forEach(card => {
+                card.style.display = card.dataset.setup === topic ? '' : 'none';
+            });
+            const teach = document.getElementById('openNoteTeachBtn');
+            if (teach) teach.hidden = topic !== 'notes';
+            const chordBtn = document.getElementById('openChordCardBtn');
+            if (chordBtn) chordBtn.hidden = true;
+            if (topic === 'keysig') {
+                document.querySelector('.mode-card[data-mode="keysig_practice"]')?.click();
+            } else if (topic === 'solfege') {
+                document.querySelector('.mode-card[data-mode="solfege_practice"]')?.click();
+            } else if (state.currentMode === 'keysig_practice' || state.currentMode === 'keysig60' || state.currentMode === 'solfege_practice' || state.currentMode === 'solfege60') {
+                document.querySelector('.mode-card[data-mode="practice"]')?.click();
+            }
+        }
+        function openSetupTopic(topic) {
             if (!requireHubLogin(hubNameField)) return;
             syncFromHub();
-            // Auto-sync grade textbook level
-            if (dom.textbookMode) { dom.textbookMode.value = hubGrade.value; handleTextbookModeChange(); }
+            if (topic === 'notes' && dom.textbookMode) { dom.textbookMode.value = hubGrade.value; handleTextbookModeChange(); }
+            applySetupTopic(topic);
             switchScreen('screen-setup');
-        });
+        }
+
+        const enterGame1El = document.getElementById('enterGame1');
+        enterGame1El.addEventListener('click', () => openSetupTopic('notes'));
         enterGame1El.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 enterGame1El.click();
             }
+        });
+        document.getElementById('enterKeysig')?.addEventListener('click', () => openSetupTopic('keysig'));
+        document.getElementById('enterSolfege')?.addEventListener('click', () => openSetupTopic('solfege'));
+        document.getElementById('enterChord')?.addEventListener('click', () => {
+            if (!requireHubLogin(hubNameField)) return;
+            document.getElementById('openChordCardBtn')?.click();
+        });
+        ['enterKeysig', 'enterSolfege', 'enterChord'].forEach(id => {
+            const el = document.getElementById(id);
+            el?.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    el.click();
+                }
+            });
         });
 
         function openRhythmComposer() {
