@@ -12,14 +12,13 @@
  *   googleClientId  Web OAuth client id from Google Cloud Console.
  *                   Authorized JavaScript origin: https://musiceducation.github.io
  *   authApiBase     Cloudflare Worker origin, no trailing path.
- * googleClientId stays a placeholder until the teacher creates the Web OAuth client.
  */
 window.MUSIC_APP_AUTH = {
   enabled: true,
   requireOnNativeOnly: true,
   appleSignInEnabled: true,
   firestoreCollection: 'players',
-  googleClientId: 'YOUR_GOOGLE_WEB_CLIENT_ID.apps.googleusercontent.com',
+  googleClientId: '1073963851625-9cn4bsociaj2ospo90er5d1dp7o0umdp.apps.googleusercontent.com',
   authApiBase: 'https://noteschallenge-auth.matchmaster-mm.workers.dev',
   firebase: {
     apiKey: '',
