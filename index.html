@@ -33,7 +33,7 @@
     <!-- Capacitor：Firebase Google / Apple 登入（auth-config.js enabled 時） -->
     <div id="socialAuthOverlay" class="social-auth-overlay" aria-hidden="true">
         <div class="social-auth-card">
-            <div class="social-auth-logo">♩</div>
+            <div class="social-auth-logo"><img src="img/ui/ui-profile.webp" alt=""></div>
             <h2 class="social-auth-title">Google 登入</h2>
             <p class="social-auth-sub">請使用 Google 帳號登入以繼續（亦提供 Apple 登入以符合 App Store 規範）</p>
             <div id="socialAuthMisconfig" class="social-auth-misconfig" hidden>
@@ -52,7 +52,7 @@
     <!-- 網頁版：必須先用自己的 Google 帳號登入。App 不顯示呢層。 -->
     <div id="webGoogleAuthOverlay" class="web-google-auth" role="dialog" aria-modal="true" aria-labelledby="webGoogleAuthTitle">
         <div class="social-auth-card">
-            <div class="social-auth-logo">♩</div>
+            <div class="social-auth-logo"><img src="img/ui/ui-profile.webp" alt=""></div>
             <h2 id="webGoogleAuthTitle" class="social-auth-title">請用你自己嘅 Google 帳號登入</h2>
             <p class="social-auth-sub">請用你自己嘅 Google 帳號登入。登入之後，你嘅姓名同班別會自動顯示，唔使自己揀。</p>
             <div id="webGoogleAuthError" class="social-auth-misconfig" hidden></div>
@@ -525,7 +525,7 @@
             </div>
             <div class="profile-playtime" id="profilePlaytime">🕐 累計練習時間：0 分鐘</div>
             <button type="button" id="profileAvatarToggle" class="profile-avatar-toggle">更換頭像</button>
-            <button type="button" class="profile-signout" id="profileSignOutBtn" hidden>登出</button>
+            <button type="button" class="profile-signout" id="profileSignOutBtn" hidden><img class="lobby-ico" src="img/ui/ui-signout.webp" alt="">登出</button>
         </div>
         <p class="profile-save-status" id="profileSaveStatus" aria-live="polite"></p>
         <div class="profile-dash">

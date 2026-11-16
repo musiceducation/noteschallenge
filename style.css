@@ -8190,4 +8190,107 @@ body:has(#screen-hub.screen.active) .bg-dots { opacity: 0; }
     border: 2px solid #f0d7b0;
 }
 
+/* Picture-book sky behind every screen. Surfaces stay cream paper so the words stay readable. */
+body {
+    background: #14284a url("img/ui/lobby-night.webp") center / cover no-repeat;
+    animation: none;
+}
+.bg-dots,
+.bg-note { display: none; }
+#webGoogleAuthOverlay,
+#socialAuthOverlay.social-auth-overlay,
+.social-auth-overlay {
+    background: #14284a url("img/ui/lobby-night.webp") center / cover no-repeat;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+.social-auth-card {
+    background: #fff6ea;
+    border: 2px solid #f0d7b0;
+    box-shadow: 0 18px 40px rgba(16, 24, 58, 0.28);
+    max-width: 460px;
+}
+.social-auth-logo img {
+    width: 84px;
+    height: 84px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto 8px;
+}
+.social-auth-title { color: #3d342c; }
+.social-auth-sub { color: #6a5648; }
+.card,
+.profile-card,
+.report-section,
+.ranking-section,
+.staff-container {
+    background: #fffaf3;
+    border-color: #f0dcc0;
+}
+.profile-card {
+    border: 2px solid #f0dcc0;
+    border-radius: 18px;
+    box-shadow: 0 10px 24px rgba(20, 30, 70, 0.16);
+}
+.screen:not(#screen-hub) .game-title {
+    background: none;
+    color: #fff8ee;
+    -webkit-text-fill-color: #fff8ee;
+    filter: drop-shadow(0 2px 8px rgba(12, 24, 58, 0.45));
+}
+.screen:not(#screen-hub) .game-subtitle,
+.screen:not(#screen-hub) .game-subtitle::before,
+.screen:not(#screen-hub) .game-subtitle::after {
+    color: #f3e2c4;
+}
+.screen:not(#screen-hub) .title-icon {
+    background: #fff6ea;
+    color: #5a4032;
+    border: 2px solid #f0d7b0;
+    box-shadow: none;
+}
+.btn-back-hub,
+.btn-back-hub:hover:not(:disabled),
+.btn-back-hub:active:not(:disabled) {
+    background: url("img/ui/ui-start-pill.webp") center / 100% 100% no-repeat;
+    color: #5a4032;
+    border-color: transparent;
+}
+.btn-start,
+.btn-start:hover:not(:disabled),
+.note-teach-entry.btn-start,
+.note-teach-entry.btn-start:hover:not(:disabled) {
+    background: url("img/ui/ui-start-pill.webp") center / 100% 100% no-repeat;
+    color: #5a4032;
+}
+.note-teach-entry-hint { color: #7a6254; }
+#screen-setup .abrsm-coverage,
+#screen-setup .practice-diff-label,
+#screen-g2-setup .abrsm-coverage,
+#screen-g2-setup .practice-diff-label,
+#screen-g3-setup .abrsm-coverage,
+#screen-g3-setup .practice-diff-label,
+#screen-g4-setup .abrsm-coverage,
+#screen-g4-setup .practice-diff-label {
+    color: #fff3df;
+}
+.btn-restart-large,
+.btn-restart-large:hover:not(:disabled) {
+    background: url("img/ui/ui-start-pill.webp") center / 100% 100% no-repeat;
+    color: #5a4032;
+}
+#screen-profile #profileSignOutBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #fff6ea;
+    color: #5a4032;
+    border: 2px solid #f0d7b0;
+}
+.sound-toggle {
+    background: #fff6ea;
+    border-color: #f0d7b0;
+    color: #5a4032;
+}
+
 
