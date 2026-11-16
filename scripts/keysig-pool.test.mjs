@@ -38,6 +38,7 @@ const keysigCard = page.slice(page.indexOf('data-mode="keysig_practice"'), page.
 assert.doesNotMatch(keysigCard, /英皇/);
 const acc = page.slice(page.indexOf('id="keysigAccRow"'), page.indexOf('id="solfegeSubRow"'));
 assert.doesNotMatch(acc, /英皇/);
-assert.match(page, /id="abrsmGradeRow"/);
+assert.doesNotMatch(page.slice(page.indexOf('id="screen-setup"'), page.indexOf('id="screen-game"')), /id="abrsmGradeRow"/);
+assert.match(page.slice(page.indexOf('id="screen-g2-setup"'), page.indexOf('id="screen-g3-setup"')), /英皇級別/);
 
 console.log('keysig-pool tests passed');

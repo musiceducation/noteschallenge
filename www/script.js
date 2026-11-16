@@ -2317,10 +2317,13 @@
     function noteClefLabel() {
         return NOTE_CLEF_LABEL[noteClefChoice()];
     }
+    function noteModeUsesClef() {
+        return state.currentMode === 'practice' || state.currentMode === 'classic60' || state.currentMode === 'noMiss';
+    }
     function paintNoteClefRow() {
         const row = document.getElementById('clefSelectorRow');
         if (!row) return;
-        const show = state.currentMode === 'classic60' || state.currentMode === 'noMiss';
+        const show = noteModeUsesClef();
         row.style.display = show ? '' : 'none';
         document.querySelectorAll('#noteClefBtns .clef-sel-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.clef === noteClefChoice());
@@ -2333,7 +2336,7 @@
         return 'abrsm-theory-v1:notes-clef-' + noteClefChoice();
     }
     function clefPracticeIds() {
-        return (state.currentMode === 'classic60' || state.currentMode === 'noMiss') ? noteClefIds() : ['treble', 'bass'];
+        return noteModeUsesClef() ? noteClefIds() : ['treble', 'bass'];
     }
     function generateAbrsmNote() {
         const pool = AbrsmNoteGrade.practicePool(clefPracticeIds());
@@ -2417,37 +2420,15 @@
         });
         dom.notesGrid.appendChild(host);
     }
-    function refreshAbrsmCoverage() {
-        const el = document.getElementById('abrsmCoverage');
-        if (!el) return;
-        ensureAbrsmGrade();
-        const n = String(state.abrsmGrade).replace('abrsm-g', '');
-        const detail = {
-            '1': 'G1 只有大調、高音譜和低音譜，最多一條加線。',
-            '2': 'G2 加入和聲小調，最多兩條加線。旋律小調未到。',
-            '3': 'G3 加入旋律小調，加線可以多過兩條。',
-            '4': 'G4 加入中音譜號，以及重升、重降。',
-            '5': 'G5 加入次中音譜號。'
-        }[n] || '';
-        el.textContent = '難度是英皇樂理 G' + n + '。' + detail + '移調、裝飾音、術語、節奏、和弦與樂器不在這一關，亦不是完整考試準備。唱名是課堂首調，不是級別。';
-    }
     function syncAbrsmRows() {
-        ensureAbrsmGrade();
-        const row = document.getElementById('abrsmGradeRow');
         const accRow = document.getElementById('keysigAccRow');
-        const noteMode = ABRSM_NOTE_MODES.has(state.currentMode);
         const keysig = state.currentMode === 'keysig_practice' || state.currentMode === 'keysig60';
-        if (row) row.style.display = noteMode ? '' : 'none';
         if (accRow) accRow.style.display = keysig ? '' : 'none';
-        document.querySelectorAll('#abrsmGradeBtns .abrsm-grade-btn').forEach(btn => {
-            btn.classList.toggle('active', (btn.dataset.abrsm || '') === state.abrsmGrade);
-        });
-        refreshAbrsmCoverage();
         paintKeysigAcc();
         paintNoteClefRow();
     }
     function playerBadge() {
-        const clef = (state.currentMode === 'classic60' || state.currentMode === 'noMiss') ? ' · ' + noteClefLabel() : '';
+        const clef = noteModeUsesClef() ? ' · ' + noteClefLabel() : '';
         const keysig = state.currentMode === 'keysig_practice' || state.currentMode === 'keysig60';
         const grade = (!keysig && !ABRSM_NOTE_MODES.has(state.currentMode) && state.abrsmGrade)
             ? ' · 英皇 G' + String(state.abrsmGrade).replace('abrsm-g', '')
@@ -3051,7 +3032,7 @@
             dom.timeProgress.style.width = '100%'; 
             dom.timeProgress.style.transition = 'none'; 
             updateScoreboard();
-            const clefStart = (state.currentMode === 'classic60' || state.currentMode === 'noMiss') ? `（${noteClefLabel()}）` : '';
+            const clefStart = noteModeUsesClef() ? `（${noteClefLabel()}）` : '';
             if (state.currentMode === 'noMiss') state.noMissPlayedClef = noteClefChoice();
             const began = state.currentMode === 'noMiss' ? '挑戰開始' : '練習開始';
             dom.messageBox.textContent = `🎵 ${state.modeConfig.name}${clefStart} — ${began}。`; 
@@ -4454,7 +4435,7 @@
         clefSelBtns.forEach(btn => btn.addEventListener('click', () => {
             if (!NOTE_CLEF_IDS.includes(btn.dataset.clef)) return;
             audio.init(); audio.playClick('select');
-            if (state.currentMode !== 'noMiss') {
+            if (state.currentMode !== 'noMiss' && state.currentMode !== 'practice') {
                 state.currentMode = 'classic60';
                 state.modeConfig = MODE_CONFIG.classic60;
             }

@@ -732,6 +732,17 @@
             paint({ play: true });
         }
 
+        function adoptSetupClef() {
+            var chosen = document.querySelector('#noteClefBtns .clef-sel-btn.active');
+            var clef = chosen && chosen.getAttribute('data-clef');
+            if (clef !== 'treble' && clef !== 'bass' && clef !== 'alto' && clef !== 'tenor') return;
+            if (state.clef === clef && sequence(clef, state.mode).some(function (item) { return item.id === state.noteId; })) return;
+            state.topicId = '';
+            state.clef = clef;
+            var list = sequence(clef, state.mode);
+            state.noteId = (list[0] && list[0].id) || state.noteId;
+        }
+
         function openFrom(event) {
             if (event) {
                 event.preventDefault();
@@ -739,6 +750,7 @@
             }
             var active = document.querySelector('.screen.active');
             if (active && active.id && active.id !== 'screen-note-teach') returnScreen = active.id;
+            adoptSetupClef();
             if (switchScreen) switchScreen('screen-note-teach');
             kbSig = '';
             requestAnimationFrame(function () { paint(); });

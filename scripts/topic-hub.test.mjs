@@ -29,7 +29,9 @@ assert.match(setup, /data-setup="keysig"/);
 assert.match(setup, /data-setup="solfege"/);
 assert.doesNotMatch(setup, /openChordCardBtn|先看和弦鍵盤/);
 assert.match(setup, /id="keysigAccRow"/);
-assert.match(setup, /id="abrsmGradeRow"/);
+assert.doesNotMatch(setup, /id="abrsmGradeRow"|id="abrsmGradeBtns"|id="abrsmCoverage"/);
+assert.match(notes.slice(notes.indexOf('id="screen-g2-setup"'), notes.indexOf('id="screen-g3-setup"')), /英皇級別/);
+assert.match(notes.slice(notes.indexOf('id="screen-g3-setup"'), notes.indexOf('id="screen-rc-grade"')), /英皇級別/);
 
 for (const file of ['script.js', 'www/script.js']) {
   const src = fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8');
