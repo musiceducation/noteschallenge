@@ -7883,15 +7883,19 @@ body.app-shell.app-on-root .sound-toggle {
     font-size: 0.85rem;
     font-weight: 800;
 }
-.lobby-email {
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.lobby-actions #hubProfileBtn {
     white-space: nowrap;
-    font-size: 0.75rem;
-    font-weight: 800;
-    color: var(--text-light);
+    width: auto !important;
+    min-width: 4.5rem;
+    height: 40px !important;
+    padding: 0 14px !important;
+    line-height: 1;
+    font-size: 0.95rem;
 }
+.lobby-actions #hubAsideProfileBtn { display: none !important; }
+.lobby-email { display: none; }
+.lobby-head .hub-aside-stat-label { display: block; font-size: 0.68rem; font-weight: 800; color: var(--text-light); }
+.lobby-head .hub-aside-stat span:last-child { display: block; font-size: 1.05rem; font-weight: 900; color: var(--text-dark); }
 .lobby-fields[hidden] { display: none !important; }
 
 /* iPad landscape: header, seven cards, and progress fit in one screen. */
@@ -7932,37 +7936,64 @@ body.app-shell.app-on-root .sound-toggle {
         gap: 8px;
     }
     #screen-hub .hub-games-grid {
-        flex: 1 1 auto;
-        min-height: 0;
+        flex: 0 0 auto;
         width: 100%;
         max-width: none;
         margin: 0;
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-        grid-template-rows: minmax(0, 1fr);
-        gap: 8px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-rows: auto auto;
+        grid-auto-flow: row;
+        grid-auto-rows: auto;
+        align-items: stretch;
+        justify-items: stretch;
+        gap: 10px;
+        height: auto;
     }
+    #screen-hub .hub-topic-pitch,
+    #screen-hub .hub-topic-skill,
+    #screen-hub .hub-game-rhythm,
     #screen-hub .hub-game-card {
-        min-height: 0;
-        height: 100%;
-        max-height: 100%;
-        overflow: hidden;
-        padding: 8px 6px 10px;
-        display: flex;
-        flex-direction: column;
-    }
-    #screen-hub .hub-game-illust {
-        flex: 1 1 auto;
+        grid-column: auto;
+        grid-row: auto;
+        width: auto;
         height: auto;
         min-height: 0;
         max-height: none;
-        width: 100%;
-        margin: 0 0 6px;
+        align-self: stretch;
+    }
+    #screen-hub .hub-game-card {
+        overflow: hidden;
+        padding: 0 10px 10px;
+        display: flex;
+        flex-direction: column;
+    }
+    #screen-hub .hub-game-card:hover { transform: none; }
+    #screen-hub .hub-game-illust {
+        flex: 0 0 auto;
+        width: calc(100% + 20px);
+        height: auto;
+        aspect-ratio: 16 / 9;
+        max-height: none;
+        margin: 0 -10px 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    #screen-hub .illust-img,
+    #screen-hub .illust-svg {
+        width: 88%;
+        height: 88%;
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        object-position: center;
+        transform: none;
     }
     #screen-hub .hub-game-desc,
     #screen-hub .hub-card-teach { display: none; }
-    #screen-hub .hub-game-name { font-size: 0.95rem; line-height: 1.2; }
-    #screen-hub .hub-game-btn { margin-top: auto; min-height: 32px; padding: 4px 0; font-size: 0.78rem; }
+    #screen-hub .hub-game-name { font-size: 1rem; line-height: 1.2; margin-top: 2px; }
+    #screen-hub .hub-game-btn { margin-top: 8px; min-height: 36px; padding: 6px 0; font-size: 0.85rem; }
     #screen-hub .btn-view-ranks {
         flex: 0 0 auto;
         width: auto;
