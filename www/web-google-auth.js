@@ -339,6 +339,12 @@
     document.head.appendChild(script);
   }
 
+  function stubAuto() {
+    if (!stubMode()) return false;
+    try { return new URLSearchParams(location.search).get('stubAuto') === '1'; }
+    catch (e) { return false; }
+  }
+
   function restore() {
     var token = '';
     try { token = localStorage.getItem(SESSION_KEY) || ''; } catch (e) {}
@@ -348,6 +354,7 @@
       renderGoogleButton();
       if (!apiBase() && !stubMode()) setError('登入尚未設定。請老師填入 auth-config.js 的 authApiBase。');
       notifySession();
+      if (stubAuto()) exchange('stub');
       return;
     }
     state.token = token;
@@ -363,6 +370,7 @@
       renderGoogleButton();
       if (err && err.message === 'not_on_roster') setError(ROSTER_DENIED);
       notifySession();
+      if (stubAuto()) exchange('stub');
     });
   }
 

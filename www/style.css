@@ -7838,3 +7838,169 @@ body.app-shell.app-on-root .sound-toggle {
 .profile-bests-note { margin: 0 0 10px; color: var(--text-light); font-weight: 700; font-size: 0.88rem; }
 #screen-profile .profile-game-bests,
 #screen-view-profile .profile-game-bests { grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)); }
+
+/* Signed-in lobby: header, seven topics, compact progress. */
+.lobby-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    background: #fff;
+    border: 2px solid var(--ds-outline-variant);
+    border-radius: 18px;
+    box-shadow: var(--ds-shadow-cloud);
+}
+.lobby-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.lobby-avatar {
+    width: 48px; height: 48px; margin: 0; font-size: 1.6rem;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; background: var(--ds-primary-container);
+}
+.lobby-id { min-width: 0; }
+.lobby-head .hub-aside-name { font-size: 1.2rem; font-weight: 900; line-height: 1.15; }
+.lobby-head .hub-aside-meta { margin: 2px 0 0; font-size: 0.82rem; color: var(--text-light); }
+.lobby-progress { display: flex; gap: 8px; flex: 1 1 auto; justify-content: center; flex-wrap: wrap; }
+.lobby-head .hub-aside-stat {
+    background: var(--ds-surface-container);
+    border-radius: 12px;
+    padding: 4px 10px;
+    min-width: 52px;
+    text-align: center;
+}
+.lobby-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+.lobby-actions .hub-profile-corner-btn,
+.lobby-actions .hub-social-corner-btn,
+.lobby-actions .hub-aside-profile-btn,
+.lobby-actions #hubSignOutBtn {
+    position: static;
+    width: auto;
+    height: 40px;
+    min-width: 40px;
+    padding: 0 12px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 800;
+}
+.lobby-actions #hubProfileBtn {
+    white-space: nowrap;
+    width: auto !important;
+    min-width: 4.5rem;
+    height: 40px !important;
+    padding: 0 14px !important;
+    line-height: 1;
+    font-size: 0.95rem;
+}
+.lobby-actions #hubAsideProfileBtn { display: none !important; }
+.lobby-email { display: none; }
+.lobby-head .hub-aside-stat-label { display: block; font-size: 0.68rem; font-weight: 800; color: var(--text-light); }
+.lobby-head .hub-aside-stat span:last-child { display: block; font-size: 1.05rem; font-weight: 900; color: var(--text-dark); }
+.lobby-fields[hidden] { display: none !important; }
+
+/* iPad landscape: header, seven cards, and progress fit in one screen. */
+@media (orientation: landscape) and (min-width: 1024px) and (max-height: 1024px) {
+    html:has(#screen-hub.screen.active),
+    body:has(#screen-hub.screen.active) {
+        height: 100dvh;
+        max-height: 100dvh;
+        min-height: 0;
+        overflow: hidden;
+        padding: 0;
+        margin: 0;
+    }
+    #screen-hub.screen.active {
+        width: 100%;
+        max-width: 100%;
+        height: 100dvh;
+        max-height: 100dvh;
+        min-height: 0;
+        overflow: hidden;
+        gap: 8px;
+        box-sizing: border-box;
+        padding: 8px 12px;
+        flex: 1 1 auto;
+    }
+    #screen-hub .lobby-title,
+    #screen-hub .lobby-sub { display: none; }
+    #screen-hub .lobby-head { flex-wrap: nowrap; flex: 0 0 auto; padding: 6px 10px; }
+    #screen-hub .hub-layout,
+    #screen-hub .hub-main-col {
+        flex: 1 1 auto;
+        min-height: 0;
+        width: 100%;
+        max-width: none;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    #screen-hub .hub-games-grid {
+        flex: 0 0 auto;
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-rows: auto auto;
+        grid-auto-flow: row;
+        grid-auto-rows: auto;
+        align-items: stretch;
+        justify-items: stretch;
+        gap: 10px;
+        height: auto;
+    }
+    #screen-hub .hub-topic-pitch,
+    #screen-hub .hub-topic-skill,
+    #screen-hub .hub-game-rhythm,
+    #screen-hub .hub-game-card {
+        grid-column: auto;
+        grid-row: auto;
+        width: auto;
+        height: auto;
+        min-height: 0;
+        max-height: none;
+        align-self: stretch;
+    }
+    #screen-hub .hub-game-card {
+        overflow: hidden;
+        padding: 0 10px 10px;
+        display: flex;
+        flex-direction: column;
+    }
+    #screen-hub .hub-game-card:hover { transform: none; }
+    #screen-hub .hub-game-illust {
+        flex: 0 0 auto;
+        width: calc(100% + 20px);
+        height: auto;
+        aspect-ratio: 16 / 9;
+        max-height: none;
+        margin: 0 -10px 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    #screen-hub .illust-img,
+    #screen-hub .illust-svg {
+        width: 88%;
+        height: 88%;
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        object-position: center;
+        transform: none;
+    }
+    #screen-hub .hub-game-desc,
+    #screen-hub .hub-card-teach { display: none; }
+    #screen-hub .hub-game-name { font-size: 1rem; line-height: 1.2; margin-top: 2px; }
+    #screen-hub .hub-game-btn { margin-top: 8px; min-height: 36px; padding: 6px 0; font-size: 0.85rem; }
+    #screen-hub .btn-view-ranks {
+        flex: 0 0 auto;
+        width: auto;
+        align-self: center;
+        margin: 0;
+        min-height: 36px;
+        padding: 6px 16px;
+    }
+}
+

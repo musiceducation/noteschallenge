@@ -238,35 +238,36 @@
 
         <button type="button" class="btn-back-hub app-only-inline" id="hubBackToHomeBtn" hidden>← 返回首頁</button>
 
-        <div class="hub-corner-actions">
-            <button class="hub-profile-corner-btn" id="hubProfileBtn" title="個人檔案">👤</button>
-            <span class="hub-corner-hint">個人檔案</span>
-        </div>
-        <div class="hub-corner-actions hub-corner-left web-only-ui">
-            <button class="hub-social-corner-btn" id="hubClassmatesBtn" title="同學名冊">👥</button>
-            <button class="hub-social-corner-btn hub-fullscreen-btn" id="hubFullscreenBtn" type="button" title="全螢幕" aria-label="全螢幕" aria-pressed="false">⛶</button>
-        </div>
-        <h1 class="game-title"><span class="title-icon">♩</span> <span id="hubTitleText">互動音樂學習站</span></h1>
-        <div class="game-subtitle" id="hubSubtitleText">互動音樂學習站</div>
+        <header class="lobby-head">
+            <div class="lobby-who">
+                <div class="hub-aside-avatar lobby-avatar" id="hubAsideAvatar" aria-hidden="true">🎵</div>
+                <div class="lobby-id">
+                    <div class="hub-aside-name" id="hubAsideName">尚未選擇身份</div>
+                    <div class="hub-aside-meta" id="hubAsideMeta">登入後顯示班別</div>
+                </div>
+            </div>
+            <div class="lobby-progress" aria-label="個人進度">
+                <div class="hub-aside-stat"><span class="hub-aside-stat-label">等級</span><span id="hubAsideLevel">1</span></div>
+                <div class="hub-aside-stat"><span class="hub-aside-stat-label">EXP</span><span id="hubAsideExp">0</span></div>
+                <div class="hub-aside-stat"><span class="hub-aside-stat-label">音名</span><span id="hubAsideBest1">0</span></div>
+                <div class="hub-aside-stat"><span class="hub-aside-stat-label">節奏</span><span id="hubAsideBest2">0</span></div>
+            </div>
+            <div class="lobby-actions">
+                <button class="hub-social-corner-btn" id="hubClassmatesBtn" title="同學名冊" type="button">👥</button>
+                <button class="hub-social-corner-btn hub-fullscreen-btn" id="hubFullscreenBtn" type="button" title="全螢幕" aria-label="全螢幕" aria-pressed="false">⛶</button>
+                <button class="hub-profile-corner-btn" id="hubProfileBtn" title="個人檔案" type="button">檔案</button>
+                <button type="button" class="hub-aside-profile-btn" id="hubAsideProfileBtn" hidden>完整檔案</button>
+                <span id="hubAccountEmail" class="lobby-email"></span>
+                <button type="button" id="hubSignOutBtn" class="web-only-ui">登出</button>
+            </div>
+        </header>
+        <h1 class="game-title lobby-title"><span class="title-icon">♩</span> <span id="hubTitleText">互動音樂學習站</span></h1>
+        <div class="game-subtitle lobby-sub" id="hubSubtitleText">選一個題目開始</div>
 
         <div class="hub-layout">
-        <aside class="hub-aside web-only-ui" aria-label="個人檔案摘要">
-            <div class="hub-aside-card">
-                <div class="hub-aside-avatar" id="hubAsideAvatar" aria-hidden="true">🎵</div>
-                <div class="hub-aside-name" id="hubAsideName">尚未選擇身份</div>
-                <div class="hub-aside-meta" id="hubAsideMeta">選完年級／姓名後顯示資料</div>
-                <div class="hub-aside-stats">
-                    <div class="hub-aside-stat"><span class="hub-aside-stat-label">等級</span><span id="hubAsideLevel">1</span></div>
-                    <div class="hub-aside-stat"><span class="hub-aside-stat-label">EXP</span><span id="hubAsideExp">0</span></div>
-                    <div class="hub-aside-stat"><span class="hub-aside-stat-label">音名最高</span><span id="hubAsideBest1">0</span></div>
-                    <div class="hub-aside-stat"><span class="hub-aside-stat-label">節奏最高</span><span id="hubAsideBest2">0</span></div>
-                </div>
-                <button type="button" class="hub-aside-profile-btn" id="hubAsideProfileBtn">開啟完整檔案</button>
-            </div>
-        </aside>
         <div class="hub-main-col">
 
-        <div class="card hub-login-card web-only-ui">
+        <div class="card hub-login-card web-only-ui lobby-fields" hidden>
             <div class="hub-login-title" id="hubLoginTitle"><i data-lucide="user"></i> <span id="hubLoginTitleText">請選擇學生身份</span></div>
             <div class="hub-login-row">
                 <div class="hub-field">
@@ -292,10 +293,7 @@
                 </div>
             </div>
             <div class="hub-player-badge" id="hubPlayerBadge"><i data-lucide="check-circle-2"></i> <span id="hubPlayerBadgeText">已選擇學生</span></div>
-            <div class="hub-account-row" id="hubAccountRow" hidden>
-                <span id="hubAccountEmail"></span>
-                <button type="button" id="hubSignOutBtn">登出</button>
-            </div>
+            <div class="hub-account-row" id="hubAccountRow" hidden></div>
         </div>
 
         <div class="hub-games-grid">

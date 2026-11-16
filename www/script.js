@@ -541,7 +541,7 @@
         const hubEmail = document.getElementById('hubAccountEmail');
         const profileBtn = document.getElementById('profileSignOutBtn');
         const emailEl = document.getElementById('profileEmail');
-        if (row) row.hidden = !email;
+        if (row) row.hidden = true;
         if (hubEmail) hubEmail.textContent = email ? ('已登入：' + email) : '';
         if (profileBtn) profileBtn.hidden = !email;
         if (emailEl) {
