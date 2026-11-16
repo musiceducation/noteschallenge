@@ -465,13 +465,13 @@
     }
     function paintAvatar(el, avatar) {
         if (!el) return;
-        if (isPhotoAvatar(avatar)) {
+        if (isPhotoAvatar(avatar) || (el.id === 'hubAsideAvatar' && (!avatar || avatar === '🎵'))) {
             el.textContent = '';
-            el.style.background = '#efe7ea';
+            el.style.background = isPhotoAvatar(avatar) ? '#efe7ea' : 'transparent';
             const img = document.createElement('img');
             img.className = 'avatar-photo';
             img.alt = '';
-            img.src = avatar;
+            img.src = isPhotoAvatar(avatar) ? avatar : 'img/ui/hub-avatar-note.webp';
             el.appendChild(img);
             return;
         }

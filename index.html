@@ -310,19 +310,7 @@
             <div class="hub-game-card hub-topic-keysig hub-topic-pitch" id="enterKeysig" role="button" tabindex="0" aria-label="調號辨別：看調號圖片，按升降號數目練習或 1 分鐘挑戰。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">調號</div>
                 <div class="hub-game-illust illust-keysig" aria-hidden="true">
-                    <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <g stroke="#4c3fbf" stroke-width="1.4" opacity="0.45">
-                            <line x1="28" y1="34" x2="176" y2="34"/><line x1="28" y1="48" x2="176" y2="48"/>
-                            <line x1="28" y1="62" x2="176" y2="62"/><line x1="28" y1="76" x2="176" y2="76"/>
-                            <line x1="28" y1="90" x2="176" y2="90"/>
-                        </g>
-                        <text x="36" y="84" font-size="46" fill="#5b4bdb" font-family="serif">𝄞</text>
-                        <g fill="#5b4bdb" font-family="serif" font-size="28" font-weight="700">
-                            <text x="92" y="58">♯</text>
-                            <text x="112" y="46">♯</text>
-                            <text x="132" y="70">♯</text>
-                        </g>
-                    </svg>
+                    <img class="illust-img" src="img/ui/hub-topic-keysig.webp" alt="" loading="lazy" decoding="async">
                 </div>
                 <div class="hub-game-name" aria-hidden="true">調號辨別</div>
                 <div class="hub-game-desc" aria-hidden="true">看圖選大調 · 按升降號</div>
@@ -331,11 +319,7 @@
             <div class="hub-game-card hub-topic-solfege hub-topic-pitch" id="enterSolfege" role="button" tabindex="0" aria-label="唱名辨別：課堂首調，練習或挑戰。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">唱名</div>
                 <div class="hub-game-illust illust-solfege" aria-hidden="true">
-                    <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <text x="28" y="78" font-size="34" font-weight="800" fill="#0f9f6e" font-family="Nunito, sans-serif">Do</text>
-                        <text x="92" y="58" font-size="34" font-weight="800" fill="#12b886" font-family="Nunito, sans-serif">Re</text>
-                        <text x="148" y="78" font-size="34" font-weight="800" fill="#0b7a56" font-family="Nunito, sans-serif">Mi</text>
-                    </svg>
+                    <img class="illust-img" src="img/ui/hub-topic-solfege.webp" alt="" loading="lazy" decoding="async">
                 </div>
                 <div class="hub-game-name" aria-hidden="true">唱名辨別</div>
                 <div class="hub-game-desc" aria-hidden="true">課堂首調 · 練習或挑戰</div>
@@ -344,16 +328,7 @@
             <div class="hub-game-card hub-topic-chord hub-topic-pitch" id="enterChord" role="button" tabindex="0" aria-label="和弦練習：看圖溫習，或在鍵盤彈出和弦。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">和弦</div>
                 <div class="hub-game-illust illust-chord" aria-hidden="true">
-                    <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="36" y="28" width="22" height="72" rx="4" fill="#fff" stroke="#d97706"/>
-                        <rect x="62" y="28" width="22" height="72" rx="4" fill="#fff7ed" stroke="#d97706"/>
-                        <rect x="88" y="28" width="22" height="72" rx="4" fill="#fff" stroke="#d97706"/>
-                        <rect x="114" y="28" width="22" height="72" rx="4" fill="#fff7ed" stroke="#d97706"/>
-                        <rect x="140" y="28" width="22" height="72" rx="4" fill="#fff" stroke="#d97706"/>
-                        <rect x="54" y="28" width="14" height="44" rx="3" fill="#1e1e2f"/>
-                        <rect x="80" y="28" width="14" height="44" rx="3" fill="#f59e0b"/>
-                        <rect x="132" y="28" width="14" height="44" rx="3" fill="#1e1e2f"/>
-                    </svg>
+                    <img class="illust-img" src="img/ui/hub-topic-chord.webp" alt="" loading="lazy" decoding="async">
                 </div>
                 <div class="hub-game-name" aria-hidden="true">和弦練習</div>
                 <div class="hub-game-desc" aria-hidden="true">看圖溫習 · 鍵盤作答</div>
@@ -385,6 +360,14 @@
                 <div class="hub-game-name" aria-hidden="true">樂器識辨</div>
                 <div class="hub-game-desc" aria-hidden="true">聽音辨認樂器 · 認識管弦樂家族</div>
                 <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
+            </div>
+            <div class="hub-game-card hub-topic-listen" aria-disabled="true" aria-label="聽力：即將推出">
+                <div class="hub-game-tag" aria-hidden="true">聽力</div>
+                <div class="hub-game-illust illust-listen" aria-hidden="true">
+                    <img class="illust-img" src="img/ui/hub-topic-listen.webp" alt="" loading="lazy" decoding="async">
+                </div>
+                <div class="hub-game-name" aria-hidden="true">聽力</div>
+                <div class="hub-game-btn" aria-hidden="true">即將推出</div>
             </div>
             <!-- Classroom rollout: hub card hidden; studio screen/logic stay. Remove hidden and restore tabindex="0" to show again. -->
             <div class="hub-game-card hub-game-studio" id="enterCompositionStudio" role="button" tabindex="-1" hidden aria-label="創作工作室：伴奏與配音創作，播放, 匯出, 分享。按一下開始創作。">

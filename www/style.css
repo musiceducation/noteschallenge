@@ -7897,6 +7897,12 @@ body.app-shell.app-on-root .sound-toggle {
 .lobby-head .hub-aside-stat-label { display: block; font-size: 0.68rem; font-weight: 800; color: var(--text-light); }
 .lobby-head .hub-aside-stat span:last-child { display: block; font-size: 1.05rem; font-weight: 900; color: var(--text-dark); }
 .lobby-fields[hidden] { display: none !important; }
+.hub-topic-listen { cursor: default; }
+.hub-topic-listen .hub-game-btn {
+    background: #efe7ea;
+    color: #6b5e66;
+    box-shadow: none;
+}
 
 /* iPad landscape: header, seven cards, and progress fit in one screen. */
 @media (orientation: landscape) and (min-width: 1024px) and (max-height: 1024px) {
