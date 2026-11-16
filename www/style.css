@@ -26,29 +26,31 @@ button, select, input, a, label { touch-action: manipulation; }
     --app-safe-right: env(safe-area-inset-right, 0px);
     --app-safe-bottom: env(safe-area-inset-bottom, 0px);
     --app-safe-left: env(safe-area-inset-left, 0px);
-    /* Design system tokens */
-    --ds-surface: #fbf9f1;
-    --ds-surface-dim: #dcdad2;
-    --ds-surface-container-lowest: #ffffff;
-    --ds-surface-container-low: #f5f4ec;
-    --ds-surface-container: #f0eee6;
-    --ds-surface-container-high: #eae8e0;
-    --ds-on-surface: #1b1c17;
-    --ds-on-surface-variant: #504446;
-    --ds-outline: #827376;
-    --ds-outline-variant: #d4c2c5;
-    --ds-primary: #7d525e;
+    /* Energetic student palette. Night indigo is the ground; amber is its complement
+       and the CTA colour. Topic hues are one saturated set stepped around the wheel.
+       Ink on paper is about 16:1. See docs/color-palette.md. */
+    --ds-surface: #fff8ee;
+    --ds-surface-dim: #f0e2cc;
+    --ds-surface-container-lowest: #fffdf8;
+    --ds-surface-container-low: #fff3e0;
+    --ds-surface-container: #ffe8c4;
+    --ds-surface-container-high: #ffd9a0;
+    --ds-on-surface: #2c1810;
+    --ds-on-surface-variant: #5c4636;
+    --ds-outline: #8a5a00;
+    --ds-outline-variant: #f0b429;
+    --ds-primary: #c2410c;
     --ds-on-primary: #ffffff;
-    --ds-primary-container: #ffc8d6;
-    --ds-on-primary-container: #7b515d;
-    --ds-secondary: #356572;
+    --ds-primary-container: #ffe0b8;
+    --ds-on-primary-container: #7a2e00;
+    --ds-secondary: #1d4ed8;
     --ds-on-secondary: #ffffff;
-    --ds-secondary-container: #b7e7f7;
-    --ds-on-secondary-container: #3a6977;
-    --ds-tertiary: #6a5f1b;
-    --ds-tertiary-container: #e6d787;
-    --ds-on-tertiary-container: #685d19;
-    --ds-background: #fbf9f1;
+    --ds-secondary-container: #d6e4ff;
+    --ds-on-secondary-container: #14307a;
+    --ds-tertiary: #b45309;
+    --ds-tertiary-container: #ffd36a;
+    --ds-on-tertiary-container: #6a3400;
+    --ds-background: #fff8ee;
     --ds-on-background: #1b1c17;
     --ds-error: #ba1a1a;
     --ds-radius-sm: 0.5rem;
@@ -8134,18 +8136,18 @@ body.app-shell.app-on-root .sound-toggle {
 
 /* Picture-book lobby: scene art and button ornaments are image files. */
 body:has(#screen-hub.screen.active) {
-    background: #14284a url("img/ui/lobby-night.webp") center / cover no-repeat;
+    background: #12244F url("img/ui/lobby-night.webp") center / cover no-repeat;
     animation: none;
 }
 body:has(#screen-hub.screen.active) .bg-dots { opacity: 0; }
 #screen-hub .lobby-head {
-    background: #fff6ea;
-    border-color: #f0d7b0;
+    background: #FFF8EE;
+    border-color: #F0B429;
 }
 #screen-hub .hub-games-grid .hub-game-tag { display: none; }
 #screen-hub .hub-games-grid .hub-game-card {
-    background: #fffaf3;
-    border-color: #f0dcc0;
+    background: #FFF8EE;
+    border-color: #E8B15A;
 }
 #screen-hub .hub-games-grid .illust-img {
     width: 100%;
@@ -8155,7 +8157,7 @@ body:has(#screen-hub.screen.active) .bg-dots { opacity: 0; }
 }
 #screen-hub .hub-games-grid .hub-game-card .hub-game-btn {
     background: url("img/ui/ui-start-pill.webp") center / 100% 100% no-repeat;
-    color: #5a4032;
+    color: #2C1810;
     box-shadow: none;
 }
 #screen-hub .hub-games-grid .hub-topic-listen .hub-game-btn {
@@ -8166,7 +8168,7 @@ body:has(#screen-hub.screen.active) .bg-dots { opacity: 0; }
 #hubViewRanksBtn:hover:not(:disabled),
 #hubViewRanksBtn:active:not(:disabled) {
     background: url("img/ui/ui-start-pill.webp") center / 100% 100% no-repeat;
-    color: #5a4032;
+    color: #2C1810;
     border-color: transparent;
     box-shadow: none;
 }
@@ -8185,14 +8187,14 @@ body:has(#screen-hub.screen.active) .bg-dots { opacity: 0; }
     gap: 4px;
 }
 #screen-hub #hubSignOutBtn {
-    background: #fff6ea;
-    color: #5a4032;
-    border: 2px solid #f0d7b0;
+    background: #FFF8EE;
+    color: #2C1810;
+    border: 2px solid #F0B429;
 }
 
 /* Picture-book sky behind every screen. Surfaces stay cream paper so the words stay readable. */
 body {
-    background: #14284a url("img/ui/lobby-night.webp") center / cover no-repeat;
+    background: #12244F url("img/ui/lobby-night.webp") center / cover no-repeat;
     animation: none;
 }
 .bg-dots,
@@ -8200,13 +8202,13 @@ body {
 #webGoogleAuthOverlay,
 #socialAuthOverlay.social-auth-overlay,
 .social-auth-overlay {
-    background: #14284a url("img/ui/lobby-night.webp") center / cover no-repeat;
+    background: #12244F url("img/ui/lobby-night.webp") center / cover no-repeat;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
 }
 .social-auth-card {
-    background: #fff6ea;
-    border: 2px solid #f0d7b0;
+    background: #FFF8EE;
+    border: 2px solid #F0B429;
     box-shadow: 0 18px 40px rgba(16, 24, 58, 0.28);
     max-width: 460px;
 }
@@ -8217,18 +8219,18 @@ body {
     display: block;
     margin: 0 auto 8px;
 }
-.social-auth-title { color: #3d342c; }
-.social-auth-sub { color: #6a5648; }
+.social-auth-title { color: #2C1810; }
+.social-auth-sub { color: #5C4636; }
 .card,
 .profile-card,
 .report-section,
 .ranking-section,
 .staff-container {
-    background: #fffaf3;
-    border-color: #f0dcc0;
+    background: #FFF8EE;
+    border-color: #E8B15A;
 }
 .profile-card {
-    border: 2px solid #f0dcc0;
+    border: 2px solid #E8B15A;
     border-radius: 18px;
     box-shadow: 0 10px 24px rgba(20, 30, 70, 0.16);
 }
@@ -8244,16 +8246,16 @@ body {
     color: #f3e2c4;
 }
 .screen:not(#screen-hub) .title-icon {
-    background: #fff6ea;
-    color: #5a4032;
-    border: 2px solid #f0d7b0;
+    background: #FFF8EE;
+    color: #2C1810;
+    border: 2px solid #F0B429;
     box-shadow: none;
 }
 .btn-back-hub,
 .btn-back-hub:hover:not(:disabled),
 .btn-back-hub:active:not(:disabled) {
     background: url("img/ui/ui-start-pill.webp") center / 100% 100% no-repeat;
-    color: #5a4032;
+    color: #2C1810;
     border-color: transparent;
 }
 .btn-start,
@@ -8261,7 +8263,7 @@ body {
 .note-teach-entry.btn-start,
 .note-teach-entry.btn-start:hover:not(:disabled) {
     background: url("img/ui/ui-start-pill.webp") center / 100% 100% no-repeat;
-    color: #5a4032;
+    color: #2C1810;
 }
 .note-teach-entry-hint { color: #7a6254; }
 #screen-setup .abrsm-coverage,
@@ -8277,20 +8279,20 @@ body {
 .btn-restart-large,
 .btn-restart-large:hover:not(:disabled) {
     background: url("img/ui/ui-start-pill.webp") center / 100% 100% no-repeat;
-    color: #5a4032;
+    color: #2C1810;
 }
 #screen-profile #profileSignOutBtn {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    background: #fff6ea;
-    color: #5a4032;
-    border: 2px solid #f0d7b0;
+    background: #FFF8EE;
+    color: #2C1810;
+    border: 2px solid #F0B429;
 }
 .sound-toggle {
-    background: #fff6ea;
-    border-color: #f0d7b0;
-    color: #5a4032;
+    background: #FFF8EE;
+    border-color: #F0B429;
+    color: #2C1810;
 }
 .web-tester-btn {
     width: 100%;
@@ -8299,7 +8301,7 @@ body {
     border: none;
     border-radius: 999px;
     background: url("img/ui/ui-start-pill.webp") center / 100% 100% no-repeat;
-    color: #5a4032;
+    color: #2C1810;
     font: inherit;
     font-weight: 800;
     font-size: 1.05rem;
@@ -8309,7 +8311,7 @@ body {
     margin: 8px 0 0;
     font-size: 0.82rem;
     font-weight: 700;
-    color: #6a5648;
+    color: #5C4636;
     line-height: 1.45;
 }
 #screen-hub #hubPresenceBtn {
@@ -8317,12 +8319,37 @@ body {
     align-items: center;
     justify-content: center;
     background: url("img/ui/ui-start-pill.webp") center / 100% 100% no-repeat;
-    color: #5a4032;
+    color: #2C1810;
     border-color: transparent;
     min-width: 3.2rem;
 }
-.presence-heading { margin: 0 0 8px; font-size: 1.15rem; color: #3d342c; }
+.presence-heading { margin: 0 0 8px; font-size: 1.15rem; color: #2C1810; }
 .presence-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.presence-list li { font-weight: 700; color: #3d342c; line-height: 1.4; }
+.presence-list li { font-weight: 700; color: #2C1810; line-height: 1.4; }
+
+/* Topic names: one saturated hue each, dark enough for AA on cream paper. */
+#screen-hub .hub-game1 .hub-game-name { color: #4C2DB5; }
+#screen-hub .hub-topic-keysig .hub-game-name { color: #1D4ED8; }
+#screen-hub .hub-topic-solfege .hub-game-name { color: #0B7A45; }
+#screen-hub .hub-topic-chord .hub-game-name { color: #C2410C; }
+#screen-hub .hub-game2 .hub-game-name { color: #C4233A; }
+#screen-hub .hub-game3 .hub-game-name { color: #0E7490; }
+#screen-hub .hub-game4 .hub-game-name { color: #8A5A00; }
+#screen-hub .hub-topic-listen .hub-game-name { color: #4A5278; }
+.mode-card {
+    background: #FFF8EE;
+    border-color: #F0B429;
+    color: #2C1810;
+}
+.mode-card.practice.active {
+    background: linear-gradient(160deg, #5BE88A, #1FCB6A);
+    color: #083018;
+    box-shadow: 0 12px 24px rgba(31, 203, 106, 0.35);
+}
+.mode-card.challenge.active {
+    background: linear-gradient(160deg, #FFD15A, #FF9F1C);
+    color: #3A2208;
+    box-shadow: 0 12px 24px rgba(255, 159, 28, 0.35);
+}
 
 
