@@ -13,7 +13,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=17">
+    <link rel="stylesheet" href="style.css?v=18">
+    <script>
+    (function () {
+        try {
+            var C = window.Capacitor;
+            if (C && C.isNativePlatform && C.isNativePlatform()) return;
+            if (C && C.getPlatform && C.getPlatform() !== 'web') return;
+            if (location.search.indexOf('app=1') !== -1) return;
+            try { if (localStorage.getItem('forceAppShell') === '1') return; } catch (e) {}
+        } catch (e) { return; }
+        document.documentElement.classList.add('web-auth-pending');
+    })();
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/vexflow@5.0.0/build/cjs/vexflow.min.js" defer></script>
     <script src="https://unpkg.com/lucide@latest" defer></script>
 </head>
@@ -37,11 +49,23 @@
             </div>
         </div>
     </div>
+    <!-- 網頁版：必須先用自己的 Google 帳號登入。App 不顯示呢層。 -->
+    <div id="webGoogleAuthOverlay" class="web-google-auth" role="dialog" aria-modal="true" aria-labelledby="webGoogleAuthTitle">
+        <div class="social-auth-card">
+            <div class="social-auth-logo">♩</div>
+            <h2 id="webGoogleAuthTitle" class="social-auth-title">請用你自己嘅 Google 帳號登入</h2>
+            <p class="social-auth-sub">請用你自己嘅 Google 帳號。登入之後先揀年級、班別同姓名，下次開機會自動恢復。</p>
+            <div id="webGoogleAuthError" class="social-auth-misconfig" hidden></div>
+            <div id="webGoogleBtn" class="web-google-btn-host"></div>
+            <button type="button" id="webGoogleStubBtn" class="social-auth-btn social-auth-btn-google" hidden>使用 Google 帳號登入</button>
+        </div>
+    </div>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js" defer></script>
     <script src="auth-config.js" defer></script>
     <script src="auth.js" defer></script>
+    <script src="web-google-auth.js?v=1" defer></script>
     <script src="audio-engine.js" defer></script>
     <script src="app-orientation.js" defer></script>
     <script src="app-three-bg.js" defer></script>
@@ -244,6 +268,10 @@
                 </div>
             </div>
             <div class="hub-player-badge" id="hubPlayerBadge"><i data-lucide="check-circle-2"></i> <span id="hubPlayerBadgeText">已選擇學生</span></div>
+            <div class="hub-account-row" id="hubAccountRow" hidden>
+                <span id="hubAccountEmail"></span>
+                <button type="button" id="hubSignOutBtn">登出</button>
+            </div>
         </div>
 
         <div class="hub-games-grid">
@@ -428,6 +456,8 @@
                 <div class="profile-meta">
                     <span class="profile-id" id="profileId">ID: ---</span>
                     <span class="profile-since" id="profileSince">加入日期: ---</span>
+                    <span class="profile-email" id="profileEmail" hidden></span>
+                    <button type="button" class="profile-signout" id="profileSignOutBtn" hidden>登出</button>
                 </div>
             </div>
         </div>

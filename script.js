@@ -301,13 +301,15 @@
             opt.dataset.seat = i + 1;
             frag.appendChild(opt);
         });
-        const otherOpt = document.createElement('option');
-        otherOpt.value = '__other__';
-        otherOpt.textContent = '✏️ 其他（自行填寫）';
-        frag.appendChild(otherOpt);
+        if (isAppShell()) {
+            const otherOpt = document.createElement('option');
+            otherOpt.value = '__other__';
+            otherOpt.textContent = '✏️ 其他（自行填寫）';
+            frag.appendChild(otherOpt);
+        }
         nameEl.innerHTML = '';
         nameEl.appendChild(frag);
-        if (prev && (students.includes(prev) || prev === '__other__')) nameEl.value = prev;
+        if (prev && (students.includes(prev) || (isAppShell() && prev === '__other__'))) nameEl.value = prev;
         else { nameEl.value = ''; dom.userId.value = ''; hideCustomName(); }
     }
 
@@ -460,16 +462,43 @@
         return _defaultProfile(user);
     }
 
-    function saveProfile(profile) {
+    function saveProfile(profile, opts) {
         const key = `${PROFILE_STORAGE_KEY}_${profile.grade}_${profile.class}_${profile.name}`;
         _profileCache.set(key, profile); // Update cache
         try { localStorage.setItem(key, JSON.stringify(profile)); } catch(e) { _showToast('⚠️ 儲存空間不足，個人資料可能未能保存', 'warn'); }
         try {
-            if (window.MusicAppAuth && typeof window.MusicAppAuth.syncGameData === 'function' && window.MusicAppAuth.signedIn) {
+            if (!(opts && opts.skipRemote) && window.MusicAppAuth && typeof window.MusicAppAuth.syncGameData === 'function' && window.MusicAppAuth.signedIn) {
                 window.MusicAppAuth.syncGameData(profile).catch(function () {});
             }
         } catch (e) {}
+        try {
+            if (!(opts && opts.skipRemote) && window.WebGoogleAuth && window.WebGoogleAuth.signedIn && typeof window.WebGoogleAuth.syncProfile === 'function') {
+                window.WebGoogleAuth.syncProfile(profile).then(function (merged) {
+                    if (!merged || typeof merged !== 'object' || !merged.name) return;
+                    const local = loadProfile({ name: merged.name, grade: merged.grade, class: merged.class, seat: profile.seat });
+                    const kept = window.WebGoogleAuth.mergeProfiles(merged, local);
+                    if (profile.seat && !kept.seat) kept.seat = profile.seat;
+                    saveProfile(kept, { skipRemote: true });
+                }).catch(function () {});
+            }
+        } catch (e) {}
         try { updateHubAsideFromProfile(profile); } catch (e) {}
+    }
+
+    function paintWebAccount() {
+        const auth = window.WebGoogleAuth;
+        const email = auth && auth.signedIn && auth.user && auth.user.email ? auth.user.email : '';
+        const row = document.getElementById('hubAccountRow');
+        const hubEmail = document.getElementById('hubAccountEmail');
+        const profileBtn = document.getElementById('profileSignOutBtn');
+        const emailEl = document.getElementById('profileEmail');
+        if (row) row.hidden = !email;
+        if (hubEmail) hubEmail.textContent = email ? ('已登入：' + email) : '';
+        if (profileBtn) profileBtn.hidden = !email;
+        if (emailEl) {
+            emailEl.hidden = !email;
+            emailEl.textContent = email ? ('已登入：' + email) : '';
+        }
     }
 
     function updateHubAsideFromProfile(profile) {
@@ -867,6 +896,7 @@
         document.getElementById('profileSig').textContent = p.signature || '按此編輯簽名';
         document.getElementById('profileId').textContent = `${p.grade ? (['','中一','中二','中三','中四','中五','中六'][p.grade] || '') : ''} ${p.class}班 ${p.seat ? p.seat + '號' : ''}`;
         document.getElementById('profileSince').textContent = '加入日期: ' + (p.registeredAt ? new Date(p.registeredAt).toLocaleDateString() : '---');
+        try { paintWebAccount(); } catch (e) {}
 
         // Level & EXP
         document.getElementById('profileLevel').textContent = 'Lv.' + p.level;
@@ -1499,6 +1529,8 @@
     // 介面切換系統
     // ==========================================
     function switchScreen(screenId) {
+        const webAuth = window.WebGoogleAuth;
+        if (webAuth && webAuth.required && !webAuth.signedIn && screenId !== 'screen-hub') return;
         if (isAppShell() && (screenId === 'screen-hub' || screenId === 'screen-app-home')) {
             screenId = 'screen-app-root';
         }
@@ -3481,6 +3513,10 @@
     // ==========================================
     /** POST 到 GAS Web App：使用 CORS 讀取 JSON 回應（須部署為可匿名存取）。 */
     async function gasPostJson(record) {
+        try {
+            const email = window.WebGoogleAuth && window.WebGoogleAuth.user && window.WebGoogleAuth.user.email;
+            if (email && record && typeof record === 'object' && !record.email) record = Object.assign({}, record, { email: email });
+        } catch (e) {}
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000);
         try {
@@ -4740,6 +4776,7 @@
 
         let _hubCustomInput = null;
         let _hubIsGuest = false;
+        let _suspendBindingSave = false;
 
         function populateHub() {
             const grade = hubGrade.value, cls = hubClass.value;
@@ -4754,14 +4791,16 @@
                 o.value = n; o.textContent = n; o.dataset.seat = i + 1;
                 frag.appendChild(o);
             });
-            const otherOpt = document.createElement('option');
-            otherOpt.value = '__other__'; otherOpt.textContent = '✏️ 其他（自行填寫）';
-            frag.appendChild(otherOpt);
-            const guestOpt = document.createElement('option');
-            guestOpt.value = '__guest__'; guestOpt.textContent = '🧪 訪客 / 測試人員';
-            frag.appendChild(guestOpt);
+            if (isAppShell()) {
+                const otherOpt = document.createElement('option');
+                otherOpt.value = '__other__'; otherOpt.textContent = '✏️ 其他（自行填寫）';
+                frag.appendChild(otherOpt);
+                const guestOpt = document.createElement('option');
+                guestOpt.value = '__guest__'; guestOpt.textContent = '🧪 訪客 / 測試人員';
+                frag.appendChild(guestOpt);
+            }
             hubName.innerHTML = ''; hubName.appendChild(frag);
-            if (prev && (students.includes(prev) || prev === '__other__' || prev === '__guest__')) { hubName.value = prev; }
+            if (prev && (students.includes(prev) || (isAppShell() && (prev === '__other__' || prev === '__guest__')))) { hubName.value = prev; }
             else { hubName.value = ''; hubSeat.value = ''; }
             _handleHubNameMode();
         }
@@ -4839,8 +4878,8 @@
             };
         }
 
-        hubGrade.addEventListener('change', () => { populateHub(); updateCurrentUserFromHub(); updateHubLockState(); });
-        hubClass.addEventListener('change', () => { populateHub(); updateCurrentUserFromHub(); updateHubLockState(); });
+        hubGrade.addEventListener('change', () => { populateHub(); updateCurrentUserFromHub(); updateHubLockState(); try { persistWebBinding(); } catch (e) {} });
+        hubClass.addEventListener('change', () => { populateHub(); updateCurrentUserFromHub(); updateHubLockState(); try { persistWebBinding(); } catch (e) {} });
         // Defensive: repopulate if user opens the name dropdown and it's still empty
         hubName.addEventListener('mousedown', () => { if (hubName.options.length <= 1) populateHub(); });
         hubName.addEventListener('focus',     () => { if (hubName.options.length <= 1) populateHub(); });
@@ -4873,6 +4912,7 @@
                 const u = getHubUser();
                 if (u && u.name) updateHubAsideFromProfile(loadProfile(u));
             } catch (e) {}
+            try { persistWebBinding(); } catch (e) {}
         });
 
         populateHub();
@@ -4904,7 +4944,70 @@
             } catch (e) {}
         });
 
-        // Grade/class default from saved Game-1 settings
+        window.addEventListener('webgoogle:profile', (ev) => {
+            const remote = ev && ev.detail && ev.detail.profile;
+            if (!remote || !remote.name) return;
+            try { saveProfile(remote, { skipRemote: true }); } catch (e) {}
+        });
+
+        function persistWebBinding() {
+            if (_suspendBindingSave) return;
+            const auth = window.WebGoogleAuth;
+            if (!auth || !auth.signedIn || typeof auth.saveBinding !== 'function') return;
+            const user = getHubUser();
+            if (!user || !user.name || !user.grade || !user.class) return;
+            if (user.name === '__guest__' || user.name === '__other__' || user.name === '訪客') return;
+            auth.saveBinding({ grade: user.grade, class: user.class, name: user.name }).catch(function () {});
+        }
+
+        function applyAccountBinding(binding) {
+            _suspendBindingSave = true;
+            try {
+                if (!binding || !binding.name) {
+                    hubName.value = '';
+                    hubSeat.value = '';
+                    _handleHubNameMode();
+                    hubName.dispatchEvent(new Event('change'));
+                    return;
+                }
+                if (binding.grade) hubGrade.value = String(binding.grade);
+                if (binding.class) hubClass.value = String(binding.class);
+                populateHub();
+                const students = getStudentList(hubGrade.value, hubClass.value);
+                if (students.includes(binding.name)) {
+                    hubName.value = binding.name;
+                    const sel = hubName.selectedOptions[0];
+                    if (sel && sel.dataset.seat) hubSeat.value = sel.dataset.seat;
+                } else {
+                    hubName.value = '';
+                    hubSeat.value = '';
+                }
+                _handleHubNameMode();
+                hubName.dispatchEvent(new Event('change'));
+            } finally {
+                _suspendBindingSave = false;
+            }
+        }
+
+        function onWebSession() {
+            const auth = window.WebGoogleAuth;
+            try { paintWebAccount(); } catch (e) {}
+            if (!auth || !auth.required) return;
+            if (!auth.signedIn) {
+                if (auth.ready) {
+                    applyAccountBinding(null);
+                    try {
+                        const active = document.querySelector('.screen.active');
+                        if (active && active.id !== 'screen-hub') switchScreen('screen-hub');
+                    } catch (e) {}
+                }
+                return;
+            }
+            applyAccountBinding(auth.binding);
+        }
+
+        // Grade/class default from saved Game-1 settings. Do not push this device's last name onto the Google account.
+        _suspendBindingSave = true;
         const saved = localStorage.getItem('musicGameSettingsV4');
         if (saved) {
             try {
@@ -4912,11 +5015,14 @@
                 if (s.userGrade) hubGrade.value = s.userGrade;
                 if (s.userClass) hubClass.value = s.userClass;
                 populateHub();
-                if (s.savedName) { hubName.value = s.savedName; const sel = hubName.selectedOptions[0]; if (sel && sel.dataset.seat) hubSeat.value = sel.dataset.seat; }
+                const savedName = s.savedName;
+                const blocked = !isAppShell() && (savedName === '__guest__' || savedName === '__other__');
+                if (savedName && !blocked) { hubName.value = savedName; const sel = hubName.selectedOptions[0]; if (sel && sel.dataset.seat) hubSeat.value = sel.dataset.seat; }
                 _handleHubNameMode();
                 hubName.dispatchEvent(new Event('change'));
             } catch(e) {}
         }
+        _suspendBindingSave = false;
 
         function getHubUser() {
             if (isAppShell()) return getAppPlayerUser();
@@ -4939,15 +5045,11 @@
                 state.currentUser = { name: user.name, grade: 0, class: 'App', id: '' };
                 return true;
             }
+            if (window.WebGoogleAuth && window.WebGoogleAuth.required && !window.WebGoogleAuth.signedIn) return false;
             const val = hubName.value;
-            if (!val) {
+            if (!val || val === '__guest__' || val === '__other__') {
                 if (nameFieldEl) { nameFieldEl.classList.add('error'); setTimeout(() => nameFieldEl.classList.remove('error'), 1200); }
-                alert('❗ 請先完成身份：點開「③ 選擇姓名」選班上同學，或按「以訪客身分快速試玩」。');
-                return false;
-            }
-            if ((val === '__other__') && !_getHubDisplayName()) {
-                if (nameFieldEl) { nameFieldEl.classList.add('error'); setTimeout(() => nameFieldEl.classList.remove('error'), 1200); }
-                alert('❗ 請輸入你的名字！');
+                alert('❗ 請先完成身份：點開「③ 選擇姓名」選班上同學。');
                 return false;
             }
             return true;
@@ -4962,13 +5064,14 @@
                 return;
             }
             const val = hubName.value;
-            const needs = !val || (val === '__other__' && !_getHubDisplayName());
+            const unsigned = window.WebGoogleAuth && window.WebGoogleAuth.required && !window.WebGoogleAuth.signedIn;
+            const needs = unsigned || !val || val === '__guest__' || val === '__other__';
             hubScreen.classList.toggle('hub-needs-login', needs);
             document.querySelectorAll('#screen-hub .hub-game-card').forEach(c => c.classList.toggle('is-locked', needs));
         }
 
         const hubQuickGuestBtn = document.getElementById('hubQuickGuestBtn');
-        if (hubQuickGuestBtn) {
+        if (hubQuickGuestBtn && isAppShell()) {
             hubQuickGuestBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 hubName.value = '__guest__';
@@ -5279,6 +5382,16 @@
 
         // ——— 社交功能 Social Features ———
         initSocialFeatures();
+
+        function webSignOut() {
+            if (window.WebGoogleAuth && typeof window.WebGoogleAuth.signOut === 'function') window.WebGoogleAuth.signOut();
+        }
+        const hubSignOutBtn = document.getElementById('hubSignOutBtn');
+        const profileSignOutBtn = document.getElementById('profileSignOutBtn');
+        if (hubSignOutBtn) hubSignOutBtn.addEventListener('click', webSignOut);
+        if (profileSignOutBtn) profileSignOutBtn.addEventListener('click', webSignOut);
+        window.addEventListener('webgoogle:session', onWebSession);
+        onWebSession();
 
         document.getElementById('backToHubFromSetup').addEventListener('click', () => {
             switchScreen('screen-hub');

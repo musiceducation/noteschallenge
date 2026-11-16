@@ -167,7 +167,7 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.match(page, /abrsm-curriculum\.js\?v=1/);
   assert.match(page, /abrsm-note-grade\.js\?v=4/);
   assert.match(page, /chinese-instrument-challenge\.js\?v=3/);
-  assert.match(page, /style\.css\?v=17/);
+  assert.match(page, /style\.css\?v=18/);
   assert.match(page, /bootstrap-instruments\.js\?v=15/);
   assert.match(page, /chord-keyboard\.js\?v=2/);
   assert.doesNotMatch(page, /不用登入/);
@@ -194,7 +194,8 @@ for (const file of ['index.html', 'www/index.html']) {
 
 for (const boot of ['bootstrap-instruments.js', 'www/bootstrap-instruments.js']) {
   const src = fs.readFileSync(new URL('../' + boot, import.meta.url), 'utf8');
-  assert.match(src, /script\.js\?v=24/);
+  assert.match(src, /script\.js\?v=25/);
+  assert.doesNotMatch(src, /script\.js\?v=24/);
   assert.doesNotMatch(src, /script\.js\?v=23/);
   assert.doesNotMatch(src, /script\.js\?v=22/);
   assert.doesNotMatch(src, /script\.js\?v=21/);
