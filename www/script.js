@@ -740,6 +740,8 @@
             score: score || 0,
             accuracy: accuracy || 0,
             maxCombo: maxCombo || 0,
+            challenge: !practiceResult,
+            practice: practiceResult,
         });
         if (profile.history.length > 30) profile.history = profile.history.slice(-30);
 
@@ -974,6 +976,7 @@
         setBest('pgbGame2', bests.game2);
         setBest('pgbGame3', bests.game3);
         setBest('pgbGame4', bests.game4);
+        try { if (window.AbilityRadar) window.AbilityRadar.render(document.getElementById('abilityRadar'), p); } catch (e) {}
 
         // Progress trend + recent sessions
         const trendEl = document.getElementById('profileProgressTrend');

@@ -61,6 +61,8 @@ for (const f of [
   "www/composition-studio.js",
   "web-google-auth.js",
   "www/web-google-auth.js",
+  "ability-radar.js",
+  "www/ability-radar.js",
   "cloudflare/noteschallenge-auth/worker.js"
 ]) checkJs(f);
 for (const f of ["data/instrument-bank.json", "data/instrument-structure.json"]) checkJson(f);

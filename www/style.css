@@ -8004,3 +8004,23 @@ body.app-shell.app-on-root .sound-toggle {
     }
 }
 
+.ability-radar-card { text-align: center; }
+.ability-radar-svg { width: min(420px, 100%); height: auto; display: block; margin: 0 auto; }
+.ability-radar-ring, .ability-radar-spoke { fill: none; stroke: #d4c2c5; stroke-width: 1; }
+.ability-radar-shape { fill: rgba(125, 82, 94, 0.28); stroke: #7d525e; stroke-width: 2; }
+.ability-radar-dot { fill: #7d525e; }
+.ability-radar-label { font-size: 13px; font-weight: 800; fill: #1b1c17; font-family: inherit; }
+.ability-radar-value { font-size: 12px; font-weight: 700; fill: #356572; font-family: inherit; }
+.ability-radar-value.is-empty { fill: #827376; }
+.ability-radar-summary { margin: 6px 0 0; font-weight: 800; color: var(--text-dark); }
+@media (orientation: landscape) and (min-width: 1024px) and (max-height: 1024px) {
+    .ability-radar-card {
+        display: grid;
+        grid-template-columns: minmax(240px, 380px) minmax(0, 1fr);
+        align-items: center;
+        gap: 12px;
+        text-align: left;
+    }
+    .ability-radar-svg { width: 100%; margin: 0; }
+}
+
