@@ -462,12 +462,18 @@
     const PROFILE_HISTORY_KEY = 'musicGameProfileHistory';
     const _profileCache = new Map();
 
+    function _profileApi() {
+        return (typeof ProfileStore !== 'undefined') ? ProfileStore : null;
+    }
     function _getProfileKey(user) {
+        const api = _profileApi();
+        if (api) return api.profileKey(user);
         if (!user || !user.name) return null;
         return `${PROFILE_STORAGE_KEY}_${user.grade}_${user.class}_${user.name}`;
     }
 
     function loadProfile(user) {
+        const api = _profileApi();
         const key = _getProfileKey(user);
         if (!key) return _defaultProfile(user);
         if (_profileCache.has(key)) return _profileCache.get(key);
@@ -475,19 +481,38 @@
             const saved = localStorage.getItem(key);
             if (saved) {
                 const p = JSON.parse(saved);
-                // Ensure all fields exist (backward compat)
                 const profile = Object.assign(_defaultProfile(user), p);
                 _profileCache.set(key, profile);
                 return profile;
+            }
+            if (api && !api.isGuest(user)) {
+                const pointer = api.readPointer(localStorage);
+                if (pointer && pointer.key && pointer.key !== key) {
+                    const old = api.readJson(localStorage.getItem(pointer.key), null);
+                    if (api.sameNamedPerson(old, user)) {
+                        const moved = Object.assign(_defaultProfile(user), api.relabel(old, user));
+                        localStorage.setItem(key, JSON.stringify(moved));
+                        _profileCache.set(key, moved);
+                        return moved;
+                    }
+                }
             }
         } catch(e) { console.warn('Profile load error, resetting:', e); }
         return _defaultProfile(user);
     }
 
     function saveProfile(profile) {
-        const key = `${PROFILE_STORAGE_KEY}_${profile.grade}_${profile.class}_${profile.name}`;
-        _profileCache.set(key, profile); // Update cache
-        try { localStorage.setItem(key, JSON.stringify(profile)); } catch(e) { _showToast('⚠️ 儲存空間不足，個人資料可能未能保存', 'warn'); }
+        const api = _profileApi();
+        const key = api ? api.profileKey(profile) : `${PROFILE_STORAGE_KEY}_${profile.grade}_${profile.class}_${profile.name}`;
+        _profileCache.set(key, profile);
+        const wrote = api ? api.safeSet(localStorage, key, JSON.stringify(profile)) : { ok: true };
+        if (!api) {
+            try { localStorage.setItem(key, JSON.stringify(profile)); } catch(e) { _showToast('⚠️ 儲存空間不足，個人資料可能未能保存', 'warn'); }
+        } else if (!wrote.ok) {
+            _showToast('⚠️ 儲存空間不足，個人資料可能未能保存', 'warn');
+        } else if (!api.isGuest(profile)) {
+            api.writePointer(localStorage, profile);
+        }
         try {
             if (window.MusicAppAuth && typeof window.MusicAppAuth.syncGameData === 'function' && window.MusicAppAuth.signedIn) {
                 window.MusicAppAuth.syncGameData(profile).catch(function () {});
@@ -550,7 +575,7 @@
     function _expForLevel(lvl) { return lvl * 100; }
 
     const PROFILE_GAME_LABELS = {
-        game1: '音名識辨', game2: '節奏識辨', game3: '術語識辨', game4: '樂器識辨'
+        game1: '音名識辨', keysig: '調號辨別', solfege: '唱名辨別', chord: '和弦練習', game2: '節奏識辨', game3: '術語識辨', game4: '樂器識辨'
     };
 
     let _profilePlayStartedAt = 0;
@@ -669,7 +694,8 @@
         profile.stats.totalAccuracy += accuracy;
         profile.stats.accuracyCount++;
         if (maxCombo > profile.stats.maxCombo) profile.stats.maxCombo = maxCombo;
-        if (score > (profile.gameBests[gameKey] || 0)) profile.gameBests[gameKey] = score;
+        const practiceResult = difficulty === 'practice' || difficulty === 'keysig_practice' || difficulty === 'solfege_practice';
+        if (!practiceResult && score > (profile.gameBests[gameKey] || 0)) profile.gameBests[gameKey] = score;
 
         // Play time (seconds)
         const playSecs = _consumeProfilePlaySecs();
@@ -710,7 +736,7 @@
         addProfileExp(profile, expGain);
 
         saveProfile(profile);
-        submitProfileResultToGAS(gameKey, user, score, accuracy, maxCombo, profile);
+        if (!practiceResult) submitProfileResultToGAS(gameKey, user, score, accuracy, maxCombo, profile);
         return profile;
     }
 
@@ -737,11 +763,8 @@
             if (!Array.isArray(rows) || rows.length === 0) return;
 
             const existing = loadProfile(user);
-            const profile = _defaultProfile(user);
-            profile.avatar = existing.avatar || profile.avatar;
-            profile.signature = existing.signature || profile.signature;
+            let profile = _defaultProfile(user);
             profile.registeredAt = existing.registeredAt || rows[0].timestamp || profile.registeredAt;
-            profile.totalPlayTime = existing.totalPlayTime || 0;
 
             let latestLevel = 1;
             let latestExp = 0;
@@ -778,10 +801,7 @@
             profile.stats.apCount = latestApCount;
             profile.history = rows.map(_historyEntryFromRow).slice(-30);
             // Prefer longer local history if GAS returned fewer rows (offline sessions)
-            if (Array.isArray(existing.history) && existing.history.length > profile.history.length) {
-                profile.history = existing.history.slice(-30);
-            }
-
+            profile = _profileApi() ? _profileApi().mergeProfile(existing, profile) : profile;
             saveProfile(profile);
         } catch (e) {
             console.error('Profile 讀取失敗：', e);
@@ -854,11 +874,8 @@
                 profile.stats.fcCount = latestFcCount;
                 profile.stats.apCount = latestApCount;
                 profile.history = rows.map(_historyEntryFromRow).slice(-30);
-                if (Array.isArray(existing.history) && existing.history.length > profile.history.length) {
-                    profile.history = existing.history.slice(-30);
-                }
-
-                saveProfile(profile);
+                const merged = _profileApi() ? _profileApi().mergeProfile(existing, profile) : profile;
+                saveProfile(merged);
             });
 
             console.log(`✅ 已批次同步 ${Object.keys(byStudent).length} 位同學的檔案`);
@@ -910,18 +927,20 @@
         document.getElementById('psFCCount').textContent = s.fcCount;
         document.getElementById('psAPCount').textContent = s.apCount;
 
-        // Difficulty achievements
-        document.getElementById('pdEasy').textContent = (p.diffClears.easy || 0) + ' 次通關';
-        document.getElementById('pdNormal').textContent = (p.diffClears.normal || 0) + ' 次通關';
-        document.getElementById('pdHard').textContent = (p.diffClears.hard || 0) + ' 次通關';
-        document.getElementById('pdExpert').textContent = (p.diffClears.expert || 0) + ' 次通關';
-
-        // Game bests
-        document.getElementById('pgbGame1').textContent = p.gameBests.game1 || '---';
-        document.getElementById('pgbGame2').textContent = p.gameBests.game2 || '---';
-        document.getElementById('pgbGame3').textContent = p.gameBests.game3 || '---';
-        const pgb4 = document.getElementById('pgbGame4');
-        if (pgb4) pgb4.textContent = p.gameBests.game4 || '---';
+        const bestText = (value) => (value ? String(value) : '---');
+        const setBest = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = bestText(value); };
+        const bests = p.gameBests || {};
+        setBest('pgbNotes', bests.game1);
+        setBest('pgbKeysig', bests.keysig);
+        setBest('pgbSolfege', bests.solfege);
+        setBest('pgbChord', bests.chord);
+        setBest('pgbRhythm', bests.game2);
+        setBest('pgbTerms', bests.game3);
+        setBest('pgbInstr', bests.game4);
+        setBest('pgbGame1', bests.game1);
+        setBest('pgbGame2', bests.game2);
+        setBest('pgbGame3', bests.game3);
+        setBest('pgbGame4', bests.game4);
 
         // Progress trend + recent sessions
         const trendEl = document.getElementById('profileProgressTrend');
@@ -971,7 +990,7 @@
 
         // Avatar grid with category filter
         const grid = document.getElementById('profileAvatarGrid');
-        const avSection = grid.closest('.profile-avatars-section');
+        const avSection = grid.closest('.profile-avatars-section') || grid.closest('.profile-identity-card') || grid.parentElement;
         let avCatFilter = avSection.querySelector('.avatar-cat-filter');
         if (!avCatFilter) {
             avCatFilter = document.createElement('div');
@@ -1010,6 +1029,9 @@
             el.textContent = av;
             el.style.background = info.bg;
             grid.querySelectorAll('.profile-avatar-opt').forEach(el => el.classList.toggle('selected', el.dataset.av === av));
+            const status = document.getElementById('profileSaveStatus');
+            if (status) status.textContent = '已儲存頭像';
+            _showToast('已儲存頭像', 'success');
         };
 
         // Signature
@@ -1020,6 +1042,9 @@
             p.signature = val;
             saveProfile(p);
             document.getElementById('profileSig').textContent = val || '按此編輯簽名';
+            const status = document.getElementById('profileSaveStatus');
+            if (status) status.textContent = '已儲存簽名';
+            _showToast('已儲存簽名', 'success');
         };
     }
 
@@ -1828,17 +1853,48 @@
     }
 
     function saveSettings() {
-        const s = {};
-        s.lastMode = state.currentMode;
-        s.practiceDiff = state.practiceDiff;
-        s.keysigAccMax = keysigAccMax();
-        s.solfegeGrade = state.solfegeGrade;
-        s.abrsmGrade = state.abrsmGrade || '';
-        s.noteClefChoice = state.noteClefChoice || 'treble';
-        s.savedName = dom.userName.value;
+        const api = _profileApi();
+        let s = {};
+        try { s = JSON.parse(localStorage.getItem('musicGameSettingsV4') || '{}') || {}; } catch (e) { s = {}; }
+        if (!s || typeof s !== 'object' || Array.isArray(s)) s = {};
+        const patch = {
+            lastMode: state.currentMode,
+            practiceDiff: state.practiceDiff,
+            keysigAccMax: keysigAccMax(),
+            solfegeGrade: state.solfegeGrade,
+            abrsmGrade: state.abrsmGrade || '',
+            noteClefChoice: state.noteClefChoice || 'treble'
+        };
+        if (dom.userName && dom.userName.value) patch.savedName = dom.userName.value;
+        if (dom.userGrade && dom.userGrade.value) patch.userGrade = dom.userGrade.value;
+        if (dom.userClass && dom.userClass.value) patch.userClass = dom.userClass.value;
+        if (dom.userId && dom.userId.value) patch.userId = dom.userId.value;
         const customInp = _customNameInput;
-        if (dom.userName.value === '__other__' && customInp) s.savedCustomName = customInp.value;
-        try { localStorage.setItem('musicGameSettingsV4', JSON.stringify(s)); } catch(e) { /* QuotaExceeded — skip silently */ }
+        if (dom.userName && dom.userName.value === '__other__' && customInp) patch.savedCustomName = customInp.value;
+        const hubGradeEl = document.getElementById('hubGrade');
+        const hubClassEl = document.getElementById('hubClass');
+        const hubNameEl = document.getElementById('hubName');
+        const hubSeatEl = document.getElementById('hubSeat');
+        const hubCustomEl = document.getElementById('hubCustomNameInput');
+        if (hubGradeEl && hubGradeEl.value) patch.userGrade = hubGradeEl.value;
+        if (hubClassEl && hubClassEl.value) patch.userClass = hubClassEl.value;
+        if (hubNameEl && hubNameEl.value) patch.savedName = hubNameEl.value;
+        if (hubSeatEl && hubSeatEl.value) patch.userId = hubSeatEl.value;
+        if (hubNameEl && hubNameEl.value === '__other__' && hubCustomEl && hubCustomEl.value) patch.savedCustomName = hubCustomEl.value;
+        const apiUser = state.currentUser;
+        if (apiUser && apiUser.name && !(api && api.isGuest(apiUser))) {
+            if (!patch.savedName) patch.savedName = apiUser.name;
+            if (!patch.userGrade && apiUser.grade) patch.userGrade = String(apiUser.grade);
+            if (!patch.userClass && apiUser.class) patch.userClass = apiUser.class;
+            if (!patch.userId && apiUser.id) patch.userId = String(apiUser.id);
+        }
+        const next = api ? api.mergeSettings(s, patch) : Object.assign(s, patch);
+        const wrote = api ? api.safeSet(localStorage, 'musicGameSettingsV4', JSON.stringify(next)) : { ok: true };
+        if (!api) {
+            try { localStorage.setItem('musicGameSettingsV4', JSON.stringify(next)); } catch (e) { _showToast('⚠️ 儲存空間不足，身份資料可能未能保存', 'warn'); }
+        } else if (!wrote.ok) {
+            _showToast('⚠️ 儲存空間不足，身份資料可能未能保存', 'warn');
+        }
     }
 
     function loadSavedSettings() {
@@ -1848,6 +1904,9 @@
             const s = JSON.parse(stored);
             if (s) {
 
+                if (s.userGrade && dom.userGrade) dom.userGrade.value = s.userGrade;
+                if (s.userClass && dom.userClass) dom.userClass.value = s.userClass;
+                if (s.userId && dom.userId) dom.userId.value = s.userId;
                 if (s.practiceDiff) state.practiceDiff = s.practiceDiff;
                 if (s.keysigAccMax) state.keysigAccMax = parseInt(s.keysigAccMax, 10);
                 if (s.solfegeGrade) state.solfegeGrade = parseInt(s.solfegeGrade);
@@ -3670,7 +3729,11 @@
         // Record to profile
         const _g1Accuracy = state.totalQuestions ? Math.round(((state.totalQuestions - state.wrongCount) / state.totalQuestions) * 100) : 0;
         if (state.currentUser) {
-            recordGameResult(state.currentUser, 'game1', state.score, _g1Accuracy, state.maxCombo, state.currentMode);
+            const modeNow = state.currentMode;
+            const bucket = (modeNow === 'keysig60' || modeNow === 'keysig_practice') ? 'keysig'
+                : (modeNow === 'solfege60' || modeNow === 'solfege_practice') ? 'solfege'
+                : 'game1';
+            recordGameResult(state.currentUser, bucket, state.score, _g1Accuracy, state.maxCombo, modeNow);
         }
 
         if (state.modeConfig.type === 'challenge') submitScore(); 
@@ -4562,9 +4625,17 @@
         document.getElementById('vpAPCount').textContent = apCount;
 
         const gb = rs ? rs.gameBests : p.gameBests;
-        document.getElementById('vpGame1').textContent = gb.game1 || '---';
-        document.getElementById('vpGame2').textContent = gb.game2 || '---';
-        document.getElementById('vpGame3').textContent = gb.game3 || '---';
+        const vpBest = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value || '---'; };
+        vpBest('vpNotes', gb.game1);
+        vpBest('vpKeysig', gb.keysig);
+        vpBest('vpSolfege', gb.solfege);
+        vpBest('vpChord', gb.chord);
+        vpBest('vpRhythm', gb.game2);
+        vpBest('vpTerms', gb.game3);
+        vpBest('vpInstr', gb.game4);
+        vpBest('vpGame1', gb.game1);
+        vpBest('vpGame2', gb.game2);
+        vpBest('vpGame3', gb.game3);
         const vp4 = document.getElementById('vpGame4');
         if (vp4) vp4.textContent = gb.game4 || '---';
     }
@@ -4907,6 +4978,17 @@
             });
         }
 
+        window.addEventListener('chord-local-best', (ev) => {
+            const score = parseInt(ev && ev.detail && ev.detail.score, 10) || 0;
+            const u = getHubUser();
+            if (!u || !u.name || (_profileApi() && _profileApi().isGuest(u))) return;
+            const profile = loadProfile(u);
+            if (score > (profile.gameBests.chord || 0)) {
+                profile.gameBests.chord = score;
+                saveProfile(profile);
+            }
+        });
+
         window.addEventListener('musicapp:cloud-profile', (ev) => {
             const data = ev && ev.detail;
             if (!data) return;
@@ -4917,11 +4999,13 @@
                 if (typeof data.exp === 'number' && data.exp > (local.exp || 0)) local.exp = data.exp;
                 if (typeof data.level === 'number' && data.level > (local.level || 1)) local.level = data.level;
                 if (data.gameBests && typeof data.gameBests === 'object') {
-                    local.gameBests = Object.assign({}, local.gameBests || {}, data.gameBests);
-                    Object.keys(data.gameBests).forEach((k) => {
-                        local.gameBests[k] = Math.max(local.gameBests[k] || 0, data.gameBests[k] || 0);
-                    });
+                    local.gameBests = _profileApi()
+                        ? _profileApi().mergeBests(local.gameBests, data.gameBests)
+                        : local.gameBests;
                 }
+                if (data.avatar) local.avatar = data.avatar;
+                if (typeof data.signature === 'string' && data.signature.trim()) local.signature = data.signature;
+                if (typeof data.totalPlayTime === 'number') local.totalPlayTime = Math.max(local.totalPlayTime || 0, data.totalPlayTime);
                 saveProfile(local);
             } catch (e) {}
         });
@@ -4935,7 +5019,12 @@
                 if (s.userClass) hubClass.value = s.userClass;
                 populateHub();
                 if (s.savedName) { hubName.value = s.savedName; const sel = hubName.selectedOptions[0]; if (sel && sel.dataset.seat) hubSeat.value = sel.dataset.seat; }
+                if (s.userId && (!hubSeat.value || hubSeat.value === '--')) hubSeat.value = s.userId;
                 _handleHubNameMode();
+                if (s.savedName === '__other__' && s.savedCustomName) {
+                    const custom = document.getElementById('hubCustomNameInput');
+                    if (custom) custom.value = s.savedCustomName;
+                }
                 hubName.dispatchEvent(new Event('change'));
             } catch(e) {}
         }

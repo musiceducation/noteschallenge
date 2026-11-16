@@ -498,6 +498,9 @@
                     '<div class="report-item"><div class="report-label">答錯</div><div class="report-value">' + stats.wrong + '</div></div>' +
                     '<div class="report-item"><div class="report-label">最高連對</div><div class="report-value">' + stats.maxCombo + '</div></div>';
             }
+            try {
+                window.dispatchEvent(new CustomEvent('chord-local-best', { detail: { score: stats.score || 0 } }));
+            } catch (err) {}
             if (mistakesEl) {
                 mistakesEl.innerHTML = stats.mistakes.length
                     ? '<div class="mistake-review-title">錯題回顧</div>' + stats.mistakes.map(function (item) {
