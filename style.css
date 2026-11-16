@@ -751,7 +751,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 }
 .mode-card.solfege.active { background: linear-gradient(145deg, #34d399, #10b981); color: white; border-color: transparent; transform: translateY(-6px) scale(1.03); box-shadow: 0 12px 24px rgba(16,185,129,0.38); }
 
-.ks-mode-btn, .sol-mode-btn, .ks-grade-btn, .sol-grade-btn {
+.ks-mode-btn, .sol-mode-btn, .ks-grade-btn, .sol-grade-btn, .ks-acc-btn {
     border: none; border-radius: 12px; padding: 8px 14px;
     font-size: 0.85rem; font-weight: 800; cursor: pointer;
     background: #e5e7eb; color: #374151;
@@ -759,7 +759,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     box-shadow: 0 3px 0 #d1d5db;
 }
 .ks-mode-btn.active, .sol-mode-btn.active { background: linear-gradient(145deg, #a78bfa, #7c3aed); color: white; box-shadow: 0 3px 0 #5b21b6; }
-.ks-grade-btn.active { background: linear-gradient(145deg, #a78bfa, #7c3aed); color: white; box-shadow: 0 3px 0 #5b21b6; }
+.ks-grade-btn.active, .ks-acc-btn.active { background: linear-gradient(145deg, #a78bfa, #7c3aed); color: white; box-shadow: 0 3px 0 #5b21b6; }
 .sol-grade-btn.active { background: linear-gradient(145deg, #34d399, #10b981); color: white; box-shadow: 0 3px 0 #047857; }
 .abrsm-grade-btn {
     background: white; border: 2.5px solid #E8EDFF; color: var(--text-light);

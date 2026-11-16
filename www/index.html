@@ -608,7 +608,7 @@
                 </div>
             </div>
             <div class="mode-card keysig" data-mode="keysig_practice">
-                <div class="mode-icon">𝄞</div><div class="mode-name">調號辨別</div><div class="mode-desc">跟所選英皇級別的調</div>
+                <div class="mode-icon">𝄞</div><div class="mode-name">調號辨別</div><div class="mode-desc">看調號圖片，選出大調</div>
             </div>
             <div class="mode-card solfege" data-mode="solfege_practice">
                 <div class="mode-icon"><i data-lucide="mic"></i></div><div class="mode-name">唱名辨別</div><div class="mode-desc">課堂首調，不是英皇級別</div>
@@ -622,6 +622,17 @@
                 <button class="ks-mode-btn active" data-ksmode="practice"><i data-lucide="pencil-line"></i> 練習</button>
                 <button class="ks-mode-btn" data-ksmode="challenge"><i data-lucide="timer"></i> 1分鐘挑戰</button>
             </div>
+        </div>
+        <div class="keysig-solfege-sub-row" id="keysigAccRow" style="display:none;">
+            <span class="practice-diff-label">升降號</span>
+            <div class="practice-diff-btns" id="keysigAccBtns" role="group" aria-label="調號難度">
+                <button type="button" class="ks-acc-btn active" data-acc="1" aria-pressed="true">0–1 個升降號</button>
+                <button type="button" class="ks-acc-btn" data-acc="2" aria-pressed="false">最多 2 個</button>
+                <button type="button" class="ks-acc-btn" data-acc="3" aria-pressed="false">最多 3 個</button>
+                <button type="button" class="ks-acc-btn" data-acc="4" aria-pressed="false">最多 4 個</button>
+                <button type="button" class="ks-acc-btn" data-acc="5" aria-pressed="false">全部</button>
+            </div>
+            <p class="abrsm-coverage" id="keysigAccNote">0–1 個升降號：C、G、F。</p>
         </div>
         <div class="keysig-solfege-sub-row" id="solfegeSubRow" style="display:none;">
             <span class="practice-diff-label"><i data-lucide="target"></i> 模式</span>
