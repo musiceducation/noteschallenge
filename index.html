@@ -549,6 +549,32 @@
             <div class="profile-exp-text" id="profileExpText">0 / 100 EXP</div>
         </div>
         <div class="profile-playtime" id="profilePlaytime">🕐 累計練習時間：0 分鐘</div>
+        <p class="profile-save-status" id="profileSaveStatus" aria-live="polite"></p>
+
+        <div class="profile-settings-grid">
+        <div class="profile-card profile-identity-card">
+            <div class="profile-section-title"><i data-lucide="palette"></i> 頭像同簽名</div>
+            <div class="profile-avatar-grid" id="profileAvatarGrid"></div>
+            <label class="profile-sig-label" for="profileSigInput">個人簽名</label>
+            <div class="profile-sig-row">
+                <input type="text" class="profile-sig-input" id="profileSigInput" maxlength="30" placeholder="寫一句座右銘">
+                <button class="btn-action profile-sig-save" id="profileSigSave" type="button"><i data-lucide="save"></i> 儲存</button>
+            </div>
+        </div>
+        <div class="profile-card">
+        <div class="profile-section-title">各項最高分</div>
+        <p class="profile-bests-note">只計挑戰成績。練習分不會入榜，亦不會蓋過較高的個人最佳。</p>
+        <div class="profile-game-bests" id="profileGameBests">
+            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♩</span><span class="pgb-name">音名</span></div><div class="pgb-score" id="pgbNotes">---</div></div>
+            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♯</span><span class="pgb-name">調號</span></div><div class="pgb-score" id="pgbKeysig">---</div></div>
+            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">Do</span><span class="pgb-name">唱名</span></div><div class="pgb-score" id="pgbSolfege">---</div></div>
+            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">🎹</span><span class="pgb-name">和弦</span></div><div class="pgb-score" id="pgbChord">---</div></div>
+            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♬</span><span class="pgb-name">節奏</span></div><div class="pgb-score" id="pgbRhythm">---</div></div>
+            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">𝄞</span><span class="pgb-name">術語</span></div><div class="pgb-score" id="pgbTerms">---</div></div>
+            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">🎻</span><span class="pgb-name">樂器</span></div><div class="pgb-score" id="pgbInstr">---</div></div>
+        </div>
+        </div>
+        </div>
 
         <div class="profile-card">
         <div class="profile-section-title"><i data-lucide="bar-chart-2"></i> 綜合數據</div>
@@ -564,42 +590,12 @@
         </div>
 
         <div class="profile-card">
-        <div class="profile-section-title"><i data-lucide="trophy"></i> 難度成就</div>
-        <div class="profile-diff-grid" id="profileDiffGrid">
-            <div class="profile-diff-item diff-easy"><div class="profile-diff-name"><span class="diff-dot diff-easy-dot"></span> Easy</div><div class="profile-diff-val" id="pdEasy">0 次通關</div></div>
-            <div class="profile-diff-item diff-normal"><div class="profile-diff-name"><span class="diff-dot diff-normal-dot"></span> Normal</div><div class="profile-diff-val" id="pdNormal">0 次通關</div></div>
-            <div class="profile-diff-item diff-hard"><div class="profile-diff-name"><span class="diff-dot diff-hard-dot"></span> Hard</div><div class="profile-diff-val" id="pdHard">0 次通關</div></div>
-            <div class="profile-diff-item diff-expert"><div class="profile-diff-name"><span class="diff-dot diff-expert-dot"></span> Expert</div><div class="profile-diff-val" id="pdExpert">0 次通關</div></div>
-        </div>
-        </div>
-
-        <div class="profile-card">
-        <div class="profile-section-title">🎮 各項最高分</div>
-        <div class="profile-game-bests" id="profileGameBests">
-            <div class="profile-game-best pgb-game1"><div class="pgb-top"><span class="pgb-icon">♩</span><span class="pgb-name">音名識辨</span></div><div class="pgb-score" id="pgbGame1">---</div></div>
-            <div class="profile-game-best pgb-game2"><div class="pgb-top"><span class="pgb-icon">♬</span><span class="pgb-name">節奏識辨</span></div><div class="pgb-score" id="pgbGame2">---</div></div>
-            <div class="profile-game-best pgb-game3"><div class="pgb-top"><span class="pgb-icon">𝄞</span><span class="pgb-name">術語識辨</span></div><div class="pgb-score" id="pgbGame3">---</div></div>
-            <div class="profile-game-best pgb-game4"><div class="pgb-top"><span class="pgb-icon">♫</span><span class="pgb-name">樂器識辨</span></div><div class="pgb-score" id="pgbGame4">---</div></div>
-        </div>
-        </div>
-
-        <div class="profile-card">
         <div class="profile-section-title"><i data-lucide="trending-up"></i> 進步趨勢</div>
         <div id="profileProgressTrend" class="profile-progress-trend"></div>
         <div class="profile-section-subtitle">近期紀錄</div>
         <div id="profileRecentGames" class="profile-recent-games"></div>
         </div>
 
-        <div class="profile-avatars-section">
-            <div class="profile-section-title"><i data-lucide="palette"></i> 選擇頭像</div>
-            <div class="profile-avatar-grid" id="profileAvatarGrid"></div>
-        </div>
-
-        <div class="profile-sig-section">
-            <div class="profile-section-title"><i data-lucide="pencil"></i> 個人簽名</div>
-            <input type="text" class="profile-sig-input" id="profileSigInput" maxlength="30" placeholder="請輸入座右銘">
-            <button class="btn-action profile-sig-save" id="profileSigSave"><i data-lucide="save"></i> 儲存</button>
-        </div>
     </div>
 
     <!-- ===================================== -->
@@ -663,10 +659,13 @@
         <div class="profile-card">
             <div class="profile-section-title"><i data-lucide="gamepad-2"></i> 最高分</div>
             <div class="profile-game-bests">
-                <div class="profile-game-best pgb-game1"><div class="pgb-top"><span class="pgb-icon">♩</span><span class="pgb-name">音名識辨</span></div><div class="pgb-score" id="vpGame1">---</div></div>
-                <div class="profile-game-best pgb-game2"><div class="pgb-top"><span class="pgb-icon">♬</span><span class="pgb-name">節奏識辨</span></div><div class="pgb-score" id="vpGame2">---</div></div>
-                <div class="profile-game-best pgb-game3"><div class="pgb-top"><span class="pgb-icon">𝄞</span><span class="pgb-name">術語識辨</span></div><div class="pgb-score" id="vpGame3">---</div></div>
-                <div class="profile-game-best pgb-game4"><div class="pgb-top"><span class="pgb-icon">♫</span><span class="pgb-name">樂器識辨</span></div><div class="pgb-score" id="vpGame4">---</div></div>
+                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♩</span><span class="pgb-name">音名</span></div><div class="pgb-score" id="vpNotes">---</div></div>
+                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♯</span><span class="pgb-name">調號</span></div><div class="pgb-score" id="vpKeysig">---</div></div>
+                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">Do</span><span class="pgb-name">唱名</span></div><div class="pgb-score" id="vpSolfege">---</div></div>
+                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">🎹</span><span class="pgb-name">和弦</span></div><div class="pgb-score" id="vpChord">---</div></div>
+                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♬</span><span class="pgb-name">節奏</span></div><div class="pgb-score" id="vpRhythm">---</div></div>
+                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">𝄞</span><span class="pgb-name">術語</span></div><div class="pgb-score" id="vpTerms">---</div></div>
+                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">🎻</span><span class="pgb-name">樂器</span></div><div class="pgb-score" id="vpInstr">---</div></div>
             </div>
         </div>
     </div>
@@ -1634,6 +1633,7 @@
     <script src="chinese-instrument-challenge.js?v=3" defer></script>
     <script src="chord-keyboard.js?v=2" defer></script>
     <script src="rank-sync.js?v=3" defer></script>
+    <script src="profile-store.js?v=1" defer></script>
     <script src="bootstrap-instruments.js?v=14" data-app-bootstrap defer></script>
     <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
 </body>

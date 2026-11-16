@@ -7781,3 +7781,17 @@ body.app-shell.app-on-root .sound-toggle {
     transform: none;
     animation: none;
 }
+
+#screen-profile.screen { max-width: 920px; }
+.profile-settings-grid { display: grid; gap: 14px; margin: 8px 0 16px; }
+@media (min-width: 860px) {
+    .profile-settings-grid { grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr); align-items: start; }
+}
+.profile-identity-card .profile-avatar-grid { max-height: 220px; overflow: auto; }
+.profile-sig-label { display: block; margin: 10px 0 6px; font-weight: 800; color: var(--text-light); }
+.profile-sig-row { display: flex; gap: 8px; align-items: center; }
+.profile-sig-row .profile-sig-input { flex: 1; margin: 0; }
+.profile-save-status { min-height: 1.2em; text-align: center; font-weight: 800; color: #0f9f6e; margin: 4px 0 0; }
+.profile-bests-note { margin: 0 0 10px; color: var(--text-light); font-weight: 700; font-size: 0.88rem; }
+#screen-profile .profile-game-bests,
+#screen-view-profile .profile-game-bests { grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)); }
