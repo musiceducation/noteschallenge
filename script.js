@@ -465,19 +465,29 @@
     }
     function paintAvatar(el, avatar) {
         if (!el) return;
-        if (isPhotoAvatar(avatar) || (el.id === 'hubAsideAvatar' && (!avatar || avatar === '🎵'))) {
-            el.textContent = '';
-            el.style.background = isPhotoAvatar(avatar) ? '#efe7ea' : 'transparent';
+        el.textContent = '';
+        el.style.background = '';
+        if (isPhotoAvatar(avatar)) {
+            el.style.background = '#efe7ea';
             const img = document.createElement('img');
             img.className = 'avatar-photo';
             img.alt = '';
-            img.src = isPhotoAvatar(avatar) ? avatar : 'img/ui/hub-avatar-note.webp';
+            img.src = avatar;
             el.appendChild(img);
             return;
         }
-        const info = _avatarLookup(avatar || '🎵');
+        if (!avatar) {
+            el.style.background = 'transparent';
+            const img = document.createElement('img');
+            img.className = 'avatar-photo';
+            img.alt = '';
+            img.src = 'img/ui/hub-avatar-note.webp';
+            el.appendChild(img);
+            return;
+        }
+        const info = _avatarLookup(avatar);
         el.style.background = info.bg;
-        el.textContent = info.emoji || '🎵';
+        el.textContent = info.emoji || avatar;
     }
     function avatarMarkup(avatar) {
         if (isPhotoAvatar(avatar)) return `<img class="avatar-photo" alt="" src="${avatar}">`;
@@ -621,7 +631,7 @@
                 ? `${gradeLabel} ${profile.class || ''}班${profile.seat ? ' ' + profile.seat + '號' : ''}`
                 : '訪客／測試';
         }
-        paintAvatar(avEl, profile.avatar || '🎵');
+        paintAvatar(avEl, profile.avatar);
         if (lvEl) lvEl.textContent = String(profile.level || 1);
         if (expEl) expEl.textContent = String(profile.exp || 0);
         const bests = profile.gameBests || {};
@@ -5302,6 +5312,14 @@
             switchScreen('screen-setup');
         }
 
+        document.querySelectorAll('#screen-hub .hub-game-card:not(.hub-topic-listen)').forEach((card) => {
+            const press = () => card.classList.add('is-pressed');
+            const release = () => card.classList.remove('is-pressed');
+            card.addEventListener('pointerdown', press);
+            card.addEventListener('pointerup', release);
+            card.addEventListener('pointercancel', release);
+            card.addEventListener('pointerleave', release);
+        });
         const enterGame1El = document.getElementById('enterGame1');
         enterGame1El.addEventListener('click', () => openSetupTopic('notes'));
         enterGame1El.addEventListener('keydown', (e) => {
@@ -5604,6 +5622,9 @@
                 switchScreen('screen-app-root');
                 setAppTab('me');
             } else {
+                if (state.currentUser && state.currentUser.name) {
+                    updateHubAsideFromProfile(loadProfile(state.currentUser));
+                }
                 switchScreen('screen-hub');
             }
         });

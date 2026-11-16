@@ -7897,11 +7897,28 @@ body.app-shell.app-on-root .sound-toggle {
 .lobby-head .hub-aside-stat-label { display: block; font-size: 0.68rem; font-weight: 800; color: var(--text-light); }
 .lobby-head .hub-aside-stat span:last-child { display: block; font-size: 1.05rem; font-weight: 900; color: var(--text-dark); }
 .lobby-fields[hidden] { display: none !important; }
-.hub-topic-listen { cursor: default; }
+.hub-topic-listen {
+    cursor: default;
+    pointer-events: none;
+}
 .hub-topic-listen .hub-game-btn {
     background: #efe7ea;
     color: #6b5e66;
     box-shadow: none;
+}
+#screen-hub .hub-game-card:not(.hub-topic-listen) {
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+#screen-hub .hub-game-card:not(.hub-topic-listen):active,
+#screen-hub .hub-game-card.is-pressed {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 26px rgba(80, 50, 60, 0.18);
+}
+@media (hover: hover) and (pointer: fine) {
+    #screen-hub .hub-game-card:not(.hub-topic-listen):hover {
+        transform: translateY(-4px);
+        box-shadow: 0 14px 26px rgba(80, 50, 60, 0.18);
+    }
 }
 
 /* iPad landscape: header, seven cards, and progress fit in one screen. */
@@ -7986,7 +8003,6 @@ body.app-shell.app-on-root .sound-toggle {
         border: 2px solid var(--ds-outline-variant);
         box-shadow: var(--ds-shadow-cloud);
     }
-    #screen-hub .hub-game-card:hover { transform: none; }
     #screen-hub .hub-game-illust {
         flex: 1 1 auto;
         width: calc(100% + 16px);
