@@ -33,7 +33,7 @@
     <!-- Capacitor：Firebase Google / Apple 登入（auth-config.js enabled 時） -->
     <div id="socialAuthOverlay" class="social-auth-overlay" aria-hidden="true">
         <div class="social-auth-card">
-            <div class="social-auth-logo">♩</div>
+            <div class="social-auth-logo"><img src="img/ui/ui-profile.webp" alt=""></div>
             <h2 class="social-auth-title">Google 登入</h2>
             <p class="social-auth-sub">請使用 Google 帳號登入以繼續（亦提供 Apple 登入以符合 App Store 規範）</p>
             <div id="socialAuthMisconfig" class="social-auth-misconfig" hidden>
@@ -52,12 +52,14 @@
     <!-- 網頁版：必須先用自己的 Google 帳號登入。App 不顯示呢層。 -->
     <div id="webGoogleAuthOverlay" class="web-google-auth" role="dialog" aria-modal="true" aria-labelledby="webGoogleAuthTitle">
         <div class="social-auth-card">
-            <div class="social-auth-logo">♩</div>
+            <div class="social-auth-logo"><img src="img/ui/ui-profile.webp" alt=""></div>
             <h2 id="webGoogleAuthTitle" class="social-auth-title">請用你自己嘅 Google 帳號登入</h2>
             <p class="social-auth-sub">請用你自己嘅 Google 帳號登入。登入之後，你嘅姓名同班別會自動顯示，唔使自己揀。</p>
             <div id="webGoogleAuthError" class="social-auth-misconfig" hidden></div>
             <div id="webGoogleBtn" class="web-google-btn-host"></div>
             <button type="button" id="webGoogleStubBtn" class="social-auth-btn social-auth-btn-google" hidden>使用 Google 帳號登入</button>
+            <button type="button" id="webTesterBtn" class="web-tester-btn">測試人員</button>
+            <p class="web-tester-note">測試人員唔使電郵。呢個身分唔會入正式排行榜，亦唔會改到學生分數。</p>
         </div>
     </div>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" defer></script>
@@ -255,10 +257,11 @@
             <div class="lobby-actions">
                 <button class="hub-social-corner-btn" id="hubClassmatesBtn" title="同學名冊" type="button">👥</button>
                 <button class="hub-social-corner-btn hub-fullscreen-btn" id="hubFullscreenBtn" type="button" title="全螢幕" aria-label="全螢幕" aria-pressed="false">⛶</button>
-                <button class="hub-profile-corner-btn" id="hubProfileBtn" title="個人檔案" type="button">檔案</button>
+                <button class="hub-profile-corner-btn" id="hubPresenceBtn" title="在線同紀錄" type="button">在線</button>
+                <button class="hub-profile-corner-btn" id="hubProfileBtn" title="個人檔案" type="button"><img class="lobby-ico" src="img/ui/ui-profile.webp" alt="">檔案</button>
                 <button type="button" class="hub-aside-profile-btn" id="hubAsideProfileBtn" hidden>完整檔案</button>
                 <span id="hubAccountEmail" class="lobby-email"></span>
-                <button type="button" id="hubSignOutBtn" class="web-only-ui">登出</button>
+                <button type="button" id="hubSignOutBtn" class="web-only-ui"><img class="lobby-ico" src="img/ui/ui-signout.webp" alt="">登出</button>
             </div>
         </header>
         <h1 class="game-title lobby-title"><span class="title-icon">♩</span> <span id="hubTitleText">互動音樂學習站</span></h1>
@@ -300,7 +303,7 @@
             <div class="hub-game-card hub-game1 hub-topic-pitch" id="enterGame1" role="button" tabindex="0" aria-label="音名識辨：練習模式、1分鐘挑戰、零失誤挑戰、看圖學習。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">音名</div>
                 <div class="hub-game-illust illust-1" aria-hidden="true">
-                    <img class="illust-img" src="img/ui/hub-3d-game1.jpg" alt="" loading="lazy" decoding="async">
+                    <img class="illust-img" src="img/ui/hub-scene-notes.webp" alt="" loading="lazy" decoding="async">
                 </div>
                 <div class="hub-game-name" aria-hidden="true">音名識辨</div>
                 <div class="hub-game-desc" aria-hidden="true">練習 · 1分鐘挑戰 · 零失誤</div>
@@ -310,19 +313,7 @@
             <div class="hub-game-card hub-topic-keysig hub-topic-pitch" id="enterKeysig" role="button" tabindex="0" aria-label="調號辨別：看調號圖片，按升降號數目練習或 1 分鐘挑戰。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">調號</div>
                 <div class="hub-game-illust illust-keysig" aria-hidden="true">
-                    <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <g stroke="#4c3fbf" stroke-width="1.4" opacity="0.45">
-                            <line x1="28" y1="34" x2="176" y2="34"/><line x1="28" y1="48" x2="176" y2="48"/>
-                            <line x1="28" y1="62" x2="176" y2="62"/><line x1="28" y1="76" x2="176" y2="76"/>
-                            <line x1="28" y1="90" x2="176" y2="90"/>
-                        </g>
-                        <text x="36" y="84" font-size="46" fill="#5b4bdb" font-family="serif">𝄞</text>
-                        <g fill="#5b4bdb" font-family="serif" font-size="28" font-weight="700">
-                            <text x="92" y="58">♯</text>
-                            <text x="112" y="46">♯</text>
-                            <text x="132" y="70">♯</text>
-                        </g>
-                    </svg>
+                    <img class="illust-img" src="img/ui/hub-scene-keysig.webp" alt="" loading="lazy" decoding="async">
                 </div>
                 <div class="hub-game-name" aria-hidden="true">調號辨別</div>
                 <div class="hub-game-desc" aria-hidden="true">看圖選大調 · 按升降號</div>
@@ -331,11 +322,7 @@
             <div class="hub-game-card hub-topic-solfege hub-topic-pitch" id="enterSolfege" role="button" tabindex="0" aria-label="唱名辨別：課堂首調，練習或挑戰。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">唱名</div>
                 <div class="hub-game-illust illust-solfege" aria-hidden="true">
-                    <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <text x="28" y="78" font-size="34" font-weight="800" fill="#0f9f6e" font-family="Nunito, sans-serif">Do</text>
-                        <text x="92" y="58" font-size="34" font-weight="800" fill="#12b886" font-family="Nunito, sans-serif">Re</text>
-                        <text x="148" y="78" font-size="34" font-weight="800" fill="#0b7a56" font-family="Nunito, sans-serif">Mi</text>
-                    </svg>
+                    <img class="illust-img" src="img/ui/hub-scene-solfege.webp" alt="" loading="lazy" decoding="async">
                 </div>
                 <div class="hub-game-name" aria-hidden="true">唱名辨別</div>
                 <div class="hub-game-desc" aria-hidden="true">課堂首調 · 練習或挑戰</div>
@@ -344,16 +331,7 @@
             <div class="hub-game-card hub-topic-chord hub-topic-pitch" id="enterChord" role="button" tabindex="0" aria-label="和弦練習：看圖溫習，或在鍵盤彈出和弦。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">和弦</div>
                 <div class="hub-game-illust illust-chord" aria-hidden="true">
-                    <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="36" y="28" width="22" height="72" rx="4" fill="#fff" stroke="#d97706"/>
-                        <rect x="62" y="28" width="22" height="72" rx="4" fill="#fff7ed" stroke="#d97706"/>
-                        <rect x="88" y="28" width="22" height="72" rx="4" fill="#fff" stroke="#d97706"/>
-                        <rect x="114" y="28" width="22" height="72" rx="4" fill="#fff7ed" stroke="#d97706"/>
-                        <rect x="140" y="28" width="22" height="72" rx="4" fill="#fff" stroke="#d97706"/>
-                        <rect x="54" y="28" width="14" height="44" rx="3" fill="#1e1e2f"/>
-                        <rect x="80" y="28" width="14" height="44" rx="3" fill="#f59e0b"/>
-                        <rect x="132" y="28" width="14" height="44" rx="3" fill="#1e1e2f"/>
-                    </svg>
+                    <img class="illust-img" src="img/ui/hub-scene-chord.webp" alt="" loading="lazy" decoding="async">
                 </div>
                 <div class="hub-game-name" aria-hidden="true">和弦練習</div>
                 <div class="hub-game-desc" aria-hidden="true">看圖溫習 · 鍵盤作答</div>
@@ -362,7 +340,7 @@
             <div class="hub-game-card hub-game2 hub-topic-skill" id="enterGame2" role="button" tabindex="0" aria-label="節奏識辨：課堂柯達伊、拍號、節奏挑戰、時值辨別、節奏創作。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">節奏</div>
                 <div class="hub-game-illust illust-2" aria-hidden="true">
-                    <img class="illust-img" src="img/ui/hub-3d-game2.jpg" alt="" loading="lazy" decoding="async">
+                    <img class="illust-img" src="img/ui/hub-scene-rhythm.webp" alt="" loading="lazy" decoding="async">
                 </div>
                 <div class="hub-game-name" aria-hidden="true">節奏識辨</div>
                 <div class="hub-game-desc" aria-hidden="true">辨認節奏型 · 依照節拍器擊拍</div>
@@ -371,7 +349,7 @@
             <div class="hub-game-card hub-game3 hub-topic-skill" id="enterGame3" role="button" tabindex="0" aria-label="術語識辨：辨認音樂術語及記號。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">術語</div>
                 <div class="hub-game-illust illust-3" aria-hidden="true">
-                    <img class="illust-img" src="img/ui/hub-3d-game3.jpg" alt="" loading="lazy" decoding="async">
+                    <img class="illust-img" src="img/ui/hub-scene-terms.webp" alt="" loading="lazy" decoding="async">
                 </div>
                 <div class="hub-game-name" aria-hidden="true">術語識辨</div>
                 <div class="hub-game-desc" aria-hidden="true">辨認音樂術語及記號 · 限時作答可得加分</div>
@@ -380,11 +358,19 @@
             <div class="hub-game-card hub-game4 hub-topic-skill" id="enterGame4" role="button" tabindex="0" aria-label="樂器識辨：聽聲辨認樂器，認識管弦樂家族。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">樂器</div>
                 <div class="hub-game-illust illust-4" aria-hidden="true">
-                    <img class="illust-img" src="img/ui/hub-3d-game4.jpg" alt="" loading="lazy" decoding="async">
+                    <img class="illust-img" src="img/ui/hub-scene-instruments.webp" alt="" loading="lazy" decoding="async">
                 </div>
                 <div class="hub-game-name" aria-hidden="true">樂器識辨</div>
                 <div class="hub-game-desc" aria-hidden="true">聽音辨認樂器 · 認識管弦樂家族</div>
                 <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
+            </div>
+            <div class="hub-game-card hub-topic-listen" aria-disabled="true" aria-label="聽力：即將推出">
+                <div class="hub-game-tag" aria-hidden="true">聽力</div>
+                <div class="hub-game-illust illust-listen" aria-hidden="true">
+                    <img class="illust-img" src="img/ui/hub-scene-listen.webp" alt="" loading="lazy" decoding="async">
+                </div>
+                <div class="hub-game-name" aria-hidden="true">聽力</div>
+                <div class="hub-game-btn" aria-hidden="true">即將推出</div>
             </div>
             <!-- Classroom rollout: hub card hidden; studio screen/logic stay. Remove hidden and restore tabindex="0" to show again. -->
             <div class="hub-game-card hub-game-studio" id="enterCompositionStudio" role="button" tabindex="-1" hidden aria-label="創作工作室：伴奏與配音創作，播放, 匯出, 分享。按一下開始創作。">
@@ -419,7 +405,7 @@
             </div>
         </div>
 
-        <button class="btn-view-ranks web-only-ui" id="hubViewRanksBtn"><i data-lucide="trophy"></i> 查看排行榜</button>
+        <button class="btn-view-ranks web-only-ui" id="hubViewRanksBtn"><img class="lobby-trophy" src="img/ui/ui-trophy.webp" alt="">查看排行榜</button>
         </div><!-- /.hub-main-col -->
         </div><!-- /.hub-layout -->
     </div>
@@ -520,9 +506,22 @@
     <!-- ===================================== -->
     <!-- 玩家個人檔案 (Player Profile)          -->
     <!-- ===================================== -->
+    <div id="screen-presence" class="screen">
+        <button class="btn-back-hub" id="presenceBackBtn" type="button">← 返回主頁</button>
+        <h1 class="game-title">在線同紀錄</h1>
+        <div class="card presence-card">
+            <h2 class="presence-heading">在線中</h2>
+            <ul id="presenceOnline" class="presence-list"></ul>
+        </div>
+        <div class="card presence-card">
+            <h2 class="presence-heading">紀錄</h2>
+            <ul id="presenceLog" class="presence-list"></ul>
+        </div>
+    </div>
+
     <div id="screen-profile" class="screen">
-        <button class="btn-back-hub" id="profileBackBtn">← 返回主頁</button>
-        <div class="profile-header">
+        <div class="profile-identity">
+            <button class="btn-back-hub" id="profileBackBtn" type="button">← 返回主頁</button>
             <div class="profile-avatar" id="profileAvatar">♩</div>
             <div class="profile-info">
                 <div class="profile-name" id="profileName">學生姓名</div>
@@ -531,23 +530,47 @@
                     <span class="profile-id" id="profileId">ID: ---</span>
                     <span class="profile-since" id="profileSince">加入日期: ---</span>
                     <span class="profile-email" id="profileEmail" hidden></span>
-                    <button type="button" class="profile-signout" id="profileSignOutBtn" hidden>登出</button>
+                </div>
+            </div>
+            <div class="profile-level-bar">
+                <div class="profile-level-badge" id="profileLevel">Lv.1</div>
+                <div class="profile-exp-track">
+                    <div class="profile-exp-fill" id="profileExpFill" style="width:0%"></div>
+                </div>
+                <div class="profile-exp-text" id="profileExpText">0 / 100 EXP</div>
+            </div>
+            <div class="profile-playtime" id="profilePlaytime">🕐 累計練習時間：0 分鐘</div>
+            <button type="button" id="profileAvatarToggle" class="profile-avatar-toggle">更換頭像</button>
+            <button type="button" class="profile-signout" id="profileSignOutBtn" hidden><img class="lobby-ico" src="img/ui/ui-signout.webp" alt="">登出</button>
+        </div>
+        <p class="profile-save-status" id="profileSaveStatus" aria-live="polite"></p>
+        <div class="profile-dash">
+            <div class="profile-card ability-radar-card">
+                <div class="profile-section-title">音樂能力</div>
+                <div id="abilityRadar"></div>
+            </div>
+            <div class="profile-card profile-bests-card">
+                <div class="profile-section-title">各項最高分</div>
+                <p class="profile-bests-note">只計挑戰。練習分不入榜，亦不會蓋過較高最佳。</p>
+                <div class="profile-game-bests" id="profileGameBests">
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♩</span><span class="pgb-name">音名</span></div><div class="pgb-score" id="pgbNotes">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♯</span><span class="pgb-name">調號</span></div><div class="pgb-score" id="pgbKeysig">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">Do</span><span class="pgb-name">唱名</span></div><div class="pgb-score" id="pgbSolfege">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">🎹</span><span class="pgb-name">和弦</span></div><div class="pgb-score" id="pgbChord">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♬</span><span class="pgb-name">節奏</span></div><div class="pgb-score" id="pgbRhythm">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">𝄞</span><span class="pgb-name">術語</span></div><div class="pgb-score" id="pgbTerms">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">🎻</span><span class="pgb-name">樂器</span></div><div class="pgb-score" id="pgbInstr">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">🎧</span><span class="pgb-name">聽力</span></div><div class="pgb-score" id="pgbListen">---</div></div>
                 </div>
             </div>
         </div>
-        <div class="profile-level-bar">
-            <div class="profile-level-badge" id="profileLevel">Lv.1</div>
-            <div class="profile-exp-track">
-                <div class="profile-exp-fill" id="profileExpFill" style="width:0%"></div>
-            </div>
-            <div class="profile-exp-text" id="profileExpText">0 / 100 EXP</div>
-        </div>
-        <div class="profile-playtime" id="profilePlaytime">🕐 累計練習時間：0 分鐘</div>
-        <p class="profile-save-status" id="profileSaveStatus" aria-live="polite"></p>
-
-        <div class="profile-settings-grid">
-        <div class="profile-card profile-identity-card">
+        <div class="profile-card profile-identity-card" id="profileAvatarPanel" hidden>
             <div class="profile-section-title"><i data-lucide="palette"></i> 頭像同簽名</div>
+            <div class="profile-photo-row">
+                <label class="profile-photo-upload" for="profileAvatarFile">用自己相片</label>
+                <input type="file" id="profileAvatarFile" accept="image/*">
+                <span class="profile-photo-hint">從相簿或檔案揀一張，會縮細後先儲存</span>
+            </div>
             <div class="profile-avatar-grid" id="profileAvatarGrid"></div>
             <label class="profile-sig-label" for="profileSigInput">個人簽名</label>
             <div class="profile-sig-row">
@@ -555,21 +578,8 @@
                 <button class="btn-action profile-sig-save" id="profileSigSave" type="button"><i data-lucide="save"></i> 儲存</button>
             </div>
         </div>
-        <div class="profile-card">
-        <div class="profile-section-title">各項最高分</div>
-        <p class="profile-bests-note">只計挑戰成績。練習分不會入榜，亦不會蓋過較高的個人最佳。</p>
-        <div class="profile-game-bests" id="profileGameBests">
-            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♩</span><span class="pgb-name">音名</span></div><div class="pgb-score" id="pgbNotes">---</div></div>
-            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♯</span><span class="pgb-name">調號</span></div><div class="pgb-score" id="pgbKeysig">---</div></div>
-            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">Do</span><span class="pgb-name">唱名</span></div><div class="pgb-score" id="pgbSolfege">---</div></div>
-            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">🎹</span><span class="pgb-name">和弦</span></div><div class="pgb-score" id="pgbChord">---</div></div>
-            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♬</span><span class="pgb-name">節奏</span></div><div class="pgb-score" id="pgbRhythm">---</div></div>
-            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">𝄞</span><span class="pgb-name">術語</span></div><div class="pgb-score" id="pgbTerms">---</div></div>
-            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">🎻</span><span class="pgb-name">樂器</span></div><div class="pgb-score" id="pgbInstr">---</div></div>
-        </div>
-        </div>
-        </div>
 
+        <div class="profile-rest">
         <div class="profile-card">
         <div class="profile-section-title"><i data-lucide="bar-chart-2"></i> 綜合數據</div>
         <div class="profile-stats-grid" id="profileStatsGrid">
@@ -588,6 +598,7 @@
         <div id="profileProgressTrend" class="profile-progress-trend"></div>
         <div class="profile-section-subtitle">近期紀錄</div>
         <div id="profileRecentGames" class="profile-recent-games"></div>
+        </div>
         </div>
 
     </div>
@@ -1631,6 +1642,7 @@
     <script src="chord-keyboard.js?v=2" defer></script>
     <script src="rank-sync.js?v=4" defer></script>
     <script src="profile-store.js?v=1" defer></script>
+    <script src="ability-radar.js?v=1" defer></script>
     <script src="bootstrap-instruments.js?v=15" data-app-bootstrap defer></script>
     <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
 </body>

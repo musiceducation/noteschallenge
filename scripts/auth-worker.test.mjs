@@ -5,6 +5,7 @@ import worker, {
   allowedOrigin,
   clearJwksCache,
   mergeProfiles,
+  settlePresence,
   signSessionToken,
   verifyGoogleIdToken,
   verifySessionToken
@@ -67,11 +68,25 @@ function memoryDb() {
   const users = new Map();
   const profiles = new Map();
   const roster = new Map();
+  const presence = [];
+  const logs = [];
   const db = {
     roster,
     prepare(sql) {
       const compact = sql.replace(/\s+/g, ' ').trim();
       return {
+        async all() {
+          if (compact.includes('FROM presence_log')) return { results: logs.map((row) => Object.assign({}, row)) };
+          if (compact.includes('FROM presence')) return { results: presence.map((row) => Object.assign({}, row)) };
+          throw new Error('unexpected all ' + compact);
+        },
+        async run() {
+          if (compact.startsWith('DELETE FROM presence')) {
+            presence.length = 0;
+            return { success: true };
+          }
+          throw new Error('unexpected unbound run ' + compact);
+        },
         bind(...args) {
           return {
             async first() {
@@ -83,7 +98,30 @@ function memoryDb() {
               }
               throw new Error('unexpected first ' + compact);
             },
+            async all() {
+              if (compact.includes('FROM presence_log')) return { results: logs.map((row) => Object.assign({}, row)) };
+              if (compact.includes('FROM presence')) return { results: presence.map((row) => Object.assign({}, row)) };
+              throw new Error('unexpected all ' + compact);
+            },
             async run() {
+              if (compact.startsWith('DELETE FROM presence')) {
+                presence.length = 0;
+                return { success: true };
+              }
+              if (compact.startsWith('INSERT INTO presence_log')) {
+                logs.push({
+                  presence_id: args[0], kind: args[1], display_name: args[2], class_label: args[3],
+                  event: args[4], screen: args[5], at: args[6]
+                });
+                return { success: true };
+              }
+              if (compact.startsWith('INSERT INTO presence ')) {
+                presence.push({
+                  id: args[0], kind: args[1], display_name: args[2], class_label: args[3],
+                  screen: args[4], last_seen: args[5], online_at: args[6]
+                });
+                return { success: true };
+              }
               if (compact.startsWith('INSERT INTO users')) {
                 const prev = users.get(args[0]);
                 users.set(args[0], {
@@ -239,6 +277,11 @@ test('mergeProfiles keeps higher bests and does not wipe text with blanks', () =
   assert.equal(merged.diffClears.easy, 2);
   assert.equal(merged.history.length, 2);
   assert.equal(merged.registeredAt, '2026-01-01T00:00:00.000Z');
+  const photo = 'data:image/jpeg;base64,' + 'A'.repeat(80);
+  const keptPhoto = mergeProfiles({ ...stored, avatar: photo }, { avatar: '   ', gameBests: { game1: 1 } });
+  assert.equal(keptPhoto.avatar, photo);
+  assert.equal(keptPhoto.gameBests.game1, 900);
+  assert.equal(mergeProfiles({ ...stored, avatar: photo }, { avatar: '🎹' }).avatar, '🎹');
 });
 
 test('allowedOrigin permits the GitHub Pages site and localhost only', () => {
@@ -362,6 +405,97 @@ test('worker login stores binding and profile merge never lowers bests', async (
       headers: { Origin: origin }
     }), env);
     assert.equal(preflight.status, 204);
+  } finally {
+    globalThis.fetch = realFetch;
+    clearJwksCache();
+  }
+});
+
+test('allowlisted teacher email signs in without opening gmail.com, and presence keeps testers off the roster', async () => {
+  keys();
+  clearJwksCache();
+  const now = Date.now();
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('/oauth2/v3/certs')) {
+      return new Response(JSON.stringify({ keys: [publicJwk] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    throw new Error('unexpected fetch ' + url);
+  };
+  const env = {
+    DB: memoryDb(),
+    GOOGLE_CLIENT_ID: CLIENT_ID,
+    JWT_SECRET: SECRET,
+    ALLOWED_EMAIL_DOMAINS: 'school.edu.hk',
+    EXTRA_ALLOWED_EMAILS: 'teacher.allow@gmail.com'
+  };
+  const origin = 'http://127.0.0.1:4173';
+  try {
+    const other = await googleToken(baseClaims(now, { email: 'someone.else@gmail.com', sub: 'other-sub', name: '其他人' }));
+    const blocked = await worker.fetch(new Request('https://auth.example/auth/google', {
+      method: 'POST',
+      headers: { Origin: origin, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential: other })
+    }), env);
+    assert.equal(blocked.status, 401);
+
+    const teacherToken = await googleToken(baseClaims(now, { email: 'Teacher.Allow@gmail.com', sub: 'teacher-sub', name: '陳老師' }));
+    const loginRes = await worker.fetch(new Request('https://auth.example/auth/google', {
+      method: 'POST',
+      headers: { Origin: origin, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential: teacherToken })
+    }), env);
+    assert.equal(loginRes.status, 200);
+    const login = await loginRes.json();
+    assert.equal(login.binding.name, '陳老師');
+    assert.equal(login.binding.role, 'teacher');
+    assert.equal(env.DB.roster.size, 0);
+
+    const auth = { Authorization: 'Bearer ' + login.token, Origin: origin, 'Content-Type': 'application/json' };
+    const spoof = await worker.fetch(new Request('https://auth.example/presence', {
+      method: 'POST',
+      headers: auth,
+      body: JSON.stringify({ screen: '大廳', name: '假學生' })
+    }), env);
+    const onlineTeacher = await spoof.json();
+    assert.equal(onlineTeacher.online.length, 1);
+    assert.equal(onlineTeacher.online[0].name, '陳老師');
+    assert.equal(onlineTeacher.online[0].classLabel, '老師');
+    assert.equal(onlineTeacher.online[0].kind, 'teacher');
+
+    const tester = await worker.fetch(new Request('https://auth.example/presence', {
+      method: 'POST',
+      headers: { Origin: origin, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: 'tester', clientId: 'testerclient1', screen: '音名', name: '陳小樂' })
+    }), env);
+    const both = await tester.json();
+    assert.equal(both.online.length, 2);
+    const guest = both.online.find((row) => row.kind === 'tester');
+    assert.equal(guest.name, '測試人員');
+    assert.equal(both.log.some((row) => row.kind === 'tester' && row.event === 'online'), true);
+    assert.equal(env.DB.roster.size, 0);
+
+    const moved = await worker.fetch(new Request('https://auth.example/presence', {
+      method: 'POST',
+      headers: { Origin: origin, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: 'tester', clientId: 'testerclient1', screen: '檔案' })
+    }), env);
+    const afterMove = await moved.json();
+    assert.equal(afterMove.log.some((row) => row.kind === 'tester' && row.event === 'screen' && row.screen === '檔案'), true);
+
+    const stale = await worker.fetch(new Request('https://auth.example/presence', {
+      method: 'GET',
+      headers: { Origin: origin }
+    }), env);
+    assert.equal((await stale.json()).online.length, 2);
+
+    const logs = [];
+    const kept = settlePresence([
+      { id: 'tester:old', kind: 'tester', display_name: '測試人員', class_label: '', screen: '大廳', last_seen: new Date(now - 5 * 60 * 1000).toISOString(), online_at: new Date(now - 6 * 60 * 1000).toISOString() }
+    ], logs, null, now, 3 * 60 * 1000);
+    assert.equal(kept.length, 0);
+    assert.equal(logs[0].event, 'offline');
+    assert.equal(logs[0].display_name, '測試人員');
   } finally {
     globalThis.fetch = realFetch;
     clearJwksCache();
