@@ -61,7 +61,7 @@
         classic60:{ name:'1分鐘挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1 },
         bass60:   { name:'1分鐘挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1 },
         mixed60:  { name:'1分鐘挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1 },
-        noMiss:   { name:'零失誤練習', type:'practice', duration:Infinity, maxWrong:1, scoreMulti:0 },
+        noMiss:   { name:'零失誤挑戰', type:'challenge', duration:Infinity, maxWrong:1, scoreMulti:1 },
         keysig_practice:  { name:'調號練習', type:'practice', duration:Infinity, maxWrong:Infinity, scoreMulti:0, gameType:'keysig' },
         keysig60:         { name:'調號挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1, gameType:'keysig' },
         solfege_practice: { name:'唱名練習', type:'practice', duration:Infinity, maxWrong:Infinity, scoreMulti:0, gameType:'solfege' },
@@ -1126,7 +1126,8 @@
             keysigGrade: 1,
             solfegeGrade: 1,
             abrsmGrade: 'abrsm-g1',
-            noteClefChoice: 'treble'
+            noteClefChoice: 'treble',
+            noMissPlayedClef: ''
         };
     }
 
@@ -1935,11 +1936,12 @@
         return TEXTBOOK_CONFIG[tbKey];
     }
 
-    // Timed clef challenges set forceClef. 零失誤 has no clef picker, so it
-    // uses the same treble challenge bank — sharps and flats included.
+    // 1分鐘挑戰 and 零失誤挑戰 share the clef picker. Alto and tenor
+    // questions come from the ABRSM practice pool; this fallback is treble
+    // only when that pool is unavailable.
     function noteModeForceClef() {
         if (state.modeConfig && state.modeConfig.forceClef) return state.modeConfig.forceClef;
-        if (state.currentMode === 'noMiss') return 'treble';
+        if (state.currentMode === 'noMiss') return noteClefChoice();
         return null;
     }
 
@@ -2134,7 +2136,7 @@
     function paintNoteClefRow() {
         const row = document.getElementById('clefSelectorRow');
         if (!row) return;
-        const show = state.currentMode === 'classic60';
+        const show = state.currentMode === 'classic60' || state.currentMode === 'noMiss';
         row.style.display = show ? '' : 'none';
         document.querySelectorAll('#noteClefBtns .clef-sel-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.clef === noteClefChoice());
@@ -2147,7 +2149,7 @@
         return 'abrsm-theory-v1:notes-clef-' + noteClefChoice();
     }
     function clefPracticeIds() {
-        return state.currentMode === 'classic60' ? noteClefIds() : ['treble', 'bass'];
+        return (state.currentMode === 'classic60' || state.currentMode === 'noMiss') ? noteClefIds() : ['treble', 'bass'];
     }
     function generateAbrsmNote() {
         const pool = AbrsmNoteGrade.practicePool(clefPracticeIds());
@@ -2257,7 +2259,7 @@
         paintNoteClefRow();
     }
     function playerBadge() {
-        const clef = state.currentMode === 'classic60' ? ' · ' + noteClefLabel() : '';
+        const clef = (state.currentMode === 'classic60' || state.currentMode === 'noMiss') ? ' · ' + noteClefLabel() : '';
         const grade = ABRSM_NOTE_MODES.has(state.currentMode) ? '' : (state.abrsmGrade ? ' · 英皇 G' + String(state.abrsmGrade).replace('abrsm-g', '') : '');
         return `👋 ${state.currentUser.name} 同學 · ${state.modeConfig.name}${clef}${grade}`;
     }
@@ -2331,7 +2333,7 @@
         if (game === 'game2' || game === 'game3') return true;
         if (game !== 'game1') return false;
         const mode = dom.rankModeFilter ? dom.rankModeFilter.value : 'notes-clef';
-        return mode === 'notes-clef' || mode === 'abrsm-notes' || mode === 'abrsm-keys';
+        return mode === 'notes-clef' || mode === 'noMiss';
     }
     function paintStudentRankHint(rows) {
         if (!dom.studentRankHint) return;
@@ -2363,6 +2365,60 @@
         record.difficulty = state.abrsmGrade;
         if (String(gameKey).indexOf('notes-clef-') === 0) record.clefChoice = String(gameKey).slice('notes-clef-'.length);
         storeSharedRank(record);
+    }
+    function noMissStorageMode() {
+        const clef = noteClefChoice();
+        if (typeof RankSync !== 'undefined' && RankSync.noMissModeKey) return RankSync.noMissModeKey(clef);
+        return 'noMiss-' + (NOTE_CLEF_IDS.includes(clef) ? clef : 'treble');
+    }
+    function saveNoMissRank() {
+        if (!state.currentUser || !state.currentUser.name) return;
+        const clef = noteClefChoice();
+        const mode = noMissStorageMode();
+        const accuracy = state.totalQuestions ? Math.round(((state.totalQuestions - state.wrongCount) / state.totalQuestions) * 100) : 0;
+        const record = {
+            game: 'game1',
+            name: state.currentUser.name,
+            grade: state.currentUser.grade,
+            class: state.currentUser.class,
+            id: state.currentUser.id || '',
+            mode: mode,
+            mode_name: '零失誤挑戰·' + (NOTE_CLEF_LABEL[clef] || '高音譜號'),
+            score: state.score,
+            max_combo: state.maxCombo,
+            total_questions: state.totalQuestions,
+            accuracy: accuracy,
+            timestamp: new Date().toLocaleString('zh-TW')
+        };
+        const incoming = parseInt(record.score, 10) || 0;
+        const clefOf = (row) => (typeof RankSync !== 'undefined' && RankSync.legacyNoMissClef(row)) || '';
+        const sameStudent = (row) => row && String(row.name || '').trim() === String(record.name).trim() && String(row.class || '') === String(record.class || '') && String(row.id || '') === String(record.id || '');
+        let best = 0;
+        (state.allRanks || []).concat(readRankList('musicGameRanks_game1')).forEach(row => {
+            if (!sameStudent(row) || clefOf(row) !== clef) return;
+            const score = parseInt(row.score, 10) || 0;
+            if (score > best) best = score;
+        });
+        if (incoming <= best) return;
+        saveLocalRank('game1', state.currentUser, record.score, record.accuracy, record.max_combo, mode);
+        const existing = state.allRanks.find(row => sameStudent(row) && row.mode === mode);
+        if (existing) {
+            existing.score = record.score;
+            existing.accuracy = record.accuracy;
+            existing.max_combo = record.max_combo;
+            existing.mode_name = record.mode_name;
+        } else state.allRanks.push(record);
+        _writeRanksCache(state.allRanks);
+        gasPostJson(record).then(result => {
+            if (result && result.ok) {
+                _showToast('✅ 分數已上傳！', 'success');
+                setTimeout(() => loadRanks(2, { force: true }), 800);
+            } else {
+                _showToast('⚠️ 上傳未成功：' + ((result && result.error) || '未知') + '（分數已儲存在本機）', 'warn');
+            }
+        }).catch(() => {
+            _showToast('⚠️ 網絡問題，分數已儲存在本機', 'warn');
+        });
     }
     function saveNoteClefRank() {
         if (!state.currentUser) return;
@@ -2446,6 +2502,41 @@
                 <div class="rank-score">${parseInt(item.score, 10) || 0}</div></div>`;
         }).join('');
     }
+    function renderNoMissRanks(clef) {
+        const gradeWrap = document.getElementById('rankAbrsmFilterWrap');
+        if (gradeWrap) gradeWrap.style.display = 'none';
+        const safe = NOTE_CLEF_IDS.includes(clef) ? clef : 'treble';
+        const fC = dom.rankClassFilter.value;
+        const fG = parseInt(dom.rankGradeFilter.value, 10);
+        const clefOf = (row) => (typeof RankSync !== 'undefined' && RankSync.legacyNoMissClef(row)) || '';
+        let rows = (state.allRanks || []).filter(row => row && !isSharedRankRow(row) && clefOf(row) === safe);
+        rows = rows.concat(readRankList('musicGameRanks_game1').filter(row => clefOf(row) === safe));
+        const anyThisClef = rows.length > 0;
+        if (fC !== '0') rows = rows.filter(row => String(row.class) === String(fC));
+        if (fG !== 0) rows = rows.filter(row => parseInt(row.grade, 10) === fG);
+        if (typeof RankSync !== 'undefined') rows = RankSync.keepHigherScore(rows);
+        rows.sort((a, b) => (parseInt(b.score, 10) || 0) - (parseInt(a.score, 10) || 0));
+        paintStudentRankHint(rows);
+        if (!rows.length) {
+            dom.rankList.innerHTML = anyThisClef
+                ? '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個年級或班別未有零失誤紀錄。<br>把年級和班別改成「全部」，就可以看到這個譜號的零失誤挑戰。</div>'
+                : '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個譜號暫時未有零失誤挑戰紀錄。</div>';
+            return;
+        }
+        dom.rankList.innerHTML = _rankRewardBanner() + rows.slice(0, 100).map((item, i) => {
+            const name = escHtml(item.name);
+            const cls = escHtml(item.class);
+            const school = item.grade ? `中${['','一','二','三','四','五','六'][item.grade] || item.grade}` : '';
+            const clefTag = NOTE_CLEF_LABEL[safe];
+            const score = parseInt(item.score, 10) || 0;
+            return `<div class="rank-item ${i === 0 ? 'first' : i === 1 ? 'second' : i === 2 ? 'third' : ''}">
+                <div class="rank-pos">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1) + '.'}</div>
+                <div class="rank-name"><span class="rank-student-name">${name}</span>
+                    <div class="rank-badges"><span class="rank-tag">${clefTag}</span>${school ? `<span class="rank-tag">${school}</span>` : ''}<span class="rank-tag rank-class-tag">${cls}班</span></div>
+                </div>
+                <div class="rank-score">${score}</div></div>`;
+        }).join('');
+    }
     function renderAbrsmRanks(gameKey) {
         const wrap = document.getElementById('rankAbrsmFilterWrap');
         if (wrap) wrap.style.display = '';
@@ -2496,7 +2587,9 @@
             const gradeKey = state.currentUser ? state.currentUser.grade : 3;
             if (forceClef === 'treble') clefOptions = ['treble'];
             else if (forceClef === 'bass') clefOptions = ['bass'];
-            else clefOptions = ['treble','bass'];
+            else if (forceClef === 'mixed') clefOptions = ['treble','bass'];
+            else if (MAPS[forceClef]) clefOptions = [forceClef];
+            else clefOptions = ['treble'];
             // Pick clef first so we can load the right level config
             const clef = clefOptions[Math.floor(Math.random() * clefOptions.length)];
             const lvl = (CHALLENGE_LEVELS[clef] && CHALLENGE_LEVELS[clef][gradeKey]) || CHALLENGE_LEVELS.treble[3];
@@ -2766,8 +2859,10 @@
             dom.timeProgress.style.width = '100%'; 
             dom.timeProgress.style.transition = 'none'; 
             updateScoreboard();
-            const clefStart = state.currentMode === 'classic60' ? `（${noteClefLabel()}）` : '';
-            dom.messageBox.textContent = `🎵 ${state.modeConfig.name}${clefStart} — 練習開始。`; 
+            const clefStart = (state.currentMode === 'classic60' || state.currentMode === 'noMiss') ? `（${noteClefLabel()}）` : '';
+            if (state.currentMode === 'noMiss') state.noMissPlayedClef = noteClefChoice();
+            const began = state.currentMode === 'noMiss' ? '挑戰開始' : '練習開始';
+            dom.messageBox.textContent = `🎵 ${state.modeConfig.name}${clefStart} — ${began}。`; 
             dom.messageBox.className = 'message-box'; 
             nextQuestion();
             if (state.timeLeft !== Infinity) {
@@ -3423,14 +3518,13 @@
     async function submitScore() {
         if (!state.currentUser.name || state.modeConfig.type !== 'challenge') return;
         if (state.score === 0 && state.totalQuestions === 0) return;
-        if (state.currentMode === 'noMiss' || (state.modeConfig && state.modeConfig.gameType === 'solfege')) return;
-        if (state.currentMode === 'classic60') {
-            saveNoteClefRank();
+        if (state.modeConfig && state.modeConfig.gameType === 'solfege') return;
+        if (state.currentMode === 'noMiss') {
+            saveNoMissRank();
             return;
         }
-        if (ABRSM_NOTE_MODES.has(state.currentMode) || ABRSM_KEY_MODES.has(state.currentMode)) {
-            ensureAbrsmGrade();
-            saveAbrsmRank(ABRSM_KEY_MODES.has(state.currentMode) ? 'keys' : 'notes');
+        if (state.currentMode === 'classic60') {
+            saveNoteClefRank();
             return;
         }
 
@@ -3568,13 +3662,15 @@
                 if (dom.rankModeFilter) dom.rankModeFilter.value = 'noMiss';
                 if (dom.rankGradeFilter) dom.rankGradeFilter.value = '0';
                 if (dom.rankClassFilter) dom.rankClassFilter.value = '0';
+                const playedClef = document.getElementById('rankNoteClefFilter');
+                if (playedClef) playedClef.value = noteClefChoice();
             }
             loadRanks(2, { force: true });
         }
         const reportTitleEl = document.querySelector('.report-title');
         if (reportTitleEl) {
             if (showNoMissBoard) {
-                reportTitleEl.textContent = '🔥 零失誤挑戰';
+                reportTitleEl.textContent = `🔥 零失誤挑戰 · ${noteClefLabel()}`;
             } else if (!isPracticeEnd && state.currentMode === 'classic60') {
                 reportTitleEl.textContent = `🎉 1分鐘挑戰完成 · ${noteClefLabel()}`;
             } else {
@@ -3752,7 +3848,7 @@
         return '<div class="rank-reward-banner">🏆 每級前三名將獲得獎勵！</div>';
     }
 
-    function openGame1RankBoard(board) {
+    function openGame1RankBoard(board, clefOverride) {
         dom.leaderboardLayout.classList.add('view-only');
         dom.leaderboardLayout.classList.remove('practice-end');
         dom.reportGrid.innerHTML = '';
@@ -3763,9 +3859,14 @@
         if (mfRow) mfRow.style.display = '';
         const chosen = board || (state.currentMode === 'noMiss' ? 'noMiss' : state.currentMode === 'keysig60' ? 'keysig60' : state.currentMode === 'solfege60' ? 'solfege60' : 'notes-clef');
         if (dom.rankModeFilter) dom.rankModeFilter.value = chosen;
+        const clefFilter = document.getElementById('rankNoteClefFilter');
         if (chosen === 'notes-clef' && state.currentMode === 'classic60') {
-            const clefFilter = document.getElementById('rankNoteClefFilter');
             if (clefFilter) clefFilter.value = noteClefChoice();
+        }
+        if (chosen === 'noMiss' && clefFilter) {
+            const explicit = NOTE_CLEF_IDS.includes(clefOverride) ? clefOverride : '';
+            const played = NOTE_CLEF_IDS.includes(state.noMissPlayedClef) ? state.noMissPlayedClef : '';
+            clefFilter.value = explicit || played || (state.currentMode === 'noMiss' ? noteClefChoice() : 'treble');
         }
         const historical = chosen === 'noMiss' || chosen === 'keysig60' || chosen === 'solfege60';
         const signedIn = !!(state.currentUser && state.currentUser.name);
@@ -3788,11 +3889,12 @@
                 dom.rankModeFilter.value = 'notes-clef';
                 const clefFilter = document.getElementById('rankNoteClefFilter');
                 if (clefFilter) clefFilter.value = noteClefChoice();
-            } else if (state.abrsmGrade && ABRSM_KEY_MODES.has(state.currentMode)) dom.rankModeFilter.value = 'abrsm-keys';
-            else if (state.abrsmGrade && ABRSM_NOTE_MODES.has(state.currentMode)) dom.rankModeFilter.value = 'abrsm-notes';
+            } else if (state.currentMode === 'noMiss') {
+                dom.rankModeFilter.value = 'noMiss';
+                const clefFilter = document.getElementById('rankNoteClefFilter');
+                if (clefFilter) clefFilter.value = noteClefChoice();
+            } else if (state.currentMode === 'keysig60') dom.rankModeFilter.value = 'keysig60';
             else dom.rankModeFilter.value = state.currentMode;
-            const ag = document.getElementById('rankAbrsmGradeFilter');
-            if (ag && state.abrsmGrade) ag.value = state.abrsmGrade;
         }
     }
 
@@ -3805,34 +3907,28 @@
             if (rhythmKindWrap) rhythmKindWrap.style.display = '';
             syncRankKindOptions(gf.value);
             const kindEl = document.getElementById('rankRhythmKind');
-            const kind = kindEl ? kindEl.value : (gf.value === 'game3' ? 'terms' : 'classroom');
-            if (kind === 'classroom') {
-                const abrsmWrapEarly = document.getElementById('rankAbrsmFilterWrap');
-                if (abrsmWrapEarly) abrsmWrapEarly.style.display = 'none';
-                renderRanksForGame(gf.value, deviceClassroomRows(gf.value));
-                return;
-            }
+            if (kindEl) kindEl.value = 'classroom';
             const abrsmWrapEarly = document.getElementById('rankAbrsmFilterWrap');
-            if (abrsmWrapEarly) abrsmWrapEarly.style.display = '';
-            const rhythmKey = gf.value === 'game3' ? 'terms' : (kind === 'rhythm-tap' ? 'rhythm-tap' : 'rhythm');
-            renderAbrsmRanks(rhythmKey);
+            if (abrsmWrapEarly) abrsmWrapEarly.style.display = 'none';
+            renderRanksForGame(gf.value, deviceClassroomRows(gf.value));
             return;
         }
         if (gf && gf.value !== 'game1') { renderRanksForGame(gf.value); return; }
         const fC = dom.rankClassFilter.value, fG = parseInt(dom.rankGradeFilter.value), fM = dom.rankModeFilter.value;
         const abrsmWrap = document.getElementById('rankAbrsmFilterWrap');
         const noteClefWrap = document.getElementById('rankNoteClefWrap');
-        if (noteClefWrap) noteClefWrap.style.display = (gf && gf.value === 'game1' && fM === 'notes-clef') ? '' : 'none';
+        if (noteClefWrap) noteClefWrap.style.display = (gf && gf.value === 'game1' && (fM === 'notes-clef' || fM === 'noMiss')) ? '' : 'none';
+        if (abrsmWrap) abrsmWrap.style.display = 'none';
         if (fM === 'notes-clef') {
             const clef = (document.getElementById('rankNoteClefFilter') || {}).value || 'treble';
             renderNoteClefRanks(clef);
             return;
         }
-        if (fM === 'abrsm-notes' || fM === 'abrsm-keys') {
-            renderAbrsmRanks(fM === 'abrsm-keys' ? 'keys' : 'notes');
+        if (fM === 'noMiss') {
+            const clef = (document.getElementById('rankNoteClefFilter') || {}).value || 'treble';
+            renderNoMissRanks(clef);
             return;
         }
-        if (abrsmWrap) abrsmWrap.style.display = 'none';
         let f = state.allRanks.filter(r => (r.mode === fM || r.difficulty === fM) && !isSharedRankRow(r));
         if (typeof RankSync !== 'undefined' && RankSync.legacyGame1Mode({ mode: fM })) {
             f = f.concat(readRankList('musicGameRanks_game1').filter(r => RankSync.legacyGame1Mode(r) === fM));
@@ -3863,10 +3959,7 @@
             }
         }
         if (!f.length) {
-            const noMissHidden = fM === 'noMiss' && state.allRanks.some(r => r.mode === 'noMiss' || r.difficulty === 'noMiss');
-            dom.rankList.innerHTML = noMissHidden
-                ? '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個年級或班別未有零失誤紀錄。<br>把年級和班別改成「全部」，就可以看到以前的零失誤挑戰。</div>'
-                : '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個模式暫時未有紀錄，做第一個挑戰者吧！🚀</div>';
+            dom.rankList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個模式暫時未有紀錄，做第一個挑戰者吧！🚀</div>';
             return;
         }
         const MAX_RENDER = 100;
@@ -4168,8 +4261,10 @@
         clefSelBtns.forEach(btn => btn.addEventListener('click', () => {
             if (!NOTE_CLEF_IDS.includes(btn.dataset.clef)) return;
             audio.init(); audio.playClick('select');
-            state.currentMode = 'classic60';
-            state.modeConfig = MODE_CONFIG.classic60;
+            if (state.currentMode !== 'noMiss') {
+                state.currentMode = 'classic60';
+                state.modeConfig = MODE_CONFIG.classic60;
+            }
             state.noteClefChoice = btn.dataset.clef;
             paintNoteClefRow();
             saveSettings();
@@ -4237,7 +4332,7 @@
             document.querySelector('.mode-card[data-mode="noMiss"]')?.classList.add('active');
             state.currentMode = 'noMiss';
             state.modeConfig = MODE_CONFIG.noMiss;
-            openGame1RankBoard('noMiss');
+            openGame1RankBoard('noMiss', 'treble');
         });
         
         dom.revealBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; const gt = state.modeConfig && state.modeConfig.gameType; if (gt === 'keysig') { state.answered = true; state.combo = 0; updateScoreboard(); if (_keysigCurrentQ) { dom.messageBox.textContent = `🔑 答案是 ${_keysigCurrentQ.correct.name}！請記下。`; } dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextKeysigQuestion(); }, 2000); return; } if (gt === 'solfege') { state.answered = true; state.combo = 0; updateScoreboard(); if (state.currentNote) { const solName = getSolfege(state.currentNote.note, state._solfegeKeySig); dom.messageBox.textContent = `🎵 答案是 ${solName}！請記下。`; } dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextSolfegeQuestion(); }, 2000); return; } state.answered = true; state.combo = 0; state.showAnswerHighlight = true; drawStaff(); updateScoreboard(); audio.playNote(state.currentNote.freqKey); const _sol3 = noteSol(state.currentNote); dom.messageBox.innerHTML = `🔊 答案是 ${pianoKeyHTML(state.currentNote.correctName)}${_sol3 ? ' = ' + escapeHtml(_sol3) : ''}，請聆聽並記下音位，然後作答下一題。`; dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextQuestion(); }, 2500); });
@@ -4248,7 +4343,7 @@
             const mfRow = dom.rankModeFilter?.closest?.('.rank-filter');
             if (mfRow) mfRow.style.display = gfVal === 'game1' ? '' : 'none';
             const abrsmRankWrap = document.getElementById('rankAbrsmFilterWrap');
-            if (abrsmRankWrap) abrsmRankWrap.style.display = (gfVal === 'game1' || gfVal === 'game2' || gfVal === 'game3') ? '' : 'none';
+            if (abrsmRankWrap) abrsmRankWrap.style.display = 'none';
             const rhythmKindWrap = document.getElementById('rankRhythmKindWrap');
             if (rhythmKindWrap) rhythmKindWrap.style.display = (gfVal === 'game2' || gfVal === 'game3') ? '' : 'none';
             if (gfVal === 'game2' || gfVal === 'game3') syncRankKindOptions(gfVal);
@@ -5292,21 +5387,20 @@
         const sel = document.getElementById('rankRhythmKind');
         const label = document.getElementById('rankRhythmKindLabel');
         if (!sel) return;
-        const prev = sel.value;
         if (game === 'game3') {
             if (label) label.textContent = '術語榜';
             if (sel.dataset.kindGame !== 'game3') {
-                sel.innerHTML = '<option value="classroom">課堂舊紀錄</option><option value="terms">英皇術語</option>';
+                sel.innerHTML = '<option value="classroom" selected>課堂舊紀錄</option>';
                 sel.dataset.kindGame = 'game3';
-                sel.value = prev === 'terms' ? 'terms' : 'classroom';
+                sel.value = 'classroom';
             }
             return;
         }
         if (label) label.textContent = '節奏榜';
         if (sel.dataset.kindGame !== 'game2') {
-            sel.innerHTML = '<option value="classroom">課堂舊紀錄</option><option value="rhythm">拍號計時</option><option value="rhythm-tap">節奏挑戰</option>';
+            sel.innerHTML = '<option value="classroom" selected>課堂舊紀錄</option>';
             sel.dataset.kindGame = 'game2';
-            sel.value = (prev === 'rhythm' || prev === 'rhythm-tap' || prev === 'classroom') ? prev : 'classroom';
+            sel.value = 'classroom';
         }
     }
     function deviceClassroomRows(gameKey) {
@@ -5860,7 +5954,7 @@
         const box = document.getElementById('screen-g2-duration');
         const note = document.createElement('div');
         note.className = 'om-result';
-        note.innerHTML = `<div class="om-result-title">${syllabusQuiz.timed ? '計時結束' : '練習暫停'}</div><div class="om-result-score">${syllabusQuiz.score}</div><p class="abrsm-coverage">${syllabusQuiz.timed ? '分數在英皇榜。' : '練習不入榜。'}</p><button class="om-btn-back" id="sqDone" type="button">返回</button>`;
+        note.innerHTML = `<div class="om-result-title">${syllabusQuiz.timed ? '計時結束' : '練習暫停'}</div><div class="om-result-score">${syllabusQuiz.score}</div><p class="abrsm-coverage">${syllabusQuiz.timed ? '這次成績不計入排行榜。' : '練習不入榜。'}</p><button class="om-btn-back" id="sqDone" type="button">返回</button>`;
         box.appendChild(note);
         document.getElementById('sqDone').onclick = () => switchScreen('screen-g2-setup');
     }
@@ -9999,7 +10093,9 @@
             _consumeProfilePlaySecs();
         }
 
-        const practiceNote = mode === 'practice' ? '<div style="text-align:center;color:var(--text-light);font-size:0.85rem;margin-top:6px;">📝 練習模式成績不計入排行榜</div>' : '';
+        const practiceNote = mode === 'practice'
+            ? '<div style="text-align:center;color:var(--text-light);font-size:0.85rem;margin-top:6px;">📝 練習模式成績不計入排行榜</div>'
+            : (/^abrsm-g[1-5]$/.test(difficulty || '') ? '<div style="text-align:center;color:var(--text-light);font-size:0.85rem;margin-top:6px;">📝 這次成績不計入排行榜</div>' : '');
         document.getElementById('g3ReportGrid').innerHTML = `
             <div class="report-item"><div class="report-label">答題數</div><div class="report-value">${totalAnswered}</div></div>
             <div class="report-item"><div class="report-label">得分</div><div class="report-value">${finalScore}</div></div>
@@ -10025,8 +10121,8 @@
             }
         }
 
-        g3RankListMode = difficulty;
-        renderLocalRankList('game3', 'g3RankList', user, difficulty);
+        g3RankListMode = 'classroom';
+        renderLocalRankList('game3', 'g3RankList', user, 'classroom');
         if (mode !== 'practice') setTimeout(() => loadRanks(2, { force: true }).then(() => renderLocalRankList('game3', 'g3RankList', user, g3RankListMode)).catch(()=>{}), 800);
         document.getElementById('g3PlayAgain').onclick = () => switchScreen('screen-g3-setup');
         document.getElementById('g3BackToHub').onclick = () => switchScreen('screen-g3-setup');
