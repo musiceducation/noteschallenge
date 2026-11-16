@@ -44,6 +44,9 @@ const merged = P.mergeProfile({
   stats: { totalPlayed: 1, maxCombo: 3 }
 });
 assert.equal(merged.avatar, '🎹');
+const photo = 'data:image/jpeg;base64,' + 'A'.repeat(40);
+assert.equal(P.mergeProfile({ avatar: photo, gameBests: { game1: 80 } }, { avatar: '', gameBests: { game1: 10 } }).avatar, photo);
+assert.equal(P.mergeProfile({ avatar: photo, gameBests: { game1: 80 } }, { avatar: '', gameBests: { game1: 10 } }).gameBests.game1, 80);
 assert.equal(merged.signature, '勤力練習');
 assert.equal(merged.totalPlayTime, 400);
 assert.equal(merged.level, 6);

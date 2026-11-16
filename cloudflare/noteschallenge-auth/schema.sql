@@ -28,3 +28,26 @@ CREATE TABLE IF NOT EXISTS roster (
   seat TEXT,
   updated_at TEXT NOT NULL
 );
+
+-- Who is on the site right now. Idle rows are removed by the worker.
+CREATE TABLE IF NOT EXISTS presence (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  class_label TEXT,
+  screen TEXT,
+  last_seen TEXT NOT NULL,
+  online_at TEXT NOT NULL
+);
+
+-- Sign-in and screen record. Not the leaderboard.
+CREATE TABLE IF NOT EXISTS presence_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  presence_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  class_label TEXT,
+  event TEXT NOT NULL,
+  screen TEXT,
+  at TEXT NOT NULL
+);

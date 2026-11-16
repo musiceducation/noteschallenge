@@ -12,6 +12,10 @@ database_id = "688d6340-51fc-4959-8499-c1892d6b4e70"
 # Required at runtime (Cloudflare dashboard Variables / Secrets, or wrangler):
 #   JWT_SECRET              secret, long random string. Signs the 30-day session JWT.
 #   GOOGLE_CLIENT_ID        the public Web OAuth client id (same value as auth-config.js googleClientId).
-#   ALLOWED_EMAIL_DOMAINS   optional comma-separated domains. Empty or unset = any verified Google account.
+#   ALLOWED_EMAIL_DOMAINS   optional comma-separated school domains. Empty or unset = any verified Google account.
+#   EXTRA_ALLOWED_EMAILS    optional secret: comma-separated exact emails that may sign in
+#                           without a roster row. This does not allow a whole domain.
+#                           Set it with: npx wrangler secret put EXTRA_ALLOWED_EMAILS
+#                           After adding the presence tables: npx wrangler d1 execute noteschallenge-auth --remote --file=schema.sql
 #
-# Do not commit JWT_SECRET. GOOGLE_CLIENT_ID is public but must match the token `aud`.
+# Do not commit JWT_SECRET or EXTRA_ALLOWED_EMAILS. GOOGLE_CLIENT_ID is public but must match the token `aud`.
