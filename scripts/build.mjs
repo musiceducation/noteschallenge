@@ -66,7 +66,9 @@ for (const f of [
   "aural-interval.js",
   "www/aural-interval.js",
   "aural-rhythm.js",
-  "www/aural-rhythm.js"
+  "www/aural-rhythm.js",
+  "aural-quality.js",
+  "www/aural-quality.js"
 ]) checkJs(f);
 for (const f of ["data/instrument-bank.json", "data/instrument-structure.json"]) checkJson(f);
 
