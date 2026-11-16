@@ -8258,29 +8258,41 @@ body {
     color: #2C1810;
     border-color: transparent;
 }
+/* Pill art is one image. Slice the straight middle so the round ends stay round
+   and the transparent corners do not paint a white box. */
 .btn-start,
-.btn-start:hover:not(:disabled) {
-    background: url("img/ui/ui-start-pill.webp") center / 100% 100% no-repeat;
-    color: #2C1810;
-}
-/* Keep the pill ends round. Stretch only the middle of the artwork. */
-.note-teach-entry.btn-start,
-.note-teach-entry.btn-start:hover:not(:disabled) {
-    background: none;
+.btn-start:hover:not(:disabled),
+.btn-start:active:not(:disabled) {
+    appearance: none;
+    background: transparent;
     color: #2C1810;
     border-style: solid;
     border-color: transparent;
-    border-width: 22px 56px;
-    border-image-source: url("img/ui/ui-start-pill.webp");
-    border-image-slice: 150 168 fill;
-    border-image-width: 22px 56px;
-    border-image-repeat: stretch;
+    border-width: 18px 52px;
+    border-image: url("img/ui/ui-start-pill.webp") 42 120 fill / 18px 52px / 0 stretch;
     border-radius: 0;
     box-shadow: none;
-    padding: 2px 10px;
+    padding: 4px 8px;
+    letter-spacing: 0.06em;
+}
+.btn-start::after { display: none; content: none; animation: none; }
+.btn-start:hover:not(:disabled) { transform: translateY(-2px); }
+.btn-start:active:not(:disabled) { transform: translateY(2px); }
+.note-teach-entry.btn-start,
+.note-teach-entry.btn-start:hover:not(:disabled),
+.note-teach-entry.btn-start:active:not(:disabled) {
+    background: transparent;
+    color: #2C1810;
+    border-style: solid;
+    border-color: transparent;
+    border-width: 16px 48px;
+    border-image: url("img/ui/ui-start-pill.webp") 40 120 fill / 16px 48px / 0 stretch;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 2px 6px;
     min-height: 0;
     margin-top: 6px;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.04em;
     font-size: 1.15rem;
 }
 .note-teach-entry-hint { color: #7a6254; }
