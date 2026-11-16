@@ -31,12 +31,14 @@ Same idea: saturated, similar lightness, different hue. Names on the cards use t
 | 音名 | violet | `#4C2DB5` |
 | 調號 | blue | `#1D4ED8` |
 | 唱名 | green | `#0B7A45` |
-| 和弦 | orange | `#C2410C` |
+| 和弦 | magenta | `#A21CAF` |
 | 節奏 | coral | `#C4233A` |
 | 術語 | teal | `#0E7490` |
-| 樂器 | gold | `#8A5A00` |
+| 樂器 | gold | `#B45309` |
 | 聽力 | quiet indigo | `#4A5278` |
 
-練習模式 uses bright green `#5BE88A`–`#1FCB6A` with `#083018` text (about 6.8:1). 1分鐘挑戰 and 零失誤挑戰 use amber `#FFD15A`–`#FF9F1C` with `#3A2208` text.
+練習模式 stays a cream card. Green `#1FCB6A` is the border and the top band, and the title is `#0B7A45`. 1分鐘挑戰 and 零失誤挑戰 use amber `#FFD15A`–`#FF9F1C` with `#3A2208` text when they are the chosen mode.
+
+和弦 is magenta so it is not the same orange as the buttons. 樂器 is a brighter gold than the earlier brown. Both names clear 4.5:1 on the cream paper.
 
 Answer colours inside a game (correct green, wrong red) stay the teaching cues they already were.
