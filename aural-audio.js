@@ -86,6 +86,20 @@
         overtone.stop(when + dur + 0.02);
     }
 
+    function tick(ctx, dest, when, strong, rhythmHit) {
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = rhythmHit ? 'triangle' : 'sine';
+        osc.frequency.setValueAtTime(rhythmHit ? 320 : (strong ? 1040 : 720), when);
+        osc.connect(gain);
+        gain.connect(dest);
+        gain.gain.setValueAtTime(0.0001, when);
+        gain.gain.exponentialRampToValueAtTime(strong ? 0.4 : 0.28, when + 0.004);
+        gain.gain.exponentialRampToValueAtTime(0.0001, when + (rhythmHit ? 0.12 : 0.07));
+        osc.start(when);
+        osc.stop(when + 0.14);
+    }
+
     function play(notes) {
         var ctx = context();
         unlock();
@@ -96,7 +110,8 @@
         master.connect(ctx.destination);
         var start = ctx.currentTime + 0.05;
         notes.forEach(function (note) {
-            tone(ctx, master, note.midi, start + (note.at || 0), note.dur || NOTE_DUR);
+            if (note.tick) tick(ctx, master, start + (note.at || 0), !!note.strong, !!note.rhythm);
+            else tone(ctx, master, note.midi, start + (note.at || 0), note.dur || NOTE_DUR);
         });
         return true;
     }

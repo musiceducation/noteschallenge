@@ -567,7 +567,7 @@
                 maxCombo: 0, fcCount: 0, apCount: 0,
             },
             diffClears: { easy: 0, normal: 0, hard: 0, expert: 0 },
-            gameBests: { game1: 0, game2: 0, game3: 0, game4: 0, listening: 0, 'aural-interval': 0 },
+            gameBests: { game1: 0, game2: 0, game3: 0, game4: 0, listening: 0, 'aural-interval': 0, 'aural-rhythm': 0 },
             history: [], // recent sessions for progress trend
         };
     }
@@ -576,7 +576,7 @@
 
     const PROFILE_GAME_LABELS = {
         game1: '音名識辨', keysig: '調號辨別', solfege: '唱名辨別', chord: '和弦練習', game2: '節奏識辨', game3: '術語識辨', game4: '樂器識辨',
-        listening: '聽力', 'aural-interval': '音程聽辨'
+        listening: '聽力', 'aural-interval': '音程聽辨', 'aural-rhythm': '節奏聽寫'
     };
 
     let _profilePlayStartedAt = 0;
