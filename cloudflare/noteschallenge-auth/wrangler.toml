@@ -3,12 +3,11 @@ main = "worker.js"
 compatibility_date = "2026-11-01"
 
 # Single-file worker. Deploy the module as-is (no bundler, no npm imports).
-# Replace database_id after `wrangler d1 create noteschallenge-auth`.
 
 [[d1_databases]]
 binding = "DB"
 database_name = "noteschallenge-auth"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "688d6340-51fc-4959-8499-c1892d6b4e70"
 
 # Required at runtime (Cloudflare dashboard Variables / Secrets, or wrangler):
 #   JWT_SECRET              secret, long random string. Signs the 30-day session JWT.
