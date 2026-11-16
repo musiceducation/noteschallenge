@@ -291,7 +291,11 @@
       'screen-g4-setup': '樂器',
       'screen-game4': '樂器作答',
       'screen-note-teach': '看圖學習',
-      'screen-chord-card': '和弦'
+      'screen-chord-card': '和弦',
+      'screen-aural': '聽力',
+      'screen-aural-interval': '音程聽辨',
+      'screen-aural-rhythm': '節奏聽寫',
+      'screen-aural-quality': '和弦色彩'
     };
     return map[screenId] || '大廳';
   }

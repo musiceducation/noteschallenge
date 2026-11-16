@@ -1,6 +1,7 @@
 /**
  * Music-ability radar from saved challenge results. Practice rows are ignored.
- * Listening games are optional: until those keys exist, 聽力 is 未有紀錄.
+ * Listening challenge keys: aural-interval, aural-rhythm, aural-quality.
+ * 聽力 stays 未有紀錄 until a challenge score exists.
  */
 (function (root) {
   'use strict';
@@ -12,7 +13,7 @@
     { id: 'rhythm', label: '節奏', games: ['game2'], scale: 2000 },
     { id: 'theory', label: '樂理知識', games: ['game3'], scale: 200 },
     { id: 'instruments', label: '樂器認識', games: ['game4'], scale: 200 },
-    { id: 'listening', label: '聽力', games: ['listenInterval', 'listenRhythm', 'listenColor'], scale: 100 }
+    { id: 'listening', label: '聽力', games: ['aural-interval', 'aural-rhythm', 'aural-quality', 'listenInterval', 'listenRhythm', 'listenColor'], scale: 100 }
   ];
 
   function num(value) {

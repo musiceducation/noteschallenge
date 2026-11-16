@@ -63,6 +63,16 @@ for (const f of [
   "www/web-google-auth.js",
   "ability-radar.js",
   "www/ability-radar.js",
+  "aural-score.js",
+  "www/aural-score.js",
+  "aural-audio.js",
+  "www/aural-audio.js",
+  "aural-interval.js",
+  "www/aural-interval.js",
+  "aural-rhythm.js",
+  "www/aural-rhythm.js",
+  "aural-quality.js",
+  "www/aural-quality.js",
   "cloudflare/noteschallenge-auth/worker.js"
 ]) checkJs(f);
 for (const f of ["data/instrument-bank.json", "data/instrument-structure.json"]) checkJson(f);
