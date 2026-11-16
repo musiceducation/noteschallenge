@@ -706,10 +706,10 @@
                         <span class="chord-hud-stat">🔥 <span id="chordCombo">0</span></span>
                     </div>
                     <div class="quiz-progress-track"><div class="quiz-progress-fill" id="chordProgressFill" style="width:0%"></div></div>
-                    <p class="chord-challenge-prompt">這是哪個和弦？</p>
+                    <p class="chord-challenge-prompt" id="chordChallengePrompt">請在鍵盤彈出這個和弦</p>
                     <div id="chordChallengeMount"></div>
-                    <div class="quiz-options" id="chordChallengeOptions"></div>
-                    <div class="message-box" id="chordChallengeMessage">看點亮的琴鍵，選出和弦名稱。</div>
+                    <button type="button" class="btn-start chord-challenge-confirm" id="chordChallengeConfirm" disabled>確認</button>
+                    <div class="message-box" id="chordChallengeMessage">點選琴鍵彈出這個和弦，再按確認。</div>
                     <button type="button" class="btn-view-ranks" id="chordChallengeEnd">結束這一輪</button>
                 </div>
                 <div id="chordChallengeResult" hidden>
