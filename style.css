@@ -6604,6 +6604,8 @@ html.app-shell #webGoogleAuthOverlay { display: none !important; }
 .web-google-btn-host:empty { display: none; }
 #webGoogleStubBtn[hidden] { display: none !important; }
 #webGoogleStubBtn { margin-top: 8px; }
+.hub-login-card.hub-roster-locked .hub-login-row { display: none !important; }
+.hub-login-card.hub-roster-locked #hubLoginTitleText { font-size: 1.45rem; }
 .hub-account-row {
     display: flex;
     align-items: center;

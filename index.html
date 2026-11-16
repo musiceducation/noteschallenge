@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=18">
+    <link rel="stylesheet" href="style.css?v=19">
     <script>
     (function () {
         try {
@@ -54,7 +54,7 @@
         <div class="social-auth-card">
             <div class="social-auth-logo">♩</div>
             <h2 id="webGoogleAuthTitle" class="social-auth-title">請用你自己嘅 Google 帳號登入</h2>
-            <p class="social-auth-sub">請用你自己嘅 Google 帳號。登入之後先揀年級、班別同姓名，下次開機會自動恢復。</p>
+            <p class="social-auth-sub">請用你自己嘅 Google 帳號登入。登入之後，你嘅姓名同班別會自動顯示，唔使自己揀。</p>
             <div id="webGoogleAuthError" class="social-auth-misconfig" hidden></div>
             <div id="webGoogleBtn" class="web-google-btn-host"></div>
             <button type="button" id="webGoogleStubBtn" class="social-auth-btn social-auth-btn-google" hidden>使用 Google 帳號登入</button>
@@ -65,7 +65,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js" defer></script>
     <script src="auth-config.js" defer></script>
     <script src="auth.js" defer></script>
-    <script src="web-google-auth.js?v=1" defer></script>
+    <script src="web-google-auth.js?v=2" defer></script>
     <script src="audio-engine.js" defer></script>
     <script src="app-orientation.js" defer></script>
     <script src="app-three-bg.js" defer></script>
@@ -243,7 +243,7 @@
         <div class="hub-main-col">
 
         <div class="card hub-login-card web-only-ui">
-            <div class="hub-login-title"><i data-lucide="user"></i> 請選擇學生身份</div>
+            <div class="hub-login-title" id="hubLoginTitle"><i data-lucide="user"></i> <span id="hubLoginTitleText">請選擇學生身份</span></div>
             <div class="hub-login-row">
                 <div class="hub-field">
                     <label>① 年級</label>

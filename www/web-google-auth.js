@@ -209,6 +209,13 @@
     });
   }
 
+  var ROSTER_DENIED = '呢個 Google 帳號未在學生名單入面。請用學校電郵（@cskphc.edu.mo）登入，或聯絡老師。';
+
+  function authFailure(err) {
+    if (err && err.message === 'not_on_roster') return ROSTER_DENIED;
+    return '登入未成功，請再試一次。（' + (err && err.message ? err.message : '網絡') + '）';
+  }
+
   function bindingKeyOf(binding) {
     if (!binding || !binding.name) return '';
     return String(binding.grade) + '|' + String(binding.class) + '|' + String(binding.name);
@@ -235,10 +242,10 @@
       name: binding.name,
       grade: parseInt(binding.grade, 10) || 0,
       class: binding.class || '',
-      seat: ''
+      seat: binding.seat || ''
     } : null;
     var local = identity ? readLocalProfile(identity) : null;
-    if (local && local.seat) identity.seat = local.seat;
+    if (local && local.seat && !identity.seat) identity.seat = local.seat;
     var merged = mergeProfiles(remote || {}, local || {});
     if (identity) {
       merged.name = identity.name;
@@ -252,7 +259,7 @@
       if (!data.profile) return;
       var current = identity ? readLocalProfile(identity) : null;
       var next = mergeProfiles(data.profile, current || {});
-      if (identity && identity.seat && !next.seat) next.seat = identity.seat;
+      if (identity && identity.seat) next.seat = identity.seat;
       if (identity) {
         next.name = identity.name;
         next.grade = identity.grade || next.grade;
@@ -278,7 +285,7 @@
     return api('POST', '/auth/google', { credential: credential }).then(function (data) {
       adopt(data, data.token);
     }).catch(function (err) {
-      setError('登入未成功，請再試一次。（' + (err && err.message ? err.message : '網絡') + '）');
+      setError(authFailure(err));
     });
   }
 
@@ -347,12 +354,14 @@
     api('GET', '/me').then(function (data) {
       state.ready = true;
       adopt(data, token);
-    }).catch(function () {
+    }).catch(function (err) {
       state.ready = true;
       try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
       state.token = '';
+      state.signedIn = false;
       showGate();
       renderGoogleButton();
+      if (err && err.message === 'not_on_roster') setError(ROSTER_DENIED);
       notifySession();
     });
   }

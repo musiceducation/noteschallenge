@@ -18,3 +18,13 @@ CREATE TABLE IF NOT EXISTS profiles (
   data TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+-- School roster. Filled out of band (not from the public site). Email is the Google account.
+CREATE TABLE IF NOT EXISTS roster (
+  email TEXT PRIMARY KEY,
+  grade TEXT NOT NULL,
+  class TEXT NOT NULL,
+  student_name TEXT NOT NULL,
+  seat TEXT,
+  updated_at TEXT NOT NULL
+);

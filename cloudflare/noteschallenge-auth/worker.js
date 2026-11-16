@@ -296,9 +296,14 @@ function jsonResponse(data, status, cors) {
   });
 }
 
-function bindingFromRow(row) {
-  if (!row || !text(row.student_name) || !text(row.grade) || !text(row.class)) return null;
-  return { grade: String(row.grade), class: String(row.class), name: String(row.student_name) };
+function bindingFromRoster(roster) {
+  if (!roster || !text(roster.student_name) || !text(roster.grade) || !text(roster.class)) return null;
+  return {
+    grade: String(roster.grade).trim(),
+    class: String(roster.class).trim().toUpperCase(),
+    name: String(roster.student_name).trim(),
+    seat: text(roster.seat)
+  };
 }
 
 function publicUser(row) {
@@ -326,16 +331,10 @@ function bearer(request) {
   return m ? m[1] : '';
 }
 
-function validBinding(body) {
-  const src = plainObject(body);
-  const grade = text(src.grade);
-  const klass = text(src.class).toUpperCase();
-  const name = text(src.name || src.student_name);
-  if (!/^[1-6]$/.test(grade)) return null;
-  if (!/^[A-D]$/.test(klass)) return null;
-  if (!name || name.length > 20) return null;
-  if (name === '__guest__' || name === '__other__' || name === '訪客') return null;
-  return { grade: grade, class: klass, name: name };
+async function findRoster(db, email) {
+  return db.prepare(
+    'SELECT email, grade, class, student_name, seat FROM roster WHERE lower(email) = lower(?)'
+  ).bind(text(email).toLowerCase()).first();
 }
 
 async function getUser(db, sub) {
@@ -344,12 +343,24 @@ async function getUser(db, sub) {
   ).bind(sub).first();
 }
 
-async function upsertUser(db, claims, nowIso) {
+async function applyRoster(db, claims, roster, nowIso) {
+  const binding = bindingFromRoster(roster);
+  if (!binding) throw new Error('incomplete roster row');
   const existing = await getUser(db, claims.sub);
   const created = existing && existing.created_at ? existing.created_at : nowIso;
   await db.prepare(
-    'INSERT INTO users (sub, email, name, picture, created_at, last_login) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(sub) DO UPDATE SET email = excluded.email, name = excluded.name, picture = excluded.picture, last_login = excluded.last_login'
-  ).bind(claims.sub, claims.email, claims.name || '', claims.picture || '', created, nowIso).run();
+    'INSERT INTO users (sub, email, name, picture, grade, class, student_name, created_at, last_login) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(sub) DO UPDATE SET email = excluded.email, name = excluded.name, picture = excluded.picture, grade = excluded.grade, class = excluded.class, student_name = excluded.student_name, last_login = excluded.last_login'
+  ).bind(
+    claims.sub,
+    text(claims.email).toLowerCase(),
+    claims.name || '',
+    claims.picture || '',
+    binding.grade,
+    binding.class,
+    binding.name,
+    created,
+    nowIso
+  ).run();
   return getUser(db, claims.sub);
 }
 
@@ -403,15 +414,17 @@ export default {
           now: Date.now
         });
         if (!verified.ok) return jsonResponse({ ok: false, error: verified.error }, 401, cors);
+        const roster = await findRoster(env.DB, verified.claims.email);
+        if (!roster) return jsonResponse({ ok: false, error: 'not_on_roster' }, 403, cors);
         const nowIso = new Date().toISOString();
-        const row = await upsertUser(env.DB, verified.claims, nowIso);
+        const row = await applyRoster(env.DB, verified.claims, roster, nowIso);
         const token = await signSessionToken(verified.claims, env.JWT_SECRET);
         const profile = await readProfile(env.DB, row.sub);
         return jsonResponse({
           ok: true,
           token: token,
           user: publicUser(row),
-          binding: bindingFromRow(row),
+          binding: bindingFromRoster(roster),
           profile: profile
         }, 200, cors);
       }
@@ -422,22 +435,19 @@ export default {
         const row = gate.row;
 
         if (request.method === 'GET' && path === '/me') {
-          const profile = await readProfile(env.DB, row.sub);
-          return jsonResponse({ ok: true, user: publicUser(row), binding: bindingFromRow(row), profile: profile }, 200, cors);
+          const roster = await findRoster(env.DB, row.email);
+          if (!roster) return jsonResponse({ ok: false, error: 'not_on_roster' }, 403, cors);
+          const next = await applyRoster(env.DB, row, roster, new Date().toISOString());
+          const profile = await readProfile(env.DB, next.sub);
+          return jsonResponse({ ok: true, user: publicUser(next), binding: bindingFromRoster(roster), profile: profile }, 200, cors);
         }
 
         if (request.method === 'PUT' && path === '/me/binding') {
-          let body;
-          try { body = await readJson(request); } catch (e) {
-            return jsonResponse({ ok: false, error: 'invalid json' }, 400, cors);
-          }
-          const binding = validBinding(body);
-          if (!binding) return jsonResponse({ ok: false, error: 'invalid binding' }, 400, cors);
-          await env.DB.prepare(
-            'UPDATE users SET grade = ?, class = ?, student_name = ? WHERE sub = ?'
-          ).bind(binding.grade, binding.class, binding.name, row.sub).run();
-          const next = await getUser(env.DB, row.sub);
-          return jsonResponse({ ok: true, user: publicUser(next), binding: bindingFromRow(next) }, 200, cors);
+          try { await readJson(request); } catch (e) {}
+          const roster = await findRoster(env.DB, row.email);
+          if (!roster) return jsonResponse({ ok: false, error: 'not_on_roster' }, 403, cors);
+          const next = await applyRoster(env.DB, row, roster, new Date().toISOString());
+          return jsonResponse({ ok: true, user: publicUser(next), binding: bindingFromRoster(roster) }, 200, cors);
         }
 
         if (request.method === 'GET' && path === '/me/profile') {

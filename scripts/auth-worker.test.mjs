@@ -66,13 +66,16 @@ function baseClaims(nowMs, extra) {
 function memoryDb() {
   const users = new Map();
   const profiles = new Map();
-  return {
+  const roster = new Map();
+  const db = {
+    roster,
     prepare(sql) {
       const compact = sql.replace(/\s+/g, ' ').trim();
       return {
         bind(...args) {
           return {
             async first() {
+              if (compact.includes('FROM roster')) return roster.get(String(args[0] || '').toLowerCase()) || null;
               if (compact.includes('FROM users')) return users.get(args[0]) || null;
               if (compact.includes('FROM profiles')) {
                 const row = profiles.get(args[0]);
@@ -88,20 +91,12 @@ function memoryDb() {
                   email: args[1],
                   name: args[2],
                   picture: args[3],
-                  grade: prev ? prev.grade : null,
-                  class: prev ? prev.class : null,
-                  student_name: prev ? prev.student_name : null,
-                  created_at: prev ? prev.created_at : args[4],
-                  last_login: args[5]
+                  grade: args[4],
+                  class: args[5],
+                  student_name: args[6],
+                  created_at: prev ? prev.created_at : args[7],
+                  last_login: args[8]
                 });
-                return { success: true };
-              }
-              if (compact.startsWith('UPDATE users')) {
-                const row = users.get(args[3]);
-                if (!row) throw new Error('missing user');
-                row.grade = args[0];
-                row.class = args[1];
-                row.student_name = args[2];
                 return { success: true };
               }
               if (compact.startsWith('INSERT INTO profiles')) {
@@ -115,6 +110,7 @@ function memoryDb() {
       };
     }
   };
+  return db;
 }
 
 test('verifyGoogleIdToken accepts a JWKS-signed token', async () => {
@@ -273,28 +269,38 @@ test('worker login stores binding and profile merge never lowers bests', async (
       headers: { Origin: origin, 'Content-Type': 'application/json' },
       body: JSON.stringify({ credential: token })
     }), env);
-    assert.equal(loginRes.headers.get('Access-Control-Allow-Origin'), origin);
-    const login = await loginRes.json();
+    assert.equal(loginRes.status, 403);
+    const denied = await loginRes.json();
+    assert.deepEqual(denied, { ok: false, error: 'not_on_roster' });
+    assert.equal(denied.token, undefined);
+
+    env.DB.roster.set('student@school.edu.hk', {
+      email: 'Student@School.edu.hk',
+      grade: '1',
+      class: 'a',
+      student_name: '陳小樂',
+      seat: '12'
+    });
+    const allowedRes = await worker.fetch(new Request('https://auth.example/auth/google', {
+      method: 'POST',
+      headers: { Origin: origin, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential: token })
+    }), env);
+    assert.equal(allowedRes.headers.get('Access-Control-Allow-Origin'), origin);
+    const login = await allowedRes.json();
     assert.equal(login.ok, true);
-    assert.equal(login.binding, null);
     assert.equal(login.user.email, 'student@school.edu.hk');
+    assert.deepEqual(login.binding, { grade: '1', class: 'A', name: '陳小樂', seat: '12' });
 
     const auth = { Authorization: 'Bearer ' + login.token, Origin: 'http://localhost:8080', 'Content-Type': 'application/json' };
     const bindRes = await worker.fetch(new Request('https://auth.example/me/binding', {
       method: 'PUT',
       headers: auth,
-      body: JSON.stringify({ grade: 1, class: 'a', name: '陳小樂' })
+      body: JSON.stringify({ grade: 6, class: 'D', name: '其他人' })
     }), env);
     const bound = await bindRes.json();
     assert.equal(bound.ok, true);
-    assert.deepEqual(bound.binding, { grade: '1', class: 'A', name: '陳小樂' });
-
-    const guest = await worker.fetch(new Request('https://auth.example/me/binding', {
-      method: 'PUT',
-      headers: auth,
-      body: JSON.stringify({ grade: '1', class: 'A', name: '__guest__' })
-    }), env);
-    assert.equal(guest.status, 400);
+    assert.deepEqual(bound.binding, { grade: '1', class: 'A', name: '陳小樂', seat: '12' });
 
     const firstProfile = await worker.fetch(new Request('https://auth.example/me/profile', {
       method: 'PUT',
@@ -317,13 +323,20 @@ test('worker login stores binding and profile merge never lowers bests', async (
     assert.equal(kept.profile.stats.totalPlayed, 3);
     assert.equal(kept.profile.name, '陳小樂');
 
+    env.DB.roster.set('student@school.edu.hk', {
+      email: 'Student@School.edu.hk',
+      grade: '2',
+      class: 'B',
+      student_name: '陳小樂',
+      seat: '3'
+    });
     const again = await worker.fetch(new Request('https://auth.example/auth/google', {
       method: 'POST',
       headers: { Origin: origin, 'Content-Type': 'application/json' },
       body: JSON.stringify({ credential: token })
     }), env);
     const relogin = await again.json();
-    assert.deepEqual(relogin.binding, { grade: '1', class: 'A', name: '陳小樂' });
+    assert.deepEqual(relogin.binding, { grade: '2', class: 'B', name: '陳小樂', seat: '3' });
     assert.equal(relogin.profile.gameBests.game1, 500);
 
     const me = await worker.fetch(new Request('https://auth.example/me', {
@@ -332,6 +345,7 @@ test('worker login stores binding and profile merge never lowers bests', async (
     assert.equal(me.headers.get('Access-Control-Allow-Origin'), 'http://127.0.0.1:4173');
     const meBody = await me.json();
     assert.equal(meBody.user.student_name, '陳小樂');
+    assert.deepEqual(meBody.binding, { grade: '2', class: 'B', name: '陳小樂', seat: '3' });
 
     const evil = await worker.fetch(new Request('https://auth.example/me', {
       headers: { Authorization: 'Bearer ' + relogin.token, Origin: 'https://evil.example' }
