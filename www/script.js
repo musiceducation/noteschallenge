@@ -460,6 +460,55 @@
       {key:'item', label:'🏅 成就'},
     ];
     function _avatarLookup(emoji) { return PROFILE_AVATARS.find(a => a.emoji === emoji) || {emoji, name:'', bg:'linear-gradient(135deg,#8B66FF,#B39DFF)', cat:'char'}; }
+    function isPhotoAvatar(value) {
+        return typeof value === 'string' && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(value) && value.length <= 80000;
+    }
+    function paintAvatar(el, avatar) {
+        if (!el) return;
+        if (isPhotoAvatar(avatar)) {
+            el.textContent = '';
+            el.style.background = '#efe7ea';
+            const img = document.createElement('img');
+            img.className = 'avatar-photo';
+            img.alt = '';
+            img.src = avatar;
+            el.appendChild(img);
+            return;
+        }
+        const info = _avatarLookup(avatar || '🎵');
+        el.style.background = info.bg;
+        el.textContent = info.emoji || '🎵';
+    }
+    function avatarMarkup(avatar) {
+        if (isPhotoAvatar(avatar)) return `<img class="avatar-photo" alt="" src="${avatar}">`;
+        return escHtml(_avatarLookup(avatar || '🎵').emoji || '🎵');
+    }
+    function compressAvatarFile(file) {
+        return new Promise((resolve, reject) => {
+            if (!file || !String(file.type || '').startsWith('image/')) { reject(new Error('type')); return; }
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                const maxEdge = 384;
+                const scale = Math.min(1, maxEdge / Math.max(img.width || 1, img.height || 1));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(img.width * scale));
+                canvas.height = Math.max(1, Math.round(img.height * scale));
+                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                URL.revokeObjectURL(url);
+                let quality = 0.72;
+                let data = canvas.toDataURL('image/jpeg', quality);
+                while (data.length > 48000 && quality > 0.45) {
+                    quality = Math.round((quality - 0.08) * 100) / 100;
+                    data = canvas.toDataURL('image/jpeg', quality);
+                }
+                if (!isPhotoAvatar(data)) { reject(new Error('large')); return; }
+                resolve(data);
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode')); };
+            img.src = url;
+        });
+    }
     const PROFILE_STORAGE_KEY = 'musicGameProfile';
     const PROFILE_HISTORY_KEY = 'musicGameProfileHistory';
     const _profileCache = new Map();
@@ -572,7 +621,7 @@
                 ? `${gradeLabel} ${profile.class || ''}班${profile.seat ? ' ' + profile.seat + '號' : ''}`
                 : '訪客／測試';
         }
-        if (avEl) avEl.textContent = profile.avatar || '🎵';
+        paintAvatar(avEl, profile.avatar || '🎵');
         if (lvEl) lvEl.textContent = String(profile.level || 1);
         if (expEl) expEl.textContent = String(profile.exp || 0);
         const bests = profile.gameBests || {};
@@ -934,10 +983,7 @@
                 }
             });
         }
-        const avInfo = _avatarLookup(p.avatar);
-        const avEl = document.getElementById('profileAvatar');
-        avEl.textContent = p.avatar;
-        avEl.style.background = avInfo.bg;
+        paintAvatar(document.getElementById('profileAvatar'), p.avatar);
         document.getElementById('profileName').textContent = p.name;
         document.getElementById('profileSig').textContent = p.signature || '按此編輯簽名';
         document.getElementById('profileId').textContent = `${p.grade ? (['','中一','中二','中三','中四','中五','中六'][p.grade] || '') : ''} ${p.class}班 ${p.seat ? p.seat + '號' : ''}`;
@@ -1062,10 +1108,7 @@
             const av = opt.dataset.av;
             p.avatar = av;
             saveProfile(p);
-            const info = _avatarLookup(av);
-            const el = document.getElementById('profileAvatar');
-            el.textContent = av;
-            el.style.background = info.bg;
+            paintAvatar(document.getElementById('profileAvatar'), av);
             grid.querySelectorAll('.profile-avatar-opt').forEach(el => el.classList.toggle('selected', el.dataset.av === av));
             const status = document.getElementById('profileSaveStatus');
             if (status) status.textContent = '已儲存頭像';
@@ -4608,7 +4651,7 @@
             const avInfo = _avatarLookup(p.avatar);
             const isMe = me && me.name === name && me.grade == grade && me.class === cls;
             return `<div class="cm-card${isMe ? ' cm-me' : ''}" data-name="${escHtml(name)}" data-grade="${grade}" data-class="${cls}" data-seat="${i+1}">
-                <div class="cm-avatar" style="background:${avInfo.bg}">${p.avatar}</div>
+                <div class="cm-avatar" style="background:${isPhotoAvatar(p.avatar) ? '#efe7ea' : avInfo.bg}">${avatarMarkup(p.avatar)}</div>
                 <div class="cm-info">
                     <div class="cm-name">${escHtml(name)}${isMe ? ' <span class="cm-me-tag">我</span>' : ''}</div>
                     <div class="cm-detail">Lv.${p.level} · ${p.signature || '未設定簽名'}</div>
@@ -4638,11 +4681,7 @@
     function _renderViewProfile(user) {
         const p = loadProfile(user);
         const rs = _statsFromRanks(user.name, user.grade, user.class);
-        const avInfo = _avatarLookup(p.avatar);
-
-        const avEl = document.getElementById('vpAvatar');
-        avEl.textContent = p.avatar;
-        avEl.style.background = avInfo.bg;
+        paintAvatar(document.getElementById('vpAvatar'), p.avatar);
 
         document.getElementById('vpName').textContent = (user.name || p.name) + ' 同學';
         document.getElementById('vpSig').textContent = p.signature || '尚未設定簽名';
@@ -5576,6 +5615,28 @@
                 profileAvatarPanel.hidden = !profileAvatarPanel.hidden;
             });
         }
+        const profileAvatarFile = document.getElementById('profileAvatarFile');
+        if (profileAvatarFile && !profileAvatarFile.dataset.bound) {
+            profileAvatarFile.dataset.bound = '1';
+            profileAvatarFile.addEventListener('change', () => {
+                const file = profileAvatarFile.files && profileAvatarFile.files[0];
+                profileAvatarFile.value = '';
+                if (!file) return;
+                compressAvatarFile(file).then((data) => {
+                    const user = state.currentUser;
+                    if (!user || !user.name) return;
+                    const profile = loadProfile(user);
+                    profile.avatar = data;
+                    saveProfile(profile);
+                    renderProfileScreen(user);
+                    const status = document.getElementById('profileSaveStatus');
+                    if (status) status.textContent = '已儲存頭像';
+                    _showToast('已儲存頭像', 'success');
+                }).catch(() => {
+                    _showToast('呢張相讀唔到，請選另一張', 'warn');
+                });
+            });
+        }
 
         initFullscreenToggle();
 
@@ -5698,8 +5759,7 @@
         const bests = p.gameBests || {};
         set('appMeBest1', String(bests.game1 || 0));
         set('appMeBest2', String(bests.game2 || 0));
-        const av = document.getElementById('appHomeAvatar');
-        if (av) av.textContent = p.avatar || '🎵';
+        paintAvatar(document.getElementById('appHomeAvatar'), p.avatar || '🎵');
     }
 
     function initAppShell() {

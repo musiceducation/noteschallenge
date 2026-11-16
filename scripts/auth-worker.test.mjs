@@ -239,6 +239,11 @@ test('mergeProfiles keeps higher bests and does not wipe text with blanks', () =
   assert.equal(merged.diffClears.easy, 2);
   assert.equal(merged.history.length, 2);
   assert.equal(merged.registeredAt, '2026-01-01T00:00:00.000Z');
+  const photo = 'data:image/jpeg;base64,' + 'A'.repeat(80);
+  const keptPhoto = mergeProfiles({ ...stored, avatar: photo }, { avatar: '   ', gameBests: { game1: 1 } });
+  assert.equal(keptPhoto.avatar, photo);
+  assert.equal(keptPhoto.gameBests.game1, 900);
+  assert.equal(mergeProfiles({ ...stored, avatar: photo }, { avatar: '🎹' }).avatar, '🎹');
 });
 
 test('allowedOrigin permits the GitHub Pages site and localhost only', () => {
