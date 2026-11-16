@@ -147,6 +147,21 @@
       stats: profile.stats || {},
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
+    if (profile.avatar) payload.avatar = profile.avatar;
+    if (profile.signature) payload.signature = profile.signature;
+    if (profile.totalPlayTime) payload.totalPlayTime = profile.totalPlayTime;
+    try {
+      var prev = await playersRef(state.user.uid).get();
+      if (prev && prev.exists && window.ProfileStore) {
+        var remote = prev.data() || {};
+        payload.gameBests = window.ProfileStore.mergeBests(remote.gameBests, profile.gameBests);
+        payload.level = Math.max(profile.level || 1, remote.level || 1);
+        payload.exp = Math.max(profile.exp || 0, remote.exp || 0);
+        payload.totalPlayTime = Math.max(profile.totalPlayTime || 0, remote.totalPlayTime || 0);
+        if (!payload.avatar && remote.avatar) payload.avatar = remote.avatar;
+        if (!payload.signature && remote.signature) payload.signature = remote.signature;
+      }
+    } catch (err) {}
     await playersRef(state.user.uid).set(payload, { merge: true });
     return payload;
   }
