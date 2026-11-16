@@ -8132,4 +8132,62 @@ body.app-shell.app-on-root .sound-toggle {
     .profile-identity .profile-playtime { display: none; }
 }
 
+/* Picture-book lobby: scene art and button ornaments are image files. */
+body:has(#screen-hub.screen.active) {
+    background: #14284a url("img/ui/lobby-night.webp") center / cover no-repeat;
+    animation: none;
+}
+body:has(#screen-hub.screen.active) .bg-dots { opacity: 0; }
+#screen-hub .lobby-head {
+    background: #fff6ea;
+    border-color: #f0d7b0;
+}
+#screen-hub .hub-games-grid .hub-game-tag { display: none; }
+#screen-hub .hub-games-grid .hub-game-card {
+    background: #fffaf3;
+    border-color: #f0dcc0;
+}
+#screen-hub .hub-games-grid .illust-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+#screen-hub .hub-games-grid .hub-game-card .hub-game-btn {
+    background: url("img/ui/ui-start-pill.webp") center / 100% 100% no-repeat;
+    color: #5a4032;
+    box-shadow: none;
+}
+#screen-hub .hub-games-grid .hub-topic-listen .hub-game-btn {
+    background: url("img/ui/ui-soon-pill.webp") center / 100% 100% no-repeat;
+    color: #4e465c;
+}
+#hubViewRanksBtn,
+#hubViewRanksBtn:hover:not(:disabled),
+#hubViewRanksBtn:active:not(:disabled) {
+    background: url("img/ui/ui-start-pill.webp") center / 100% 100% no-repeat;
+    color: #5a4032;
+    border-color: transparent;
+    box-shadow: none;
+}
+.lobby-trophy,
+.lobby-ico {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+    flex: 0 0 auto;
+    display: block;
+}
+#screen-hub #hubProfileBtn,
+#screen-hub #hubSignOutBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+#screen-hub #hubSignOutBtn {
+    background: #fff6ea;
+    color: #5a4032;
+    border: 2px solid #f0d7b0;
+}
+
 
