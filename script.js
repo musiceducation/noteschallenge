@@ -61,7 +61,7 @@
         classic60:{ name:'1分鐘挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1 },
         bass60:   { name:'1分鐘挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1 },
         mixed60:  { name:'1分鐘挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1 },
-        noMiss:   { name:'零失誤練習', type:'practice', duration:Infinity, maxWrong:1, scoreMulti:0 },
+        noMiss:   { name:'零失誤挑戰', type:'challenge', duration:Infinity, maxWrong:1, scoreMulti:1 },
         keysig_practice:  { name:'調號練習', type:'practice', duration:Infinity, maxWrong:Infinity, scoreMulti:0, gameType:'keysig' },
         keysig60:         { name:'調號挑戰', type:'challenge', duration:60, maxWrong:Infinity, scoreMulti:1, gameType:'keysig' },
         solfege_practice: { name:'唱名練習', type:'practice', duration:Infinity, maxWrong:Infinity, scoreMulti:0, gameType:'solfege' },
@@ -280,9 +280,9 @@
     const STUDENT_ROSTER = {
         '1A':['陳心瑜', '周倬睿', '周永欣', '周天兒', '陳嘉豪', '何兆剛', '洪宇誠', '鄺俊麒', '郭浠瑜', '林希哲', '李澂', '李卓兒', '李曉晴', '李可晴', '梁嘉琳', '魯安玥', '吳善謙', '施奕希', '蕭梓麟', '蘇祉穎', '譚浚浩', '黃心柔', '胡浚軒', '鍾宛純'],
         '1B':['謝宜真', '肖欣媛', '鍾康盛', '曹靖楓', '梁晞晴', '范明軒', '甘希彤', '何睿恩', '何佩悅', '葉穎', '高悅峻', '黎曜天', '林祉蕎', '李承騫', '梁晏僑', '梁穎希', '梁日曦', '駱浠澄', '盧曉信', '盧柏橋', '勞語晴', '吳若曦', '彭珏熙', '潘悅澄', '阮思雯', '盛家莉', '蘇芷晴', '孫梓祐', '孫睿心', '吳天朗', '黃馨妤', '黃鈺婷', '周柏龍', '周泳霏'],
-        '1C':['區逸言', '陳俊睿', '周朗熙', '鄭嘉喬', '陳賢浩', '馮心悅', '馮宛穎', '褟靜韻', '殷紫瑜', '葉佩文', '余明憲', '高信謙', '鄺仲言', '林卓曦', '林依穎', '林樂彤', '李懿恩', '梁凱欣', '梁洛悠', '林樂熙', '劉思怡', '劉思悅', '李欣潼', '蘇睿', '鄧琸泓', '湯芷晴', '鄧凱忻', '吳梓瑩', '韋曉妍', '黃政陽', '黃梓皓', '黃子賢', '黃祉穎', '王家耀'],
+        '1C':['區逸言', '陳俊睿', '周朗熙', '鄭嘉喬', '陳賢浩', '馮心悅', '馮宛穎', '禤靜韻', '殷紫瑜', '葉佩文', '余明憲', '高信謙', '鄺仲言', '林卓曦', '林依穎', '林樂彤', '李懿恩', '梁凱欣', '梁洛悠', '林樂熙', '劉思怡', '劉思悅', '李欣潼', '蘇睿', '鄧琸泓', '湯芷晴', '鄧凱忻', '吳梓瑩', '韋曉妍', '黃政陽', '黃梓皓', '黃子賢', '黃祉穎', '王家耀'],
         '1D':['陳曼筠', '仇櫟然', '陳芯瑤', '張逸彤', '蔡政亨', '蔡思霖', '朱頌浠', '朱柏橋', '馮珮喬', '方淳亮', '何梓君', '何梓瑜', '楊卓昕', '古日熹', '林頌甯', '林鎧攸', '林栢賢', '劉晉嘉', '劉泳彤', '劉芯語', '李卓熹', '李芊悠', '梁一諾', '梁洋溢', '連思捷', '吳宇軒', '潘悅悠', '施養浩', '蘇頴妍', '孫沚霖', '譚倍豐', '黃琸翹', '楊舒雯'],
-        '2A':['陳恩慈', '鄭梓樂', '張紫瑩', '徐睿楷', '馮梓恩', '何浩華', '許芷妍', '許穎瑤', '洪善願', '楊曉穎', '楊穎彤', '高崎峻', '郭泳琳', '黎卓凡', '林晞朗', '林曦佟', '劉珮熙', '劉弘哲', '盧銳曈', '魯辰宇', '施樂兒', '潘睿燊', '蕭佳鍼', '蕭日謙', '鄧沛翹', '涂巧倩', '黃晞瑤', '黃梓軒', '胡芯語', '張得韜'],
+        '2A':['陳恩慈', '鄭梓樂', '張紫瑩', '徐睿楷', '馮梓恩', '何浩華', '許芷妍', '許穎瑤', '洪善頤', '楊曉穎', '楊穎彤', '高崎峻', '郭泳琳', '黎卓凡', '林晞朗', '林曦佟', '劉珮熙', '劉弘哲', '盧銳曈', '魯辰宇', '施樂兒', '潘睿燊', '蕭佳鋮', '蕭日謙', '鄧沛翹', '涂巧倩', '黃晞瑤', '黃梓軒', '胡芯語', '張得韜'],
         '2B':['陳晞嵐', '陳心怡', '張柏桓', '丁小翁', '官柏霖', '黎康華', '賴穎桐', '林君堯', '李洛榕', '李柏熹', '李泓博', '梁鎧嵐', '梁恩維', '梁家羲', '李宇津', '李浩翔', '梁棋彰', '梁韞鈺', '盧立晴', '勞詩雯', '吳胤熹', '譚悅', '余梓睿', '王康睿', '余揚旌', '余灌珅'],
         '2C':['陳凱琳', '陳衍臻', '張榕栗', '周家馨', '蔡嘉浩', '朱恩雪', '何梓僮', '何詠芯', '洪芷妤', '英卓楠', '容穎彤', '葉逸朗', '江梓翊', '關諾行', '林弘軒', '李梓嫣', '李思朗', '梁諾希', '莫鎮英', '莫永淇', '彭博言', '黃梓程', '黃心悠', '王靖琛', '姚博文', '張叶晨'],
         '2D':['李靖琦', '陳朗熹', '張禧', '盧嘉謙', '歐欣蒨', '霍浩俊', '何政軒', '黃琛貽', '甄子康', '楊昕翹', '姚梓謙', '關進謙', '郭安欣', '劉珀豪', '李林蔚', '李天睿', '梁惠琳', '梁柏翹', '陸昕悅', '麥軒銘', '杜睿晴', '王鍾雨', '王灝宏', '黃暟懿', '吳岷珉', '徐嘉嘉'],
@@ -325,13 +325,15 @@
             opt.dataset.seat = i + 1;
             frag.appendChild(opt);
         });
-        const otherOpt = document.createElement('option');
-        otherOpt.value = '__other__';
-        otherOpt.textContent = '✏️ 其他（自行填寫）';
-        frag.appendChild(otherOpt);
+        if (isAppShell()) {
+            const otherOpt = document.createElement('option');
+            otherOpt.value = '__other__';
+            otherOpt.textContent = '✏️ 其他（自行填寫）';
+            frag.appendChild(otherOpt);
+        }
         nameEl.innerHTML = '';
         nameEl.appendChild(frag);
-        if (prev && (students.includes(prev) || prev === '__other__')) nameEl.value = prev;
+        if (prev && (students.includes(prev) || (isAppShell() && prev === '__other__'))) nameEl.value = prev;
         else { nameEl.value = ''; dom.userId.value = ''; hideCustomName(); }
     }
 
@@ -501,7 +503,7 @@
         return _defaultProfile(user);
     }
 
-    function saveProfile(profile) {
+    function saveProfile(profile, opts) {
         const api = _profileApi();
         const key = api ? api.profileKey(profile) : `${PROFILE_STORAGE_KEY}_${profile.grade}_${profile.class}_${profile.name}`;
         _profileCache.set(key, profile);
@@ -514,11 +516,38 @@
             api.writePointer(localStorage, profile);
         }
         try {
-            if (window.MusicAppAuth && typeof window.MusicAppAuth.syncGameData === 'function' && window.MusicAppAuth.signedIn) {
+            if (!(opts && opts.skipRemote) && window.MusicAppAuth && typeof window.MusicAppAuth.syncGameData === 'function' && window.MusicAppAuth.signedIn) {
                 window.MusicAppAuth.syncGameData(profile).catch(function () {});
             }
         } catch (e) {}
+        try {
+            if (!(opts && opts.skipRemote) && window.WebGoogleAuth && window.WebGoogleAuth.signedIn && typeof window.WebGoogleAuth.syncProfile === 'function') {
+                window.WebGoogleAuth.syncProfile(profile).then(function (merged) {
+                    if (!merged || typeof merged !== 'object' || !merged.name) return;
+                    const local = loadProfile({ name: merged.name, grade: merged.grade, class: merged.class, seat: profile.seat });
+                    const kept = window.WebGoogleAuth.mergeProfiles(merged, local);
+                    if (profile.seat && !kept.seat) kept.seat = profile.seat;
+                    saveProfile(kept, { skipRemote: true });
+                }).catch(function () {});
+            }
+        } catch (e) {}
         try { updateHubAsideFromProfile(profile); } catch (e) {}
+    }
+
+    function paintWebAccount() {
+        const auth = window.WebGoogleAuth;
+        const email = auth && auth.signedIn && auth.user && auth.user.email ? auth.user.email : '';
+        const row = document.getElementById('hubAccountRow');
+        const hubEmail = document.getElementById('hubAccountEmail');
+        const profileBtn = document.getElementById('profileSignOutBtn');
+        const emailEl = document.getElementById('profileEmail');
+        if (row) row.hidden = true;
+        if (hubEmail) hubEmail.textContent = email ? ('已登入：' + email) : '';
+        if (profileBtn) profileBtn.hidden = !email;
+        if (emailEl) {
+            emailEl.hidden = !email;
+            emailEl.textContent = email ? ('已登入：' + email) : '';
+        }
     }
 
     function updateHubAsideFromProfile(profile) {
@@ -537,8 +566,10 @@
         }
         nameEl.textContent = profile.name;
         if (metaEl) {
+            const labels = ['', '中一', '中二', '中三', '中四', '中五', '中六'];
+            const gradeLabel = labels[profile.grade] || '';
             metaEl.textContent = profile.grade
-                ? `中${['','一','二','三','四','五','六'][profile.grade]||profile.grade} ${profile.class || ''}班 · 座號 ${profile.seat || '--'}`
+                ? `${gradeLabel} ${profile.class || ''}班${profile.seat ? ' ' + profile.seat + '號' : ''}`
                 : '訪客／測試';
         }
         if (avEl) avEl.textContent = profile.avatar || '🎵';
@@ -889,6 +920,7 @@
 
     function renderProfileScreen(user) {
         const p = loadProfile(user);
+        if (user && (user.seat || user.id)) p.seat = user.seat || user.id;
         if (user && user.name && (!(p.history && p.history.length) || p.stats.totalPlayed === 0)) {
             const beforePlayed = p.stats.totalPlayed;
             const beforeHist = (p.history && p.history.length) || 0;
@@ -904,10 +936,11 @@
         const avEl = document.getElementById('profileAvatar');
         avEl.textContent = p.avatar;
         avEl.style.background = avInfo.bg;
-        document.getElementById('profileName').textContent = p.name + ' 同學';
+        document.getElementById('profileName').textContent = p.name;
         document.getElementById('profileSig').textContent = p.signature || '按此編輯簽名';
         document.getElementById('profileId').textContent = `${p.grade ? (['','中一','中二','中三','中四','中五','中六'][p.grade] || '') : ''} ${p.class}班 ${p.seat ? p.seat + '號' : ''}`;
         document.getElementById('profileSince').textContent = '加入日期: ' + (p.registeredAt ? new Date(p.registeredAt).toLocaleDateString() : '---');
+        try { paintWebAccount(); } catch (e) {}
 
         // Level & EXP
         document.getElementById('profileLevel').textContent = 'Lv.' + p.level;
@@ -1175,7 +1208,8 @@
             keysigAccMax: 1,
             solfegeGrade: 1,
             abrsmGrade: 'abrsm-g1',
-            noteClefChoice: 'treble'
+            noteClefChoice: 'treble',
+            noMissPlayedClef: ''
         };
     }
 
@@ -1547,6 +1581,8 @@
     // 介面切換系統
     // ==========================================
     function switchScreen(screenId) {
+        const webAuth = window.WebGoogleAuth;
+        if (webAuth && webAuth.required && !webAuth.signedIn && screenId !== 'screen-hub') return;
         if (isAppShell() && (screenId === 'screen-hub' || screenId === 'screen-app-home')) {
             screenId = 'screen-app-root';
         }
@@ -2018,11 +2054,12 @@
         return TEXTBOOK_CONFIG[tbKey];
     }
 
-    // Timed clef challenges set forceClef. 零失誤 has no clef picker, so it
-    // uses the same treble challenge bank — sharps and flats included.
+    // 1分鐘挑戰 and 零失誤挑戰 share the clef picker. Alto and tenor
+    // questions come from the ABRSM practice pool; this fallback is treble
+    // only when that pool is unavailable.
     function noteModeForceClef() {
         if (state.modeConfig && state.modeConfig.forceClef) return state.modeConfig.forceClef;
-        if (state.currentMode === 'noMiss') return 'treble';
+        if (state.currentMode === 'noMiss') return noteClefChoice();
         return null;
     }
 
@@ -2218,7 +2255,7 @@
     function paintNoteClefRow() {
         const row = document.getElementById('clefSelectorRow');
         if (!row) return;
-        const show = state.currentMode === 'classic60';
+        const show = state.currentMode === 'classic60' || state.currentMode === 'noMiss';
         row.style.display = show ? '' : 'none';
         document.querySelectorAll('#noteClefBtns .clef-sel-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.clef === noteClefChoice());
@@ -2231,7 +2268,7 @@
         return 'abrsm-theory-v1:notes-clef-' + noteClefChoice();
     }
     function clefPracticeIds() {
-        return state.currentMode === 'classic60' ? noteClefIds() : ['treble', 'bass'];
+        return (state.currentMode === 'classic60' || state.currentMode === 'noMiss') ? noteClefIds() : ['treble', 'bass'];
     }
     function generateAbrsmNote() {
         const pool = AbrsmNoteGrade.practicePool(clefPracticeIds());
@@ -2345,7 +2382,7 @@
         paintNoteClefRow();
     }
     function playerBadge() {
-        const clef = state.currentMode === 'classic60' ? ' · ' + noteClefLabel() : '';
+        const clef = (state.currentMode === 'classic60' || state.currentMode === 'noMiss') ? ' · ' + noteClefLabel() : '';
         const keysig = state.currentMode === 'keysig_practice' || state.currentMode === 'keysig60';
         const grade = (!keysig && !ABRSM_NOTE_MODES.has(state.currentMode) && state.abrsmGrade)
             ? ' · 英皇 G' + String(state.abrsmGrade).replace('abrsm-g', '')
@@ -2422,7 +2459,7 @@
         if (game === 'game2' || game === 'game3') return true;
         if (game !== 'game1') return false;
         const mode = dom.rankModeFilter ? dom.rankModeFilter.value : 'notes-clef';
-        return mode === 'notes-clef' || mode === 'abrsm-notes' || mode === 'abrsm-keys';
+        return mode === 'notes-clef' || mode === 'noMiss';
     }
     function paintStudentRankHint(rows) {
         if (!dom.studentRankHint) return;
@@ -2454,6 +2491,60 @@
         record.difficulty = state.abrsmGrade;
         if (String(gameKey).indexOf('notes-clef-') === 0) record.clefChoice = String(gameKey).slice('notes-clef-'.length);
         storeSharedRank(record);
+    }
+    function noMissStorageMode() {
+        const clef = noteClefChoice();
+        if (typeof RankSync !== 'undefined' && RankSync.noMissModeKey) return RankSync.noMissModeKey(clef);
+        return 'noMiss-' + (NOTE_CLEF_IDS.includes(clef) ? clef : 'treble');
+    }
+    function saveNoMissRank() {
+        if (!state.currentUser || !state.currentUser.name) return;
+        const clef = noteClefChoice();
+        const mode = noMissStorageMode();
+        const accuracy = state.totalQuestions ? Math.round(((state.totalQuestions - state.wrongCount) / state.totalQuestions) * 100) : 0;
+        const record = {
+            game: 'game1',
+            name: state.currentUser.name,
+            grade: state.currentUser.grade,
+            class: state.currentUser.class,
+            id: state.currentUser.id || '',
+            mode: mode,
+            mode_name: '零失誤挑戰·' + (NOTE_CLEF_LABEL[clef] || '高音譜號'),
+            score: state.score,
+            max_combo: state.maxCombo,
+            total_questions: state.totalQuestions,
+            accuracy: accuracy,
+            timestamp: new Date().toLocaleString('zh-TW')
+        };
+        const incoming = parseInt(record.score, 10) || 0;
+        const clefOf = (row) => (typeof RankSync !== 'undefined' && RankSync.legacyNoMissClef(row)) || '';
+        const sameStudent = (row) => row && String(row.name || '').trim() === String(record.name).trim() && String(row.class || '') === String(record.class || '') && String(row.id || '') === String(record.id || '');
+        let best = 0;
+        (state.allRanks || []).concat(readRankList('musicGameRanks_game1')).forEach(row => {
+            if (!sameStudent(row) || clefOf(row) !== clef) return;
+            const score = parseInt(row.score, 10) || 0;
+            if (score > best) best = score;
+        });
+        if (incoming <= best) return;
+        saveLocalRank('game1', state.currentUser, record.score, record.accuracy, record.max_combo, mode);
+        const existing = state.allRanks.find(row => sameStudent(row) && row.mode === mode);
+        if (existing) {
+            existing.score = record.score;
+            existing.accuracy = record.accuracy;
+            existing.max_combo = record.max_combo;
+            existing.mode_name = record.mode_name;
+        } else state.allRanks.push(record);
+        _writeRanksCache(state.allRanks);
+        gasPostJson(record).then(result => {
+            if (result && result.ok) {
+                _showToast('✅ 分數已上傳！', 'success');
+                setTimeout(() => loadRanks(2, { force: true }), 800);
+            } else {
+                _showToast('⚠️ 上傳未成功：' + ((result && result.error) || '未知') + '（分數已儲存在本機）', 'warn');
+            }
+        }).catch(() => {
+            _showToast('⚠️ 網絡問題，分數已儲存在本機', 'warn');
+        });
     }
     function saveNoteClefRank() {
         if (!state.currentUser) return;
@@ -2537,6 +2628,41 @@
                 <div class="rank-score">${parseInt(item.score, 10) || 0}</div></div>`;
         }).join('');
     }
+    function renderNoMissRanks(clef) {
+        const gradeWrap = document.getElementById('rankAbrsmFilterWrap');
+        if (gradeWrap) gradeWrap.style.display = 'none';
+        const safe = NOTE_CLEF_IDS.includes(clef) ? clef : 'treble';
+        const fC = dom.rankClassFilter.value;
+        const fG = parseInt(dom.rankGradeFilter.value, 10);
+        const clefOf = (row) => (typeof RankSync !== 'undefined' && RankSync.legacyNoMissClef(row)) || '';
+        let rows = (state.allRanks || []).filter(row => row && !isSharedRankRow(row) && clefOf(row) === safe);
+        rows = rows.concat(readRankList('musicGameRanks_game1').filter(row => clefOf(row) === safe));
+        const anyThisClef = rows.length > 0;
+        if (fC !== '0') rows = rows.filter(row => String(row.class) === String(fC));
+        if (fG !== 0) rows = rows.filter(row => parseInt(row.grade, 10) === fG);
+        if (typeof RankSync !== 'undefined') rows = RankSync.keepHigherScore(rows);
+        rows.sort((a, b) => (parseInt(b.score, 10) || 0) - (parseInt(a.score, 10) || 0));
+        paintStudentRankHint(rows);
+        if (!rows.length) {
+            dom.rankList.innerHTML = anyThisClef
+                ? '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個年級或班別未有零失誤紀錄。<br>把年級和班別改成「全部」，就可以看到這個譜號的零失誤挑戰。</div>'
+                : '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個譜號暫時未有零失誤挑戰紀錄。</div>';
+            return;
+        }
+        dom.rankList.innerHTML = _rankRewardBanner() + rows.slice(0, 100).map((item, i) => {
+            const name = escHtml(item.name);
+            const cls = escHtml(item.class);
+            const school = item.grade ? `中${['','一','二','三','四','五','六'][item.grade] || item.grade}` : '';
+            const clefTag = NOTE_CLEF_LABEL[safe];
+            const score = parseInt(item.score, 10) || 0;
+            return `<div class="rank-item ${i === 0 ? 'first' : i === 1 ? 'second' : i === 2 ? 'third' : ''}">
+                <div class="rank-pos">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1) + '.'}</div>
+                <div class="rank-name"><span class="rank-student-name">${name}</span>
+                    <div class="rank-badges"><span class="rank-tag">${clefTag}</span>${school ? `<span class="rank-tag">${school}</span>` : ''}<span class="rank-tag rank-class-tag">${cls}班</span></div>
+                </div>
+                <div class="rank-score">${score}</div></div>`;
+        }).join('');
+    }
     function renderAbrsmRanks(gameKey) {
         const wrap = document.getElementById('rankAbrsmFilterWrap');
         if (wrap) wrap.style.display = '';
@@ -2587,7 +2713,9 @@
             const gradeKey = state.currentUser ? state.currentUser.grade : 3;
             if (forceClef === 'treble') clefOptions = ['treble'];
             else if (forceClef === 'bass') clefOptions = ['bass'];
-            else clefOptions = ['treble','bass'];
+            else if (forceClef === 'mixed') clefOptions = ['treble','bass'];
+            else if (MAPS[forceClef]) clefOptions = [forceClef];
+            else clefOptions = ['treble'];
             // Pick clef first so we can load the right level config
             const clef = clefOptions[Math.floor(Math.random() * clefOptions.length)];
             const lvl = (CHALLENGE_LEVELS[clef] && CHALLENGE_LEVELS[clef][gradeKey]) || CHALLENGE_LEVELS.treble[3];
@@ -2857,8 +2985,10 @@
             dom.timeProgress.style.width = '100%'; 
             dom.timeProgress.style.transition = 'none'; 
             updateScoreboard();
-            const clefStart = state.currentMode === 'classic60' ? `（${noteClefLabel()}）` : '';
-            dom.messageBox.textContent = `🎵 ${state.modeConfig.name}${clefStart} — 練習開始。`; 
+            const clefStart = (state.currentMode === 'classic60' || state.currentMode === 'noMiss') ? `（${noteClefLabel()}）` : '';
+            if (state.currentMode === 'noMiss') state.noMissPlayedClef = noteClefChoice();
+            const began = state.currentMode === 'noMiss' ? '挑戰開始' : '練習開始';
+            dom.messageBox.textContent = `🎵 ${state.modeConfig.name}${clefStart} — ${began}。`; 
             dom.messageBox.className = 'message-box'; 
             nextQuestion();
             if (state.timeLeft !== Infinity) {
@@ -3474,6 +3604,10 @@
     // ==========================================
     /** POST 到 GAS Web App：使用 CORS 讀取 JSON 回應（須部署為可匿名存取）。 */
     async function gasPostJson(record) {
+        try {
+            const email = window.WebGoogleAuth && window.WebGoogleAuth.user && window.WebGoogleAuth.user.email;
+            if (email && record && typeof record === 'object' && !record.email) record = Object.assign({}, record, { email: email });
+        } catch (e) {}
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000);
         try {
@@ -3511,14 +3645,13 @@
     async function submitScore() {
         if (!state.currentUser.name || state.modeConfig.type !== 'challenge') return;
         if (state.score === 0 && state.totalQuestions === 0) return;
-        if (state.currentMode === 'noMiss' || (state.modeConfig && state.modeConfig.gameType === 'solfege')) return;
-        if (state.currentMode === 'classic60') {
-            saveNoteClefRank();
+        if (state.modeConfig && state.modeConfig.gameType === 'solfege') return;
+        if (state.currentMode === 'noMiss') {
+            saveNoMissRank();
             return;
         }
-        if (ABRSM_NOTE_MODES.has(state.currentMode) || ABRSM_KEY_MODES.has(state.currentMode)) {
-            ensureAbrsmGrade();
-            saveAbrsmRank(ABRSM_KEY_MODES.has(state.currentMode) ? 'keys' : 'notes');
+        if (state.currentMode === 'classic60') {
+            saveNoteClefRank();
             return;
         }
 
@@ -3660,13 +3793,15 @@
                 if (dom.rankModeFilter) dom.rankModeFilter.value = 'noMiss';
                 if (dom.rankGradeFilter) dom.rankGradeFilter.value = '0';
                 if (dom.rankClassFilter) dom.rankClassFilter.value = '0';
+                const playedClef = document.getElementById('rankNoteClefFilter');
+                if (playedClef) playedClef.value = noteClefChoice();
             }
             loadRanks(2, { force: true });
         }
         const reportTitleEl = document.querySelector('.report-title');
         if (reportTitleEl) {
             if (showNoMissBoard) {
-                reportTitleEl.textContent = '🔥 零失誤挑戰';
+                reportTitleEl.textContent = `🔥 零失誤挑戰 · ${noteClefLabel()}`;
             } else if (!isPracticeEnd && state.currentMode === 'classic60') {
                 reportTitleEl.textContent = `🎉 1分鐘挑戰完成 · ${noteClefLabel()}`;
             } else {
@@ -3844,7 +3979,7 @@
         return '<div class="rank-reward-banner">🏆 每級前三名將獲得獎勵！</div>';
     }
 
-    function openGame1RankBoard(board) {
+    function openGame1RankBoard(board, clefOverride) {
         dom.leaderboardLayout.classList.add('view-only');
         dom.leaderboardLayout.classList.remove('practice-end');
         dom.reportGrid.innerHTML = '';
@@ -3855,9 +3990,14 @@
         if (mfRow) mfRow.style.display = '';
         const chosen = board || (state.currentMode === 'noMiss' ? 'noMiss' : state.currentMode === 'keysig60' ? 'keysig60' : state.currentMode === 'solfege60' ? 'solfege60' : 'notes-clef');
         if (dom.rankModeFilter) dom.rankModeFilter.value = chosen;
+        const clefFilter = document.getElementById('rankNoteClefFilter');
         if (chosen === 'notes-clef' && state.currentMode === 'classic60') {
-            const clefFilter = document.getElementById('rankNoteClefFilter');
             if (clefFilter) clefFilter.value = noteClefChoice();
+        }
+        if (chosen === 'noMiss' && clefFilter) {
+            const explicit = NOTE_CLEF_IDS.includes(clefOverride) ? clefOverride : '';
+            const played = NOTE_CLEF_IDS.includes(state.noMissPlayedClef) ? state.noMissPlayedClef : '';
+            clefFilter.value = explicit || played || (state.currentMode === 'noMiss' ? noteClefChoice() : 'treble');
         }
         const historical = chosen === 'noMiss' || chosen === 'keysig60' || chosen === 'solfege60';
         const signedIn = !!(state.currentUser && state.currentUser.name);
@@ -3880,11 +4020,12 @@
                 dom.rankModeFilter.value = 'notes-clef';
                 const clefFilter = document.getElementById('rankNoteClefFilter');
                 if (clefFilter) clefFilter.value = noteClefChoice();
-            } else if (state.abrsmGrade && ABRSM_KEY_MODES.has(state.currentMode)) dom.rankModeFilter.value = 'abrsm-keys';
-            else if (state.abrsmGrade && ABRSM_NOTE_MODES.has(state.currentMode)) dom.rankModeFilter.value = 'abrsm-notes';
+            } else if (state.currentMode === 'noMiss') {
+                dom.rankModeFilter.value = 'noMiss';
+                const clefFilter = document.getElementById('rankNoteClefFilter');
+                if (clefFilter) clefFilter.value = noteClefChoice();
+            } else if (state.currentMode === 'keysig60') dom.rankModeFilter.value = 'keysig60';
             else dom.rankModeFilter.value = state.currentMode;
-            const ag = document.getElementById('rankAbrsmGradeFilter');
-            if (ag && state.abrsmGrade) ag.value = state.abrsmGrade;
         }
     }
 
@@ -3897,34 +4038,28 @@
             if (rhythmKindWrap) rhythmKindWrap.style.display = '';
             syncRankKindOptions(gf.value);
             const kindEl = document.getElementById('rankRhythmKind');
-            const kind = kindEl ? kindEl.value : (gf.value === 'game3' ? 'terms' : 'classroom');
-            if (kind === 'classroom') {
-                const abrsmWrapEarly = document.getElementById('rankAbrsmFilterWrap');
-                if (abrsmWrapEarly) abrsmWrapEarly.style.display = 'none';
-                renderRanksForGame(gf.value, deviceClassroomRows(gf.value));
-                return;
-            }
+            if (kindEl) kindEl.value = 'classroom';
             const abrsmWrapEarly = document.getElementById('rankAbrsmFilterWrap');
-            if (abrsmWrapEarly) abrsmWrapEarly.style.display = '';
-            const rhythmKey = gf.value === 'game3' ? 'terms' : (kind === 'rhythm-tap' ? 'rhythm-tap' : 'rhythm');
-            renderAbrsmRanks(rhythmKey);
+            if (abrsmWrapEarly) abrsmWrapEarly.style.display = 'none';
+            renderRanksForGame(gf.value, deviceClassroomRows(gf.value));
             return;
         }
         if (gf && gf.value !== 'game1') { renderRanksForGame(gf.value); return; }
         const fC = dom.rankClassFilter.value, fG = parseInt(dom.rankGradeFilter.value), fM = dom.rankModeFilter.value;
         const abrsmWrap = document.getElementById('rankAbrsmFilterWrap');
         const noteClefWrap = document.getElementById('rankNoteClefWrap');
-        if (noteClefWrap) noteClefWrap.style.display = (gf && gf.value === 'game1' && fM === 'notes-clef') ? '' : 'none';
+        if (noteClefWrap) noteClefWrap.style.display = (gf && gf.value === 'game1' && (fM === 'notes-clef' || fM === 'noMiss')) ? '' : 'none';
+        if (abrsmWrap) abrsmWrap.style.display = 'none';
         if (fM === 'notes-clef') {
             const clef = (document.getElementById('rankNoteClefFilter') || {}).value || 'treble';
             renderNoteClefRanks(clef);
             return;
         }
-        if (fM === 'abrsm-notes' || fM === 'abrsm-keys') {
-            renderAbrsmRanks(fM === 'abrsm-keys' ? 'keys' : 'notes');
+        if (fM === 'noMiss') {
+            const clef = (document.getElementById('rankNoteClefFilter') || {}).value || 'treble';
+            renderNoMissRanks(clef);
             return;
         }
-        if (abrsmWrap) abrsmWrap.style.display = 'none';
         let f = state.allRanks.filter(r => (r.mode === fM || r.difficulty === fM) && !isSharedRankRow(r));
         if (typeof RankSync !== 'undefined' && RankSync.legacyGame1Mode({ mode: fM })) {
             f = f.concat(readRankList('musicGameRanks_game1').filter(r => RankSync.legacyGame1Mode(r) === fM));
@@ -3955,10 +4090,7 @@
             }
         }
         if (!f.length) {
-            const noMissHidden = fM === 'noMiss' && state.allRanks.some(r => r.mode === 'noMiss' || r.difficulty === 'noMiss');
-            dom.rankList.innerHTML = noMissHidden
-                ? '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個年級或班別未有零失誤紀錄。<br>把年級和班別改成「全部」，就可以看到以前的零失誤挑戰。</div>'
-                : '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個模式暫時未有紀錄，做第一個挑戰者吧！🚀</div>';
+            dom.rankList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個模式暫時未有紀錄，做第一個挑戰者吧！🚀</div>';
             return;
         }
         const MAX_RENDER = 100;
@@ -4254,8 +4386,10 @@
         clefSelBtns.forEach(btn => btn.addEventListener('click', () => {
             if (!NOTE_CLEF_IDS.includes(btn.dataset.clef)) return;
             audio.init(); audio.playClick('select');
-            state.currentMode = 'classic60';
-            state.modeConfig = MODE_CONFIG.classic60;
+            if (state.currentMode !== 'noMiss') {
+                state.currentMode = 'classic60';
+                state.modeConfig = MODE_CONFIG.classic60;
+            }
             state.noteClefChoice = btn.dataset.clef;
             paintNoteClefRow();
             saveSettings();
@@ -4322,7 +4456,7 @@
             document.querySelector('.mode-card[data-mode="noMiss"]')?.classList.add('active');
             state.currentMode = 'noMiss';
             state.modeConfig = MODE_CONFIG.noMiss;
-            openGame1RankBoard('noMiss');
+            openGame1RankBoard('noMiss', 'treble');
         });
         
         dom.revealBtn.addEventListener('click', () => { if (!state.gameActive || state.answered) return; const gt = state.modeConfig && state.modeConfig.gameType; if (gt === 'keysig') { state.answered = true; state.combo = 0; updateScoreboard(); if (_keysigCurrentQ) { dom.messageBox.textContent = `🔑 答案是 ${_keysigCurrentQ.correct.name}！請記下。`; } dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextKeysigQuestion(); }, 2000); return; } if (gt === 'solfege') { state.answered = true; state.combo = 0; updateScoreboard(); if (state.currentNote) { const solName = getSolfege(state.currentNote.note, state._solfegeKeySig); dom.messageBox.textContent = `🎵 答案是 ${solName}！請記下。`; } dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextSolfegeQuestion(); }, 2000); return; } state.answered = true; state.combo = 0; state.showAnswerHighlight = true; drawStaff(); updateScoreboard(); audio.playNote(state.currentNote.freqKey); const _sol3 = noteSol(state.currentNote); dom.messageBox.innerHTML = `🔊 答案是 ${pianoKeyHTML(state.currentNote.correctName)}${_sol3 ? ' = ' + escapeHtml(_sol3) : ''}，請聆聽並記下音位，然後作答下一題。`; dom.messageBox.className = 'message-box warning'; enableGameControls(false); setTimeout(() => { dom.messageBox.className = 'message-box'; nextQuestion(); }, 2500); });
@@ -4333,7 +4467,7 @@
             const mfRow = dom.rankModeFilter?.closest?.('.rank-filter');
             if (mfRow) mfRow.style.display = gfVal === 'game1' ? '' : 'none';
             const abrsmRankWrap = document.getElementById('rankAbrsmFilterWrap');
-            if (abrsmRankWrap) abrsmRankWrap.style.display = (gfVal === 'game1' || gfVal === 'game2' || gfVal === 'game3') ? '' : 'none';
+            if (abrsmRankWrap) abrsmRankWrap.style.display = 'none';
             const rhythmKindWrap = document.getElementById('rankRhythmKindWrap');
             if (rhythmKindWrap) rhythmKindWrap.style.display = (gfVal === 'game2' || gfVal === 'game3') ? '' : 'none';
             if (gfVal === 'game2' || gfVal === 'game3') syncRankKindOptions(gfVal);
@@ -4557,6 +4691,36 @@
     }
 
 
+    function resumeRhythmReturn() {
+        let params;
+        try { params = new URLSearchParams(location.search); } catch (e) { return; }
+        if (params.get('g2') !== 'setup') return;
+        params.delete('g2');
+        const qs = params.toString();
+        try {
+            history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
+        } catch (e) {}
+        const card = document.getElementById('enterGame2');
+        if (!card) return;
+        if (!isAppShell()) {
+            const name = document.getElementById('hubName');
+            const val = name && name.value;
+            if (!val) return;
+            if (val === '__other__') {
+                const custom = document.getElementById('hubCustomNameInput');
+                if (custom && !String(custom.value || '').trim()) {
+                    try {
+                        const saved = JSON.parse(localStorage.getItem('musicGameSettingsV4') || '{}');
+                        if (saved && saved.savedCustomName) custom.value = saved.savedCustomName;
+                    } catch (e) {}
+                }
+                if (!custom || !String(custom.value || '').trim()) return;
+            }
+        }
+        try { sessionStorage.setItem('rhythmResumeCompose', '1'); } catch (e) {}
+        card.click();
+    }
+
     // Initialize on DOM ready.
     // When script.js is loaded dynamically (e.g. after bootstrap fetch), DOMContentLoaded has
     // already fired; we must run init immediately in that case or initHub never runs and name lists stay empty.
@@ -4617,6 +4781,7 @@
         try { initTutorial(); } catch(e) { console.error('initTutorial error:', e); }
         try { initHub(); } catch(e) { console.error('initHub error:', e); }
         try { initAppShell(); } catch(e) { console.error('initAppShell error:', e); }
+        try { resumeRhythmReturn(); } catch(e) { console.error('rhythm return error:', e); }
         try { initLightbox(); } catch(e) { console.error('initLightbox error:', e); }
         // Prefetch ranks so opening 排行榜 feels instant
         setTimeout(() => { _paintRanksFromCache(); loadRanks(1); }, 300);
@@ -4707,6 +4872,7 @@
 
         let _hubCustomInput = null;
         let _hubIsGuest = false;
+        let _suspendBindingSave = false;
 
         function populateHub() {
             const grade = hubGrade.value, cls = hubClass.value;
@@ -4721,14 +4887,16 @@
                 o.value = n; o.textContent = n; o.dataset.seat = i + 1;
                 frag.appendChild(o);
             });
-            const otherOpt = document.createElement('option');
-            otherOpt.value = '__other__'; otherOpt.textContent = '✏️ 其他（自行填寫）';
-            frag.appendChild(otherOpt);
-            const guestOpt = document.createElement('option');
-            guestOpt.value = '__guest__'; guestOpt.textContent = '🧪 訪客 / 測試人員';
-            frag.appendChild(guestOpt);
+            if (isAppShell()) {
+                const otherOpt = document.createElement('option');
+                otherOpt.value = '__other__'; otherOpt.textContent = '✏️ 其他（自行填寫）';
+                frag.appendChild(otherOpt);
+                const guestOpt = document.createElement('option');
+                guestOpt.value = '__guest__'; guestOpt.textContent = '🧪 訪客 / 測試人員';
+                frag.appendChild(guestOpt);
+            }
             hubName.innerHTML = ''; hubName.appendChild(frag);
-            if (prev && (students.includes(prev) || prev === '__other__' || prev === '__guest__')) { hubName.value = prev; }
+            if (prev && (students.includes(prev) || (isAppShell() && (prev === '__other__' || prev === '__guest__')))) { hubName.value = prev; }
             else { hubName.value = ''; hubSeat.value = ''; }
             _handleHubNameMode();
         }
@@ -4806,8 +4974,8 @@
             };
         }
 
-        hubGrade.addEventListener('change', () => { populateHub(); updateCurrentUserFromHub(); updateHubLockState(); });
-        hubClass.addEventListener('change', () => { populateHub(); updateCurrentUserFromHub(); updateHubLockState(); });
+        hubGrade.addEventListener('change', () => { populateHub(); updateCurrentUserFromHub(); updateHubLockState(); try { persistWebBinding(); } catch (e) {} });
+        hubClass.addEventListener('change', () => { populateHub(); updateCurrentUserFromHub(); updateHubLockState(); try { persistWebBinding(); } catch (e) {} });
         // Defensive: repopulate if user opens the name dropdown and it's still empty
         hubName.addEventListener('mousedown', () => { if (hubName.options.length <= 1) populateHub(); });
         hubName.addEventListener('focus',     () => { if (hubName.options.length <= 1) populateHub(); });
@@ -4825,7 +4993,9 @@
                     if (_hubIsGuest) {
                         badgeText.textContent = '🧪 測試人員';
                     } else {
-                        badgeText.textContent = `${hubGrade.options[hubGrade.selectedIndex].text} ${hubClass.value}班 · ${displayName || hubName.value} 同學`;
+                        const gradeText = hubGrade.options[hubGrade.selectedIndex] ? hubGrade.options[hubGrade.selectedIndex].text : '';
+                        const seatBit = hubSeat.value ? (' ' + hubSeat.value + '號') : '';
+                        badgeText.textContent = `${gradeText} ${hubClass.value}班${seatBit} · ${displayName || hubName.value} 同學`;
                     }
                     badge.classList.add('show');
                     if (loginCard) loginCard.classList.add('player-selected');
@@ -4840,6 +5010,7 @@
                 const u = getHubUser();
                 if (u && u.name) updateHubAsideFromProfile(loadProfile(u));
             } catch (e) {}
+            try { persistWebBinding(); } catch (e) {}
         });
 
         populateHub();
@@ -4884,7 +5055,87 @@
             } catch (e) {}
         });
 
-        // Grade/class default from saved Game-1 settings
+        window.addEventListener('webgoogle:profile', (ev) => {
+            const remote = ev && ev.detail && ev.detail.profile;
+            if (!remote || !remote.name) return;
+            try { saveProfile(remote, { skipRemote: true }); } catch (e) {}
+        });
+
+        function persistWebBinding() {
+            if (_suspendBindingSave) return;
+            const auth = window.WebGoogleAuth;
+            if (!auth || !auth.signedIn || typeof auth.saveBinding !== 'function') return;
+            const user = getHubUser();
+            if (!user || !user.name || !user.grade || !user.class) return;
+            if (user.name === '__guest__' || user.name === '__other__' || user.name === '訪客') return;
+            auth.saveBinding({ grade: user.grade, class: user.class, name: user.name }).catch(function () {});
+        }
+
+        function setRosterLock(on, binding) {
+            const card = document.querySelector('.hub-login-card');
+            const title = document.getElementById('hubLoginTitleText');
+            if (card) card.classList.toggle('hub-roster-locked', !!on);
+            [hubGrade, hubClass, hubName].forEach((el) => { if (el) el.disabled = !!on; });
+            if (title) title.textContent = on && binding && binding.name ? binding.name : '請選擇學生身份';
+        }
+
+        function applyAccountBinding(binding) {
+            _suspendBindingSave = true;
+            try {
+                if (!binding || !binding.name) {
+                    setRosterLock(false);
+                    hubName.value = '';
+                    hubSeat.value = '';
+                    _handleHubNameMode();
+                    hubName.dispatchEvent(new Event('change'));
+                    return;
+                }
+                if (binding.grade) hubGrade.value = String(binding.grade);
+                if (binding.class) hubClass.value = String(binding.class);
+                populateHub();
+                const students = getStudentList(hubGrade.value, hubClass.value);
+                if (!students.includes(binding.name)) {
+                    const extra = document.createElement('option');
+                    extra.value = binding.name;
+                    extra.textContent = binding.name;
+                    hubName.appendChild(extra);
+                }
+                hubName.value = binding.name;
+                const sel = hubName.selectedOptions[0];
+                if (sel) sel.dataset.seat = binding.seat || '';
+                hubSeat.value = binding.seat || '';
+                _handleHubNameMode();
+                hubName.dispatchEvent(new Event('change'));
+                setRosterLock(true, binding);
+                const asideName = document.getElementById('hubAsideName');
+                const asideMeta = document.getElementById('hubAsideMeta');
+                const gradeLabel = ['', '中一', '中二', '中三', '中四', '中五', '中六'][parseInt(binding.grade, 10)] || '';
+                if (asideName) asideName.textContent = binding.name;
+                if (asideMeta) asideMeta.textContent = `${gradeLabel} ${binding.class}班${binding.seat ? ' ' + binding.seat + '號' : ''}`;
+            } finally {
+                _suspendBindingSave = false;
+            }
+        }
+
+        function onWebSession() {
+            const auth = window.WebGoogleAuth;
+            try { paintWebAccount(); } catch (e) {}
+            if (!auth || !auth.required) return;
+            if (!auth.signedIn) {
+                if (auth.ready) {
+                    applyAccountBinding(null);
+                    try {
+                        const active = document.querySelector('.screen.active');
+                        if (active && active.id !== 'screen-hub') switchScreen('screen-hub');
+                    } catch (e) {}
+                }
+                return;
+            }
+            applyAccountBinding(auth.binding);
+        }
+
+        // Grade/class default from saved Game-1 settings. Do not push this device's last name onto the Google account.
+        _suspendBindingSave = true;
         const saved = localStorage.getItem('musicGameSettingsV4');
         if (saved) {
             try {
@@ -4892,7 +5143,9 @@
                 if (s.userGrade) hubGrade.value = s.userGrade;
                 if (s.userClass) hubClass.value = s.userClass;
                 populateHub();
-                if (s.savedName) { hubName.value = s.savedName; const sel = hubName.selectedOptions[0]; if (sel && sel.dataset.seat) hubSeat.value = sel.dataset.seat; }
+                const savedName = s.savedName;
+                const blocked = !isAppShell() && (savedName === '__guest__' || savedName === '__other__');
+                if (savedName && !blocked) { hubName.value = savedName; const sel = hubName.selectedOptions[0]; if (sel && sel.dataset.seat) hubSeat.value = sel.dataset.seat; }
                 if (s.userId && (!hubSeat.value || hubSeat.value === '--')) hubSeat.value = s.userId;
                 _handleHubNameMode();
                 if (s.savedName === '__other__' && s.savedCustomName) {
@@ -4902,6 +5155,7 @@
                 hubName.dispatchEvent(new Event('change'));
             } catch(e) {}
         }
+        _suspendBindingSave = false;
 
         function getHubUser() {
             if (isAppShell()) return getAppPlayerUser();
@@ -4924,15 +5178,21 @@
                 state.currentUser = { name: user.name, grade: 0, class: 'App', id: '' };
                 return true;
             }
-            const val = hubName.value;
-            if (!val) {
-                if (nameFieldEl) { nameFieldEl.classList.add('error'); setTimeout(() => nameFieldEl.classList.remove('error'), 1200); }
-                alert('❗ 請先完成身份：點開「③ 選擇姓名」選班上同學，或按「以訪客身分快速試玩」。');
-                return false;
+            if (window.WebGoogleAuth && window.WebGoogleAuth.required && !window.WebGoogleAuth.signedIn) return false;
+            const bound = window.WebGoogleAuth && window.WebGoogleAuth.binding;
+            if (bound && bound.name) {
+                state.currentUser = {
+                    name: bound.name,
+                    grade: parseInt(bound.grade, 10) || 0,
+                    class: bound.class || '',
+                    id: bound.seat || hubSeat.value || ''
+                };
+                return true;
             }
-            if ((val === '__other__') && !_getHubDisplayName()) {
+            const val = hubName.value;
+            if (!val || val === '__guest__' || val === '__other__') {
                 if (nameFieldEl) { nameFieldEl.classList.add('error'); setTimeout(() => nameFieldEl.classList.remove('error'), 1200); }
-                alert('❗ 請輸入你的名字！');
+                alert('❗ 請先完成身份：點開「③ 選擇姓名」選班上同學。');
                 return false;
             }
             return true;
@@ -4947,13 +5207,14 @@
                 return;
             }
             const val = hubName.value;
-            const needs = !val || (val === '__other__' && !_getHubDisplayName());
+            const unsigned = window.WebGoogleAuth && window.WebGoogleAuth.required && !window.WebGoogleAuth.signedIn;
+            const needs = unsigned || !val || val === '__guest__' || val === '__other__';
             hubScreen.classList.toggle('hub-needs-login', needs);
             document.querySelectorAll('#screen-hub .hub-game-card').forEach(c => c.classList.toggle('is-locked', needs));
         }
 
         const hubQuickGuestBtn = document.getElementById('hubQuickGuestBtn');
-        if (hubQuickGuestBtn) {
+        if (hubQuickGuestBtn && isAppShell()) {
             hubQuickGuestBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 hubName.value = '__guest__';
@@ -5021,9 +5282,39 @@
             });
         });
 
+        function openRhythmComposer() {
+            try {
+                if (new URLSearchParams(location.search).get('app') === '1') sessionStorage.setItem('rhythmReturnApp', '1');
+                else sessionStorage.removeItem('rhythmReturnApp');
+            } catch (e) {}
+            if (!isAppShell()) {
+                try {
+                    const raw = localStorage.getItem('musicGameSettingsV4');
+                    const s = raw ? JSON.parse(raw) : {};
+                    const nameEl = document.getElementById('hubName');
+                    const gradeEl = document.getElementById('hubGrade');
+                    const classEl = document.getElementById('hubClass');
+                    if (s && typeof s === 'object' && !Array.isArray(s) && nameEl && nameEl.value) {
+                        s.savedName = nameEl.value;
+                        if (gradeEl) s.userGrade = gradeEl.value;
+                        if (classEl) s.userClass = classEl.value;
+                        if (nameEl.value === '__other__') {
+                            const custom = document.getElementById('hubCustomNameInput');
+                            if (custom) s.savedCustomName = custom.value.trim();
+                        }
+                        localStorage.setItem('musicGameSettingsV4', JSON.stringify(s));
+                    }
+                } catch (e) {}
+            }
+            window.location.href = 'rhythm/';
+        }
+
         const enterGame2El = document.getElementById('enterGame2');
         enterGame2El.addEventListener('click', () => {
-            if (!requireHubLogin(hubNameField)) return;
+            if (!requireHubLogin(hubNameField)) {
+                try { sessionStorage.removeItem('rhythmResumeCompose'); } catch (e) {}
+                return;
+            }
             const user = getHubUser();
             state.currentUser = { name: user.name, grade: user.grade || 0, class: user.class || '', id: user.seat || '' };
             // Populate player badge on setup screen
@@ -5031,15 +5322,28 @@
             if (badgeText) badgeText.textContent = `${user.grade ? ['','中一','中二','中三','中四','中五','中六'][user.grade] : ''}${user.class}班 · ${user.name} 同學`;
 
             let g2SelectedMode = 'practice';
+            try {
+                if (sessionStorage.getItem('rhythmResumeCompose') === '1') g2SelectedMode = 'compose';
+                sessionStorage.removeItem('rhythmResumeCompose');
+            } catch (e) {}
+            const g2AbrsmRow = document.getElementById('g2AbrsmRow');
+            const g2StartBtn = document.getElementById('g2StartBtn');
+            const syncG2ModeChrome = () => {
+                const compose = g2SelectedMode === 'compose';
+                if (g2AbrsmRow) g2AbrsmRow.style.display = compose ? 'none' : '';
+                if (g2StartBtn) g2StartBtn.textContent = compose ? '♩ 開始創作' : '🚀 開始練習';
+            };
             const g2ModeCards = document.querySelectorAll('#g2ModeCards .mode-card');
             g2ModeCards.forEach(c => {
-                c.classList.toggle('active', c.dataset.mode === 'practice');
+                c.classList.toggle('active', c.dataset.mode === g2SelectedMode);
                 c.onclick = () => {
                     g2ModeCards.forEach(x => x.classList.remove('active'));
                     c.classList.add('active');
                     g2SelectedMode = c.dataset.mode;
+                    syncG2ModeChrome();
                 };
             });
+            syncG2ModeChrome();
 
             const g2Coverage = document.getElementById('g2AbrsmCoverage');
             const paintG2 = () => {
@@ -5064,6 +5368,8 @@
                     launchSyllabusQuiz(user, 'value', false);
                 } else if (g2SelectedMode === 'tap') {
                     startRhythmChallenge(user);
+                } else if (g2SelectedMode === 'compose') {
+                    openRhythmComposer();
                 } else {
                     enterRCGame(user);
                 }
@@ -5218,18 +5524,6 @@
             }
         });
 
-        const enterRhythmComposerEl = document.getElementById('enterRhythmComposer');
-        enterRhythmComposerEl?.addEventListener('click', () => {
-            if (!requireHubLogin(hubNameField)) return;
-            window.location.href = 'rhythm/';
-        });
-        enterRhythmComposerEl?.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                enterRhythmComposerEl.click();
-            }
-        });
-
         const enterCompositionStudioEl = document.getElementById('enterCompositionStudio');
         enterCompositionStudioEl?.addEventListener('click', () => {
             if (!requireHubLogin(hubNameField)) return;
@@ -5274,6 +5568,16 @@
 
         // ——— 社交功能 Social Features ———
         initSocialFeatures();
+
+        function webSignOut() {
+            if (window.WebGoogleAuth && typeof window.WebGoogleAuth.signOut === 'function') window.WebGoogleAuth.signOut();
+        }
+        const hubSignOutBtn = document.getElementById('hubSignOutBtn');
+        const profileSignOutBtn = document.getElementById('profileSignOutBtn');
+        if (hubSignOutBtn) hubSignOutBtn.addEventListener('click', webSignOut);
+        if (profileSignOutBtn) profileSignOutBtn.addEventListener('click', webSignOut);
+        window.addEventListener('webgoogle:session', onWebSession);
+        onWebSession();
 
         document.getElementById('backToHubFromSetup').addEventListener('click', () => {
             switchScreen('screen-hub');
@@ -5446,21 +5750,20 @@
         const sel = document.getElementById('rankRhythmKind');
         const label = document.getElementById('rankRhythmKindLabel');
         if (!sel) return;
-        const prev = sel.value;
         if (game === 'game3') {
             if (label) label.textContent = '術語榜';
             if (sel.dataset.kindGame !== 'game3') {
-                sel.innerHTML = '<option value="classroom">課堂舊紀錄</option><option value="terms">英皇術語</option>';
+                sel.innerHTML = '<option value="classroom" selected>課堂舊紀錄</option>';
                 sel.dataset.kindGame = 'game3';
-                sel.value = prev === 'terms' ? 'terms' : 'classroom';
+                sel.value = 'classroom';
             }
             return;
         }
         if (label) label.textContent = '節奏榜';
         if (sel.dataset.kindGame !== 'game2') {
-            sel.innerHTML = '<option value="classroom">課堂舊紀錄</option><option value="rhythm">拍號計時</option><option value="rhythm-tap">節奏挑戰</option>';
+            sel.innerHTML = '<option value="classroom" selected>課堂舊紀錄</option>';
             sel.dataset.kindGame = 'game2';
-            sel.value = (prev === 'rhythm' || prev === 'rhythm-tap' || prev === 'classroom') ? prev : 'classroom';
+            sel.value = 'classroom';
         }
     }
     function deviceClassroomRows(gameKey) {
@@ -6014,7 +6317,7 @@
         const box = document.getElementById('screen-g2-duration');
         const note = document.createElement('div');
         note.className = 'om-result';
-        note.innerHTML = `<div class="om-result-title">${syllabusQuiz.timed ? '計時結束' : '練習暫停'}</div><div class="om-result-score">${syllabusQuiz.score}</div><p class="abrsm-coverage">${syllabusQuiz.timed ? '分數在英皇榜。' : '練習不入榜。'}</p><button class="om-btn-back" id="sqDone" type="button">返回</button>`;
+        note.innerHTML = `<div class="om-result-title">${syllabusQuiz.timed ? '計時結束' : '練習暫停'}</div><div class="om-result-score">${syllabusQuiz.score}</div><p class="abrsm-coverage">${syllabusQuiz.timed ? '這次成績不計入排行榜。' : '練習不入榜。'}</p><button class="om-btn-back" id="sqDone" type="button">返回</button>`;
         box.appendChild(note);
         document.getElementById('sqDone').onclick = () => switchScreen('screen-g2-setup');
     }
@@ -10153,7 +10456,9 @@
             _consumeProfilePlaySecs();
         }
 
-        const practiceNote = mode === 'practice' ? '<div style="text-align:center;color:var(--text-light);font-size:0.85rem;margin-top:6px;">📝 練習模式成績不計入排行榜</div>' : '';
+        const practiceNote = mode === 'practice'
+            ? '<div style="text-align:center;color:var(--text-light);font-size:0.85rem;margin-top:6px;">📝 練習模式成績不計入排行榜</div>'
+            : (/^abrsm-g[1-5]$/.test(difficulty || '') ? '<div style="text-align:center;color:var(--text-light);font-size:0.85rem;margin-top:6px;">📝 這次成績不計入排行榜</div>' : '');
         document.getElementById('g3ReportGrid').innerHTML = `
             <div class="report-item"><div class="report-label">答題數</div><div class="report-value">${totalAnswered}</div></div>
             <div class="report-item"><div class="report-label">得分</div><div class="report-value">${finalScore}</div></div>
@@ -10179,8 +10484,8 @@
             }
         }
 
-        g3RankListMode = difficulty;
-        renderLocalRankList('game3', 'g3RankList', user, difficulty);
+        g3RankListMode = 'classroom';
+        renderLocalRankList('game3', 'g3RankList', user, 'classroom');
         if (mode !== 'practice') setTimeout(() => loadRanks(2, { force: true }).then(() => renderLocalRankList('game3', 'g3RankList', user, g3RankListMode)).catch(()=>{}), 800);
         document.getElementById('g3PlayAgain').onclick = () => switchScreen('screen-g3-setup');
         document.getElementById('g3BackToHub').onclick = () => switchScreen('screen-g3-setup');

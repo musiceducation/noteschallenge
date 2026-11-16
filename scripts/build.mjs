@@ -58,7 +58,10 @@ for (const f of [
   "abrsm-rhythm-terms.js",
   "www/abrsm-rhythm-terms.js",
   "composition-studio.js",
-  "www/composition-studio.js"
+  "www/composition-studio.js",
+  "web-google-auth.js",
+  "www/web-google-auth.js",
+  "cloudflare/noteschallenge-auth/worker.js"
 ]) checkJs(f);
 for (const f of ["data/instrument-bank.json", "data/instrument-structure.json"]) checkJson(f);
 
