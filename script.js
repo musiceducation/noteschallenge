@@ -972,6 +972,8 @@
         setBest('pgbRhythm', bests.game2);
         setBest('pgbTerms', bests.game3);
         setBest('pgbInstr', bests.game4);
+        const listenBest = ['listenInterval', 'listenRhythm', 'listenColor'].reduce((max, key) => Math.max(max, Number(bests[key]) || 0), 0);
+        setBest('pgbListen', listenBest);
         setBest('pgbGame1', bests.game1);
         setBest('pgbGame2', bests.game2);
         setBest('pgbGame3', bests.game3);
@@ -5566,6 +5568,13 @@
                 switchScreen('screen-hub');
             }
         });
+        const profileAvatarToggle = document.getElementById('profileAvatarToggle');
+        const profileAvatarPanel = document.getElementById('profileAvatarPanel');
+        if (profileAvatarToggle && profileAvatarPanel) {
+            profileAvatarToggle.addEventListener('click', () => {
+                profileAvatarPanel.hidden = !profileAvatarPanel.hidden;
+            });
+        }
 
         initFullscreenToggle();
 

@@ -521,8 +521,8 @@
     <!-- 玩家個人檔案 (Player Profile)          -->
     <!-- ===================================== -->
     <div id="screen-profile" class="screen">
-        <button class="btn-back-hub" id="profileBackBtn">← 返回主頁</button>
-        <div class="profile-header">
+        <div class="profile-identity">
+            <button class="btn-back-hub" id="profileBackBtn" type="button">← 返回主頁</button>
             <div class="profile-avatar" id="profileAvatar">♩</div>
             <div class="profile-info">
                 <div class="profile-name" id="profileName">學生姓名</div>
@@ -531,26 +531,41 @@
                     <span class="profile-id" id="profileId">ID: ---</span>
                     <span class="profile-since" id="profileSince">加入日期: ---</span>
                     <span class="profile-email" id="profileEmail" hidden></span>
-                    <button type="button" class="profile-signout" id="profileSignOutBtn" hidden>登出</button>
+                </div>
+            </div>
+            <div class="profile-level-bar">
+                <div class="profile-level-badge" id="profileLevel">Lv.1</div>
+                <div class="profile-exp-track">
+                    <div class="profile-exp-fill" id="profileExpFill" style="width:0%"></div>
+                </div>
+                <div class="profile-exp-text" id="profileExpText">0 / 100 EXP</div>
+            </div>
+            <div class="profile-playtime" id="profilePlaytime">🕐 累計練習時間：0 分鐘</div>
+            <button type="button" id="profileAvatarToggle" class="profile-avatar-toggle">更換頭像</button>
+            <button type="button" class="profile-signout" id="profileSignOutBtn" hidden>登出</button>
+        </div>
+        <p class="profile-save-status" id="profileSaveStatus" aria-live="polite"></p>
+        <div class="profile-dash">
+            <div class="profile-card ability-radar-card">
+                <div class="profile-section-title">音樂能力</div>
+                <div id="abilityRadar"></div>
+            </div>
+            <div class="profile-card profile-bests-card">
+                <div class="profile-section-title">各項最高分</div>
+                <p class="profile-bests-note">只計挑戰。練習分不入榜，亦不會蓋過較高最佳。</p>
+                <div class="profile-game-bests" id="profileGameBests">
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♩</span><span class="pgb-name">音名</span></div><div class="pgb-score" id="pgbNotes">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♯</span><span class="pgb-name">調號</span></div><div class="pgb-score" id="pgbKeysig">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">Do</span><span class="pgb-name">唱名</span></div><div class="pgb-score" id="pgbSolfege">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">🎹</span><span class="pgb-name">和弦</span></div><div class="pgb-score" id="pgbChord">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♬</span><span class="pgb-name">節奏</span></div><div class="pgb-score" id="pgbRhythm">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">𝄞</span><span class="pgb-name">術語</span></div><div class="pgb-score" id="pgbTerms">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">🎻</span><span class="pgb-name">樂器</span></div><div class="pgb-score" id="pgbInstr">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">🎧</span><span class="pgb-name">聽力</span></div><div class="pgb-score" id="pgbListen">---</div></div>
                 </div>
             </div>
         </div>
-        <div class="profile-level-bar">
-            <div class="profile-level-badge" id="profileLevel">Lv.1</div>
-            <div class="profile-exp-track">
-                <div class="profile-exp-fill" id="profileExpFill" style="width:0%"></div>
-            </div>
-            <div class="profile-exp-text" id="profileExpText">0 / 100 EXP</div>
-        </div>
-        <div class="profile-playtime" id="profilePlaytime">🕐 累計練習時間：0 分鐘</div>
-        <div class="profile-card ability-radar-card">
-            <div class="profile-section-title">音樂能力</div>
-            <div id="abilityRadar"></div>
-        </div>
-        <p class="profile-save-status" id="profileSaveStatus" aria-live="polite"></p>
-
-        <div class="profile-settings-grid">
-        <div class="profile-card profile-identity-card">
+        <div class="profile-card profile-identity-card" id="profileAvatarPanel" hidden>
             <div class="profile-section-title"><i data-lucide="palette"></i> 頭像同簽名</div>
             <div class="profile-avatar-grid" id="profileAvatarGrid"></div>
             <label class="profile-sig-label" for="profileSigInput">個人簽名</label>
@@ -559,21 +574,8 @@
                 <button class="btn-action profile-sig-save" id="profileSigSave" type="button"><i data-lucide="save"></i> 儲存</button>
             </div>
         </div>
-        <div class="profile-card">
-        <div class="profile-section-title">各項最高分</div>
-        <p class="profile-bests-note">只計挑戰成績。練習分不會入榜，亦不會蓋過較高的個人最佳。</p>
-        <div class="profile-game-bests" id="profileGameBests">
-            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♩</span><span class="pgb-name">音名</span></div><div class="pgb-score" id="pgbNotes">---</div></div>
-            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♯</span><span class="pgb-name">調號</span></div><div class="pgb-score" id="pgbKeysig">---</div></div>
-            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">Do</span><span class="pgb-name">唱名</span></div><div class="pgb-score" id="pgbSolfege">---</div></div>
-            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">🎹</span><span class="pgb-name">和弦</span></div><div class="pgb-score" id="pgbChord">---</div></div>
-            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♬</span><span class="pgb-name">節奏</span></div><div class="pgb-score" id="pgbRhythm">---</div></div>
-            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">𝄞</span><span class="pgb-name">術語</span></div><div class="pgb-score" id="pgbTerms">---</div></div>
-            <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">🎻</span><span class="pgb-name">樂器</span></div><div class="pgb-score" id="pgbInstr">---</div></div>
-        </div>
-        </div>
-        </div>
 
+        <div class="profile-rest">
         <div class="profile-card">
         <div class="profile-section-title"><i data-lucide="bar-chart-2"></i> 綜合數據</div>
         <div class="profile-stats-grid" id="profileStatsGrid">
@@ -592,6 +594,7 @@
         <div id="profileProgressTrend" class="profile-progress-trend"></div>
         <div class="profile-section-subtitle">近期紀錄</div>
         <div id="profileRecentGames" class="profile-recent-games"></div>
+        </div>
         </div>
 
     </div>
