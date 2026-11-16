@@ -5332,8 +5332,6 @@
             });
             const teach = document.getElementById('openNoteTeachBtn');
             if (teach) teach.hidden = topic !== 'notes';
-            const chordBtn = document.getElementById('openChordCardBtn');
-            if (chordBtn) chordBtn.hidden = true;
             if (topic === 'keysig') {
                 document.querySelector('.mode-card[data-mode="keysig_practice"]')?.click();
             } else if (topic === 'solfege') {
@@ -5381,10 +5379,16 @@
         });
         document.getElementById('enterKeysig')?.addEventListener('click', () => openSetupTopic('keysig'));
         document.getElementById('enterSolfege')?.addEventListener('click', () => openSetupTopic('solfege'));
-        document.getElementById('enterChord')?.addEventListener('click', () => {
+        function openChordPractice() {
             if (!requireHubLogin(hubNameField)) return;
-            document.getElementById('openChordCardBtn')?.click();
-        });
+            syncFromHub();
+            if (window.ChordKeyboard && typeof window.ChordKeyboard.openFromLobby === 'function') {
+                window.ChordKeyboard.openFromLobby();
+                return;
+            }
+            switchScreen('screen-chord-card');
+        }
+        document.getElementById('enterChord')?.addEventListener('click', openChordPractice);
         ['enterKeysig', 'enterSolfege', 'enterChord'].forEach(id => {
             const el = document.getElementById(id);
             el?.addEventListener('keydown', (e) => {

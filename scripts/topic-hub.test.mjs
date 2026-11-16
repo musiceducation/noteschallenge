@@ -27,7 +27,7 @@ const setup = notes.slice(notes.indexOf('id="screen-setup"'), notes.indexOf('id=
 assert.match(setup, /data-setup="notes"/);
 assert.match(setup, /data-setup="keysig"/);
 assert.match(setup, /data-setup="solfege"/);
-assert.match(setup, /id="openChordCardBtn"[^>]*hidden/);
+assert.doesNotMatch(setup, /openChordCardBtn|先看和弦鍵盤/);
 assert.match(setup, /id="keysigAccRow"/);
 assert.match(setup, /id="abrsmGradeRow"/);
 
@@ -36,7 +36,9 @@ for (const file of ['script.js', 'www/script.js']) {
   assert.match(src, /function applySetupTopic\(topic\)/);
   assert.match(src, /openSetupTopic\('keysig'\)/);
   assert.match(src, /openSetupTopic\('solfege'\)/);
-  assert.match(src, /openChordCardBtn/);
+  assert.match(src, /function openChordPractice\(/);
+  assert.match(src, /openFromLobby/);
+  assert.doesNotMatch(src, /openChordCardBtn/);
   assert.match(src, /card\.dataset\.setup === topic/);
 }
 

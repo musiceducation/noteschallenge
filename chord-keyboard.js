@@ -345,7 +345,6 @@
         var switchScreen = options && options.switchScreen;
         var rootName = 'C';
         var type = '';
-        var returnScreen = 'screen-setup';
 
         function paintPickers() {
             rootPicker.innerHTML = ROOTS.map(function (name) {
@@ -379,20 +378,11 @@
             paint();
         });
 
-        var openBtn = document.getElementById('openChordCardBtn');
-        if (openBtn && switchScreen) {
-            openBtn.addEventListener('click', function () {
-                var current = document.querySelector('.screen.active');
-                if (current && current.id && current.id !== 'screen-chord-card') returnScreen = current.id;
-                paint();
-                switchScreen('screen-chord-card');
-            });
-        }
         var backBtn = document.getElementById('chordCardBack');
         if (backBtn && switchScreen) {
             backBtn.addEventListener('click', function () {
                 clearAdvance();
-                switchScreen(returnScreen);
+                switchScreen('screen-hub');
             });
         }
 
@@ -598,6 +588,15 @@
                 showResult();
             });
         }
+
+        function openFromLobby() {
+            clearAdvance();
+            showMode('learn');
+            paint();
+            if (switchScreen) switchScreen('screen-chord-card');
+        }
+        var host = typeof globalThis !== 'undefined' ? globalThis : window;
+        if (host.ChordKeyboard) host.ChordKeyboard.openFromLobby = openFromLobby;
 
         paint();
         showMode('learn');
