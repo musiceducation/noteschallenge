@@ -6,13 +6,20 @@
  * Bundle / applicationId must match Capacitor appId: com.notessprite.musicapp
  *
  * enabled: true → native iOS/Android gate with Google (Apple kept for App Store 4.8).
- * requireOnNativeOnly: true → web keeps grade/class/name hub login.
+ * requireOnNativeOnly: true → native keeps Firebase/Apple; the website uses Google Identity Services below.
+ *
+ * Web (https://musiceducation.github.io/noteschallenge/):
+ *   googleClientId  Web OAuth client id from Google Cloud Console.
+ *                   Authorized JavaScript origin: https://musiceducation.github.io
+ *   authApiBase     Cloudflare Worker origin, no trailing path.
  */
 window.MUSIC_APP_AUTH = {
   enabled: true,
   requireOnNativeOnly: true,
   appleSignInEnabled: true,
   firestoreCollection: 'players',
+  googleClientId: '1073963851625-9cn4bsociaj2ospo90er5d1dp7o0umdp.apps.googleusercontent.com',
+  authApiBase: 'https://noteschallenge-auth.matchmaster-mm.workers.dev',
   firebase: {
     apiKey: '',
     authDomain: '',

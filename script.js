@@ -280,9 +280,9 @@
     const STUDENT_ROSTER = {
         '1A':['陳心瑜', '周倬睿', '周永欣', '周天兒', '陳嘉豪', '何兆剛', '洪宇誠', '鄺俊麒', '郭浠瑜', '林希哲', '李澂', '李卓兒', '李曉晴', '李可晴', '梁嘉琳', '魯安玥', '吳善謙', '施奕希', '蕭梓麟', '蘇祉穎', '譚浚浩', '黃心柔', '胡浚軒', '鍾宛純'],
         '1B':['謝宜真', '肖欣媛', '鍾康盛', '曹靖楓', '梁晞晴', '范明軒', '甘希彤', '何睿恩', '何佩悅', '葉穎', '高悅峻', '黎曜天', '林祉蕎', '李承騫', '梁晏僑', '梁穎希', '梁日曦', '駱浠澄', '盧曉信', '盧柏橋', '勞語晴', '吳若曦', '彭珏熙', '潘悅澄', '阮思雯', '盛家莉', '蘇芷晴', '孫梓祐', '孫睿心', '吳天朗', '黃馨妤', '黃鈺婷', '周柏龍', '周泳霏'],
-        '1C':['區逸言', '陳俊睿', '周朗熙', '鄭嘉喬', '陳賢浩', '馮心悅', '馮宛穎', '褟靜韻', '殷紫瑜', '葉佩文', '余明憲', '高信謙', '鄺仲言', '林卓曦', '林依穎', '林樂彤', '李懿恩', '梁凱欣', '梁洛悠', '林樂熙', '劉思怡', '劉思悅', '李欣潼', '蘇睿', '鄧琸泓', '湯芷晴', '鄧凱忻', '吳梓瑩', '韋曉妍', '黃政陽', '黃梓皓', '黃子賢', '黃祉穎', '王家耀'],
+        '1C':['區逸言', '陳俊睿', '周朗熙', '鄭嘉喬', '陳賢浩', '馮心悅', '馮宛穎', '禤靜韻', '殷紫瑜', '葉佩文', '余明憲', '高信謙', '鄺仲言', '林卓曦', '林依穎', '林樂彤', '李懿恩', '梁凱欣', '梁洛悠', '林樂熙', '劉思怡', '劉思悅', '李欣潼', '蘇睿', '鄧琸泓', '湯芷晴', '鄧凱忻', '吳梓瑩', '韋曉妍', '黃政陽', '黃梓皓', '黃子賢', '黃祉穎', '王家耀'],
         '1D':['陳曼筠', '仇櫟然', '陳芯瑤', '張逸彤', '蔡政亨', '蔡思霖', '朱頌浠', '朱柏橋', '馮珮喬', '方淳亮', '何梓君', '何梓瑜', '楊卓昕', '古日熹', '林頌甯', '林鎧攸', '林栢賢', '劉晉嘉', '劉泳彤', '劉芯語', '李卓熹', '李芊悠', '梁一諾', '梁洋溢', '連思捷', '吳宇軒', '潘悅悠', '施養浩', '蘇頴妍', '孫沚霖', '譚倍豐', '黃琸翹', '楊舒雯'],
-        '2A':['陳恩慈', '鄭梓樂', '張紫瑩', '徐睿楷', '馮梓恩', '何浩華', '許芷妍', '許穎瑤', '洪善願', '楊曉穎', '楊穎彤', '高崎峻', '郭泳琳', '黎卓凡', '林晞朗', '林曦佟', '劉珮熙', '劉弘哲', '盧銳曈', '魯辰宇', '施樂兒', '潘睿燊', '蕭佳鍼', '蕭日謙', '鄧沛翹', '涂巧倩', '黃晞瑤', '黃梓軒', '胡芯語', '張得韜'],
+        '2A':['陳恩慈', '鄭梓樂', '張紫瑩', '徐睿楷', '馮梓恩', '何浩華', '許芷妍', '許穎瑤', '洪善頤', '楊曉穎', '楊穎彤', '高崎峻', '郭泳琳', '黎卓凡', '林晞朗', '林曦佟', '劉珮熙', '劉弘哲', '盧銳曈', '魯辰宇', '施樂兒', '潘睿燊', '蕭佳鋮', '蕭日謙', '鄧沛翹', '涂巧倩', '黃晞瑤', '黃梓軒', '胡芯語', '張得韜'],
         '2B':['陳晞嵐', '陳心怡', '張柏桓', '丁小翁', '官柏霖', '黎康華', '賴穎桐', '林君堯', '李洛榕', '李柏熹', '李泓博', '梁鎧嵐', '梁恩維', '梁家羲', '李宇津', '李浩翔', '梁棋彰', '梁韞鈺', '盧立晴', '勞詩雯', '吳胤熹', '譚悅', '余梓睿', '王康睿', '余揚旌', '余灌珅'],
         '2C':['陳凱琳', '陳衍臻', '張榕栗', '周家馨', '蔡嘉浩', '朱恩雪', '何梓僮', '何詠芯', '洪芷妤', '英卓楠', '容穎彤', '葉逸朗', '江梓翊', '關諾行', '林弘軒', '李梓嫣', '李思朗', '梁諾希', '莫鎮英', '莫永淇', '彭博言', '黃梓程', '黃心悠', '王靖琛', '姚博文', '張叶晨'],
         '2D':['李靖琦', '陳朗熹', '張禧', '盧嘉謙', '歐欣蒨', '霍浩俊', '何政軒', '黃琛貽', '甄子康', '楊昕翹', '姚梓謙', '關進謙', '郭安欣', '劉珀豪', '李林蔚', '李天睿', '梁惠琳', '梁柏翹', '陸昕悅', '麥軒銘', '杜睿晴', '王鍾雨', '王灝宏', '黃暟懿', '吳岷珉', '徐嘉嘉'],
@@ -325,13 +325,15 @@
             opt.dataset.seat = i + 1;
             frag.appendChild(opt);
         });
-        const otherOpt = document.createElement('option');
-        otherOpt.value = '__other__';
-        otherOpt.textContent = '✏️ 其他（自行填寫）';
-        frag.appendChild(otherOpt);
+        if (isAppShell()) {
+            const otherOpt = document.createElement('option');
+            otherOpt.value = '__other__';
+            otherOpt.textContent = '✏️ 其他（自行填寫）';
+            frag.appendChild(otherOpt);
+        }
         nameEl.innerHTML = '';
         nameEl.appendChild(frag);
-        if (prev && (students.includes(prev) || prev === '__other__')) nameEl.value = prev;
+        if (prev && (students.includes(prev) || (isAppShell() && prev === '__other__'))) nameEl.value = prev;
         else { nameEl.value = ''; dom.userId.value = ''; hideCustomName(); }
     }
 
@@ -501,7 +503,7 @@
         return _defaultProfile(user);
     }
 
-    function saveProfile(profile) {
+    function saveProfile(profile, opts) {
         const api = _profileApi();
         const key = api ? api.profileKey(profile) : `${PROFILE_STORAGE_KEY}_${profile.grade}_${profile.class}_${profile.name}`;
         _profileCache.set(key, profile);
@@ -514,11 +516,38 @@
             api.writePointer(localStorage, profile);
         }
         try {
-            if (window.MusicAppAuth && typeof window.MusicAppAuth.syncGameData === 'function' && window.MusicAppAuth.signedIn) {
+            if (!(opts && opts.skipRemote) && window.MusicAppAuth && typeof window.MusicAppAuth.syncGameData === 'function' && window.MusicAppAuth.signedIn) {
                 window.MusicAppAuth.syncGameData(profile).catch(function () {});
             }
         } catch (e) {}
+        try {
+            if (!(opts && opts.skipRemote) && window.WebGoogleAuth && window.WebGoogleAuth.signedIn && typeof window.WebGoogleAuth.syncProfile === 'function') {
+                window.WebGoogleAuth.syncProfile(profile).then(function (merged) {
+                    if (!merged || typeof merged !== 'object' || !merged.name) return;
+                    const local = loadProfile({ name: merged.name, grade: merged.grade, class: merged.class, seat: profile.seat });
+                    const kept = window.WebGoogleAuth.mergeProfiles(merged, local);
+                    if (profile.seat && !kept.seat) kept.seat = profile.seat;
+                    saveProfile(kept, { skipRemote: true });
+                }).catch(function () {});
+            }
+        } catch (e) {}
         try { updateHubAsideFromProfile(profile); } catch (e) {}
+    }
+
+    function paintWebAccount() {
+        const auth = window.WebGoogleAuth;
+        const email = auth && auth.signedIn && auth.user && auth.user.email ? auth.user.email : '';
+        const row = document.getElementById('hubAccountRow');
+        const hubEmail = document.getElementById('hubAccountEmail');
+        const profileBtn = document.getElementById('profileSignOutBtn');
+        const emailEl = document.getElementById('profileEmail');
+        if (row) row.hidden = !email;
+        if (hubEmail) hubEmail.textContent = email ? ('已登入：' + email) : '';
+        if (profileBtn) profileBtn.hidden = !email;
+        if (emailEl) {
+            emailEl.hidden = !email;
+            emailEl.textContent = email ? ('已登入：' + email) : '';
+        }
     }
 
     function updateHubAsideFromProfile(profile) {
@@ -537,8 +566,10 @@
         }
         nameEl.textContent = profile.name;
         if (metaEl) {
+            const labels = ['', '中一', '中二', '中三', '中四', '中五', '中六'];
+            const gradeLabel = labels[profile.grade] || '';
             metaEl.textContent = profile.grade
-                ? `中${['','一','二','三','四','五','六'][profile.grade]||profile.grade} ${profile.class || ''}班 · 座號 ${profile.seat || '--'}`
+                ? `${gradeLabel} ${profile.class || ''}班${profile.seat ? ' ' + profile.seat + '號' : ''}`
                 : '訪客／測試';
         }
         if (avEl) avEl.textContent = profile.avatar || '🎵';
@@ -889,6 +920,7 @@
 
     function renderProfileScreen(user) {
         const p = loadProfile(user);
+        if (user && (user.seat || user.id)) p.seat = user.seat || user.id;
         if (user && user.name && (!(p.history && p.history.length) || p.stats.totalPlayed === 0)) {
             const beforePlayed = p.stats.totalPlayed;
             const beforeHist = (p.history && p.history.length) || 0;
@@ -904,10 +936,11 @@
         const avEl = document.getElementById('profileAvatar');
         avEl.textContent = p.avatar;
         avEl.style.background = avInfo.bg;
-        document.getElementById('profileName').textContent = p.name + ' 同學';
+        document.getElementById('profileName').textContent = p.name;
         document.getElementById('profileSig').textContent = p.signature || '按此編輯簽名';
         document.getElementById('profileId').textContent = `${p.grade ? (['','中一','中二','中三','中四','中五','中六'][p.grade] || '') : ''} ${p.class}班 ${p.seat ? p.seat + '號' : ''}`;
         document.getElementById('profileSince').textContent = '加入日期: ' + (p.registeredAt ? new Date(p.registeredAt).toLocaleDateString() : '---');
+        try { paintWebAccount(); } catch (e) {}
 
         // Level & EXP
         document.getElementById('profileLevel').textContent = 'Lv.' + p.level;
@@ -1548,6 +1581,8 @@
     // 介面切換系統
     // ==========================================
     function switchScreen(screenId) {
+        const webAuth = window.WebGoogleAuth;
+        if (webAuth && webAuth.required && !webAuth.signedIn && screenId !== 'screen-hub') return;
         if (isAppShell() && (screenId === 'screen-hub' || screenId === 'screen-app-home')) {
             screenId = 'screen-app-root';
         }
@@ -3569,6 +3604,10 @@
     // ==========================================
     /** POST 到 GAS Web App：使用 CORS 讀取 JSON 回應（須部署為可匿名存取）。 */
     async function gasPostJson(record) {
+        try {
+            const email = window.WebGoogleAuth && window.WebGoogleAuth.user && window.WebGoogleAuth.user.email;
+            if (email && record && typeof record === 'object' && !record.email) record = Object.assign({}, record, { email: email });
+        } catch (e) {}
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000);
         try {
@@ -4833,6 +4872,7 @@
 
         let _hubCustomInput = null;
         let _hubIsGuest = false;
+        let _suspendBindingSave = false;
 
         function populateHub() {
             const grade = hubGrade.value, cls = hubClass.value;
@@ -4847,14 +4887,16 @@
                 o.value = n; o.textContent = n; o.dataset.seat = i + 1;
                 frag.appendChild(o);
             });
-            const otherOpt = document.createElement('option');
-            otherOpt.value = '__other__'; otherOpt.textContent = '✏️ 其他（自行填寫）';
-            frag.appendChild(otherOpt);
-            const guestOpt = document.createElement('option');
-            guestOpt.value = '__guest__'; guestOpt.textContent = '🧪 訪客 / 測試人員';
-            frag.appendChild(guestOpt);
+            if (isAppShell()) {
+                const otherOpt = document.createElement('option');
+                otherOpt.value = '__other__'; otherOpt.textContent = '✏️ 其他（自行填寫）';
+                frag.appendChild(otherOpt);
+                const guestOpt = document.createElement('option');
+                guestOpt.value = '__guest__'; guestOpt.textContent = '🧪 訪客 / 測試人員';
+                frag.appendChild(guestOpt);
+            }
             hubName.innerHTML = ''; hubName.appendChild(frag);
-            if (prev && (students.includes(prev) || prev === '__other__' || prev === '__guest__')) { hubName.value = prev; }
+            if (prev && (students.includes(prev) || (isAppShell() && (prev === '__other__' || prev === '__guest__')))) { hubName.value = prev; }
             else { hubName.value = ''; hubSeat.value = ''; }
             _handleHubNameMode();
         }
@@ -4932,8 +4974,8 @@
             };
         }
 
-        hubGrade.addEventListener('change', () => { populateHub(); updateCurrentUserFromHub(); updateHubLockState(); });
-        hubClass.addEventListener('change', () => { populateHub(); updateCurrentUserFromHub(); updateHubLockState(); });
+        hubGrade.addEventListener('change', () => { populateHub(); updateCurrentUserFromHub(); updateHubLockState(); try { persistWebBinding(); } catch (e) {} });
+        hubClass.addEventListener('change', () => { populateHub(); updateCurrentUserFromHub(); updateHubLockState(); try { persistWebBinding(); } catch (e) {} });
         // Defensive: repopulate if user opens the name dropdown and it's still empty
         hubName.addEventListener('mousedown', () => { if (hubName.options.length <= 1) populateHub(); });
         hubName.addEventListener('focus',     () => { if (hubName.options.length <= 1) populateHub(); });
@@ -4951,7 +4993,9 @@
                     if (_hubIsGuest) {
                         badgeText.textContent = '🧪 測試人員';
                     } else {
-                        badgeText.textContent = `${hubGrade.options[hubGrade.selectedIndex].text} ${hubClass.value}班 · ${displayName || hubName.value} 同學`;
+                        const gradeText = hubGrade.options[hubGrade.selectedIndex] ? hubGrade.options[hubGrade.selectedIndex].text : '';
+                        const seatBit = hubSeat.value ? (' ' + hubSeat.value + '號') : '';
+                        badgeText.textContent = `${gradeText} ${hubClass.value}班${seatBit} · ${displayName || hubName.value} 同學`;
                     }
                     badge.classList.add('show');
                     if (loginCard) loginCard.classList.add('player-selected');
@@ -4966,6 +5010,7 @@
                 const u = getHubUser();
                 if (u && u.name) updateHubAsideFromProfile(loadProfile(u));
             } catch (e) {}
+            try { persistWebBinding(); } catch (e) {}
         });
 
         populateHub();
@@ -5010,7 +5055,87 @@
             } catch (e) {}
         });
 
-        // Grade/class default from saved Game-1 settings
+        window.addEventListener('webgoogle:profile', (ev) => {
+            const remote = ev && ev.detail && ev.detail.profile;
+            if (!remote || !remote.name) return;
+            try { saveProfile(remote, { skipRemote: true }); } catch (e) {}
+        });
+
+        function persistWebBinding() {
+            if (_suspendBindingSave) return;
+            const auth = window.WebGoogleAuth;
+            if (!auth || !auth.signedIn || typeof auth.saveBinding !== 'function') return;
+            const user = getHubUser();
+            if (!user || !user.name || !user.grade || !user.class) return;
+            if (user.name === '__guest__' || user.name === '__other__' || user.name === '訪客') return;
+            auth.saveBinding({ grade: user.grade, class: user.class, name: user.name }).catch(function () {});
+        }
+
+        function setRosterLock(on, binding) {
+            const card = document.querySelector('.hub-login-card');
+            const title = document.getElementById('hubLoginTitleText');
+            if (card) card.classList.toggle('hub-roster-locked', !!on);
+            [hubGrade, hubClass, hubName].forEach((el) => { if (el) el.disabled = !!on; });
+            if (title) title.textContent = on && binding && binding.name ? binding.name : '請選擇學生身份';
+        }
+
+        function applyAccountBinding(binding) {
+            _suspendBindingSave = true;
+            try {
+                if (!binding || !binding.name) {
+                    setRosterLock(false);
+                    hubName.value = '';
+                    hubSeat.value = '';
+                    _handleHubNameMode();
+                    hubName.dispatchEvent(new Event('change'));
+                    return;
+                }
+                if (binding.grade) hubGrade.value = String(binding.grade);
+                if (binding.class) hubClass.value = String(binding.class);
+                populateHub();
+                const students = getStudentList(hubGrade.value, hubClass.value);
+                if (!students.includes(binding.name)) {
+                    const extra = document.createElement('option');
+                    extra.value = binding.name;
+                    extra.textContent = binding.name;
+                    hubName.appendChild(extra);
+                }
+                hubName.value = binding.name;
+                const sel = hubName.selectedOptions[0];
+                if (sel) sel.dataset.seat = binding.seat || '';
+                hubSeat.value = binding.seat || '';
+                _handleHubNameMode();
+                hubName.dispatchEvent(new Event('change'));
+                setRosterLock(true, binding);
+                const asideName = document.getElementById('hubAsideName');
+                const asideMeta = document.getElementById('hubAsideMeta');
+                const gradeLabel = ['', '中一', '中二', '中三', '中四', '中五', '中六'][parseInt(binding.grade, 10)] || '';
+                if (asideName) asideName.textContent = binding.name;
+                if (asideMeta) asideMeta.textContent = `${gradeLabel} ${binding.class}班${binding.seat ? ' ' + binding.seat + '號' : ''}`;
+            } finally {
+                _suspendBindingSave = false;
+            }
+        }
+
+        function onWebSession() {
+            const auth = window.WebGoogleAuth;
+            try { paintWebAccount(); } catch (e) {}
+            if (!auth || !auth.required) return;
+            if (!auth.signedIn) {
+                if (auth.ready) {
+                    applyAccountBinding(null);
+                    try {
+                        const active = document.querySelector('.screen.active');
+                        if (active && active.id !== 'screen-hub') switchScreen('screen-hub');
+                    } catch (e) {}
+                }
+                return;
+            }
+            applyAccountBinding(auth.binding);
+        }
+
+        // Grade/class default from saved Game-1 settings. Do not push this device's last name onto the Google account.
+        _suspendBindingSave = true;
         const saved = localStorage.getItem('musicGameSettingsV4');
         if (saved) {
             try {
@@ -5018,7 +5143,9 @@
                 if (s.userGrade) hubGrade.value = s.userGrade;
                 if (s.userClass) hubClass.value = s.userClass;
                 populateHub();
-                if (s.savedName) { hubName.value = s.savedName; const sel = hubName.selectedOptions[0]; if (sel && sel.dataset.seat) hubSeat.value = sel.dataset.seat; }
+                const savedName = s.savedName;
+                const blocked = !isAppShell() && (savedName === '__guest__' || savedName === '__other__');
+                if (savedName && !blocked) { hubName.value = savedName; const sel = hubName.selectedOptions[0]; if (sel && sel.dataset.seat) hubSeat.value = sel.dataset.seat; }
                 if (s.userId && (!hubSeat.value || hubSeat.value === '--')) hubSeat.value = s.userId;
                 _handleHubNameMode();
                 if (s.savedName === '__other__' && s.savedCustomName) {
@@ -5028,6 +5155,7 @@
                 hubName.dispatchEvent(new Event('change'));
             } catch(e) {}
         }
+        _suspendBindingSave = false;
 
         function getHubUser() {
             if (isAppShell()) return getAppPlayerUser();
@@ -5050,15 +5178,21 @@
                 state.currentUser = { name: user.name, grade: 0, class: 'App', id: '' };
                 return true;
             }
-            const val = hubName.value;
-            if (!val) {
-                if (nameFieldEl) { nameFieldEl.classList.add('error'); setTimeout(() => nameFieldEl.classList.remove('error'), 1200); }
-                alert('❗ 請先完成身份：點開「③ 選擇姓名」選班上同學，或按「以訪客身分快速試玩」。');
-                return false;
+            if (window.WebGoogleAuth && window.WebGoogleAuth.required && !window.WebGoogleAuth.signedIn) return false;
+            const bound = window.WebGoogleAuth && window.WebGoogleAuth.binding;
+            if (bound && bound.name) {
+                state.currentUser = {
+                    name: bound.name,
+                    grade: parseInt(bound.grade, 10) || 0,
+                    class: bound.class || '',
+                    id: bound.seat || hubSeat.value || ''
+                };
+                return true;
             }
-            if ((val === '__other__') && !_getHubDisplayName()) {
+            const val = hubName.value;
+            if (!val || val === '__guest__' || val === '__other__') {
                 if (nameFieldEl) { nameFieldEl.classList.add('error'); setTimeout(() => nameFieldEl.classList.remove('error'), 1200); }
-                alert('❗ 請輸入你的名字！');
+                alert('❗ 請先完成身份：點開「③ 選擇姓名」選班上同學。');
                 return false;
             }
             return true;
@@ -5073,13 +5207,14 @@
                 return;
             }
             const val = hubName.value;
-            const needs = !val || (val === '__other__' && !_getHubDisplayName());
+            const unsigned = window.WebGoogleAuth && window.WebGoogleAuth.required && !window.WebGoogleAuth.signedIn;
+            const needs = unsigned || !val || val === '__guest__' || val === '__other__';
             hubScreen.classList.toggle('hub-needs-login', needs);
             document.querySelectorAll('#screen-hub .hub-game-card').forEach(c => c.classList.toggle('is-locked', needs));
         }
 
         const hubQuickGuestBtn = document.getElementById('hubQuickGuestBtn');
-        if (hubQuickGuestBtn) {
+        if (hubQuickGuestBtn && isAppShell()) {
             hubQuickGuestBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 hubName.value = '__guest__';
@@ -5433,6 +5568,16 @@
 
         // ——— 社交功能 Social Features ———
         initSocialFeatures();
+
+        function webSignOut() {
+            if (window.WebGoogleAuth && typeof window.WebGoogleAuth.signOut === 'function') window.WebGoogleAuth.signOut();
+        }
+        const hubSignOutBtn = document.getElementById('hubSignOutBtn');
+        const profileSignOutBtn = document.getElementById('profileSignOutBtn');
+        if (hubSignOutBtn) hubSignOutBtn.addEventListener('click', webSignOut);
+        if (profileSignOutBtn) profileSignOutBtn.addEventListener('click', webSignOut);
+        window.addEventListener('webgoogle:session', onWebSession);
+        onWebSession();
 
         document.getElementById('backToHubFromSetup').addEventListener('click', () => {
             switchScreen('screen-hub');

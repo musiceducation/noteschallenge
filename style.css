@@ -6608,6 +6608,55 @@ html.app-shell #socialAuthOverlay.visible {
     background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z'/%3E%3C/svg%3E") center / 70% no-repeat;
 }
 
+/* Website Google gate. Hidden unless html.web-auth-pending (set before first paint on web only). */
+#webGoogleAuthOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100002;
+    align-items: center;
+    justify-content: center;
+    padding: max(24px, var(--app-safe-top)) 20px max(24px, var(--app-safe-bottom));
+    background: rgba(24, 20, 40, 0.92);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+html.web-auth-pending #webGoogleAuthOverlay { display: flex; }
+html.app-shell #webGoogleAuthOverlay { display: none !important; }
+.web-google-btn-host { display: flex; justify-content: center; min-height: 44px; }
+.web-google-btn-host:empty { display: none; }
+#webGoogleStubBtn[hidden] { display: none !important; }
+#webGoogleStubBtn { margin-top: 8px; }
+.hub-login-card.hub-roster-locked .hub-login-row { display: none !important; }
+.hub-login-card.hub-roster-locked #hubLoginTitleText { font-size: 1.45rem; }
+.hub-account-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(125, 82, 94, 0.15);
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: var(--text-light);
+}
+.hub-account-row[hidden] { display: none !important; }
+#hubAccountEmail, .profile-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#hubSignOutBtn, .profile-signout {
+    flex: 0 0 auto;
+    border: none;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 800;
+    cursor: pointer;
+    background: #7d525e;
+    color: #fff;
+}
+.profile-signout[hidden], .profile-email[hidden] { display: none !important; }
+
 /* App home: full-bleed portrait column */
 html.app-shell, html.app-shell body {
     width: 100%;
