@@ -343,6 +343,23 @@ var RankSync = (function () {
     var LEGACY_CLEF_MODE = { classic60: 'treble', bass60: 'bass', mixed60: 'mixed' };
     // These stayed separate games. They are not mixed into a clef or grade board.
     var LEGACY_GAME1_MODE = { noMiss: '零失誤挑戰', keysig60: '調號挑戰', solfege60: '唱名挑戰' };
+    var NO_MISS_CLEF = { treble: 1, bass: 1, alto: 1, tenor: 1, mixed: 1 };
+
+    // New runs store the clef in the existing mode column (noMiss-bass).
+    // Bare noMiss has no clef field: the game always forced treble.
+    function noMissModeKey(clef) {
+        return NO_MISS_CLEF[clef] ? ('noMiss-' + clef) : 'noMiss-treble';
+    }
+
+    function legacyNoMissClef(row) {
+        var mode = legacyMode(row);
+        var tagged = /^noMiss-(treble|bass|alto|tenor|mixed)$/.exec(mode);
+        if (tagged) return tagged[1];
+        if (mode !== 'noMiss') return '';
+        var clef = row && row.clefChoice != null ? String(row.clefChoice) : '';
+        if (NO_MISS_CLEF[clef]) return clef;
+        return 'treble';
+    }
 
     function legacyMode(row) {
         if (!row || typeof row !== 'object' || Array.isArray(row)) return '';
@@ -405,6 +422,8 @@ var RankSync = (function () {
         explicitOk: explicitOk,
         legacyClefChoice: legacyClefChoice,
         legacyGame1Mode: legacyGame1Mode,
+        noMissModeKey: noMissModeKey,
+        legacyNoMissClef: legacyNoMissClef,
         keepHigherScore: keepHigherScore
     };
 })();
