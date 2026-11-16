@@ -195,16 +195,40 @@
           sharpNotes:[], flatNotes:['B','E','A','D','G'], scale:['D♭','E♭','F','G♭','A♭','B♭','C'] }
     ];
 
-    function getKeysigPool(grade) {
-        const cap = (grade === 1 || grade === 2) ? 6 : grade;
-        let pool = KEY_SIGNATURES.filter(k => k.grade <= cap);
-        // Ensure at least 2 options for question generation; expand grade if needed
-        if (pool.length < 2) {
-            for (let g = cap + 1; g <= 6 && pool.length < 2; g++) {
-                pool = KEY_SIGNATURES.filter(k => k.grade <= g);
-            }
-        }
-        return pool;
+    function keysigAccidentalCount(sig) {
+        return Math.max(sig.sharps || 0, sig.flats || 0);
+    }
+
+    // Classroom pools by how many sharps or flats the major key uses.
+    // 1 = 0–1, 2 = up to 2, 3 = up to 3, 4 = up to 4, 5 = every major in KEY_SIGNATURES.
+    function keysigAccMax() {
+        const n = parseInt(state.keysigAccMax, 10);
+        return n >= 1 && n <= 5 ? n : 1;
+    }
+
+    function getKeysigPool(maxAcc) {
+        const cap = parseInt(maxAcc, 10);
+        const limit = cap >= 1 && cap <= 5 ? cap : 1;
+        return KEY_SIGNATURES.filter(k => keysigAccidentalCount(k) <= limit);
+    }
+
+    const KEYSIG_ACC_NOTES = {
+        1: '0–1 個升降號：C、G、F。',
+        2: '最多 2 個升降號：C、G、F、D、B♭。',
+        3: '最多 3 個升降號：C、G、F、D、B♭、A、E♭。',
+        4: '最多 4 個升降號：C、G、F、D、B♭、A、E♭、E、A♭。',
+        5: '全部大調：C、G、F、D、B♭、A、E♭、E、A♭、B、D♭。'
+    };
+
+    function paintKeysigAcc() {
+        const max = keysigAccMax();
+        document.querySelectorAll('.ks-acc-btn').forEach(btn => {
+            const on = parseInt(btn.dataset.acc, 10) === max;
+            btn.classList.toggle('active', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        const note = document.getElementById('keysigAccNote');
+        if (note) note.textContent = KEYSIG_ACC_NOTES[max];
     }
 
     // 首調唱名法 (moveable Do): maps each key's scale degrees to solfège names
@@ -1123,7 +1147,7 @@
             slowNoteStats: {},
             lastNoteLetter: null,
             practiceDiff: '3',
-            keysigGrade: 1,
+            keysigAccMax: 1,
             solfegeGrade: 1,
             abrsmGrade: 'abrsm-g1',
             noteClefChoice: 'treble',
@@ -1807,7 +1831,7 @@
         const s = {};
         s.lastMode = state.currentMode;
         s.practiceDiff = state.practiceDiff;
-        s.keysigGrade = state.keysigGrade;
+        s.keysigAccMax = keysigAccMax();
         s.solfegeGrade = state.solfegeGrade;
         s.abrsmGrade = state.abrsmGrade || '';
         s.noteClefChoice = state.noteClefChoice || 'treble';
@@ -1825,7 +1849,7 @@
             if (s) {
 
                 if (s.practiceDiff) state.practiceDiff = s.practiceDiff;
-                if (s.keysigGrade) state.keysigGrade = parseInt(s.keysigGrade);
+                if (s.keysigAccMax) state.keysigAccMax = parseInt(s.keysigAccMax, 10);
                 if (s.solfegeGrade) state.solfegeGrade = parseInt(s.solfegeGrade);
                 if (typeof s.abrsmGrade === 'string' && /^abrsm-g[1-5]$/.test(s.abrsmGrade)) state.abrsmGrade = s.abrsmGrade;
                 if (s.noteClefChoice === 'treble' || s.noteClefChoice === 'bass' || s.noteClefChoice === 'alto' || s.noteClefChoice === 'tenor' || s.noteClefChoice === 'mixed') state.noteClefChoice = s.noteClefChoice;
@@ -1946,7 +1970,8 @@
     }
 
     const ABRSM_NOTE_MODES = new Set(['practice', 'classic60', 'bass60', 'mixed60', 'noMiss']);
-    const ABRSM_KEY_MODES = new Set(['keysig_practice', 'keysig60']);
+    // 調號辨別 uses accidental-count pools, not 英皇 G1–G5.
+    const ABRSM_KEY_MODES = new Set();
     const ABRSM_CLEF_ZH = { treble: '高音譜號', bass: '低音譜號', alto: '中音譜號', tenor: '次中音譜號' };
     const CLASSROOM_SPELLINGS = new Set(['C','D','E','F','G','A','B','C#','D#','F#','G#','A#','D♭','E♭','G♭','A♭','B♭']);
 
@@ -2250,17 +2275,24 @@
     function syncAbrsmRows() {
         ensureAbrsmGrade();
         const row = document.getElementById('abrsmGradeRow');
-        const keysig = ABRSM_KEY_MODES.has(state.currentMode);
-        if (row) row.style.display = keysig ? '' : 'none';
-        document.querySelectorAll('.abrsm-grade-btn').forEach(btn => {
+        const accRow = document.getElementById('keysigAccRow');
+        const noteMode = ABRSM_NOTE_MODES.has(state.currentMode);
+        const keysig = state.currentMode === 'keysig_practice' || state.currentMode === 'keysig60';
+        if (row) row.style.display = noteMode ? '' : 'none';
+        if (accRow) accRow.style.display = keysig ? '' : 'none';
+        document.querySelectorAll('#abrsmGradeBtns .abrsm-grade-btn').forEach(btn => {
             btn.classList.toggle('active', (btn.dataset.abrsm || '') === state.abrsmGrade);
         });
         refreshAbrsmCoverage();
+        paintKeysigAcc();
         paintNoteClefRow();
     }
     function playerBadge() {
         const clef = (state.currentMode === 'classic60' || state.currentMode === 'noMiss') ? ' · ' + noteClefLabel() : '';
-        const grade = ABRSM_NOTE_MODES.has(state.currentMode) ? '' : (state.abrsmGrade ? ' · 英皇 G' + String(state.abrsmGrade).replace('abrsm-g', '') : '');
+        const keysig = state.currentMode === 'keysig_practice' || state.currentMode === 'keysig60';
+        const grade = (!keysig && !ABRSM_NOTE_MODES.has(state.currentMode) && state.abrsmGrade)
+            ? ' · 英皇 G' + String(state.abrsmGrade).replace('abrsm-g', '')
+            : '';
         return `👋 ${state.currentUser.name} 同學 · ${state.modeConfig.name}${clef}${grade}`;
     }
     function isSharedRankRow(row) {
@@ -2904,18 +2936,16 @@
         const keysigOptions = document.getElementById('keysigOptions');
         const canvasWrapper = document.getElementById('canvasWrapper');
         const clefBadge = document.getElementById('clefBadge');
-        const abrsm = show && usingAbrsmKeys();
-        if (keysigDisplay) keysigDisplay.style.display = (show && !abrsm) ? 'flex' : 'none';
+        if (keysigDisplay) keysigDisplay.style.display = show ? 'flex' : 'none';
         if (keysigOptions) keysigOptions.style.display = show ? 'grid' : 'none';
         if (canvasWrapper) canvasWrapper.style.display = show ? 'none' : '';
-        if (clefBadge) clefBadge.style.display = (show && !abrsm) ? 'none' : '';
+        if (clefBadge) clefBadge.style.display = show ? 'none' : '';
         if (dom.notesGrid) dom.notesGrid.style.display = show ? 'none' : '';
-        if (!abrsm) hideAbrsmStaff();
+        hideAbrsmStaff();
     }
 
-    function generateKeysigQuestion(grade) {
-        if (usingAbrsmKeys()) return generateAbrsmKeyQuestion();
-        const pool = getKeysigPool(grade);
+    function generateKeysigQuestion(maxAcc) {
+        const pool = getKeysigPool(maxAcc);
         if (pool.length < 2) return null;
         const correct = pool[Math.floor(Math.random() * pool.length)];
         // Pick 3 distractors
@@ -2999,8 +3029,7 @@
     }
 
     function nextKeysigQuestion() {
-        const grade = state.keysigGrade || state.currentUser.grade || 3;
-        const q = generateKeysigQuestion(grade);
+        const q = generateKeysigQuestion(keysigAccMax());
         if (!q) return;
         state.answered = false;
         state.attemptedThisQuestion = false;
@@ -4156,7 +4185,6 @@
         const clefSelectorRow = document.getElementById('clefSelectorRow');
         const clefSelBtns = document.querySelectorAll('.clef-sel-btn');
         const keysigSubRow = document.getElementById('keysigSubRow');
-        const keysigGradeRow = document.getElementById('keysigGradeRow');
         const solfegeSubRow = document.getElementById('solfegeSubRow');
         const solfegeGradeRow = document.getElementById('solfegeGradeRow');
 
@@ -4165,7 +4193,6 @@
             if (clefSelectorRow) clefSelectorRow.style.display = 'none';
             if (dom.practiceDiffRow) dom.practiceDiffRow.style.display = 'none';
             if (keysigSubRow) keysigSubRow.style.display = 'none';
-            if (keysigGradeRow) keysigGradeRow.style.display = 'none';
             if (solfegeSubRow) solfegeSubRow.style.display = 'none';
             if (solfegeGradeRow) solfegeGradeRow.style.display = 'none';
         }
@@ -4211,12 +4238,10 @@
             syncAbrsmRows();
             saveSettings();
         }));
-        // Keysig grade buttons
-        document.querySelectorAll('.ks-grade-btn').forEach(btn => btn.addEventListener('click', () => {
+        document.querySelectorAll('.ks-acc-btn').forEach(btn => btn.addEventListener('click', () => {
             audio.init(); audio.playClick('select');
-            document.querySelectorAll('.ks-grade-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            state.keysigGrade = parseInt(btn.dataset.grade);
+            state.keysigAccMax = parseInt(btn.dataset.acc, 10);
+            paintKeysigAcc();
             saveSettings();
         }));
 
@@ -4252,11 +4277,9 @@
             handleSolfegeAnswer(btn.dataset.sol);
         }));
 
-        // Init keysig/solfege grade from student profile
-        if (!state.keysigGrade) state.keysigGrade = parseInt(state.currentUser?.grade) || 1;
         if (!state.solfegeGrade) state.solfegeGrade = parseInt(state.currentUser?.grade) || 1;
-        document.querySelectorAll('.ks-grade-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.grade) === state.keysigGrade));
         document.querySelectorAll('.sol-grade-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.grade) === state.solfegeGrade));
+        paintKeysigAcc();
 
         clefSelBtns.forEach(btn => btn.addEventListener('click', () => {
             if (!NOTE_CLEF_IDS.includes(btn.dataset.clef)) return;
@@ -4275,7 +4298,6 @@
           const isSolfege = state.currentMode === 'solfege_practice' || state.currentMode === 'solfege60';
           if (clefSelectorRow) clefSelectorRow.style.display = isChallenge ? '' : 'none';
           if (keysigSubRow) keysigSubRow.style.display = isKeysig ? '' : 'none';
-          if (keysigGradeRow) keysigGradeRow.style.display = 'none';
           if (solfegeSubRow) solfegeSubRow.style.display = isSolfege ? '' : 'none';
           if (solfegeGradeRow) solfegeGradeRow.style.display = 'none';
           if (isChallenge) { paintNoteClefRow();
