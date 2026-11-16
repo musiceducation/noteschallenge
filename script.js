@@ -4874,19 +4874,62 @@
         }
 
         // Game 1 entry — sync hub → setup then show setup
-        const enterGame1El = document.getElementById('enterGame1');
-        enterGame1El.addEventListener('click', () => {
+        function applySetupTopic(topic) {
+            const title = document.getElementById('setupTitle');
+            const subtitle = document.getElementById('setupSubtitle');
+            const copy = {
+                notes: ['🎵 音名識辨', '練習、1分鐘挑戰、零失誤挑戰'],
+                keysig: ['𝄞 調號辨別', '看調號圖片，按升降號數目練習'],
+                solfege: ['🎤 唱名辨別', '課堂首調，不是英皇級別']
+            };
+            const text = copy[topic] || copy.notes;
+            if (title) title.textContent = text[0];
+            if (subtitle) subtitle.textContent = text[1];
+            document.querySelectorAll('#modeCards .mode-card').forEach(card => {
+                card.style.display = card.dataset.setup === topic ? '' : 'none';
+            });
+            const teach = document.getElementById('openNoteTeachBtn');
+            if (teach) teach.hidden = topic !== 'notes';
+            const chordBtn = document.getElementById('openChordCardBtn');
+            if (chordBtn) chordBtn.hidden = true;
+            if (topic === 'keysig') {
+                document.querySelector('.mode-card[data-mode="keysig_practice"]')?.click();
+            } else if (topic === 'solfege') {
+                document.querySelector('.mode-card[data-mode="solfege_practice"]')?.click();
+            } else if (state.currentMode === 'keysig_practice' || state.currentMode === 'keysig60' || state.currentMode === 'solfege_practice' || state.currentMode === 'solfege60') {
+                document.querySelector('.mode-card[data-mode="practice"]')?.click();
+            }
+        }
+        function openSetupTopic(topic) {
             if (!requireHubLogin(hubNameField)) return;
             syncFromHub();
-            // Auto-sync grade textbook level
-            if (dom.textbookMode) { dom.textbookMode.value = hubGrade.value; handleTextbookModeChange(); }
+            if (topic === 'notes' && dom.textbookMode) { dom.textbookMode.value = hubGrade.value; handleTextbookModeChange(); }
+            applySetupTopic(topic);
             switchScreen('screen-setup');
-        });
+        }
+
+        const enterGame1El = document.getElementById('enterGame1');
+        enterGame1El.addEventListener('click', () => openSetupTopic('notes'));
         enterGame1El.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 enterGame1El.click();
             }
+        });
+        document.getElementById('enterKeysig')?.addEventListener('click', () => openSetupTopic('keysig'));
+        document.getElementById('enterSolfege')?.addEventListener('click', () => openSetupTopic('solfege'));
+        document.getElementById('enterChord')?.addEventListener('click', () => {
+            if (!requireHubLogin(hubNameField)) return;
+            document.getElementById('openChordCardBtn')?.click();
+        });
+        ['enterKeysig', 'enterSolfege', 'enterChord'].forEach(id => {
+            const el = document.getElementById(id);
+            el?.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    el.click();
+                }
+            });
         });
 
         const enterGame2El = document.getElementById('enterGame2');
