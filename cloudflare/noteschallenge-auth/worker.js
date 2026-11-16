@@ -6,7 +6,8 @@
  *   DB                     D1 binding
  *   GOOGLE_CLIENT_ID       Web OAuth client id (must match the ID token aud)
  *   JWT_SECRET             HMAC secret for session tokens
- *   ALLOWED_EMAIL_DOMAINS  optional comma list; empty = any verified Google account
+ *   ALLOWED_EMAIL_DOMAINS  optional comma list of school domains; empty = any verified Google account
+ *   EXTRA_ALLOWED_EMAILS   optional comma list of exact emails (teacher accounts). Not a domain.
  */
 
 const GOOGLE_JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
@@ -14,6 +15,7 @@ const SESSION_TTL_SEC = 30 * 24 * 60 * 60;
 const JWKS_TTL_MS = 60 * 60 * 1000;
 const CLOCK_SKEW_SEC = 60;
 const PROFILE_MAX_CHARS = 200000;
+const PRESENCE_IDLE_MS = 3 * 60 * 1000;
 
 const STAT_KEYS = ['totalPlayed', 'cleared', 'totalScore', 'totalAccuracy', 'accuracyCount', 'maxCombo', 'fcCount', 'apCount'];
 const DIFF_KEYS = ['easy', 'normal', 'hard', 'expert'];
@@ -139,6 +141,18 @@ function emailDomainOk(email, raw) {
   return list.indexOf(domain.toLowerCase()) !== -1;
 }
 
+export function extraEmailOk(email, raw) {
+  const want = text(email).toLowerCase();
+  if (!want || want.indexOf('@') === -1) return false;
+  const list = String(raw || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+  return list.indexOf(want) !== -1;
+}
+
+export function teacherBinding(claims) {
+  const name = text(claims && claims.name).slice(0, 40) || '老師';
+  return { grade: '', class: '', name: name, seat: '', role: 'teacher' };
+}
+
 async function importRsa(jwk) {
   return crypto.subtle.importKey(
     'jwk',
@@ -208,7 +222,9 @@ export async function verifyGoogleIdToken(credential, opts) {
   const email = text(payload.email).toLowerCase();
   const sub = text(payload.sub);
   if (!sub || !email || email.indexOf('@') === -1) return { ok: false, error: 'missing identity' };
-  if (!emailDomainOk(email, opts.allowedDomains)) return { ok: false, error: 'email domain not allowed' };
+  if (!emailDomainOk(email, opts.allowedDomains) && !extraEmailOk(email, opts.extraEmails)) {
+    return { ok: false, error: 'email domain not allowed' };
+  }
   return {
     ok: true,
     claims: {
@@ -343,9 +359,7 @@ async function getUser(db, sub) {
   ).bind(sub).first();
 }
 
-async function applyRoster(db, claims, roster, nowIso) {
-  const binding = bindingFromRoster(roster);
-  if (!binding) throw new Error('incomplete roster row');
+async function applyIdentity(db, claims, binding, nowIso) {
   const existing = await getUser(db, claims.sub);
   const created = existing && existing.created_at ? existing.created_at : nowIso;
   await db.prepare(
@@ -355,13 +369,19 @@ async function applyRoster(db, claims, roster, nowIso) {
     text(claims.email).toLowerCase(),
     claims.name || '',
     claims.picture || '',
-    binding.grade,
-    binding.class,
+    binding.grade || '',
+    binding.class || '',
     binding.name,
     created,
     nowIso
   ).run();
   return getUser(db, claims.sub);
+}
+
+async function applyRoster(db, claims, roster, nowIso) {
+  const binding = bindingFromRoster(roster);
+  if (!binding) throw new Error('incomplete roster row');
+  return applyIdentity(db, claims, binding, nowIso);
 }
 
 async function readProfile(db, sub) {
@@ -380,6 +400,135 @@ async function writeProfile(db, sub, profile, nowIso) {
   await db.prepare(
     'INSERT INTO profiles (sub, data, updated_at) VALUES (?, ?, ?) ON CONFLICT(sub) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at'
   ).bind(sub, data, nowIso).run();
+}
+
+export function settlePresence(rows, logs, entry, nowMs, idleMs) {
+  const idle = idleMs || PRESENCE_IDLE_MS;
+  const nowIso = new Date(nowMs).toISOString();
+  const kept = [];
+  (rows || []).forEach((row) => {
+    const seen = Date.parse(row.last_seen);
+    if (!Number.isFinite(seen) || nowMs - seen > idle) {
+      logs.push({
+        presence_id: row.id,
+        kind: row.kind,
+        display_name: row.display_name,
+        class_label: row.class_label || '',
+        event: 'offline',
+        screen: row.screen || '',
+        at: row.last_seen || nowIso
+      });
+      return;
+    }
+    kept.push(row);
+  });
+  if (entry && entry.id) {
+    const prev = kept.find((row) => row.id === entry.id);
+    if (!prev) {
+      kept.push({
+        id: entry.id,
+        kind: entry.kind,
+        display_name: entry.displayName,
+        class_label: entry.classLabel || '',
+        screen: entry.screen || '',
+        last_seen: nowIso,
+        online_at: nowIso
+      });
+      logs.push({
+        presence_id: entry.id,
+        kind: entry.kind,
+        display_name: entry.displayName,
+        class_label: entry.classLabel || '',
+        event: 'online',
+        screen: entry.screen || '',
+        at: nowIso
+      });
+    } else {
+      if ((prev.screen || '') !== (entry.screen || '')) {
+        logs.push({
+          presence_id: entry.id,
+          kind: entry.kind,
+          display_name: entry.displayName,
+          class_label: entry.classLabel || '',
+          event: 'screen',
+          screen: entry.screen || '',
+          at: nowIso
+        });
+      }
+      prev.kind = entry.kind;
+      prev.display_name = entry.displayName;
+      prev.class_label = entry.classLabel || '';
+      prev.screen = entry.screen || '';
+      prev.last_seen = nowIso;
+    }
+  }
+  return kept;
+}
+
+function publicOnline(rows) {
+  return rows.map((row) => ({
+    name: row.display_name,
+    classLabel: row.class_label || '',
+    kind: row.kind
+  }));
+}
+
+function publicLog(logs) {
+  return logs.slice(-80).reverse().map((row) => ({
+    name: row.display_name,
+    classLabel: row.class_label || '',
+    kind: row.kind,
+    event: row.event,
+    screen: row.screen || '',
+    at: row.at
+  }));
+}
+
+function classLabelFor(binding, role) {
+  if (role === 'teacher') return '老師';
+  if (role === 'tester') return '';
+  const grade = text(binding && binding.grade);
+  const klass = text(binding && binding.class);
+  if (!klass) return '';
+  const gradeNames = { '1': '中一', '2': '中二', '3': '中三', '4': '中四', '5': '中五', '6': '中六' };
+  const gradeLabel = gradeNames[grade] || '';
+  return (gradeLabel ? gradeLabel + ' ' : '') + klass + '班';
+}
+
+async function loadPresence(db) {
+  const online = await db.prepare('SELECT id, kind, display_name, class_label, screen, last_seen, online_at FROM presence').all();
+  const logs = await db.prepare('SELECT presence_id, kind, display_name, class_label, event, screen, at FROM presence_log').all();
+  return {
+    rows: (online && online.results) || [],
+    logs: (logs && logs.results) || []
+  };
+}
+
+async function savePresence(db, rows, logs, previousLogCount) {
+  await db.prepare('DELETE FROM presence').run();
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    await db.prepare(
+      'INSERT INTO presence (id, kind, display_name, class_label, screen, last_seen, online_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).bind(row.id, row.kind, row.display_name, row.class_label || '', row.screen || '', row.last_seen, row.online_at).run();
+  }
+  const fresh = logs.slice(previousLogCount);
+  for (let i = 0; i < fresh.length; i++) {
+    const row = fresh[i];
+    await db.prepare(
+      'INSERT INTO presence_log (presence_id, kind, display_name, class_label, event, screen, at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).bind(row.presence_id, row.kind, row.display_name, row.class_label || '', row.event, row.screen || '', row.at).run();
+  }
+}
+
+async function resolveAccount(env, row) {
+  const roster = await findRoster(env.DB, row.email);
+  const rosterBinding = bindingFromRoster(roster);
+  if (rosterBinding) return { binding: rosterBinding, roster: roster, teacher: false };
+  if (extraEmailOk(row.email, env.EXTRA_ALLOWED_EMAILS)) {
+    return { binding: teacherBinding({ name: row.student_name || row.name }), roster: null, teacher: true };
+  }
+  return null;
 }
 
 async function requireSession(request, env) {
@@ -410,23 +559,79 @@ export default {
         const verified = await verifyGoogleIdToken(body && body.credential, {
           clientId: env.GOOGLE_CLIENT_ID,
           allowedDomains: env.ALLOWED_EMAIL_DOMAINS,
+          extraEmails: env.EXTRA_ALLOWED_EMAILS,
           fetch: fetch,
           now: Date.now
         });
         if (!verified.ok) return jsonResponse({ ok: false, error: verified.error }, 401, cors);
         const roster = await findRoster(env.DB, verified.claims.email);
-        if (!roster) return jsonResponse({ ok: false, error: 'not_on_roster' }, 403, cors);
+        const rosterBinding = bindingFromRoster(roster);
+        const teacher = !rosterBinding && extraEmailOk(verified.claims.email, env.EXTRA_ALLOWED_EMAILS);
+        if (!rosterBinding && !teacher) return jsonResponse({ ok: false, error: 'not_on_roster' }, 403, cors);
         const nowIso = new Date().toISOString();
-        const row = await applyRoster(env.DB, verified.claims, roster, nowIso);
+        const binding = teacher ? teacherBinding(verified.claims) : rosterBinding;
+        const row = teacher
+          ? await applyIdentity(env.DB, verified.claims, binding, nowIso)
+          : await applyRoster(env.DB, verified.claims, roster, nowIso);
         const token = await signSessionToken(verified.claims, env.JWT_SECRET);
         const profile = await readProfile(env.DB, row.sub);
         return jsonResponse({
           ok: true,
           token: token,
           user: publicUser(row),
-          binding: bindingFromRoster(roster),
+          binding: binding,
           profile: profile
         }, 200, cors);
+      }
+
+      if (path === '/presence' && (request.method === 'GET' || request.method === 'POST')) {
+        const loaded = await loadPresence(env.DB);
+        const nowMs = Date.now();
+        let entry = null;
+        if (request.method === 'POST') {
+          let body = {};
+          try { body = await readJson(request); } catch (e) {
+            return jsonResponse({ ok: false, error: 'invalid json' }, 400, cors);
+          }
+          const screen = text(body && body.screen).slice(0, 40);
+          const session = await verifySessionToken(bearer(request), env.JWT_SECRET);
+          if (session) {
+            const row = await getUser(env.DB, session.sub);
+            if (!row || text(row.email).toLowerCase() !== session.email) {
+              return jsonResponse({ ok: false, error: 'unauthorized' }, 401, cors);
+            }
+            const roster = await findRoster(env.DB, row.email);
+            const rosterBinding = bindingFromRoster(roster);
+            const teacher = !rosterBinding && extraEmailOk(row.email, env.EXTRA_ALLOWED_EMAILS);
+            if (!rosterBinding && !teacher) return jsonResponse({ ok: false, error: 'not_on_roster' }, 403, cors);
+            const binding = teacher ? teacherBinding({ name: row.student_name || row.name }) : rosterBinding;
+            entry = {
+              id: 'user:' + row.sub,
+              kind: teacher ? 'teacher' : 'student',
+              displayName: binding.name,
+              classLabel: classLabelFor(binding, teacher ? 'teacher' : 'student'),
+              screen: screen
+            };
+          } else if (text(body && body.kind) === 'tester') {
+            const clientId = text(body && body.clientId);
+            if (!/^[A-Za-z0-9_-]{8,40}$/.test(clientId)) {
+              return jsonResponse({ ok: false, error: 'bad client' }, 400, cors);
+            }
+            entry = {
+              id: 'tester:' + clientId,
+              kind: 'tester',
+              displayName: '測試人員',
+              classLabel: '',
+              screen: screen
+            };
+          } else {
+            return jsonResponse({ ok: false, error: 'unauthorized' }, 401, cors);
+          }
+        }
+        const before = loaded.logs.length;
+        const kept = settlePresence(loaded.rows, loaded.logs, entry, nowMs, PRESENCE_IDLE_MS);
+        await savePresence(env.DB, kept, loaded.logs, before);
+        return jsonResponse({ ok: true, online: publicOnline(kept), log: publicLog(loaded.logs) }, 200, cors);
       }
 
       if (path === '/me' || path === '/me/binding' || path === '/me/profile') {
@@ -435,19 +640,25 @@ export default {
         const row = gate.row;
 
         if (request.method === 'GET' && path === '/me') {
-          const roster = await findRoster(env.DB, row.email);
-          if (!roster) return jsonResponse({ ok: false, error: 'not_on_roster' }, 403, cors);
-          const next = await applyRoster(env.DB, row, roster, new Date().toISOString());
+          const account = await resolveAccount(env, row);
+          if (!account) return jsonResponse({ ok: false, error: 'not_on_roster' }, 403, cors);
+          const nowIso = new Date().toISOString();
+          const next = account.teacher
+            ? await applyIdentity(env.DB, row, account.binding, nowIso)
+            : await applyRoster(env.DB, row, account.roster, nowIso);
           const profile = await readProfile(env.DB, next.sub);
-          return jsonResponse({ ok: true, user: publicUser(next), binding: bindingFromRoster(roster), profile: profile }, 200, cors);
+          return jsonResponse({ ok: true, user: publicUser(next), binding: account.binding, profile: profile }, 200, cors);
         }
 
         if (request.method === 'PUT' && path === '/me/binding') {
           try { await readJson(request); } catch (e) {}
-          const roster = await findRoster(env.DB, row.email);
-          if (!roster) return jsonResponse({ ok: false, error: 'not_on_roster' }, 403, cors);
-          const next = await applyRoster(env.DB, row, roster, new Date().toISOString());
-          return jsonResponse({ ok: true, user: publicUser(next), binding: bindingFromRoster(roster) }, 200, cors);
+          const account = await resolveAccount(env, row);
+          if (!account) return jsonResponse({ ok: false, error: 'not_on_roster' }, 403, cors);
+          const nowIso = new Date().toISOString();
+          const next = account.teacher
+            ? await applyIdentity(env.DB, row, account.binding, nowIso)
+            : await applyRoster(env.DB, row, account.roster, nowIso);
+          return jsonResponse({ ok: true, user: publicUser(next), binding: account.binding }, 200, cors);
         }
 
         if (request.method === 'GET' && path === '/me/profile') {

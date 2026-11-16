@@ -16,7 +16,8 @@
     signedIn: false,
     user: null,
     binding: null,
-    token: ''
+    token: '',
+    tester: false
   };
   var bindingKey = '';
 
@@ -234,6 +235,7 @@
     setError('');
     notifySession();
     reconcileProfile(data.profile || null);
+    startPresence();
   }
 
   function reconcileProfile(remote) {
@@ -255,6 +257,7 @@
     }
     if (!merged.name) return;
     publishProfile(merged);
+    if (state.tester) return;
     api('PUT', '/me/profile', { data: merged }).then(function (data) {
       if (!data.profile) return;
       var current = identity ? readLocalProfile(identity) : null;
@@ -269,15 +272,100 @@
     }).catch(function () {});
   }
 
+  var TESTER_FLAG = 'ncTesterSession';
+  var PRESENCE_ID = 'ncPresenceId';
+  var presenceTimer = 0;
+  var lastScreen = '';
+
+  function screenLabel(screenId) {
+    var map = {
+      'screen-hub': '大廳',
+      'screen-profile': '檔案',
+      'screen-presence': '在線同紀錄',
+      'screen-leaderboard': '排行榜',
+      'screen-setup': '音名',
+      'screen-game': '音名作答',
+      'screen-g2-setup': '節奏',
+      'screen-g3-setup': '術語',
+      'screen-game3': '術語作答',
+      'screen-g4-setup': '樂器',
+      'screen-game4': '樂器作答',
+      'screen-note-teach': '看圖學習',
+      'screen-chord-card': '和弦'
+    };
+    return map[screenId] || '大廳';
+  }
+
+  function presenceClientId() {
+    var id = '';
+    try { id = sessionStorage.getItem(PRESENCE_ID) || ''; } catch (e) {}
+    if (!/^[A-Za-z0-9_-]{8,40}$/.test(id)) {
+      id = 't' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+      id = id.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40);
+      try { sessionStorage.setItem(PRESENCE_ID, id); } catch (e) {}
+    }
+    return id;
+  }
+
+  function currentScreenLabel() {
+    var active = document.querySelector('.screen.active');
+    return screenLabel(active && active.id);
+  }
+
+  function pingPresence() {
+    if (!state.signedIn || !apiBase()) return;
+    var screen = currentScreenLabel();
+    var body = { screen: screen };
+    var headers = { 'Content-Type': 'application/json' };
+    if (state.tester) {
+      body.kind = 'tester';
+      body.clientId = presenceClientId();
+    } else if (state.token) {
+      headers.Authorization = 'Bearer ' + state.token;
+    } else {
+      return;
+    }
+    fetch(apiBase() + '/presence', {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(body)
+    }).catch(function () {});
+  }
+
+  function startPresence() {
+    if (presenceTimer) clearInterval(presenceTimer);
+    pingPresence();
+    presenceTimer = setInterval(pingPresence, 45000);
+  }
+
   function clearSession() {
     state.signedIn = false;
     state.user = null;
     state.binding = null;
     state.token = '';
+    state.tester = false;
     bindingKey = '';
+    lastScreen = '';
+    if (presenceTimer) { clearInterval(presenceTimer); presenceTimer = 0; }
     try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+    try { sessionStorage.removeItem(TESTER_FLAG); } catch (e) {}
     showGate();
     notifySession();
+  }
+
+  function enterTester() {
+    state.tester = true;
+    state.token = '';
+    state.user = { sub: 'tester', email: '', name: '測試人員' };
+    state.binding = { grade: '', class: '', name: '測試人員', seat: '', role: 'tester' };
+    state.signedIn = true;
+    bindingKey = '';
+    try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+    try { sessionStorage.setItem(TESTER_FLAG, '1'); } catch (e) {}
+    hideGate();
+    setError('');
+    notifySession();
+    startPresence();
   }
 
   function exchange(credential) {
@@ -345,9 +433,24 @@
     catch (e) { return false; }
   }
 
+  function bindTesterButton() {
+    var btn = document.getElementById('webTesterBtn');
+    if (!btn || btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', function () { enterTester(); });
+  }
+
   function restore() {
+    bindTesterButton();
+    var testerFlag = '';
+    try { testerFlag = sessionStorage.getItem(TESTER_FLAG) || ''; } catch (e) {}
     var token = '';
     try { token = localStorage.getItem(SESSION_KEY) || ''; } catch (e) {}
+    if (testerFlag === '1' && !token) {
+      state.ready = true;
+      enterTester();
+      return;
+    }
     if (!token || !apiBase()) {
       state.ready = true;
       showGate();
@@ -375,6 +478,7 @@
   }
 
   function saveBinding(binding) {
+    if (state.tester) return Promise.resolve(state.binding);
     var key = bindingKeyOf(binding);
     if (!state.signedIn || !key || key === bindingKey) return Promise.resolve(state.binding);
     var previous = bindingKey;
@@ -395,7 +499,7 @@
   }
 
   function syncProfile(profile) {
-    if (!state.signedIn || !profile) return Promise.resolve(null);
+    if (state.tester || !state.signedIn || !profile) return Promise.resolve(null);
     return api('PUT', '/me/profile', { data: profile }).then(function (data) {
       return data.profile || null;
     });
@@ -405,9 +509,24 @@
     get required() { return state.required; },
     get ready() { return state.ready; },
     get signedIn() { return state.signedIn; },
+    get tester() { return state.tester; },
     get user() { return state.user; },
     get binding() { return state.binding; },
     signOut: function () { clearSession(); renderGoogleButton(); },
+    noteScreen: function (screenId) {
+      var label = screenLabel(screenId);
+      if (!state.signedIn || label === lastScreen) return;
+      lastScreen = label;
+      pingPresence();
+    },
+    loadPresence: function () {
+      if (!apiBase()) return Promise.resolve({ online: [], log: [] });
+      return fetch(apiBase() + '/presence', { method: 'GET' }).then(function (res) {
+        return res.json();
+      }).then(function (data) {
+        return { online: (data && data.online) || [], log: (data && data.log) || [] };
+      }).catch(function () { return { online: [], log: [] }; });
+    },
     saveBinding: saveBinding,
     syncProfile: syncProfile,
     mergeProfiles: mergeProfiles

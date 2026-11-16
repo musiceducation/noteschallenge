@@ -602,7 +602,7 @@
         const emailEl = document.getElementById('profileEmail');
         if (row) row.hidden = true;
         if (hubEmail) hubEmail.textContent = email ? ('已登入：' + email) : '';
-        if (profileBtn) profileBtn.hidden = !email;
+        if (profileBtn) profileBtn.hidden = !(email || (auth && auth.tester));
         if (emailEl) {
             emailEl.hidden = !email;
             emailEl.textContent = email ? ('已登入：' + email) : '';
@@ -1668,6 +1668,7 @@
             current.classList.remove('active');
         }
         next?.classList.add('active');
+        try { if (window.WebGoogleAuth && window.WebGoogleAuth.noteScreen) window.WebGoogleAuth.noteScreen(screenId); } catch (e) {}
 
         if (isAppShell()) {
             document.body.classList.toggle('app-on-root', screenId === 'screen-app-root');
@@ -2497,6 +2498,7 @@
         RankSync.mergeIntoStore(rows, localStorage);
     }
     function storeSharedRank(record) {
+        if (window.WebGoogleAuth && window.WebGoogleAuth.tester) return;
         if (typeof RankSync === 'undefined' || !record || !record.storageKey) return;
         try {
             RankSync.captureDeviceOrigins(localStorage);
@@ -3662,6 +3664,7 @@
     // ==========================================
     /** POST 到 GAS Web App：使用 CORS 讀取 JSON 回應（須部署為可匿名存取）。 */
     async function gasPostJson(record) {
+        if (window.WebGoogleAuth && window.WebGoogleAuth.tester) return { ok: false, skipped: true };
         try {
             const email = window.WebGoogleAuth && window.WebGoogleAuth.user && window.WebGoogleAuth.user.email;
             if (email && record && typeof record === 'object' && !record.email) record = Object.assign({}, record, { email: email });
@@ -5118,10 +5121,10 @@
         function persistWebBinding() {
             if (_suspendBindingSave) return;
             const auth = window.WebGoogleAuth;
-            if (!auth || !auth.signedIn || typeof auth.saveBinding !== 'function') return;
+            if (!auth || !auth.signedIn || auth.tester || typeof auth.saveBinding !== 'function') return;
             const user = getHubUser();
             if (!user || !user.name || !user.grade || !user.class) return;
-            if (user.name === '__guest__' || user.name === '__other__' || user.name === '訪客') return;
+            if (user.name === '__guest__' || user.name === '__other__' || user.name === '訪客' || user.name === '測試人員') return;
             auth.saveBinding({ grade: user.grade, class: user.class, name: user.name }).catch(function () {});
         }
 
@@ -5165,7 +5168,11 @@
                 const asideMeta = document.getElementById('hubAsideMeta');
                 const gradeLabel = ['', '中一', '中二', '中三', '中四', '中五', '中六'][parseInt(binding.grade, 10)] || '';
                 if (asideName) asideName.textContent = binding.name;
-                if (asideMeta) asideMeta.textContent = `${gradeLabel} ${binding.class}班${binding.seat ? ' ' + binding.seat + '號' : ''}`;
+                if (asideMeta) {
+                    if (binding.role === 'tester') asideMeta.textContent = '測試，不入正式榜';
+                    else if (binding.role === 'teacher') asideMeta.textContent = '老師';
+                    else asideMeta.textContent = `${gradeLabel} ${binding.class}班${binding.seat ? ' ' + binding.seat + '號' : ''}`;
+                }
             } finally {
                 _suspendBindingSave = false;
             }
@@ -5604,6 +5611,38 @@
         document.getElementById('hubViewRanksBtn').addEventListener('click', () => { openGame1RankBoard(); });
 
         // ——— 個人檔案按鈕 ———
+        const hubPresenceBtn = document.getElementById('hubPresenceBtn');
+        const presenceBackBtn = document.getElementById('presenceBackBtn');
+        function paintPresence(data) {
+            const online = document.getElementById('presenceOnline');
+            const log = document.getElementById('presenceLog');
+            const eventLabel = { online: '上線', offline: '離線', screen: '打開' };
+            const people = (data && data.online) || [];
+            const events = (data && data.log) || [];
+            if (online) {
+                online.innerHTML = people.length
+                    ? people.map((row) => `<li><strong>${escHtml(row.name || '')}</strong>${row.classLabel ? ' · ' + escHtml(row.classLabel) : ''}</li>`).join('')
+                    : '<li>暫時無人在線</li>';
+            }
+            if (log) {
+                log.innerHTML = events.length
+                    ? events.map((row) => {
+                        const when = row.at ? String(row.at).replace('T', ' ').slice(0, 16) : '';
+                        const what = eventLabel[row.event] || row.event || '';
+                        const where = row.screen ? ' · ' + row.screen : '';
+                        return `<li><span>${escHtml(when)}</span> <strong>${escHtml(row.name || '')}</strong> ${escHtml(what + where)}</li>`;
+                    }).join('')
+                    : '<li>未有紀錄</li>';
+            }
+        }
+        function openPresence() {
+            switchScreen('screen-presence');
+            const auth = window.WebGoogleAuth;
+            if (!auth || typeof auth.loadPresence !== 'function') return;
+            auth.loadPresence().then(paintPresence);
+        }
+        if (hubPresenceBtn) hubPresenceBtn.addEventListener('click', openPresence);
+        if (presenceBackBtn) presenceBackBtn.addEventListener('click', () => switchScreen('screen-hub'));
         document.getElementById('hubProfileBtn').addEventListener('click', () => {
             if (!requireHubLogin(hubNameField)) return;
             updateCurrentUserFromHub();
@@ -5935,6 +5974,7 @@
     }
 
     function saveLocalRank(gameKey, user, score, accuracy, maxCombo, difficulty) {
+        if (window.WebGoogleAuth && window.WebGoogleAuth.tester) return;
         try {
             const all = JSON.parse(localStorage.getItem('musicGameRanks_' + gameKey) || '[]');
             const idx = all.findIndex(r => r.name === user.name && r.class === user.class && r.grade === user.grade && (r.difficulty || '') === (difficulty || ''));

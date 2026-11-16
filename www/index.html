@@ -58,6 +58,8 @@
             <div id="webGoogleAuthError" class="social-auth-misconfig" hidden></div>
             <div id="webGoogleBtn" class="web-google-btn-host"></div>
             <button type="button" id="webGoogleStubBtn" class="social-auth-btn social-auth-btn-google" hidden>使用 Google 帳號登入</button>
+            <button type="button" id="webTesterBtn" class="web-tester-btn">測試人員</button>
+            <p class="web-tester-note">測試人員唔使電郵。呢個身分唔會入正式排行榜，亦唔會改到學生分數。</p>
         </div>
     </div>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" defer></script>
@@ -255,6 +257,7 @@
             <div class="lobby-actions">
                 <button class="hub-social-corner-btn" id="hubClassmatesBtn" title="同學名冊" type="button">👥</button>
                 <button class="hub-social-corner-btn hub-fullscreen-btn" id="hubFullscreenBtn" type="button" title="全螢幕" aria-label="全螢幕" aria-pressed="false">⛶</button>
+                <button class="hub-profile-corner-btn" id="hubPresenceBtn" title="在線同紀錄" type="button">在線</button>
                 <button class="hub-profile-corner-btn" id="hubProfileBtn" title="個人檔案" type="button"><img class="lobby-ico" src="img/ui/ui-profile.webp" alt="">檔案</button>
                 <button type="button" class="hub-aside-profile-btn" id="hubAsideProfileBtn" hidden>完整檔案</button>
                 <span id="hubAccountEmail" class="lobby-email"></span>
@@ -503,6 +506,19 @@
     <!-- ===================================== -->
     <!-- 玩家個人檔案 (Player Profile)          -->
     <!-- ===================================== -->
+    <div id="screen-presence" class="screen">
+        <button class="btn-back-hub" id="presenceBackBtn" type="button">← 返回主頁</button>
+        <h1 class="game-title">在線同紀錄</h1>
+        <div class="card presence-card">
+            <h2 class="presence-heading">在線中</h2>
+            <ul id="presenceOnline" class="presence-list"></ul>
+        </div>
+        <div class="card presence-card">
+            <h2 class="presence-heading">紀錄</h2>
+            <ul id="presenceLog" class="presence-list"></ul>
+        </div>
+    </div>
+
     <div id="screen-profile" class="screen">
         <div class="profile-identity">
             <button class="btn-back-hub" id="profileBackBtn" type="button">← 返回主頁</button>

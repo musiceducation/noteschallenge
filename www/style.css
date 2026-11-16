@@ -8292,5 +8292,37 @@ body {
     border-color: #f0d7b0;
     color: #5a4032;
 }
+.web-tester-btn {
+    width: 100%;
+    margin-top: 12px;
+    min-height: 48px;
+    border: none;
+    border-radius: 999px;
+    background: url("img/ui/ui-start-pill.webp") center / 100% 100% no-repeat;
+    color: #5a4032;
+    font: inherit;
+    font-weight: 800;
+    font-size: 1.05rem;
+    cursor: pointer;
+}
+.web-tester-note {
+    margin: 8px 0 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #6a5648;
+    line-height: 1.45;
+}
+#screen-hub #hubPresenceBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: url("img/ui/ui-start-pill.webp") center / 100% 100% no-repeat;
+    color: #5a4032;
+    border-color: transparent;
+    min-width: 3.2rem;
+}
+.presence-heading { margin: 0 0 8px; font-size: 1.15rem; color: #3d342c; }
+.presence-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.presence-list li { font-weight: 700; color: #3d342c; line-height: 1.4; }
 
 
