@@ -463,7 +463,7 @@ assert.equal(currentProfiles.length, 1);
 assert.equal(Number(currentProfiles[0].score), 50);
 
 const gameSrc = fs.readFileSync(new URL('../script.js', import.meta.url), 'utf8');
-assert.equal(gameSrc.split('storeSharedRank(').length - 1, 6);
+assert.equal(gameSrc.split('storeSharedRank(').length - 1, 7);
 assert.equal(gameSrc.split('publishSharedRank(').length - 1, 2);
 const loadBody = gameSrc.slice(gameSrc.indexOf('async function loadRanks'), gameSrc.indexOf('function escHtml'));
 assert.doesNotMatch(loadBody, /storeSharedRank|publishSharedRank|publishBody/);
@@ -635,8 +635,8 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.match(page, /option value="keysig60">調號挑戰/);
   assert.match(page, /option value="solfege60">唱名挑戰/);
   assert.match(page, /option value="classroom" selected>課堂舊紀錄/);
-  assert.match(page, /rank-sync\.js\?v=5/);
-  assert.doesNotMatch(page, /rank-sync\.js\?v=4/);
+  assert.match(page, /rank-sync\.js\?v=6/);
+  assert.doesNotMatch(page, /rank-sync\.js\?v=5/);
   assert.doesNotMatch(page, /零失誤練習|英皇音名|英皇調號|英皇級別<\/label>|英皇術語|計入英皇榜/);
   assert.doesNotMatch(page, /value="abrsm-notes"|value="abrsm-keys"|value="rhythm-tap"|id="rankAbrsmGradeFilter"/);
 }
@@ -646,10 +646,63 @@ for (const file of ['script.js', 'www/script.js']) {
   assert.match(src, /RankSync\.legacyNoMissClef\(row\)/);
   assert.match(src, /RankSync\.keepHigherScore\(rows\)/);
   assert.match(src, /g3RankListMode = 'classroom'/);
-  assert.match(src, /sel\.value = 'classroom'/);
+  assert.match(src, /sel\.value = 'terms-level'/);
+  assert.match(src, /拍號舊英皇/);
+  assert.match(src, /術語舊英皇/);
   assert.match(src, /saveNoMissRank\(\)/);
   assert.doesNotMatch(src, /noteLocalBest\(localStorage,[\s\S]{0,80}classic60/);
   assert.doesNotMatch(src, /零失誤練習/);
 }
+
+const levelKeys = ['meter-level', 'value-level', 'terms-level'].flatMap((kind) =>
+  ['easy', 'medium', 'hard'].map((level) => 'abrsm-theory-v1:' + kind + ':' + level)
+);
+for (const key of levelKeys) {
+  const parsed = RankSync.parseSharedRankKey(key);
+  assert.ok(parsed, key);
+  assert.equal(parsed.storageKey, key);
+  assert.equal(parsed.syllabusId, '');
+  assert.equal(parsed.level, key.split(':').pop());
+  const body = RankSync.publishBody(played(key, 15));
+  assert.equal(body.mode, key);
+  assert.equal(['game1', 'game2', 'game3', 'game4'].includes(body.game), true);
+  if (key.indexOf('terms-level') >= 0) assert.equal(body.game, 'game3');
+  else assert.equal(body.game, 'game2');
+  const higher = RankSync.commitLocalRank([], played(key, 30));
+  const lower = RankSync.commitLocalRank(higher.list, played(key, 9));
+  assert.equal(lower.publish, null, key);
+  assert.equal(lower.list.length, 1, key);
+  assert.equal(lower.list[0].score, 30, key);
+}
+
+const oldTerms = 'abrsm-theory-v1:terms:abrsm-g1';
+const oldMeter = 'abrsm-theory-v1:rhythm:abrsm-g3';
+const oldTermsList = RankSync.commitLocalRank([], played(oldTerms, 40)).list;
+const oldMeterList = RankSync.commitLocalRank([], played(oldMeter, 22)).list;
+const oldStore = memoryStore();
+oldStore.setItem(oldTerms, JSON.stringify(oldTermsList));
+oldStore.setItem(oldMeter, JSON.stringify(oldMeterList));
+const beforeTerms = oldStore.getItem(oldTerms);
+const beforeMeter = oldStore.getItem(oldMeter);
+RankSync.mergeIntoStore([modeOnly('abrsm-theory-v1:terms-level:easy', 8)], oldStore);
+RankSync.mergeIntoStore([modeOnly('abrsm-theory-v1:meter-level:hard', 4)], oldStore);
+assert.equal(oldStore.getItem(oldTerms), beforeTerms);
+assert.equal(oldStore.getItem(oldMeter), beforeMeter);
+const keptOldTerms = RankSync.commitLocalRank(oldTermsList, played(oldTerms, 11));
+const keptOldMeter = RankSync.commitLocalRank(oldMeterList, played(oldMeter, 7));
+assert.equal(keptOldTerms.publish, null);
+assert.equal(keptOldTerms.list.length, 1);
+assert.equal(keptOldTerms.list[0].score, 40);
+assert.equal(keptOldMeter.publish, null);
+assert.equal(keptOldMeter.list[0].score, 22);
+assert.equal(RankSync.parseSharedRankKey(oldTerms).syllabusId, 'abrsm-g1');
+assert.equal(RankSync.gradeBadge(RankSync.parseSharedRankKey(oldTerms).syllabusId), 'G1');
+assert.equal(RankSync.parseSharedRankKey(oldMeter).syllabusId, 'abrsm-g3');
+const readable = memoryStore();
+RankSync.mergeIntoStore([modeOnly(oldTerms, 40), modeOnly(oldMeter, 22)], readable);
+assert.equal(JSON.parse(readable.getItem(oldTerms))[0].score, 40);
+assert.equal(JSON.parse(readable.getItem(oldMeter))[0].score, 22);
+assert.equal(RankSync.gradeBadge(JSON.parse(readable.getItem(oldTerms))[0].syllabusId), 'G1');
+assert.equal(RankSync.gradeBadge(JSON.parse(readable.getItem(oldMeter))[0].syllabusId), 'G3');
 
 console.log('rank-sync: ok');

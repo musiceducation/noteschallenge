@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20">
+    <link rel="stylesheet" href="style.css?v=21">
     <script>
     (function () {
         try {
@@ -650,6 +650,7 @@
             <div class="vp-info">
                 <div class="vp-name" id="vpName">同學名稱</div>
                 <div class="vp-sig" id="vpSig">尚未設定簽名</div>
+                <div class="vp-presence" id="vpPresence">離線</div>
                 <div class="vp-meta" id="vpMeta"></div>
             </div>
         </div>
@@ -976,10 +977,10 @@
                 <div class="mode-icon"><img src="img/ui/icon-mode-kodaly.webp" alt="" width="72" height="72"></div><div class="mode-name">課堂柯達伊</div><div class="mode-desc">節奏名練習，不是英皇級別</div>
             </div>
             <div class="mode-card challenge" data-mode="challenge" id="g2ModeChallenge">
-                <div class="mode-icon"><img src="img/ui/icon-mode-timesig.webp" alt="" width="72" height="72"></div><div class="mode-name">拍號練習</div><div class="mode-desc">跟所選英皇級別，不入榜</div>
+                <div class="mode-icon"><img src="img/ui/icon-mode-timesig.webp" alt="" width="72" height="72"></div><div class="mode-name">拍號練習</div><div class="mode-desc">容易、中等、困難，不入榜</div>
             </div>
             <div class="mode-card onemin" data-mode="1min" id="g2Mode1Min">
-                <div class="mode-icon"><img src="img/ui/icon-mode-timer.webp" alt="" width="72" height="72"></div><div class="mode-name">拍號計時</div><div class="mode-desc">同一級別，限時一分鐘，不入榜</div>
+                <div class="mode-icon"><img src="img/ui/icon-mode-timer.webp" alt="" width="72" height="72"></div><div class="mode-name">拍號計時</div><div class="mode-desc">限時一分鐘，記在容易、中等、困難榜</div>
             </div>
             <div class="mode-card tap" data-mode="tap" id="g2ModeTap">
                 <div class="mode-icon"><img src="img/ui/icon-mode-drum.webp" alt="" width="72" height="72"></div><div class="mode-name">節奏挑戰</div><div class="mode-desc">根據譜上音符時值打節奏，分容易、中等、困難</div>
@@ -988,7 +989,7 @@
                 <div class="mode-icon"><img src="img/ui/icon-mode-complete.webp" alt="" width="72" height="72"></div><div class="mode-name">補足小節</div><div class="mode-desc">4/4 未完，選一個時值填滿</div>
             </div>
             <div class="mode-card duration" data-mode="duration" id="g2ModeDuration">
-                <div class="mode-icon"><img src="img/ui/icon-mode-duration.webp" alt="" width="72" height="72"></div><div class="mode-name">時值辨別</div><div class="mode-desc">同一英皇級別的音符、休止符和連音</div>
+                <div class="mode-icon"><img src="img/ui/icon-mode-duration.webp" alt="" width="72" height="72"></div><div class="mode-name">時值辨別</div><div class="mode-desc">容易、中等、困難的音符、休止符和連音，不入榜</div>
                 <div class="mode-sub-btns">
                     <button class="mode-sub-btn" id="durHelpBtn" title="練習說明">說明</button>
                     <button class="mode-sub-btn" id="durRefBtn" title="音符休止符時值">🎵 時值表</button>
@@ -998,17 +999,6 @@
             <div class="mode-card compose" data-mode="compose" id="g2ModeCompose">
                 <div class="mode-icon"><img src="img/ui/icon-mode-compose.webp" alt="" width="72" height="72"></div><div class="mode-name">節奏創作</div><div class="mode-desc">排 1–8 小節 · 試聽 · 打拍</div>
             </div>
-        </div>
-        <div class="keysig-solfege-sub-row" id="g2AbrsmRow">
-            <span class="practice-diff-label">英皇級別</span>
-            <div class="practice-diff-btns" id="g2AbrsmBtns">
-                <button type="button" class="abrsm-grade-btn active" data-abrsm="abrsm-g1">G1</button>
-                <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g2">G2</button>
-                <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g3">G3</button>
-                <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g4">G4</button>
-                <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g5">G5</button>
-            </div>
-            <p class="abrsm-coverage" id="g2AbrsmCoverage"></p>
         </div>
         <div class="keysig-solfege-sub-row" id="g2LevelRow" style="display:none;">
             <span class="practice-diff-label">難度</span>
@@ -1175,19 +1165,17 @@
                 <div class="mode-icon"><img src="img/ui/icon-mode-practice.webp" alt="" width="72" height="72"></div><div class="mode-name">練習模式</div><div class="mode-desc">不限時，可反覆練習</div>
             </div>
             <div class="mode-card challenge" data-mode="challenge" id="g3ModeChallenge">
-                <div class="mode-icon"><img src="img/ui/icon-mode-timer.webp" alt="" width="72" height="72"></div><div class="mode-name">限時挑戰</div><div class="mode-desc">同一英皇級別，限時一分鐘，不入榜</div>
+                <div class="mode-icon"><img src="img/ui/icon-mode-timer.webp" alt="" width="72" height="72"></div><div class="mode-name">限時挑戰</div><div class="mode-desc">限時一分鐘，記在容易、中等、困難榜</div>
             </div>
         </div>
-        <div class="keysig-solfege-sub-row" id="g3AbrsmRow">
-            <span class="practice-diff-label">英皇級別</span>
-            <div class="practice-diff-btns" id="g3AbrsmBtns">
-                <button type="button" class="abrsm-grade-btn active" data-abrsm="abrsm-g1">G1</button>
-                <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g2">G2</button>
-                <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g3">G3</button>
-                <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g4">G4</button>
-                <button type="button" class="abrsm-grade-btn" data-abrsm="abrsm-g5">G5</button>
+        <div class="keysig-solfege-sub-row" id="g3LevelRow">
+            <span class="practice-diff-label">難度</span>
+            <div class="practice-diff-btns" id="g3LevelBtns">
+                <button type="button" class="abrsm-grade-btn active" data-level="easy">容易</button>
+                <button type="button" class="abrsm-grade-btn" data-level="medium">中等</button>
+                <button type="button" class="abrsm-grade-btn" data-level="hard">困難</button>
             </div>
-            <p class="abrsm-coverage" id="g3AbrsmCoverage">術語跟英皇級別累積。G1–G3 是意大利文，G4 起加法文，G5 再加德文。裝飾音記號由 G4 開始。未核對欄位的記號不會出題。</p>
+            <p class="abrsm-coverage" id="g3LevelCoverage">容易：意大利文基本術語。中等加上較後的意大利文、法文和裝飾音。困難再加德文。</p>
         </div>
         <button class="btn-view-ranks" id="g3StudyBtn" style="background:linear-gradient(135deg,#E8F4FF,#F0E8FF);color:var(--primary-blue-dark);border-color:rgba(0,166,237,0.35);box-shadow:0 5px 0 rgba(0,166,237,0.25);">📚 先看術語表溫習</button>
         <button class="btn-start" id="g3StartBtn">🚀 開始練習</button>
@@ -1797,14 +1785,15 @@
     </div>
 
     <script src="abrsm-curriculum.js?v=1" defer></script>
-    <script src="abrsm-rhythm-terms.js?v=3" defer></script>
+    <script src="abrsm-rhythm-terms.js?v=4" defer></script>
     <script src="rhythm-levels.js?v=1" defer></script>
     <script src="abrsm-note-grade.js?v=4" defer></script>
     <script src="note-name-teach.js?v=6" defer></script>
     <script src="instrument-category.js?v=2" defer></script>
     <script src="chinese-instrument-challenge.js?v=3" defer></script>
     <script src="chord-keyboard.js?v=2" defer></script>
-    <script src="rank-sync.js?v=5" defer></script>
+    <script src="rank-sync.js?v=6" defer></script>
+    <script src="class-share.js?v=1" defer></script>
     <script src="profile-store.js?v=1" defer></script>
     <script src="ability-radar.js?v=1" defer></script>
     <script src="aural-score.js?v=1" defer></script>
@@ -1812,7 +1801,7 @@
     <script src="aural-interval.js?v=1" defer></script>
     <script src="aural-rhythm.js?v=1" defer></script>
     <script src="aural-quality.js?v=1" defer></script>
-    <script src="bootstrap-instruments.js?v=16" data-app-bootstrap defer></script>
+    <script src="bootstrap-instruments.js?v=17" data-app-bootstrap defer></script>
     <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
 </body>
 </html>

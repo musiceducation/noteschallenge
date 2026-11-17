@@ -99,6 +99,14 @@ function memoryDb() {
               throw new Error('unexpected first ' + compact);
             },
             async all() {
+              if (compact.includes('FROM profiles') && compact.includes('LIKE')) {
+                const prefix = String(args[0] || '').replace(/%$/, '');
+                const results = [];
+                profiles.forEach((row, sub) => {
+                  if (String(sub).indexOf(prefix) === 0) results.push({ sub: sub, data: row.data });
+                });
+                return { results: results };
+              }
               if (compact.includes('FROM presence_log')) return { results: logs.map((row) => Object.assign({}, row)) };
               if (compact.includes('FROM presence')) return { results: presence.map((row) => Object.assign({}, row)) };
               throw new Error('unexpected all ' + compact);
@@ -284,11 +292,13 @@ test('mergeProfiles keeps higher bests and does not wipe text with blanks', () =
   assert.equal(mergeProfiles({ ...stored, avatar: photo }, { avatar: '🎹' }).avatar, '🎹');
 });
 
-test('allowedOrigin permits the GitHub Pages site and localhost only', () => {
+test('allowedOrigin permits the classroom sites and localhost only', () => {
   assert.equal(allowedOrigin('https://musiceducation.github.io'), 'https://musiceducation.github.io');
+  assert.equal(allowedOrigin('https://noteschallenge.vercel.app'), 'https://noteschallenge.vercel.app');
   assert.equal(allowedOrigin('http://localhost:4173'), 'http://localhost:4173');
   assert.equal(allowedOrigin('http://127.0.0.1:8080'), 'http://127.0.0.1:8080');
   assert.equal(allowedOrigin('https://evil.example'), '');
+  assert.equal(allowedOrigin('https://noteschallenge.vercel.app.evil.example'), '');
   assert.equal(allowedOrigin('http://localhost.evil.com'), '');
 });
 
@@ -500,4 +510,52 @@ test('allowlisted teacher email signs in without opening gmail.com, and presence
     globalThis.fetch = realFetch;
     clearJwksCache();
   }
+});
+
+test('class board shares a photo inside one class and drops guests, testers, and other classes', async () => {
+  const env = { DB: memoryDb(), GOOGLE_CLIENT_ID: CLIENT_ID, JWT_SECRET: SECRET };
+  const origin = 'https://noteschallenge.vercel.app';
+  const photo = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEA';
+  const headers = { Origin: origin, 'Content-Type': 'application/json' };
+  async function post(path, body) {
+    return worker.fetch(new Request('https://auth.example' + path, {
+      method: 'POST', headers: headers, body: JSON.stringify(body)
+    }), env);
+  }
+  const saved = await post('/class/card', {
+    name: '陳小樂', grade: 2, class: 'a', seat: '12', avatar: photo, signature: '今天練拍號', level: 3, exp: 20
+  });
+  assert.equal(saved.status, 200);
+  const card = (await saved.json()).card;
+  assert.equal(card.avatar, photo);
+  assert.equal(card.class, 'A');
+  assert.equal(card.signature, '今天練拍號');
+
+  const guest = await post('/class/card', { name: '訪客', grade: 2, class: 'A', seat: '1', avatar: '🎵' });
+  assert.equal(guest.status, 400);
+  const tester = await post('/class/presence', { name: '測試人員', grade: 2, class: 'A', seat: '1', screen: '大廳', kind: 'tester' });
+  assert.equal(tester.status, 400);
+  const other = await post('/class/card', { name: '李同學', grade: 3, class: 'B', seat: '4', avatar: '🎹', signature: '別班' });
+  assert.equal(other.status, 200);
+
+  const ping = await post('/class/presence', { name: '陳小樂', grade: 2, class: 'A', seat: '12', screen: '節奏挑戰' });
+  assert.equal(ping.status, 200);
+  await post('/class/presence', { name: '李同學', grade: 3, class: 'B', seat: '4', screen: '術語作答' });
+
+  const boardRes = await worker.fetch(new Request('https://auth.example/class/board?grade=2&class=A', {
+    headers: { Origin: origin }
+  }), env);
+  const board = await boardRes.json();
+  assert.equal(board.ok, true);
+  assert.equal(board.cards.length, 1);
+  assert.equal(board.cards[0].name, '陳小樂');
+  assert.equal(board.cards[0].avatar, photo);
+  assert.equal(board.online.length, 1);
+  assert.equal(board.online[0].screen, '節奏挑戰');
+  assert.equal(board.online[0].avatar, photo);
+  assert.equal(board.cards.some((row) => row.name === '訪客' || row.name === '測試人員' || row.class === 'B'), false);
+  assert.equal(board.online.some((row) => row.class !== 'A'), false);
+
+  const cors = boardRes.headers.get('Access-Control-Allow-Origin');
+  assert.equal(cors, origin);
 });

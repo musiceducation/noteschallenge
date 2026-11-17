@@ -288,8 +288,10 @@ export async function verifySessionToken(token, secret, nowMs) {
 export function allowedOrigin(origin) {
   const o = text(origin);
   if (o === 'https://musiceducation.github.io') return o;
+  if (o === 'https://noteschallenge.vercel.app') return o;
   if (/^http:\/\/localhost(?::\d+)?$/.test(o)) return o;
   if (/^http:\/\/127\.0\.0\.1(?::\d+)?$/.test(o)) return o;
+  if (o === 'https://localhost' || o === 'capacitor://localhost' || o === 'ionic://localhost') return o;
   return '';
 }
 
@@ -541,6 +543,139 @@ async function requireSession(request, env) {
   return { session: session, row: row };
 }
 
+const CLASS_BLOCKED = { '訪客': 1, '測試人員': 1, '__guest__': 1, '__other__': 1 };
+
+export function classIdentity(body) {
+  const src = plainObject(body);
+  if (text(src.kind) === 'tester' || src.tester === true || src.guest === true) return null;
+  const name = text(src.name).slice(0, 20);
+  const grade = String(parseInt(src.grade, 10) || 0);
+  const klass = text(src.class).toUpperCase();
+  const seat = text(src.seat || src.id).slice(0, 8);
+  if (!/^[1-6]$/.test(grade)) return null;
+  if (!/^[A-Z0-9]{1,8}$/.test(klass)) return null;
+  if (!name || CLASS_BLOCKED[name] || name.indexOf('訪客') === 0) return null;
+  if (/[|%]/.test(name) || /[|%]/.test(seat)) return null;
+  return { name: name, grade: grade, class: klass, seat: seat };
+}
+
+function classKey(id) {
+  return id.grade + '|' + id.class + '|' + id.name + '|' + id.seat;
+}
+
+function classSub(id) {
+  return 'class:' + classKey(id);
+}
+
+function classAvatar(value) {
+  const s = text(value);
+  if (!s) return '';
+  if (s.indexOf('data:image/jpeg;base64,') === 0) {
+    if (s.length > 80000 || !/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(s)) return null;
+    return s;
+  }
+  if (s.indexOf('data:') === 0) return null;
+  return s.slice(0, 16);
+}
+
+function publicClassCard(profile) {
+  const id = classIdentity(profile);
+  if (!id) return null;
+  const avatar = classAvatar(profile.avatar);
+  return {
+    name: id.name,
+    grade: id.grade,
+    class: id.class,
+    seat: id.seat,
+    avatar: avatar || '🎵',
+    signature: text(profile.signature).slice(0, 30),
+    level: Math.max(1, num(profile.level)),
+    exp: num(profile.exp),
+    totalPlayTime: num(profile.totalPlayTime),
+    gameBests: plainObject(profile.gameBests)
+  };
+}
+
+async function listClassCards(db, grade, klass) {
+  const prefix = 'class:' + grade + '|' + klass + '|';
+  const loaded = await db.prepare('SELECT sub, data FROM profiles WHERE sub LIKE ?').bind(prefix + '%').all();
+  const cards = [];
+  ((loaded && loaded.results) || []).forEach((row) => {
+    if (!row || text(row.sub).indexOf(prefix) !== 0) return;
+    let parsed = null;
+    try { parsed = JSON.parse(row.data); } catch (e) { parsed = null; }
+    const card = publicClassCard(parsed);
+    if (!card || card.grade !== String(grade) || card.class !== klass) return;
+    cards.push(card);
+  });
+  return cards;
+}
+
+function classOnline(rows, cards, grade, klass) {
+  const label = grade + '|' + klass;
+  const byKey = {};
+  cards.forEach((card) => { byKey[card.name + '|' + card.seat] = card; });
+  return rows.filter((row) => row && row.kind === 'classmate' && row.class_label === label).map((row) => {
+    const parts = text(row.id).split('|');
+    const name = row.display_name;
+    const seat = parts.length >= 4 ? parts.slice(3).join('|') : '';
+    const card = byKey[name + '|' + seat] || null;
+    return {
+      name: name,
+      grade: grade,
+      class: klass,
+      seat: card ? card.seat : seat,
+      screen: row.screen || '',
+      avatar: card ? card.avatar : '🎵',
+      signature: card ? card.signature : ''
+    };
+  }).filter((row) => classIdentity(row));
+}
+
+function classLog(logs, grade, klass) {
+  const label = grade + '|' + klass;
+  return logs.filter((row) => row && row.kind === 'classmate' && row.class_label === label).slice(-80).reverse().map((row) => ({
+    name: row.display_name,
+    grade: grade,
+    class: klass,
+    seat: '',
+    event: row.event,
+    screen: row.screen || '',
+    at: row.at
+  })).filter((row) => classIdentity(row));
+}
+
+async function saveClassCard(db, body) {
+  const id = classIdentity(body);
+  if (!id) return { error: 'invalid student', status: 400 };
+  const avatar = classAvatar(body.avatar);
+  if (avatar == null) return { error: 'avatar too large', status: 400 };
+  const existing = await readProfile(db, classSub(id));
+  const incoming = {
+    name: id.name,
+    grade: Number(id.grade),
+    class: id.class,
+    seat: id.seat,
+    avatar: avatar,
+    signature: text(body.signature).slice(0, 30),
+    level: num(body.level) || 1,
+    exp: num(body.exp),
+    totalPlayTime: num(body.totalPlayTime),
+    gameBests: plainObject(body.gameBests),
+    history: []
+  };
+  const merged = mergeProfiles(existing || {}, incoming);
+  merged.name = id.name;
+  merged.grade = Number(id.grade);
+  merged.class = id.class;
+  merged.seat = id.seat;
+  merged.history = [];
+  const packed = JSON.stringify(merged);
+  if (packed.length > PROFILE_MAX_CHARS) return { error: 'avatar too large', status: 400 };
+  await writeProfile(db, classSub(id), merged, new Date().toISOString());
+  return { card: publicClassCard(merged) };
+}
+
 export default {
   async fetch(request, env) {
     const cors = corsHeaders(request);
@@ -581,6 +716,61 @@ export default {
           user: publicUser(row),
           binding: binding,
           profile: profile
+        }, 200, cors);
+      }
+
+      if (path === '/class/board' && request.method === 'GET') {
+        const id = classIdentity({
+          grade: url.searchParams.get('grade'),
+          class: url.searchParams.get('class'),
+          name: '同學',
+          seat: '0'
+        });
+        if (!id) return jsonResponse({ ok: false, error: 'invalid class' }, 400, cors);
+        const loaded = await loadPresence(env.DB);
+        const before = loaded.logs.length;
+        const kept = settlePresence(loaded.rows, loaded.logs, null, Date.now(), PRESENCE_IDLE_MS);
+        await savePresence(env.DB, kept, loaded.logs, before);
+        const cards = await listClassCards(env.DB, id.grade, id.class);
+        return jsonResponse({
+          ok: true,
+          cards: cards,
+          online: classOnline(kept, cards, id.grade, id.class),
+          log: classLog(loaded.logs, id.grade, id.class)
+        }, 200, cors);
+      }
+
+      if (path === '/class/card' && request.method === 'POST') {
+        let body = {};
+        try { body = await readJson(request); } catch (e) {
+          return jsonResponse({ ok: false, error: 'invalid json' }, 400, cors);
+        }
+        const saved = await saveClassCard(env.DB, body);
+        if (saved.error) return jsonResponse({ ok: false, error: saved.error }, saved.status, cors);
+        return jsonResponse({ ok: true, card: saved.card }, 200, cors);
+      }
+
+      if (path === '/class/presence' && request.method === 'POST') {
+        let body = {};
+        try { body = await readJson(request); } catch (e) {
+          return jsonResponse({ ok: false, error: 'invalid json' }, 400, cors);
+        }
+        const id = classIdentity(body);
+        if (!id) return jsonResponse({ ok: false, error: 'invalid student' }, 400, cors);
+        const loaded = await loadPresence(env.DB);
+        const before = loaded.logs.length;
+        const kept = settlePresence(loaded.rows, loaded.logs, {
+          id: 'mate:' + classKey(id),
+          kind: 'classmate',
+          displayName: id.name,
+          classLabel: id.grade + '|' + id.class,
+          screen: text(body.screen).slice(0, 40)
+        }, Date.now(), PRESENCE_IDLE_MS);
+        await savePresence(env.DB, kept, loaded.logs, before);
+        const cards = await listClassCards(env.DB, id.grade, id.class);
+        return jsonResponse({
+          ok: true,
+          online: classOnline(kept, cards, id.grade, id.class)
         }, 200, cors);
       }
 

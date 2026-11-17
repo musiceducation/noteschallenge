@@ -366,6 +366,54 @@
 
     function tapMeter(id) { return TAP_METERS[id] || null; }
 
+    var LEVELS = ['easy', 'medium', 'hard'];
+    var LEVEL_LABELS = { easy: '容易', medium: '中等', hard: '困難' };
+    // Old G1–G5 pools, folded into three bands. Medium stops before irregular
+    // meters and before German terms. Hard keeps the rest.
+    var METER_VALUE_GRADE = { easy: 'abrsm-g1', medium: 'abrsm-g3', hard: 'abrsm-g5' };
+    var TERM_LEVEL_GRADE = { easy: 'abrsm-g1', medium: 'abrsm-g4', hard: 'abrsm-g5' };
+    var LEVEL_NOTE = {
+        meter: {
+            easy: '容易：2/4、3/4、4/4 和普通拍號。',
+            medium: '中等：再加上 3/8、2/2、3/2、4/2、切開拍號，以及 6/8、9/8、12/8。',
+            hard: '困難：再加入其餘單拍、複拍，以及 5/4、7/4、5/8、7/8。這些拍子要分組，但沒有唯一固定分法。'
+        },
+        value: {
+            easy: '容易：全音符、二分音符、四分音符、八分音符、十六分音符、附點音符，以及對應的休止符。',
+            medium: '中等：再加上附點全音符、三連音和三十二分音符。',
+            hard: '困難：再加入二全音符、雙附點、二連音、五連音和六連音。'
+        },
+        terms: {
+            easy: '容易：意大利文基本術語，例如力度、速度和常用演奏指示。',
+            medium: '中等：加上較後的意大利文、法文，以及裝飾音記號。',
+            hard: '困難：再加上最進階的用語和德文。'
+        }
+    };
+
+    function levelGrade(kind, levelId) {
+        var table = kind === 'terms' ? TERM_LEVEL_GRADE : METER_VALUE_GRADE;
+        return table[levelId] || '';
+    }
+
+    function storageKey(kind, levelId) {
+        if (LEVELS.indexOf(levelId) < 0) return '';
+        if (kind !== 'meter' && kind !== 'value' && kind !== 'terms') return '';
+        return 'abrsm-theory-v1:' + kind + '-level:' + levelId;
+    }
+
+    function levelCoverageText(kind, levelId) {
+        var table = LEVEL_NOTE[kind] || {};
+        return table[levelId] || '';
+    }
+
+    function questionsForLevel(kind, levelId) {
+        var grade = levelGrade(kind, levelId);
+        if (!grade) return [];
+        if (kind === 'value') return valueQuestions(grade);
+        if (kind === 'terms') return termQuestions(grade);
+        return meterQuestions(grade);
+    }
+
     return {
         meters: meters,
         meterQuestions: meterQuestions,
@@ -378,6 +426,12 @@
         pick: pick,
         shuffle: shuffle,
         tapGrades: tapGrades,
-        tapMeter: tapMeter
+        tapMeter: tapMeter,
+        LEVELS: LEVELS,
+        LABELS: LEVEL_LABELS,
+        levelGrade: levelGrade,
+        storageKey: storageKey,
+        levelCoverageText: levelCoverageText,
+        questionsForLevel: questionsForLevel
     };
 });

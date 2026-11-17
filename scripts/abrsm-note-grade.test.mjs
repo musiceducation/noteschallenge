@@ -159,9 +159,11 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.doesNotMatch(controls, /id="abrsmGradeRow"|id="abrsmCoverage"/);
   assert.match(controls, /不是英皇級別/);
   const rhythm = page.slice(page.indexOf('id="screen-g2-setup"'), page.indexOf('id="screen-g3-setup"'));
-  assert.match(rhythm, /data-abrsm="abrsm-g1"/);
-  assert.match(rhythm, /data-abrsm="abrsm-g5"/);
-  assert.match(rhythm, /英皇級別/);
+  assert.match(rhythm, /data-level="easy"/);
+  assert.match(rhythm, /data-level="medium"/);
+  assert.match(rhythm, /data-level="hard"/);
+  assert.doesNotMatch(rhythm, /data-abrsm="abrsm-g/);
+  assert.match(rhythm, /不是英皇級別/);
   assert.match(page, /id="userGrade"[\s\S]*中一/);
   const rankSelect = page.slice(page.indexOf('id="rankModeFilter"'), page.indexOf('id="rankNoteClefWrap"'));
   assert.match(rankSelect, /value="notes-clef" selected>音名譜號/);

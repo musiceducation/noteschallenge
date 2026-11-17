@@ -616,6 +616,11 @@
             }
         } catch (e) {}
         try { updateHubAsideFromProfile(profile); } catch (e) {}
+        try {
+            if (!(opts && opts.skipRemote) && window.ClassShare && ClassShare.shareable(profile, { tester: !!(window.WebGoogleAuth && window.WebGoogleAuth.tester) })) {
+                ClassShare.postCard(profile);
+            }
+        } catch (e) {}
     }
 
     function paintWebAccount() {
@@ -920,7 +925,11 @@
             profile.history = rows.map(_historyEntryFromRow).slice(-30);
             // Prefer longer local history if GAS returned fewer rows (offline sessions)
             profile = _profileApi() ? _profileApi().mergeProfile(existing, profile) : profile;
-            saveProfile(profile);
+            const latestOwn = loadProfile(user);
+            if (latestOwn.avatar) profile.avatar = latestOwn.avatar;
+            if (latestOwn.signature) profile.signature = latestOwn.signature;
+            const ownProfile = state.currentUser && state.currentUser.name === profile.name && String(state.currentUser.class || '') === String(profile.class || '');
+            saveProfile(profile, ownProfile ? undefined : { skipRemote: true });
         } catch (e) {
             console.error('Profile 讀取失敗：', e);
         } finally {
@@ -993,7 +1002,11 @@
                 profile.stats.apCount = latestApCount;
                 profile.history = rows.map(_historyEntryFromRow).slice(-30);
                 const merged = _profileApi() ? _profileApi().mergeProfile(existing, profile) : profile;
-                saveProfile(merged);
+                const latestMate = loadProfile(user);
+                if (latestMate.avatar) merged.avatar = latestMate.avatar;
+                if (latestMate.signature) merged.signature = latestMate.signature;
+                const ownMate = state.currentUser && state.currentUser.name === merged.name && String(state.currentUser.class || '') === String(merged.class || '');
+                saveProfile(merged, ownMate ? undefined : { skipRemote: true });
             });
 
             console.log(`✅ 已批次同步 ${Object.keys(byStudent).length} 位同學的檔案`);
@@ -1712,6 +1725,9 @@
         }
         next?.classList.add('active');
         try { if (window.WebGoogleAuth && window.WebGoogleAuth.noteScreen) window.WebGoogleAuth.noteScreen(screenId); } catch (e) {}
+        try {
+            if (window.ClassShare) ClassShare.note(state.currentUser, screenId, { tester: !!(window.WebGoogleAuth && window.WebGoogleAuth.tester) });
+        } catch (e) {}
 
         if (isAppShell()) {
             document.body.classList.toggle('app-on-root', screenId === 'screen-app-root');
@@ -2655,6 +2671,24 @@
             legacyBoard: false
         };
         storeSharedRank(record);
+    }
+    function saveLevelRank(kind, levelId, stats) {
+        if (!state.currentUser || !window.AbrsmRhythmTerms) return;
+        if (window.WebGoogleAuth && window.WebGoogleAuth.tester) return;
+        const user = state.currentUser;
+        if (!user.name || user.name === '訪客' || user.name === '測試人員') return;
+        const storageKey = AbrsmRhythmTerms.storageKey(kind, levelId);
+        if (!storageKey) return;
+        storeSharedRank({
+            storageKey: storageKey,
+            score: stats.score || 0,
+            name: user.name,
+            class: user.class || '',
+            id: user.id || user.seat || '',
+            accuracy: stats.accuracy || 0,
+            max_combo: stats.maxCombo || 0,
+            grade: user.grade
+        });
     }
     function saveSyllabusRank(gameKey, syllabusId, stats) {
         if (!state.currentUser || !abrsmReady() || !/^abrsm-g[1-5]$/.test(syllabusId || '')) return;
@@ -4114,6 +4148,42 @@
         }
     }
 
+    function renderLevelBoard(kind) {
+        const wrap = document.getElementById('rankAbrsmFilterWrap');
+        if (wrap) wrap.style.display = 'none';
+        const labels = window.AbrsmRhythmTerms ? AbrsmRhythmTerms.LABELS : { easy: '容易', medium: '中等', hard: '困難' };
+        const fC = dom.rankClassFilter.value;
+        const fG = parseInt(dom.rankGradeFilter.value, 10);
+        let rows = [];
+        ['easy', 'medium', 'hard'].forEach(id => {
+            let list = [];
+            try { list = JSON.parse(localStorage.getItem(AbrsmRhythmTerms.storageKey(kind, id)) || '[]'); } catch (err) { list = []; }
+            list.forEach(row => {
+                if (!row || /^abrsm-g[1-5]$/.test(row.syllabusId || '')) return;
+                rows.push(Object.assign({}, row, { level: row.level || id }));
+            });
+        });
+        if (fC !== '0') rows = rows.filter(row => row.class === fC);
+        if (fG !== 0) rows = rows.filter(row => parseInt(row.grade, 10) === fG);
+        rows.sort((a, b) => (parseInt(b.score, 10) || 0) - (parseInt(a.score, 10) || 0));
+        paintStudentRankHint(rows);
+        if (!rows.length) {
+            dom.rankList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-light); font-weight:800;">這個難度暫時未有紀錄。舊英皇榜不會顯示呢度的分數。</div>';
+            return;
+        }
+        dom.rankList.innerHTML = rows.slice(0, 100).map((item, i) => {
+            const name = escHtml(item.name);
+            const cls = escHtml(item.class);
+            const tag = labels[item.level] || '';
+            const school = item.grade ? `中${['','一','二','三','四','五','六'][item.grade] || item.grade}` : '';
+            return `<div class="rank-item ${i === 0 ? 'first' : i === 1 ? 'second' : i === 2 ? 'third' : ''}">
+                <div class="rank-pos">${i + 1}.</div>
+                <div class="rank-name"><span class="rank-student-name">${name}</span>
+                    <div class="rank-badges"><span class="rank-tag rank-grade-tag">${tag}</span>${school ? `<span class="rank-tag">${school}</span>` : ''}<span class="rank-tag rank-class-tag">${cls}班</span></div>
+                </div>
+                <div class="rank-score">${parseInt(item.score, 10) || 0}</div></div>`;
+        }).join('');
+    }
     function renderRhythmLevelRanks(mode) {
         const wrap = document.getElementById('rankAbrsmFilterWrap');
         if (wrap) wrap.style.display = 'none';
@@ -4166,6 +4236,22 @@
             }
             if (gf.value === 'game2' && kind === 'rhythm-tap-legacy') {
                 renderAbrsmRanks('rhythm-tap');
+                return;
+            }
+            if (gf.value === 'game2' && kind === 'meter-level') {
+                renderLevelBoard('meter');
+                return;
+            }
+            if (gf.value === 'game2' && kind === 'meter-legacy') {
+                renderAbrsmRanks('rhythm');
+                return;
+            }
+            if (gf.value === 'game3' && kind === 'terms-level') {
+                renderLevelBoard('terms');
+                return;
+            }
+            if (gf.value === 'game3' && kind === 'terms-legacy') {
+                renderAbrsmRanks('terms');
                 return;
             }
             const abrsmWrapEarly = document.getElementById('rankAbrsmFilterWrap');
@@ -4663,42 +4749,70 @@
     // ==========================================
     // 👥 社交功能 (Social Features)
     // ==========================================
+    let _viewProfileReturn = 'screen-classmates';
+
+    function classShareOpts() {
+        return { tester: !!(window.WebGoogleAuth && window.WebGoogleAuth.tester) };
+    }
+
+    function classmateScope() {
+        const user = state.currentUser;
+        if (!window.ClassShare || !ClassShare.shareable(user, classShareOpts())) return null;
+        return ClassShare.identity(user);
+    }
+
+    function lockClassmateFilters() {
+        const scope = classmateScope();
+        const gradeEl = document.getElementById('cmGrade');
+        const classEl = document.getElementById('cmClass');
+        if (!scope) return null;
+        if (gradeEl) { gradeEl.value = String(scope.grade); gradeEl.disabled = true; }
+        if (classEl) { classEl.value = scope.class; classEl.disabled = true; }
+        return scope;
+    }
+
+    function applyClassCards(board) {
+        const scope = classmateScope();
+        if (!scope || !board || !window.ClassShare) return;
+        ClassShare.classRows(board.cards, scope).forEach(card => {
+            const user = { name: card.name, grade: scope.grade, class: scope.class, seat: card.seat };
+            const local = loadProfile(user);
+            const merged = ClassShare.applyCard(local, card);
+            if (merged.avatar === local.avatar && merged.signature === local.signature && merged.level === local.level && merged.exp === local.exp) return;
+            saveProfile(merged, { skipRemote: true });
+        });
+    }
+
+    function refreshClassBoard() {
+        const scope = classmateScope();
+        if (!scope || !window.ClassShare) return Promise.resolve(null);
+        return ClassShare.loadBoard(scope).then(board => {
+            state.classBoard = board;
+            applyClassCards(board);
+            return board;
+        });
+    }
+
     function initSocialFeatures() {
         // Hub buttons
         document.getElementById('hubClassmatesBtn').addEventListener('click', () => {
-            if (!state.currentUser || !state.currentUser.name) { alert('請先選擇你的身份！'); return; }
-            document.getElementById('cmGrade').value = state.currentUser.grade || '6';
-            document.getElementById('cmClass').value = state.currentUser.class || 'A';
+            if (!classmateScope()) { alert('請先選擇你的身份！'); return; }
+            lockClassmateFilters();
             renderClassmateList();
             switchScreen('screen-classmates');
-            // Batch-sync all profiles from GAS, then refresh the list
-            const g = document.getElementById('cmGrade').value;
-            const c = document.getElementById('cmClass').value;
-            syncAllProfiles(g, c, () => renderClassmateList());
+            const scope = classmateScope();
+            refreshClassBoard().then(() => renderClassmateList());
+            if (scope) syncAllProfiles(scope.grade, scope.class, () => renderClassmateList());
         });
         // Back buttons
         document.getElementById('classmatesBackBtn').addEventListener('click', () => switchScreen('screen-hub'));
-        document.getElementById('viewProfileBackBtn').addEventListener('click', () => switchScreen('screen-classmates'));
-        // Classmate filter changes
-        document.getElementById('cmGrade').addEventListener('change', () => {
-            renderClassmateList();
-            const g = document.getElementById('cmGrade').value;
-            const c = document.getElementById('cmClass').value;
-            syncAllProfiles(g, c, () => renderClassmateList());
-        });
-        document.getElementById('cmClass').addEventListener('change', () => {
-            renderClassmateList();
-            const g = document.getElementById('cmGrade').value;
-            const c = document.getElementById('cmClass').value;
-            syncAllProfiles(g, c, () => renderClassmateList());
-        });
+        document.getElementById('viewProfileBackBtn').addEventListener('click', () => switchScreen(_viewProfileReturn || 'screen-classmates'));
 
-        // Sync hub selections into classmate filters
         const cmGrade = document.getElementById('cmGrade');
         const cmClass = document.getElementById('cmClass');
-        if (state.currentUser) {
-            cmGrade.value = state.currentUser.grade || '6';
-            cmClass.value = state.currentUser.class || 'A';
+        if (state.currentUser && classmateScope()) {
+            cmGrade.value = String(classmateScope().grade);
+            cmClass.value = classmateScope().class;
         }
 
     }
@@ -4707,9 +4821,13 @@
 
     // ── Classmates Directory ──
     function renderClassmateList() {
-        const grade = document.getElementById('cmGrade').value;
-        const cls = document.getElementById('cmClass').value;
-        const students = getStudentList(grade, cls);
+        const scope = lockClassmateFilters();
+        const grade = scope ? String(scope.grade) : '';
+        const cls = scope ? scope.class : '';
+        const cards = (state.classBoard && state.classBoard.cards) || [];
+        const students = scope && window.ClassShare
+            ? ClassShare.directoryNames(getStudentList(grade, cls), cards, scope)
+            : [];
         const list = document.getElementById('classmateList');
         const countEl = document.getElementById('cmCount');
         if (countEl) countEl.textContent = students.length ? `共 ${students.length} 位同學` : '';
@@ -4720,9 +4838,12 @@
         }
 
         const me = state.currentUser;
+        const roster = getStudentList(grade, cls);
         list.innerHTML = students.map((name, i) => {
-            const user = { name, grade, class: cls, seat: i + 1 };
-            const p = loadProfile(user);
+            const seat = roster.length ? (i + 1) : ((window.ClassShare && ClassShare.cardFor(cards, name, '') || {}).seat || '');
+            const user = { name, grade, class: cls, seat: seat };
+            const shared = window.ClassShare ? ClassShare.cardFor(cards, name, seat) : null;
+            const p = ClassShare && shared ? ClassShare.applyCard(loadProfile(user), shared) : loadProfile(user);
             const rs = _statsFromRanks(name, grade, cls);
             const played = rs ? rs.totalPlayed : p.stats.totalPlayed;
             const score  = rs ? rs.totalScore  : p.stats.totalScore;
@@ -4730,7 +4851,7 @@
             const avgAcc = rs ? rs.avgAccuracy : (p.stats.accuracyCount > 0 ? Math.round(p.stats.totalAccuracy / p.stats.accuracyCount) : 0);
             const avInfo = _avatarLookup(p.avatar);
             const isMe = me && me.name === name && me.grade == grade && me.class === cls;
-            return `<div class="cm-card${isMe ? ' cm-me' : ''}" data-name="${escHtml(name)}" data-grade="${grade}" data-class="${cls}" data-seat="${i+1}">
+            return `<div class="cm-card${isMe ? ' cm-me' : ''}" data-name="${escHtml(name)}" data-grade="${grade}" data-class="${cls}" data-seat="${escHtml(seat)}">
                 <div class="cm-avatar" style="background:${isPhotoAvatar(p.avatar) ? '#efe7ea' : avInfo.bg}">${avatarMarkup(p.avatar)}</div>
                 <div class="cm-info">
                     <div class="cm-name">${escHtml(name)}${isMe ? ' <span class="cm-me-tag">我</span>' : ''}</div>
@@ -4753,18 +4874,29 @@
             const user = { name, grade: g, class: c, seat: s };
 
             // Default: view profile
+            _viewProfileReturn = 'screen-classmates';
             openViewProfile(user);
         };
     }
 
     // ── View Other Profile ──
     function _renderViewProfile(user) {
-        const p = loadProfile(user);
+        let p = loadProfile(user);
+        if (window.ClassShare && state.classBoard) {
+            const card = ClassShare.cardFor(state.classBoard.cards || [], user.name, user.seat);
+            if (card) p = ClassShare.applyCard(p, card);
+        }
         const rs = _statsFromRanks(user.name, user.grade, user.class);
         paintAvatar(document.getElementById('vpAvatar'), p.avatar);
 
         document.getElementById('vpName').textContent = (user.name || p.name) + ' 同學';
         document.getElementById('vpSig').textContent = p.signature || '尚未設定簽名';
+        const presenceEl = document.getElementById('vpPresence');
+        if (presenceEl && window.ClassShare) {
+            const online = ClassShare.visibleOnline(getStudentList(user.grade, user.class), (state.classBoard && state.classBoard.online) || [], user);
+            const hit = online.find(row => row.name === user.name);
+            presenceEl.textContent = ClassShare.statusText(!!hit, hit && hit.screen);
+        }
         document.getElementById('vpMeta').textContent = `${user.grade ? (['','中一','中二','中三','中四','中五','中六'][user.grade] || '') : ''} ${user.class}班 · ${user.seat ? user.seat + '號' : ''}`;
         document.getElementById('vpLevel').textContent = 'Lv.' + p.level;
         const needed = _expForLevel(p.level);
@@ -4810,9 +4942,16 @@
 
     function openViewProfile(user) {
         _viewingProfile = user;
+        const scope = classmateScope();
+        if (!scope || !window.ClassShare || !ClassShare.sameClass(user, scope)) return;
+        const backBtn = document.getElementById('viewProfileBackBtn');
+        if (backBtn) backBtn.textContent = _viewProfileReturn === 'screen-presence' ? '← 返回在線' : '← 返回名冊';
         _renderViewProfile(user);
         switchScreen('screen-view-profile');
 
+        refreshClassBoard().then(() => {
+            if (_viewingProfile === user) _renderViewProfile(user);
+        });
         // Also sync from GAS for full profile (level, exp, etc.)
         syncProfileFromGAS(user).then(() => {
             if (_viewingProfile === user) _renderViewProfile(user);
@@ -5101,6 +5240,12 @@
                 class: user.class || '',
                 id: user.seat || ''
             };
+            try {
+                if (window.ClassShare && ClassShare.shareable(state.currentUser, { tester: !!(window.WebGoogleAuth && window.WebGoogleAuth.tester) })) {
+                    ClassShare.note(state.currentUser, 'screen-hub');
+                    ClassShare.postCard(loadProfile(state.currentUser));
+                }
+            } catch (e) {}
         }
 
         hubGrade.addEventListener('change', () => { populateHub(); updateCurrentUserFromHub(); updateHubLockState(); try { persistWebBinding(); } catch (e) {} });
@@ -5517,23 +5662,26 @@
                 if (sessionStorage.getItem('rhythmResumeCompose') === '1') g2SelectedMode = 'compose';
                 sessionStorage.removeItem('rhythmResumeCompose');
             } catch (e) {}
-            const g2AbrsmRow = document.getElementById('g2AbrsmRow');
             const g2StartBtn = document.getElementById('g2StartBtn');
             const syncG2ModeChrome = () => {
                 const compose = g2SelectedMode === 'compose';
-                if (g2AbrsmRow) g2AbrsmRow.style.display = compose ? 'none' : '';
                 if (g2StartBtn) g2StartBtn.textContent = compose ? '♩ 開始創作' : '🚀 開始練習';
             };
             const g2ModeCards = document.querySelectorAll('#g2ModeCards .mode-card');
             const paintG2Chooser = () => {
-                const usesLevel = g2SelectedMode === 'tap' || g2SelectedMode === 'complete';
-                const abrsmRow = document.getElementById('g2AbrsmRow');
+                const usesLevel = g2SelectedMode === 'tap' || g2SelectedMode === 'complete' || g2SelectedMode === 'challenge' || g2SelectedMode === '1min' || g2SelectedMode === 'duration';
                 const levelRow = document.getElementById('g2LevelRow');
-                if (abrsmRow) abrsmRow.style.display = usesLevel ? 'none' : '';
                 if (levelRow) levelRow.style.display = usesLevel ? '' : 'none';
                 const levelId = document.querySelector('#g2LevelBtns .abrsm-grade-btn.active')?.dataset.level || 'easy';
                 const levelNote = document.getElementById('g2LevelCoverage');
-                if (levelNote && window.RhythmLevels) levelNote.textContent = RhythmLevels.coverageText(levelId);
+                if (!levelNote) return;
+                if ((g2SelectedMode === 'challenge' || g2SelectedMode === '1min') && window.AbrsmRhythmTerms) {
+                    levelNote.textContent = AbrsmRhythmTerms.levelCoverageText('meter', levelId);
+                } else if (g2SelectedMode === 'duration' && window.AbrsmRhythmTerms) {
+                    levelNote.textContent = AbrsmRhythmTerms.levelCoverageText('value', levelId);
+                } else if (window.RhythmLevels) {
+                    levelNote.textContent = RhythmLevels.coverageText(levelId);
+                }
             };
             g2ModeCards.forEach(c => {
                 c.classList.toggle('active', c.dataset.mode === g2SelectedMode);
@@ -5554,20 +5702,6 @@
             });
             syncG2ModeChrome();
             paintG2Chooser();
-
-            const g2Coverage = document.getElementById('g2AbrsmCoverage');
-            const paintG2 = () => {
-                const id = document.querySelector('#g2AbrsmBtns .abrsm-grade-btn.active')?.dataset.abrsm || 'abrsm-g1';
-                if (g2Coverage && window.AbrsmRhythmTerms) g2Coverage.textContent = AbrsmRhythmTerms.coverageText(id);
-            };
-            document.querySelectorAll('#g2AbrsmBtns .abrsm-grade-btn').forEach(btn => {
-                btn.onclick = () => {
-                    document.querySelectorAll('#g2AbrsmBtns .abrsm-grade-btn').forEach(other => other.classList.remove('active'));
-                    btn.classList.add('active');
-                    paintG2();
-                };
-            });
-            paintG2();
 
             document.getElementById('g2StartBtn').onclick = () => {
                 if (g2SelectedMode === 'challenge') {
@@ -5649,7 +5783,11 @@
             const badgeText = document.getElementById('g3PlayerBadgeText');
             if (badgeText) badgeText.textContent = `${user.grade ? ['','中一','中二','中三','中四','中五','中六'][user.grade] : ''}${user.class}班 · ${user.name} 同學`;
             let g3SelectedMode = 'practice';
-            let g3SelectedDiff = document.querySelector('#g3AbrsmBtns .abrsm-grade-btn.active')?.dataset.abrsm || 'abrsm-g1';
+            let g3SelectedDiff = document.querySelector('#g3LevelBtns .abrsm-grade-btn.active')?.dataset.level || 'easy';
+            const paintG3Level = () => {
+                const note = document.getElementById('g3LevelCoverage');
+                if (note && window.AbrsmRhythmTerms) note.textContent = AbrsmRhythmTerms.levelCoverageText('terms', g3SelectedDiff);
+            };
 
             document.querySelectorAll('#g3ModeCards .mode-card').forEach(c => {
                 c.classList.toggle('active', c.dataset.mode === 'practice');
@@ -5659,25 +5797,24 @@
                     c.classList.add('active');
                 };
             });
-            document.querySelectorAll('#g3AbrsmBtns .abrsm-grade-btn').forEach(c => {
+            document.querySelectorAll('#g3LevelBtns .abrsm-grade-btn').forEach(c => {
                 c.onclick = () => {
-                    g3SelectedDiff = c.dataset.abrsm;
-                    document.querySelectorAll('#g3AbrsmBtns .abrsm-grade-btn').forEach(x => x.classList.remove('active'));
+                    g3SelectedDiff = c.dataset.level;
+                    document.querySelectorAll('#g3LevelBtns .abrsm-grade-btn').forEach(x => x.classList.remove('active'));
                     c.classList.add('active');
+                    paintG3Level();
                 };
             });
+            paintG3Level();
 
             document.getElementById('g3StartBtn').onclick = () => startGame3(user, g3SelectedMode, g3SelectedDiff);
             document.getElementById('g3StudyBtn').onclick = () => openStudyScreen();
             document.getElementById('g3BackToHubFromSetup').onclick = () => switchScreen('screen-hub');
             document.getElementById('g3SetupViewRanks').onclick = () => {
-                const layout = document.getElementById('g3LeaderboardLayout');
-                if (layout) layout.classList.add('view-only');
-                const backBtn = document.getElementById('g3ResultBack');
-                if (backBtn) { backBtn.style.display = ''; backBtn.onclick = () => { backBtn.style.display = 'none'; switchScreen('screen-g3-setup'); }; }
-                g3RankListMode = 'classroom';
-                renderLocalRankList('game3', 'g3RankList', user, 'classroom');
-                switchScreen('screen-game3-result');
+                const gf = document.getElementById('rankGameFilter');
+                if (gf) gf.value = 'game3';
+                switchScreen('screen-leaderboard');
+                loadRanks();
             };
             switchScreen('screen-g3-setup');
         });
@@ -5778,11 +5915,20 @@
             const online = document.getElementById('presenceOnline');
             const log = document.getElementById('presenceLog');
             const eventLabel = { online: '上線', offline: '離線', screen: '打開' };
-            const people = (data && data.online) || [];
-            const events = (data && data.log) || [];
+            const scope = classmateScope();
+            const roster = scope ? getStudentList(scope.grade, scope.class) : [];
+            const people = (scope && window.ClassShare)
+                ? ClassShare.visibleOnline(roster, (data && data.online) || [], scope)
+                : [];
+            const events = (scope && window.ClassShare)
+                ? ClassShare.classRows((data && data.log) || [], scope).filter(row => !roster.length || roster.indexOf(row.name) >= 0)
+                : [];
             if (online) {
                 online.innerHTML = people.length
-                    ? people.map((row) => `<li><strong>${escHtml(row.name || '')}</strong>${row.classLabel ? ' · ' + escHtml(row.classLabel) : ''}</li>`).join('')
+                    ? people.map((row) => {
+                        const status = ClassShare.statusText(true, row.screen);
+                        return `<li><button type="button" class="presence-person" data-name="${escHtml(row.name || '')}" data-grade="${escHtml(row.grade || '')}" data-class="${escHtml(row.class || '')}" data-seat="${escHtml(row.seat || '')}"><span class="cm-avatar">${avatarMarkup(row.avatar)}</span><span><strong>${escHtml(row.name || '')}</strong> ${escHtml(status)}</span></button></li>`;
+                    }).join('')
                     : '<li>暫時無人在線</li>';
             }
             if (log) {
@@ -5798,10 +5944,16 @@
         }
         function openPresence() {
             switchScreen('screen-presence');
-            const auth = window.WebGoogleAuth;
-            if (!auth || typeof auth.loadPresence !== 'function') return;
-            auth.loadPresence().then(paintPresence);
+            paintPresence(state.classBoard || { online: [], log: [] });
+            refreshClassBoard().then(board => { if (board) paintPresence(board); });
         }
+        const presenceOnline = document.getElementById('presenceOnline');
+        if (presenceOnline) presenceOnline.addEventListener('click', (e) => {
+            const btn = e.target.closest('.presence-person');
+            if (!btn) return;
+            _viewProfileReturn = 'screen-presence';
+            openViewProfile({ name: btn.dataset.name, grade: btn.dataset.grade, class: btn.dataset.class, seat: btn.dataset.seat });
+        });
         if (hubPresenceBtn) hubPresenceBtn.addEventListener('click', openPresence);
         if (presenceBackBtn) presenceBackBtn.addEventListener('click', () => switchScreen('screen-hub'));
         document.getElementById('hubProfileBtn').addEventListener('click', () => {
@@ -6046,15 +6198,15 @@
         if (game === 'game3') {
             if (label) label.textContent = '術語榜';
             if (sel.dataset.kindGame !== 'game3') {
-                sel.innerHTML = '<option value="classroom" selected>課堂舊紀錄</option>';
+                sel.innerHTML = '<option value="terms-level" selected>術語</option><option value="terms-legacy">術語舊英皇</option><option value="classroom">課堂舊紀錄</option>';
                 sel.dataset.kindGame = 'game3';
-                sel.value = 'classroom';
+                sel.value = 'terms-level';
             }
             return;
         }
         if (label) label.textContent = '節奏榜';
         if (sel.dataset.kindGame !== 'game2') {
-            sel.innerHTML = '<option value="rhythm-tap" selected>節奏挑戰</option><option value="rhythm-complete">補足小節</option><option value="rhythm-tap-legacy">節奏挑戰舊英皇</option><option value="classroom">課堂舊紀錄</option>';
+            sel.innerHTML = '<option value="rhythm-tap" selected>節奏挑戰</option><option value="rhythm-complete">補足小節</option><option value="meter-level">拍號計時</option><option value="rhythm-tap-legacy">節奏挑戰舊英皇</option><option value="meter-legacy">拍號舊英皇</option><option value="classroom">課堂舊紀錄</option>';
             sel.dataset.kindGame = 'game2';
             sel.value = 'rhythm-tap';
         }
@@ -6546,15 +6698,18 @@
     function launchSyllabusQuiz(user, kind, timed) {
         if (!window.AbrsmRhythmTerms) return;
         if (syllabusQuiz.timer) clearInterval(syllabusQuiz.timer);
-        const grade = document.querySelector('#g2AbrsmBtns .abrsm-grade-btn.active')?.dataset.abrsm || 'abrsm-g1';
-        const bank = (kind === 'value' ? AbrsmRhythmTerms.valueQuestions(grade) : AbrsmRhythmTerms.meterQuestions(grade)).slice();
+        const level = document.querySelector('#g2LevelBtns .abrsm-grade-btn.active')?.dataset.level || 'easy';
+        const bank = AbrsmRhythmTerms.questionsForLevel(kind === 'value' ? 'value' : 'meter', level).slice();
         for (let i = bank.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bank[i], bank[j]] = [bank[j], bank[i]]; }
-        Object.assign(syllabusQuiz, { items: bank, index: 0, score: 0, correct: 0, wrong: 0, locked: false, timed, kind, grade, user, left: timed ? 60 : null, timer: null });
+        Object.assign(syllabusQuiz, { items: bank, index: 0, score: 0, correct: 0, wrong: 0, locked: false, timed, kind, level, user, left: timed ? 60 : null, timer: null });
         const title = kind === 'value' ? '時值辨別' : (timed ? '拍號計時' : '拍號練習');
         const box = document.getElementById('screen-g2-duration');
         box.innerHTML = `<div class="om-header"><button class="om-exit" id="sqExit">✕</button><div class="om-header-center"><div class="om-title">${title}</div><span class="om-time-left" id="sqTime">${timed ? '60s' : '練習'}</span></div><div class="om-score-wrap"><div class="om-score-val" id="sqScore">0</div><div class="om-score-label">得分</div></div></div><div class="om-prompt" id="sqPrompt"></div><div class="keysig-options" id="sqOptions"></div><p class="abrsm-coverage" id="sqNote"></p>`;
-        document.getElementById('sqNote').textContent = AbrsmRhythmTerms.coverageText(grade);
+        document.getElementById('sqNote').textContent = AbrsmRhythmTerms.levelCoverageText(kind === 'value' ? 'value' : 'meter', level);
         switchScreen('screen-g2-duration');
+        try {
+            if (window.ClassShare) ClassShare.note(user, null, { activity: title, tester: !!(window.WebGoogleAuth && window.WebGoogleAuth.tester) });
+        } catch (e) {}
         document.getElementById('sqExit').onclick = () => { if (syllabusQuiz.timer) clearInterval(syllabusQuiz.timer); switchScreen('screen-g2-setup'); };
         if (timed) {
             syllabusQuiz.timer = setInterval(() => {
@@ -6604,14 +6759,18 @@
         syllabusQuiz.locked = true;
         const total = syllabusQuiz.correct + syllabusQuiz.wrong;
         const accuracy = total ? Math.round(syllabusQuiz.correct / total * 100) : 0;
-        if (syllabusQuiz.timed && syllabusQuiz.user) {
+        if (syllabusQuiz.timed && syllabusQuiz.kind !== 'value' && syllabusQuiz.user && syllabusQuiz.user.name) {
             state.currentUser = syllabusQuiz.user;
-            saveSyllabusRank('rhythm', syllabusQuiz.grade, { score: syllabusQuiz.score, accuracy, maxCombo: syllabusQuiz.correct });
+            saveLevelRank('meter', syllabusQuiz.level, { score: syllabusQuiz.score, accuracy, maxCombo: syllabusQuiz.correct });
         }
         const box = document.getElementById('screen-g2-duration');
         const note = document.createElement('div');
         note.className = 'om-result';
-        note.innerHTML = `<div class="om-result-title">${syllabusQuiz.timed ? '計時結束' : '練習暫停'}</div><div class="om-result-score">${syllabusQuiz.score}</div><p class="abrsm-coverage">${syllabusQuiz.timed ? '這次成績不計入排行榜。' : '練習不入榜。'}</p><button class="om-btn-back" id="sqDone" type="button">返回</button>`;
+        const levelLabel = (window.AbrsmRhythmTerms && AbrsmRhythmTerms.LABELS[syllabusQuiz.level]) || '';
+        const scoreNote = syllabusQuiz.timed
+            ? `分數記在拍號計時的${levelLabel}榜，不會寫入英皇級別。`
+            : '練習不入榜。';
+        note.innerHTML = `<div class="om-result-title">${syllabusQuiz.timed ? '計時結束' : '練習暫停'}</div><div class="om-result-score">${syllabusQuiz.score}</div><p class="abrsm-coverage">${scoreNote}</p><button class="om-btn-back" id="sqDone" type="button">返回</button>`;
         box.appendChild(note);
         document.getElementById('sqDone').onclick = () => switchScreen('screen-g2-setup');
     }
@@ -10241,6 +10400,9 @@
         if (difficulty === 'classroom') {
             data = (state.allRanks || []).filter(r => r.game === gameKey && !isSharedRankRow(r));
             data = data.concat(deviceClassroomRows(gameKey));
+        } else if ((difficulty === 'easy' || difficulty === 'medium' || difficulty === 'hard') && window.AbrsmRhythmTerms) {
+            const storageKind = gameKey === 'game3' ? 'terms' : 'meter';
+            data = JSON.parse(localStorage.getItem(AbrsmRhythmTerms.storageKey(storageKind, difficulty)) || '[]');
         } else if (/^abrsm-g[1-5]$/.test(difficulty || '') && window.AbrsmCurriculum) {
             const storageGame = gameKey === 'game3' ? 'terms' : 'rhythm';
             data = JSON.parse(localStorage.getItem(AbrsmCurriculum.rankStorageKey(storageGame, difficulty)) || '[]');
@@ -10250,7 +10412,8 @@
         }
         if (clsEl && clsEl.value !== '0') data = data.filter(r => r.class === clsEl.value);
         if (gradeEl && parseInt(gradeEl.value) !== 0) data = data.filter(r => parseInt(r.grade) === parseInt(gradeEl.value));
-        if (difficulty && difficulty !== 'classroom') data = data.filter(r => (r.mode_name || '').includes(DIFFICULTY_CONFIG[difficulty]?.label || '') || (r.difficulty || '') === difficulty);
+        const levelBoard = difficulty === 'easy' || difficulty === 'medium' || difficulty === 'hard' || /^abrsm-g[1-5]$/.test(difficulty || '');
+        if (difficulty && difficulty !== 'classroom' && !levelBoard) data = data.filter(r => (r.mode_name || '').includes(DIFFICULTY_CONFIG[difficulty]?.label || '') || (r.difficulty || '') === difficulty);
         data.sort((a,b) => (b.score||0) - (a.score||0));
         const seen = new Set();
         data = data.filter(r => {
@@ -10720,8 +10883,8 @@
         if (g3TimerHandle) clearInterval(g3TimerHandle);
         audio.init(); audio.warmUp();
 
-        const pool = (window.AbrsmRhythmTerms && /^abrsm-g[1-5]$/.test(difficulty))
-            ? AbrsmRhythmTerms.termQuestions(difficulty)
+        const pool = (window.AbrsmRhythmTerms && AbrsmRhythmTerms.questionsForLevel('terms', difficulty).length)
+            ? AbrsmRhythmTerms.questionsForLevel('terms', difficulty)
             : (G3_DIFF_POOL[difficulty] || G3_DIFF_POOL.easy)();
         // For challenge mode, we need a large shuffled pool; recycle if needed
         for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i+1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
@@ -10729,7 +10892,7 @@
         g3State._pool = pool; // keep reference for recycling
 
         const modeLabel = isChallenge ? '⏱️ 限時挑戰 (60秒)' : '📝 練習模式';
-        const diffEmoji = /^abrsm-g[1-5]$/.test(difficulty) ? ('英皇 ' + difficulty.replace('abrsm-g', 'G')) : ((DIFFICULTY_CONFIG[difficulty] || {}).emoji || '');
+        const diffEmoji = (window.AbrsmRhythmTerms && AbrsmRhythmTerms.LABELS[difficulty]) || ((DIFFICULTY_CONFIG[difficulty] || {}).emoji || '');
         document.getElementById('g3User').textContent = `👋 ${user.name} 同學 — 術語識辨 ${modeLabel} ${diffEmoji}`;
         document.getElementById('g3EndBtn').onclick = () => endGame3();
         document.getElementById('g3BackBtn').onclick = () => { if (g3TimerHandle) clearInterval(g3TimerHandle); switchScreen('screen-hub'); };
@@ -10892,20 +11055,21 @@
         const accuracy = totalAnswered > 0 ? Math.round((correct / totalAnswered) * 100) : 0;
         const diffLabel = (DIFFICULTY_CONFIG[difficulty] || {}).label || 'Easy';
         if (mode !== 'practice') {
-            if (/^abrsm-g[1-5]$/.test(difficulty)) {
-                saveSyllabusRank('terms', difficulty, { score: finalScore, accuracy, maxCombo });
+            if (window.AbrsmRhythmTerms && AbrsmRhythmTerms.storageKey('terms', difficulty)) {
+                saveLevelRank('terms', difficulty, { score: finalScore, accuracy, maxCombo });
             } else {
-            saveLocalRank('game3', user, finalScore, accuracy, maxCombo, difficulty);
-            submitScoreToGAS('game3', user, finalScore, accuracy, maxCombo, '術語識辨·' + diffLabel);
+                saveLocalRank('game3', user, finalScore, accuracy, maxCombo, difficulty);
+                submitScoreToGAS('game3', user, finalScore, accuracy, maxCombo, '術語識辨·' + diffLabel);
             }
             recordGameResult(user, 'game3', finalScore, accuracy, maxCombo, difficulty);
         } else {
             _consumeProfilePlaySecs();
         }
 
+        const levelLabel = (window.AbrsmRhythmTerms && AbrsmRhythmTerms.LABELS[difficulty]) || '';
         const practiceNote = mode === 'practice'
             ? '<div style="text-align:center;color:var(--text-light);font-size:0.85rem;margin-top:6px;">📝 練習模式成績不計入排行榜</div>'
-            : (/^abrsm-g[1-5]$/.test(difficulty || '') ? '<div style="text-align:center;color:var(--text-light);font-size:0.85rem;margin-top:6px;">📝 這次成績不計入排行榜</div>' : '');
+            : (levelLabel ? `<div style="text-align:center;color:var(--text-light);font-size:0.85rem;margin-top:6px;">分數記在術語的${levelLabel}榜，不會寫入英皇級別。</div>` : '');
         document.getElementById('g3ReportGrid').innerHTML = `
             <div class="report-item"><div class="report-label">答題數</div><div class="report-value">${totalAnswered}</div></div>
             <div class="report-item"><div class="report-label">得分</div><div class="report-value">${finalScore}</div></div>
@@ -10931,8 +11095,8 @@
             }
         }
 
-        g3RankListMode = 'classroom';
-        renderLocalRankList('game3', 'g3RankList', user, 'classroom');
+        g3RankListMode = (window.AbrsmRhythmTerms && AbrsmRhythmTerms.storageKey('terms', difficulty) && mode !== 'practice') ? difficulty : 'classroom';
+        renderLocalRankList('game3', 'g3RankList', user, g3RankListMode);
         if (mode !== 'practice') setTimeout(() => loadRanks(2, { force: true }).then(() => renderLocalRankList('game3', 'g3RankList', user, g3RankListMode)).catch(()=>{}), 800);
         document.getElementById('g3PlayAgain').onclick = () => switchScreen('screen-g3-setup');
         document.getElementById('g3BackToHub').onclick = () => switchScreen('screen-g3-setup');

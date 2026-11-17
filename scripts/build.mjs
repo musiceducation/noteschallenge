@@ -61,6 +61,8 @@ for (const f of [
   "www/composition-studio.js",
   "web-google-auth.js",
   "www/web-google-auth.js",
+  "class-share.js",
+  "www/class-share.js",
   "ability-radar.js",
   "www/ability-radar.js",
   "aural-score.js",

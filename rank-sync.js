@@ -24,7 +24,7 @@ var RankSync = (function () {
                 level: ''
             };
         }
-        var level = /^(rhythm-level|rhythm-complete):(easy|medium|hard)$/.exec(rest);
+        var level = /^(rhythm-level|rhythm-complete|meter-level|value-level|terms-level):(easy|medium|hard)$/.exec(rest);
         if (!level) return null;
         return {
             storageKey: key,
@@ -122,8 +122,8 @@ var RankSync = (function () {
     }
 
     function legacySheetGame(gameKey) {
-        if (gameKey === 'terms') return 'game3';
-        if (gameKey === 'rhythm' || gameKey === 'rhythm-tap' || gameKey === 'rhythm-level' || gameKey === 'rhythm-complete') return 'game2';
+        if (gameKey === 'terms' || gameKey === 'terms-level') return 'game3';
+        if (gameKey === 'rhythm' || gameKey === 'rhythm-tap' || gameKey === 'rhythm-level' || gameKey === 'rhythm-complete' || gameKey === 'meter-level' || gameKey === 'value-level') return 'game2';
         return 'game1';
     }
 
