@@ -638,23 +638,24 @@ function publicClassCard(profile, id) {
 }
 
 async function listClassCards(db, grade, klass) {
-  const prefix = 'class:' + grade + '|' + klass + '|';
-  const loaded = await db.prepare('SELECT sub, data FROM profiles WHERE sub LIKE ?').bind(prefix + '%').all();
+  const loaded = await db.prepare('SELECT sub, data FROM profiles WHERE sub LIKE ?').bind('class:%').all();
   const cards = [];
   ((loaded && loaded.results) || []).forEach((row) => {
-    if (!row || text(row.sub).indexOf(prefix) !== 0) return;
+    if (!row || text(row.sub).indexOf('class:') !== 0) return;
     let parsed = null;
     try { parsed = JSON.parse(row.data); } catch (e) { parsed = null; }
     const card = publicClassCard(parsed);
-    if (!card || card.grade !== String(grade) || card.class !== klass) return;
+    if (!card) return;
+    if (grade && card.grade !== String(grade)) return;
+    if (klass && card.class !== klass) return;
     cards.push(card);
   });
   return cards;
 }
 
-function matchClassCard(cards, name, seat) {
-  const same = (cards || []).filter((card) => card && card.name === name);
-  const wanted = text(seat);
+function matchClassCard(cards, id) {
+  const same = (cards || []).filter((card) => card && card.name === id.name && card.grade === id.grade && card.class === id.class);
+  const wanted = text(id.seat);
   for (let i = 0; i < same.length; i++) {
     if (wanted && text(same[i].seat) === wanted) return same[i];
   }
@@ -673,7 +674,11 @@ async function listClassDirectory(db, grade, klass) {
   const rosterLoaded = await db.prepare('SELECT email, grade, class, student_name, seat FROM roster').all();
   const rosterRows = ((rosterLoaded && rosterLoaded.results) || []).filter((row) => {
     const g = schoolGrade(row && row.grade);
-    return g === String(grade) && schoolClass(row && row.class, g) === klass;
+    const c = schoolClass(row && row.class, g);
+    if (!g || !c) return false;
+    if (grade && g !== String(grade)) return false;
+    if (klass && c !== klass) return false;
+    return true;
   });
   const usersLoaded = await db.prepare('SELECT sub, email, student_name FROM users').all();
   const byEmail = {};
@@ -690,14 +695,16 @@ async function listClassDirectory(db, grade, klass) {
   const posted = await listClassCards(db, grade, klass);
   const cards = [];
   rosterRows.forEach((row) => {
+    const g = schoolGrade(row.grade);
+    const c = schoolClass(row.class, g);
     const id = classIdentity({
       name: row.student_name,
-      grade: grade,
-      class: klass,
+      grade: g,
+      class: c,
       seat: row.seat
     });
     if (!id) return;
-    const card = matchClassCard(posted, id.name, id.seat);
+    const card = matchClassCard(posted, id);
     let bits = card ? { avatar: card.avatar || '🎵', signature: text(card.signature).slice(0, 30) } : null;
     if (!bits) {
       const user = byEmail[text(row.email).toLowerCase()];
@@ -714,8 +721,19 @@ async function listClassDirectory(db, grade, klass) {
       signature: bits.signature || ''
     });
   });
-  cards.sort((a, b) => (parseInt(a.seat, 10) || 999) - (parseInt(b.seat, 10) || 999) || a.name.localeCompare(b.name, 'zh'));
+  cards.sort((a, b) => String(a.grade).localeCompare(String(b.grade)) || String(a.class).localeCompare(String(b.class)) || ((parseInt(a.seat, 10) || 999) - (parseInt(b.seat, 10) || 999)) || a.name.localeCompare(b.name, 'zh'));
   return cards;
+}
+
+function boardQueryFilter(url) {
+  const rawGrade = text(url.searchParams.get('grade'));
+  const rawClass = text(url.searchParams.get('class'));
+  if (!rawGrade && !rawClass) return { grade: '', class: '' };
+  const grade = rawGrade ? schoolGrade(rawGrade) : '';
+  if (rawGrade && !grade) return { error: 'bad_filter' };
+  const klass = rawClass ? schoolClass(rawClass, grade) : '';
+  if (rawClass && !klass) return { error: 'bad_filter' };
+  return { grade: grade, class: klass };
 }
 
 async function classBoardReader(request, env, url) {
@@ -723,35 +741,45 @@ async function classBoardReader(request, env, url) {
   if (gate.error) return gate;
   const account = await resolveAccount(env, gate.row);
   if (!account) return { error: jsonResponse({ ok: false, error: 'not_on_roster' }, 403, corsHeaders(request)) };
-  if (account.teacher) {
-    const grade = schoolGrade(url.searchParams.get('grade'));
-    const klass = schoolClass(url.searchParams.get('class'), grade);
-    if (!grade || !klass) return { error: jsonResponse({ ok: false, error: 'teacher_needs_class' }, 403, corsHeaders(request)) };
-    return { id: { grade: grade, class: klass, name: '', seat: '' }, teacher: true };
-  }
+  const filter = boardQueryFilter(url);
+  if (filter.error) return { error: jsonResponse({ ok: false, error: filter.error }, 400, corsHeaders(request)) };
+  if (account.teacher) return { filter: filter, teacher: true };
   const id = classIdentity(account.binding);
   if (!id) return { error: jsonResponse({ ok: false, error: 'not_on_roster' }, 403, corsHeaders(request)) };
-  const qGrade = text(url.searchParams.get('grade'));
-  const qClass = text(url.searchParams.get('class'));
-  if ((qGrade && schoolGrade(qGrade) !== id.grade) || (qClass && schoolClass(qClass, id.grade) !== id.class)) {
-    return { error: jsonResponse({ ok: false, error: 'forbidden' }, 403, corsHeaders(request)) };
-  }
-  return { id: id, teacher: false };
+  return { id: id, filter: filter, teacher: false };
+}
+
+function presencePlace(row) {
+  const label = text(row && row.class_label).split('|');
+  const grade = schoolGrade(label[0] || '');
+  const klass = schoolClass(label[1] || '', grade);
+  return { grade: grade, class: klass };
+}
+
+function presenceSeat(row) {
+  const parts = text(row && (row.id || row.presence_id)).split('|');
+  return parts.length >= 4 ? parts.slice(3).join('|') : '';
+}
+
+function inBoardFilter(place, grade, klass) {
+  if (!place.grade || !place.class) return false;
+  if (grade && place.grade !== String(grade)) return false;
+  if (klass && place.class !== klass) return false;
+  return true;
 }
 
 function classOnline(rows, cards, grade, klass) {
-  const label = grade + '|' + klass;
   const byKey = {};
-  cards.forEach((card) => { byKey[card.name + '|' + card.seat] = card; });
-  return rows.filter((row) => row && row.kind === 'classmate' && row.class_label === label).map((row) => {
-    const parts = text(row.id).split('|');
+  cards.forEach((card) => { byKey[card.grade + '|' + card.class + '|' + card.name + '|' + card.seat] = card; });
+  return rows.filter((row) => row && row.kind === 'classmate' && inBoardFilter(presencePlace(row), grade, klass)).map((row) => {
+    const place = presencePlace(row);
     const name = row.display_name;
-    const seat = parts.length >= 4 ? parts.slice(3).join('|') : '';
-    const card = byKey[name + '|' + seat] || null;
+    const seat = presenceSeat(row);
+    const card = byKey[place.grade + '|' + place.class + '|' + name + '|' + seat] || null;
     return {
       name: name,
-      grade: grade,
-      class: klass,
+      grade: place.grade,
+      class: place.class,
       seat: card ? card.seat : seat,
       screen: row.screen || '',
       avatar: card ? card.avatar : '🎵',
@@ -761,16 +789,18 @@ function classOnline(rows, cards, grade, klass) {
 }
 
 function classLog(logs, grade, klass) {
-  const label = grade + '|' + klass;
-  return logs.filter((row) => row && row.kind === 'classmate' && row.class_label === label).slice(-80).reverse().map((row) => ({
-    name: row.display_name,
-    grade: grade,
-    class: klass,
-    seat: '',
-    event: row.event,
-    screen: row.screen || '',
-    at: row.at
-  })).filter((row) => classIdentity(row));
+  return logs.filter((row) => row && row.kind === 'classmate' && inBoardFilter(presencePlace(row), grade, klass)).slice(-80).reverse().map((row) => {
+    const place = presencePlace(row);
+    return {
+      name: row.display_name,
+      grade: place.grade,
+      class: place.class,
+      seat: presenceSeat(row),
+      event: row.event,
+      screen: row.screen || '',
+      at: row.at
+    };
+  }).filter((row) => classIdentity(row));
 }
 
 async function enrolledClassStudent(request, env) {
@@ -866,8 +896,8 @@ export default {
       if (path === '/class/board' && request.method === 'GET') {
         const reader = await classBoardReader(request, env, url);
         if (reader.error) return reader.error;
-        const id = reader.id;
-        const cards = await listClassDirectory(env.DB, id.grade, id.class);
+        const filter = reader.filter || { grade: '', class: '' };
+        const cards = await listClassDirectory(env.DB, filter.grade, filter.class);
         if (!cards.length) return jsonResponse({ ok: false, error: 'unknown_class' }, 404, cors);
         const loaded = await loadPresence(env.DB);
         const before = loaded.logs.length;
@@ -876,8 +906,8 @@ export default {
         return jsonResponse({
           ok: true,
           cards: cards,
-          online: classOnline(kept, cards, id.grade, id.class),
-          log: classLog(loaded.logs, id.grade, id.class)
+          online: classOnline(kept, cards, filter.grade, filter.class),
+          log: classLog(loaded.logs, filter.grade, filter.class)
         }, 200, cors);
       }
 
