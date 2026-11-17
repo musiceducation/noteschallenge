@@ -4,6 +4,11 @@ import fs from 'node:fs';
 const src = fs.readFileSync(new URL('../class-share.js', import.meta.url), 'utf8');
 const www = fs.readFileSync(new URL('../www/class-share.js', import.meta.url), 'utf8');
 assert.equal(src, www);
+for (const file of ['../index.html', '../www/index.html']) {
+  const html = fs.readFileSync(new URL(file, import.meta.url), 'utf8');
+  assert.match(html, /class-share\.js\?v=4/);
+  assert.doesNotMatch(html, /class-share\.js\?v=3/);
+}
 const ClassShare = new Function(src + '\nreturn ClassShare;')();
 
 const student = { name: '陳小樂', grade: 2, class: 'A', seat: '12', avatar: '🎹', signature: '練拍號', level: 2, exp: 10 };
@@ -120,5 +125,91 @@ assert.equal(after.online.length, 0);
 assert.equal(ClassShare.statusText(false, ''), '離線');
 assert.equal(after.cards[0].avatar, photo);
 ClassShare.stop();
+
+const wide = ClassShare.takeBoard({
+  cards: [card, Object.assign({}, other, { email: 'c@school.edu.hk', history: [{ score: 1 }] })],
+  online: [
+    { name: '陳小樂', grade: 2, class: 'A', seat: '12', screen: '節奏挑戰' },
+    { name: '李同學', grade: 3, class: 'B', screen: '術語作答', email: 'b@school.edu.hk' }
+  ],
+  log: [{ name: '李同學', grade: 3, class: 'B', event: 'screen', screen: '術語作答', at: '2026-11-17T01:00:00.000Z' }]
+}, {});
+assert.equal(wide.cards.length, 2);
+assert.equal(wide.online.length, 2);
+assert.equal(wide.log.length, 1);
+assert.equal(wide.cards.find((row) => row.name === '李同學').email, undefined);
+assert.equal(JSON.stringify(wide).includes('@'), false);
+assert.equal(JSON.stringify(wide).includes('history'), false);
+const formB = ClassShare.takeBoard(wide, { grade: 3, class: 'B' });
+assert.deepEqual(formB.cards.map((row) => row.name), ['李同學']);
+assert.equal(formB.online.length, 1);
+assert.equal(formB.log.length, 1);
+
+const people = ClassShare.directoryEntries(
+  [{ grade: '1', class: 'A', names: ['陳小樂'] }, { grade: '3', class: 'B', names: ['靜靜'] }],
+  [same, other],
+  {}
+);
+assert.equal(people.some((row) => row.name === '李同學' && row.class === 'B'), true);
+assert.equal(people.some((row) => row.name === '靜靜' && String(row.grade) === '3'), true);
+const onlyB = ClassShare.directoryEntries(
+  [{ grade: '1', class: 'A', names: ['陳小樂'] }, { grade: '3', class: 'B', names: ['靜靜'] }],
+  [same, other],
+  { grade: 3, class: 'B' }
+);
+assert.deepEqual(onlyB.map((row) => row.name).sort(), ['李同學', '靜靜'].sort());
+assert.equal(ClassShare.cardFor([same, other], '李同學', '4', { grade: 1, class: 'A' }), null);
+assert.equal(ClassShare.cardFor([same, other], '李同學', '4', { grade: 3, class: 'B' }).name, '李同學');
+
+const game = ClassShare.publicGameRecord({
+  name: '周同學', grade: '3', class: 'B', game: 'game2', score: 88,
+  accuracy: 90, max_combo: 12, timestamp: '2026-11-17T01:02:03.000Z',
+  email: 'c@school.edu.hk', history: [{ score: 1 }]
+});
+assert.equal(game.email, undefined);
+assert.equal(game.history, undefined);
+assert.equal(game.gameLabel, '節奏');
+assert.equal(game.score, 88);
+assert.equal(game.accuracy, 90);
+assert.equal(game.combo, 12);
+assert.equal(ClassShare.publicGameRecord({ name: '周同學', grade: 3, class: 'B', game: 'game2', email: 'a@school.edu.hk' }), null);
+const records = ClassShare.radarRecords(
+  [{ name: '李同學', grade: 1, class: 'A', event: 'offline', screen: '大廳', at: '2026-11-17T01:00:00.000Z', email: 'b@school.edu.hk' }],
+  [
+    { name: '周同學', grade: 3, class: 'B', game: 'game1', score: 40, timestamp: '2026-11-17T02:00:00.000Z', email: 'c@school.edu.hk' },
+    { name: '陳小樂', grade: 1, class: 'A', game: 'game3', score: 10 }
+  ],
+  {}
+);
+assert.equal(JSON.stringify(records).includes('@'), false);
+assert.equal(records.some((row) => row.kind === 'game' && row.name === '周同學' && row.score === 40 && row.gameLabel === '音名'), true);
+assert.equal(records.some((row) => row.kind === 'presence' && row.event === 'offline'), true);
+assert.equal(records.find((row) => row.name === '陳小樂').accuracy, undefined);
+assert.equal(records.find((row) => row.name === '陳小樂').at, undefined);
+const onlyA = ClassShare.radarRecords(
+  [{ name: '李同學', grade: 1, class: 'A', event: 'offline', screen: '大廳', at: '2026-11-17T01:00:00.000Z' }],
+  [
+    { name: '周同學', grade: 3, class: 'B', game: 'game1', score: 40, email: 'c@school.edu.hk' },
+    { name: '陳小樂', grade: 1, class: 'A', game: 'game3', score: 10 }
+  ],
+  { grade: '1', class: 'A' }
+);
+assert.equal(onlyA.some((row) => row.name === '周同學'), false);
+assert.equal(onlyA.some((row) => row.name === '陳小樂' && row.kind === 'game'), true);
+assert.equal(onlyA.some((row) => row.name === '李同學' && row.kind === 'presence'), true);
+
+let boardUrl = '';
+global.fetch = async (url) => {
+  boardUrl = String(url);
+  return { ok: true, json: async () => ({ ok: true, cards: [card, other], online: [], log: [] }) };
+};
+const schoolBoard = await ClassShare.loadBoard({}, { token: tokenA });
+assert.equal(boardUrl.endsWith('/class/board'), true);
+assert.equal(schoolBoard.cards.length, 2);
+const narrowedBoard = await ClassShare.loadBoard({ grade: 3, class: 'B' }, { token: tokenA });
+assert.equal(boardUrl.includes('grade=3'), true);
+assert.equal(boardUrl.includes('class=B'), true);
+assert.deepEqual(narrowedBoard.cards.map((row) => row.name), ['李同學']);
+assert.equal(JSON.stringify(narrowedBoard).includes('@'), false);
 
 console.log('class-share: ok');

@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=21">
+    <link rel="stylesheet" href="style.css?v=22">
     <script>
     (function () {
         try {
@@ -518,6 +518,24 @@
     <div id="screen-presence" class="screen">
         <button class="btn-back-hub" id="presenceBackBtn" type="button">← 返回主頁</button>
         <h1 class="game-title">在線同紀錄</h1>
+        <div class="classmate-filters presence-filters">
+            <div class="cm-filter-field">
+                <label for="prGrade">年級</label>
+                <select id="prGrade">
+                    <option value="" selected>全部</option>
+                    <option value="1">中一</option><option value="2">中二</option><option value="3">中三</option>
+                    <option value="4">中四</option><option value="5">中五</option><option value="6">中六</option>
+                </select>
+            </div>
+            <div class="cm-filter-field">
+                <label for="prClass">班別</label>
+                <select id="prClass">
+                    <option value="" selected>全部</option>
+                    <option value="A">A班</option><option value="B">B班</option><option value="C">C班</option>
+                    <option value="D">D班</option>
+                </select>
+            </div>
+        </div>
         <div class="card presence-card">
             <h2 class="presence-heading">在線中</h2>
             <ul id="presenceOnline" class="presence-list"></ul>
@@ -619,18 +637,20 @@
         <button class="btn-back-hub" id="classmatesBackBtn">← 返回主頁</button>
         <div class="cm-header-card">
             <h2 class="social-title">👥 同學名冊</h2>
-            <div class="social-subtitle">查看同班同學的音樂檔案</div>
+            <div class="social-subtitle">查看全校同學的音樂檔案。年級和班別只作篩選。</div>
             <div class="classmate-filters">
                 <div class="cm-filter-field">
-                    <label>年級</label>
+                    <label for="cmGrade">年級</label>
                     <select id="cmGrade">
-                        <option value="1" selected>中一</option><option value="2">中二</option><option value="3">中三</option>
+                        <option value="" selected>全部</option>
+                        <option value="1">中一</option><option value="2">中二</option><option value="3">中三</option>
                         <option value="4">中四</option><option value="5">中五</option><option value="6">中六</option>
                     </select>
                 </div>
                 <div class="cm-filter-field">
-                    <label>班別</label>
+                    <label for="cmClass">班別</label>
                     <select id="cmClass">
+                        <option value="" selected>全部</option>
                         <option value="A">A班</option><option value="B">B班</option><option value="C">C班</option>
                         <option value="D">D班</option></select>
                 </div>
@@ -1793,7 +1813,7 @@
     <script src="chinese-instrument-challenge.js?v=3" defer></script>
     <script src="chord-keyboard.js?v=2" defer></script>
     <script src="rank-sync.js?v=6" defer></script>
-    <script src="class-share.js?v=3" defer></script>
+    <script src="class-share.js?v=4" defer></script>
     <script src="profile-store.js?v=1" defer></script>
     <script src="ability-radar.js?v=1" defer></script>
     <script src="aural-score.js?v=1" defer></script>
@@ -1801,7 +1821,7 @@
     <script src="aural-interval.js?v=1" defer></script>
     <script src="aural-rhythm.js?v=1" defer></script>
     <script src="aural-quality.js?v=1" defer></script>
-    <script src="bootstrap-instruments.js?v=18" data-app-bootstrap defer></script>
+    <script src="bootstrap-instruments.js?v=19" data-app-bootstrap defer></script>
     <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
 </body>
 </html>

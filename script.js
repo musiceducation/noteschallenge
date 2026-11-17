@@ -587,16 +587,29 @@
         return _defaultProfile(user);
     }
 
+    function profileIsSomeoneElse(profile) {
+        const me = state.currentUser;
+        if (!me || !me.name || !profile || !profile.name) return false;
+        if (profile.name !== me.name) return true;
+        if (!window.ClassShare) return String(profile.class || '') !== String(me.class || '');
+        const mine = ClassShare.identity(me);
+        const theirs = ClassShare.identity(profile);
+        if (mine.grade && theirs.grade && mine.grade !== theirs.grade) return true;
+        if (mine.class && theirs.class && mine.class !== theirs.class) return true;
+        return false;
+    }
+
     function saveProfile(profile, opts) {
         const api = _profileApi();
         const key = api ? api.profileKey(profile) : `${PROFILE_STORAGE_KEY}_${profile.grade}_${profile.class}_${profile.name}`;
         _profileCache.set(key, profile);
         const wrote = api ? api.safeSet(localStorage, key, JSON.stringify(profile)) : { ok: true };
+        const otherPerson = profileIsSomeoneElse(profile) || !!(state.currentUser && profile && profile.name && profile.name !== state.currentUser.name);
         if (!api) {
             try { localStorage.setItem(key, JSON.stringify(profile)); } catch(e) { _showToast('⚠️ 儲存空間不足，個人資料可能未能保存', 'warn'); }
         } else if (!wrote.ok) {
             _showToast('⚠️ 儲存空間不足，個人資料可能未能保存', 'warn');
-        } else if (!api.isGuest(profile) && !(state.currentUser && profile.name && profile.name !== state.currentUser.name)) {
+        } else if (!api.isGuest(profile) && !otherPerson) {
             api.writePointer(localStorage, profile);
         }
         try {
@@ -616,7 +629,7 @@
             }
         } catch (e) {}
         try {
-            if (!(state.currentUser && profile && profile.name && profile.name !== state.currentUser.name)) updateHubAsideFromProfile(profile);
+            if (!profileIsSomeoneElse(profile) && !(state.currentUser && profile && profile.name && profile.name !== state.currentUser.name)) updateHubAsideFromProfile(profile);
         } catch (e) {}
         try {
             const enrolled = classAuth();
@@ -931,7 +944,7 @@
             const latestOwn = loadProfile(user);
             if (latestOwn.avatar) profile.avatar = latestOwn.avatar;
             if (latestOwn.signature) profile.signature = latestOwn.signature;
-            const ownProfile = state.currentUser && state.currentUser.name === profile.name && String(state.currentUser.class || '') === String(profile.class || '');
+            const ownProfile = state.currentUser && state.currentUser.name === profile.name && !profileIsSomeoneElse(profile);
             saveProfile(profile, ownProfile ? undefined : { skipRemote: true });
         } catch (e) {
             console.error('Profile 讀取失敗：', e);
@@ -1008,7 +1021,7 @@
                 const latestMate = loadProfile(user);
                 if (latestMate.avatar) merged.avatar = latestMate.avatar;
                 if (latestMate.signature) merged.signature = latestMate.signature;
-                const ownMate = state.currentUser && state.currentUser.name === merged.name && String(state.currentUser.class || '') === String(merged.class || '');
+                const ownMate = state.currentUser && state.currentUser.name === merged.name && !profileIsSomeoneElse(merged);
                 saveProfile(merged, ownMate ? undefined : { skipRemote: true });
             });
 
@@ -4751,6 +4764,7 @@
     // 👥 社交功能 (Social Features)
     // ==========================================
     let _viewProfileReturn = 'screen-classmates';
+    let repaintClassSurfaces = function () {};
 
     function classViewer() {
         const auth = window.WebGoogleAuth;
@@ -4768,14 +4782,60 @@
 
     function classBoardMessage(error) {
         const text = {
-            unauthorized: '請用已綁定名單的 Google 帳號登入，先可以查看同班同學。',
-            not_on_roster: '這個帳號不在學生名單，未能讀取同班檔案。',
-            teacher_needs_class: '請先選擇要查看的年級和班別。',
-            unknown_class: '名單裡沒有這個班。',
-            forbidden: '只能查看自己的班。',
+            unauthorized: '請用已綁定名單的 Google 帳號登入，先可以查看同學名冊。',
+            not_on_roster: '這個帳號不在學生名單，未能讀取同學名冊。',
+            unknown_class: '名單裡沒有符合的同學。',
+            forbidden: '未能讀取這份名冊。',
+            bad_filter: '年級或班別不正確。',
             network: '名冊暫時載入失敗，請再試。'
         };
         return text[error] || '名冊暫時載入失敗，請再試。';
+    }
+
+    function classmateFilter() {
+        const gradeEl = document.getElementById('cmGrade');
+        const classEl = document.getElementById('cmClass');
+        return {
+            grade: gradeEl ? gradeEl.value : '',
+            class: classEl ? classEl.value : ''
+        };
+    }
+
+    function unlockClassmateFilters() {
+        ['cmGrade', 'cmClass', 'prGrade', 'prClass'].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.disabled = false;
+        });
+        return classmateFilter();
+    }
+
+    function mirrorClassFilter(source) {
+        if (!source) return;
+        const grade = source.id.indexOf('Grade') >= 0;
+        const ids = grade ? ['cmGrade', 'prGrade'] : ['cmClass', 'prClass'];
+        ids.forEach((id) => {
+            const el = document.getElementById(id);
+            if (el && el !== source) el.value = source.value;
+        });
+    }
+
+    function localRosterGroups(filter) {
+        const wanted = window.ClassShare ? ClassShare.boardFilter(filter || {}) : { grade: '', class: '' };
+        const grades = wanted.grade ? [wanted.grade] : ['1', '2', '3', '4', '5', '6'];
+        const classes = wanted.class ? [wanted.class] : ['A', 'B', 'C', 'D'];
+        const groups = [];
+        grades.forEach((grade) => {
+            classes.forEach((cls) => {
+                const names = getStudentList(grade, cls);
+                if (names.length) groups.push({ grade: grade, class: cls, names: names });
+            });
+        });
+        return groups;
+    }
+
+    function formClassLabel(grade, cls) {
+        const labels = ['', '中一', '中二', '中三', '中四', '中五', '中六'];
+        return `${labels[parseInt(grade, 10)] || ''}${cls || ''}`;
     }
 
     function noteClassPresence(screenId, activity) {
@@ -4800,41 +4860,10 @@
         if (window.ClassShare) ClassShare.stop();
     }
 
-    function classmateScope() {
-        const viewer = classViewer();
-        if (!viewer || !window.ClassShare) return null;
-        if (viewer.teacher) {
-            const gradeEl = document.getElementById('cmGrade');
-            const classEl = document.getElementById('cmClass');
-            const grade = gradeEl ? gradeEl.value : '';
-            const klass = classEl ? classEl.value : '';
-            if (!ClassShare.schoolGrade(grade) || !ClassShare.schoolClass(klass, grade)) return null;
-            return { grade: parseInt(ClassShare.schoolGrade(grade), 10), class: ClassShare.schoolClass(klass, grade), teacher: true };
-        }
-        return viewer.binding;
-    }
-
-    function lockClassmateFilters() {
-        const viewer = classViewer();
-        const scope = classmateScope();
-        const gradeEl = document.getElementById('cmGrade');
-        const classEl = document.getElementById('cmClass');
-        if (!scope) return null;
-        if (viewer && viewer.teacher) {
-            if (gradeEl) gradeEl.disabled = false;
-            if (classEl) classEl.disabled = false;
-            return scope;
-        }
-        if (gradeEl) { gradeEl.value = String(scope.grade); gradeEl.disabled = true; }
-        if (classEl) { classEl.value = scope.class; classEl.disabled = true; }
-        return scope;
-    }
-
     function applyClassCards(board) {
-        const scope = classmateScope();
-        if (!scope || !board || !window.ClassShare) return;
-        ClassShare.classRows(board.cards, scope).forEach(card => {
-            const user = { name: card.name, grade: scope.grade, class: scope.class, seat: card.seat };
+        if (!board || !window.ClassShare) return;
+        (board.cards || []).forEach(card => {
+            const user = { name: card.name, grade: card.grade, class: card.class, seat: card.seat };
             const local = loadProfile(user);
             const merged = ClassShare.applyCard(local, card);
             if (merged.avatar === local.avatar && merged.signature === local.signature && merged.level === local.level && merged.exp === local.exp) return;
@@ -4844,19 +4873,19 @@
 
     function refreshClassBoard() {
         const viewer = classViewer();
-        const scope = classmateScope();
-        if (!viewer || !scope || !window.ClassShare) {
+        if (!viewer || !window.ClassShare) {
             state.classBoard = null;
             state.classBoardError = 'unauthorized';
             return Promise.resolve(null);
         }
-        return ClassShare.loadBoard(scope, { token: viewer.token, teacher: !!viewer.teacher }).then(board => {
+        const filter = classmateFilter();
+        return ClassShare.loadBoard(filter, { token: viewer.token }).then(board => {
             if (!board || board.ok === false) {
                 state.classBoard = null;
                 state.classBoardError = (board && board.error) || 'board_failed';
                 return null;
             }
-            const fresh = ClassShare.takeBoard(board, scope);
+            const fresh = ClassShare.takeBoard(board, filter);
             fresh.ok = true;
             state.classBoard = fresh;
             state.classBoardError = '';
@@ -4868,33 +4897,38 @@
     function initSocialFeatures() {
         // Hub buttons
         document.getElementById('hubClassmatesBtn').addEventListener('click', () => {
-            if (!classViewer()) { alert('請用已綁定名單的 Google 帳號登入，先可以查看同班同學。'); return; }
-            lockClassmateFilters();
+            if (!classViewer()) { alert('請用已綁定名單的 Google 帳號登入，先可以查看同學名冊。'); return; }
+            unlockClassmateFilters();
             renderClassmateList();
             switchScreen('screen-classmates');
-            const scope = classmateScope();
             refreshClassBoard().then(() => renderClassmateList());
-            if (scope && !scope.teacher) syncAllProfiles(scope.grade, scope.class, () => renderClassmateList());
+            const narrowed = window.ClassShare ? ClassShare.boardFilter(classmateFilter()) : null;
+            if (narrowed && narrowed.grade && narrowed.class) syncAllProfiles(narrowed.grade, narrowed.class, () => renderClassmateList());
         });
         // Back buttons
         document.getElementById('classmatesBackBtn').addEventListener('click', () => switchScreen('screen-hub'));
         document.getElementById('viewProfileBackBtn').addEventListener('click', () => switchScreen(_viewProfileReturn || 'screen-classmates'));
 
-        const cmGrade = document.getElementById('cmGrade');
-        const cmClass = document.getElementById('cmClass');
-        if (state.currentUser && classmateScope() && !(classViewer() && classViewer().teacher)) {
-            cmGrade.value = String(classmateScope().grade);
-            cmClass.value = classmateScope().class;
-        }
-        const reloadTeacherClass = () => {
-            const viewer = classViewer();
-            if (!viewer || !viewer.teacher) return;
-            if (!document.getElementById('screen-classmates')?.classList.contains('active')) return;
-            renderClassmateList();
-            refreshClassBoard().then(() => renderClassmateList());
+        const reloadFiltered = () => {
+            if (!classViewer()) return;
+            const onClassmates = document.getElementById('screen-classmates')?.classList.contains('active');
+            const onPresence = document.getElementById('screen-presence')?.classList.contains('active');
+            if (!onClassmates && !onPresence) return;
+            if (onClassmates) renderClassmateList();
+            refreshClassBoard().then(() => {
+                if (onClassmates) renderClassmateList();
+                if (onPresence) repaintClassSurfaces();
+            });
         };
-        if (cmGrade) cmGrade.addEventListener('change', reloadTeacherClass);
-        if (cmClass) cmClass.addEventListener('change', reloadTeacherClass);
+        ['cmGrade', 'cmClass', 'prGrade', 'prClass'].forEach((id) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.disabled = false;
+            el.addEventListener('change', () => {
+                mirrorClassFilter(el);
+                reloadFiltered();
+            });
+        });
 
     }
 
@@ -4902,12 +4936,10 @@
 
     // ── Classmates Directory ──
     function renderClassmateList() {
-        const scope = lockClassmateFilters();
-        const grade = scope ? String(scope.grade) : '';
-        const cls = scope ? scope.class : '';
+        const filter = unlockClassmateFilters();
         const cards = (state.classBoard && state.classBoard.cards) || [];
-        const students = scope && window.ClassShare
-            ? ClassShare.directoryNames(getStudentList(grade, cls), cards, scope)
+        const students = window.ClassShare
+            ? ClassShare.directoryEntries(localRosterGroups(filter), cards, filter)
             : [];
         const list = document.getElementById('classmateList');
         const countEl = document.getElementById('cmCount');
@@ -4915,17 +4947,19 @@
         if (countEl) countEl.textContent = failure || (students.length ? `共 ${students.length} 位同學` : '');
 
         if (!students.length) {
-            list.innerHTML = `<div class="cm-empty">${escHtml(failure || '這個班別暫時沒有同學資料 📭')}</div>`;
+            list.innerHTML = `<div class="cm-empty">${escHtml(failure || '暫時沒有同學資料 📭')}</div>`;
             return;
         }
 
         const me = state.currentUser;
-        const roster = getStudentList(grade, cls);
-        list.innerHTML = students.map((name, i) => {
-            const sharedSeat = window.ClassShare ? ClassShare.cardFor(cards, name, '') : null;
-            const seat = (sharedSeat && sharedSeat.seat) ? sharedSeat.seat : (roster.length ? String(i + 1) : '');
+        let lastGroup = '';
+        list.innerHTML = students.map((entry) => {
+            const name = entry.name;
+            const grade = String(entry.grade);
+            const cls = entry.class;
+            const seat = entry.seat || '';
             const user = { name, grade, class: cls, seat: seat };
-            const shared = window.ClassShare ? ClassShare.cardFor(cards, name, seat) : null;
+            const shared = window.ClassShare ? ClassShare.cardFor(cards, name, seat, user) : null;
             const p = ClassShare && shared ? ClassShare.applyCard(loadProfile(user), shared) : loadProfile(user);
             const rs = _statsFromRanks(name, grade, cls);
             const played = rs ? rs.totalPlayed : p.stats.totalPlayed;
@@ -4933,8 +4967,11 @@
             const combo  = rs ? rs.maxCombo    : p.stats.maxCombo;
             const avgAcc = rs ? rs.avgAccuracy : (p.stats.accuracyCount > 0 ? Math.round(p.stats.totalAccuracy / p.stats.accuracyCount) : 0);
             const avInfo = _avatarLookup(p.avatar);
-            const isMe = me && me.name === name && me.grade == grade && me.class === cls;
-            return `<div class="cm-card${isMe ? ' cm-me' : ''}" data-name="${escHtml(name)}" data-grade="${grade}" data-class="${cls}" data-seat="${escHtml(seat)}">
+            const isMe = me && me.name === name && String(me.grade) === grade && String(me.class || '').toUpperCase() === String(cls).toUpperCase();
+            const group = grade + '|' + cls;
+            const heading = group === lastGroup ? '' : `<h3 class="cm-group-title">${escHtml(formClassLabel(grade, cls) + '班')}</h3>`;
+            lastGroup = group;
+            return `${heading}<div class="cm-card${isMe ? ' cm-me' : ''}" data-name="${escHtml(name)}" data-grade="${grade}" data-class="${cls}" data-seat="${escHtml(seat)}">
                 <div class="cm-avatar" style="background:${isPhotoAvatar(p.avatar) ? '#efe7ea' : avInfo.bg}">${avatarMarkup(p.avatar)}</div>
                 <div class="cm-info">
                     <div class="cm-name">${escHtml(name)}${isMe ? ' <span class="cm-me-tag">我</span>' : ''}</div>
@@ -4966,7 +5003,7 @@
     function _renderViewProfile(user) {
         let p = loadProfile(user);
         if (window.ClassShare && state.classBoard) {
-            const card = ClassShare.cardFor(state.classBoard.cards || [], user.name, user.seat);
+            const card = ClassShare.cardFor(state.classBoard.cards || [], user.name, user.seat, user);
             if (card && card.name === user.name) p = ClassShare.applyCard(p, card);
         }
         const rs = _statsFromRanks(user.name, user.grade, user.class);
@@ -4976,8 +5013,8 @@
         document.getElementById('vpSig').textContent = p.signature || '尚未設定簽名';
         const presenceEl = document.getElementById('vpPresence');
         if (presenceEl && window.ClassShare) {
-            const online = ClassShare.visibleOnline(getStudentList(user.grade, user.class), (state.classBoard && state.classBoard.online) || [], user);
-            const hit = online.find(row => row.name === user.name);
+            const online = (state.classBoard && state.classBoard.online) || [];
+            const hit = online.find(row => row.name === user.name && ClassShare.sameClass(row, user));
             presenceEl.textContent = ClassShare.statusText(!!hit, hit && hit.screen);
         }
         document.getElementById('vpMeta').textContent = `${user.grade ? (['','中一','中二','中三','中四','中五','中六'][user.grade] || '') : ''} ${user.class}班 · ${user.seat ? user.seat + '號' : ''}`;
@@ -5025,8 +5062,8 @@
 
     function openViewProfile(user) {
         _viewingProfile = user;
-        const scope = classmateScope();
-        if (!scope || !window.ClassShare || !ClassShare.sameClass(user, scope)) return;
+        if (!classViewer() || !user || !user.name || !window.ClassShare) return;
+        if (!ClassShare.matchesFilter(user, classmateFilter())) return;
         const backBtn = document.getElementById('viewProfileBackBtn');
         if (backBtn) backBtn.textContent = _viewProfileReturn === 'screen-presence' ? '← 返回在線' : '← 返回名冊';
         _renderViewProfile(user);
@@ -5324,8 +5361,6 @@
                 id: user.seat || ''
             };
             try {
-                const enrolled = classAuth();
-                if (!enrolled || !window.ClassShare || !ClassShare.sameClass(enrolled.binding, state.currentUser)) state.classBoard = null;
                 noteClassPresence('screen-hub');
             } catch (e) {}
         }
@@ -6000,56 +6035,67 @@
             const get = (type) => (parts.find((part) => part.type === type) || {}).value || '';
             return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')} 澳門時間`;
         }
+        function formatRecordTime(value) {
+            const raw = String(value || '');
+            if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) return formatMacauTime(raw);
+            return raw;
+        }
         function paintPresence(data) {
             const online = document.getElementById('presenceOnline');
             const log = document.getElementById('presenceLog');
             const eventLabel = { online: '上線', offline: '離線', screen: '打開' };
-            const scope = classmateScope();
-            const roster = scope ? getStudentList(scope.grade, scope.class) : [];
-            const cards = (state.classBoard && state.classBoard.cards) || (data && data.cards) || [];
-            const names = (scope && window.ClassShare) ? ClassShare.directoryNames(roster, cards, scope) : [];
-            const onlineRows = (scope && window.ClassShare) ? ClassShare.classRows((data && data.online) || [], scope) : [];
+            const filter = classmateFilter();
+            const board = data || { online: [], log: [], cards: [] };
+            const view = window.ClassShare ? ClassShare.takeBoard(board, filter) : { online: [], log: [] };
             const failure = state.classBoardError ? classBoardMessage(state.classBoardError) : '';
-            const people = names.map((name) => {
-                const card = ClassShare.cardFor(cards, name, '');
-                const hit = onlineRows.find((row) => row.name === name);
-                return {
-                    name: name,
-                    grade: scope.grade,
-                    class: scope.class,
-                    seat: (card && card.seat) || '',
-                    avatar: (hit && hit.avatar) || (card && card.avatar) || '',
-                    screen: hit ? hit.screen : '',
-                    online: !!hit
-                };
-            });
-            const events = (scope && window.ClassShare)
-                ? ClassShare.classRows((data && data.log) || [], scope)
-                : [];
+            const records = window.ClassShare ? ClassShare.radarRecords(board.log || [], state.allRanks || [], filter) : [];
             if (online) {
-                online.innerHTML = people.length
-                    ? people.map((row) => {
-                        const status = ClassShare.statusText(row.online, row.screen);
-                        return `<li><button type="button" class="presence-person" data-name="${escHtml(row.name || '')}" data-grade="${escHtml(row.grade || '')}" data-class="${escHtml(row.class || '')}" data-seat="${escHtml(row.seat || '')}"><span class="cm-avatar">${avatarMarkup(row.avatar)}</span><span><strong>${escHtml(row.name || '')}</strong> ${escHtml(status)}</span></button></li>`;
+                online.innerHTML = view.online.length
+                    ? view.online.map((row) => {
+                        const status = ClassShare.statusText(true, row.screen);
+                        const where = formClassLabel(row.grade, row.class);
+                        return `<li><button type="button" class="presence-person" data-name="${escHtml(row.name || '')}" data-grade="${escHtml(row.grade || '')}" data-class="${escHtml(row.class || '')}" data-seat="${escHtml(row.seat || '')}"><span class="cm-avatar">${avatarMarkup(row.avatar)}</span><span><strong>${escHtml(row.name || '')}</strong> ${escHtml(where)} · ${escHtml(status)}</span></button></li>`;
                     }).join('')
-                    : `<li>${escHtml(failure || '這個班別暫時沒有同學資料')}</li>`;
+                    : `<li>${escHtml(failure || '暫時沒有同學在線')}</li>`;
             }
             if (log) {
-                log.innerHTML = events.length
-                    ? events.map((row) => {
-                        const when = formatMacauTime(row.at);
+                log.innerHTML = records.length
+                    ? records.map((row) => {
+                        if (row.kind === 'game') {
+                            const when = formatRecordTime(row.at);
+                            const bits = [row.gameLabel || row.game];
+                            if (row.score != null) bits.push(row.score + '分');
+                            if (row.accuracy != null) bits.push('準確率 ' + row.accuracy + '%');
+                            if (row.combo != null) bits.push(row.combo + '連擊');
+                            const where = formClassLabel(row.grade, row.class);
+                            return `<li><span>${escHtml(when)}</span> <strong>${escHtml(row.name || '')}</strong> ${escHtml(where)} ${escHtml(bits.filter(Boolean).join(' · '))}</li>`;
+                        }
+                        const when = formatRecordTime(row.at);
                         const what = eventLabel[row.event] || row.event || '';
                         const where = row.screen ? ' · ' + row.screen : '';
-                        return `<li><span>${escHtml(when)}</span> <strong>${escHtml(row.name || '')}</strong> ${escHtml(what + where)}</li>`;
+                        const place = formClassLabel(row.grade, row.class);
+                        return `<li><span>${escHtml(when)}</span> <strong>${escHtml(row.name || '')}</strong> ${escHtml(place)} ${escHtml(what + where)}</li>`;
                     }).join('')
                     : '<li>未有紀錄</li>';
             }
         }
         function openPresence() {
+            if (!classViewer()) { alert('請用已綁定名單的 Google 帳號登入，先可以查看在線同紀錄。'); return; }
             switchScreen('screen-presence');
             paintPresence(state.classBoard || { online: [], log: [], cards: [] });
-            refreshClassBoard().then(board => { paintPresence(board || { online: [], log: [], cards: [] }); });
+            refreshClassBoard().then(board => { paintPresence(board || state.classBoard || { online: [], log: [], cards: [] }); });
+            if (!state.allRanks.length) {
+                loadRanks(1).then(() => {
+                    if (document.getElementById('screen-presence')?.classList.contains('active')) {
+                        paintPresence(state.classBoard || { online: [], log: [], cards: [] });
+                    }
+                });
+            }
         }
+        repaintClassSurfaces = function () {
+            if (!document.getElementById('screen-presence')?.classList.contains('active')) return;
+            paintPresence(state.classBoard || { online: [], log: [], cards: [] });
+        };
         const presenceOnline = document.getElementById('presenceOnline');
         if (presenceOnline) presenceOnline.addEventListener('click', (e) => {
             const btn = e.target.closest('.presence-person');

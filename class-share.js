@@ -1,8 +1,9 @@
 /**
- * Class-scoped classmate cards and presence.
- * Uploads and downloads only with a roster-bound Google session token.
+ * School classmate cards and presence.
+ * Reads and writes only with a roster-bound or allowlisted-teacher session token.
  * A hub name, grade, class, or seat is not a credential.
- * Guests and testers are not uploaded. Other classes are not returned.
+ * Guests and testers are not uploaded. Grade and class query values are filters, not identity.
+ * Writes stay on the signed-in student. The directory read may cover the whole school.
  */
 (function (root, factory) {
     var api = factory();
@@ -37,6 +38,19 @@
         'screen-aural-rhythm': '節奏聽寫',
         'screen-aural-quality': '和弦色彩',
         'screen-composition-studio': '創作工作室'
+    };
+    var GAME_LABEL = {
+        game1: '音名',
+        keysig: '調號',
+        solfege: '唱名',
+        chord: '和弦',
+        game2: '節奏',
+        game3: '術語',
+        game4: '樂器',
+        listening: '聽力',
+        'aural-interval': '音程聽辨',
+        'aural-rhythm': '節奏聽寫',
+        'aural-quality': '和弦色彩'
     };
     var timer = 0;
     var beatToken = '';
@@ -106,6 +120,29 @@
         var right = classScope(b);
         if (!left || !right) return false;
         return left.grade === right.grade && left.class === right.class;
+    }
+
+    function boardFilter(scope) {
+        scope = scope || {};
+        var rawGrade = text(scope.grade);
+        var rawClass = text(scope.class);
+        var grade = rawGrade ? schoolGrade(scope.grade) : '';
+        var klass = rawClass ? schoolClass(scope.class, grade) : '';
+        return {
+            grade: grade,
+            class: klass,
+            invalid: !!((rawGrade && !grade) || (rawClass && !klass))
+        };
+    }
+
+    function matchesFilter(row, filter) {
+        var scope = classScope(row);
+        if (!scope) return false;
+        var wanted = boardFilter(filter);
+        if (wanted.invalid) return false;
+        if (wanted.grade && scope.grade !== wanted.grade) return false;
+        if (wanted.class && scope.class !== wanted.class) return false;
+        return true;
     }
 
     function cleanAvatar(value) {
@@ -183,6 +220,33 @@
         return out;
     }
 
+    function directoryEntries(groups, cards, filter) {
+        var byKey = {};
+        function put(row) {
+            if (!row || !matchesFilter(row, filter)) return;
+            var name = text(row.name);
+            if (!name || BLOCKED[name] || name.indexOf('訪客') === 0 || /[|%]/.test(name)) return;
+            var scope = classScope(row);
+            var key = scope.grade + '|' + scope.class + '|' + name;
+            var seat = text(row.seat).slice(0, 8);
+            var prev = byKey[key];
+            if (!prev) {
+                byKey[key] = { name: name, grade: parseInt(scope.grade, 10), class: scope.class, seat: seat };
+                return;
+            }
+            if (seat && !prev.seat) prev.seat = seat;
+        }
+        (cards || []).forEach(put);
+        (groups || []).forEach(function (group) {
+            (group.names || []).forEach(function (name, i) {
+                put({ name: name, grade: group.grade, class: group.class, seat: String(i + 1) });
+            });
+        });
+        return Object.keys(byKey).map(function (key) { return byKey[key]; }).sort(function (a, b) {
+            return String(a.grade).localeCompare(String(b.grade)) || String(a.class).localeCompare(String(b.class)) || ((parseInt(a.seat, 10) || 999) - (parseInt(b.seat, 10) || 999)) || a.name.localeCompare(b.name, 'zh');
+        });
+    }
+
     function visibleOnline(rosterNames, online, scope) {
         var rows = classRows(online, scope);
         var roster = (rosterNames || []).map(text).filter(Boolean);
@@ -192,8 +256,12 @@
         return rows.filter(function (row) { return allow[row.name]; });
     }
 
-    function cardFor(cards, name, seat) {
-        var matches = (cards || []).filter(function (card) { return card && card.name === name; });
+    function cardFor(cards, name, seat, scope) {
+        var matches = (cards || []).filter(function (card) {
+            if (!card || card.name !== name) return false;
+            if (scope && classScope(scope) && classScope(card) && !sameClass(card, scope)) return false;
+            return true;
+        });
         var wanted = text(seat);
         for (var i = 0; i < matches.length; i++) {
             if (wanted && text(matches[i].seat) === wanted) return matches[i];
@@ -209,6 +277,99 @@
 
     function screenLabel(screenId) {
         return SCREEN[screenId] || '大廳';
+    }
+
+    function publicCard(row) {
+        if (!shareable(row)) return null;
+        var id = identity(row);
+        return {
+            name: id.name,
+            grade: id.grade,
+            class: id.class,
+            seat: id.seat,
+            avatar: cleanAvatar(row.avatar) || '🎵',
+            signature: text(row.signature).slice(0, 30)
+        };
+    }
+
+    function publicOnline(row) {
+        var card = publicCard(row);
+        if (!card) return null;
+        card.screen = text(row.screen).slice(0, 40);
+        return card;
+    }
+
+    function publicLog(row) {
+        var card = publicCard(row);
+        if (!card) return null;
+        return {
+            name: card.name,
+            grade: card.grade,
+            class: card.class,
+            seat: card.seat,
+            event: text(row.event).slice(0, 20),
+            screen: text(row.screen).slice(0, 40),
+            at: text(row.at || row.timestamp).slice(0, 40)
+        };
+    }
+
+    function publicGameRecord(row) {
+        if (!row || typeof row !== 'object') return null;
+        var name = text(row.name).slice(0, 20);
+        if (!name || BLOCKED[name] || name.indexOf('訪客') === 0 || /[|%]/.test(name)) return null;
+        var grade = schoolGrade(row.grade);
+        var klass = schoolClass(row.class, grade);
+        if (!grade || !klass) return null;
+        var game = text(row.game || row.gameKey || '');
+        if (!game || !GAME_LABEL[game]) {
+            var mode = text(row.mode);
+            game = GAME_LABEL[mode] ? mode : '';
+        }
+        if (!game) return null;
+        if (row.score == null || row.score === '') return null;
+        var score = parseInt(row.score, 10);
+        if (!isFinite(score)) return null;
+        var rec = {
+            kind: 'game',
+            name: name,
+            grade: grade,
+            class: klass,
+            game: game,
+            gameLabel: GAME_LABEL[game],
+            score: score
+        };
+        var seat = text(row.seat || row.id).slice(0, 8);
+        if (seat && seat.indexOf('@') === -1 && !/[|%]/.test(seat)) rec.seat = seat;
+        if (row.accuracy != null && row.accuracy !== '' && isFinite(parseInt(row.accuracy, 10))) rec.accuracy = parseInt(row.accuracy, 10);
+        var combo = row.max_combo != null ? row.max_combo : row.maxCombo;
+        if (combo != null && combo !== '' && isFinite(parseInt(combo, 10))) rec.combo = parseInt(combo, 10);
+        var at = text(row.timestamp || row.at || row.date);
+        if (at) rec.at = at.slice(0, 40);
+        return rec;
+    }
+
+    function timeValue(value) {
+        var parsed = Date.parse(value);
+        return isFinite(parsed) ? parsed : 0;
+    }
+
+    function radarRecords(log, ranks, filter) {
+        var events = [];
+        (log || []).forEach(function (row) {
+            var clean = publicLog(row);
+            if (!clean || !matchesFilter(clean, filter)) return;
+            clean.kind = 'presence';
+            events.push(clean);
+        });
+        var games = [];
+        (ranks || []).forEach(function (row) {
+            var clean = publicGameRecord(row);
+            if (!clean || !matchesFilter(clean, filter)) return;
+            games.push(clean);
+        });
+        return events.concat(games).sort(function (a, b) {
+            return timeValue(b.at) - timeValue(a.at);
+        });
     }
 
     function apiBase() {
@@ -227,11 +388,21 @@
     }
 
     function takeBoard(board, scope) {
-        if (!classScope(scope)) return emptyBoard();
+        var filter = boardFilter(scope);
+        if (filter.invalid) return emptyBoard();
+        function kept(rows, pub) {
+            var out = [];
+            (rows || []).forEach(function (row) {
+                var clean = pub(row);
+                if (!clean || !matchesFilter(clean, filter)) return;
+                out.push(clean);
+            });
+            return out;
+        }
         return {
-            cards: classRows(board && board.cards, scope),
-            online: classRows(board && board.online, scope),
-            log: classRows(board && board.log, scope)
+            cards: kept(board && board.cards, publicCard),
+            online: kept(board && board.online, publicOnline),
+            log: kept(board && board.log, publicLog)
         };
     }
 
@@ -285,16 +456,20 @@
         var base = apiBase();
         opts = opts || {};
         if (!token || !base || typeof fetch !== 'function') return Promise.resolve(failedBoard('unauthorized'));
-        if (!classScope(scope)) return Promise.resolve(failedBoard('not_on_roster'));
+        var filter = boardFilter(scope);
+        if (filter.invalid) return Promise.resolve(failedBoard('bad_filter'));
         var path = '/class/board';
-        if (opts.teacher) path += '?grade=' + encodeURIComponent(classScope(scope).grade) + '&class=' + encodeURIComponent(classScope(scope).class);
+        var query = [];
+        if (filter.grade) query.push('grade=' + encodeURIComponent(filter.grade));
+        if (filter.class) query.push('class=' + encodeURIComponent(filter.class));
+        if (query.length) path += '?' + query.join('&');
         return fetch(base + path, {
             method: 'GET',
             headers: { Authorization: 'Bearer ' + token }
         }).then(function (res) {
             return res.json().catch(function () { return null; }).then(function (data) {
                 if (!res.ok || !data || data.ok === false) return failedBoard((data && data.error) || ('HTTP ' + res.status));
-                var board = takeBoard(data, scope);
+                var board = takeBoard(data, filter);
                 board.ok = true;
                 board.error = '';
                 return board;
@@ -332,15 +507,20 @@
         schoolClass: schoolClass,
         identity: identity,
         sameClass: sameClass,
+        boardFilter: boardFilter,
+        matchesFilter: matchesFilter,
         cleanAvatar: cleanAvatar,
         cardFromProfile: cardFromProfile,
         applyCard: applyCard,
         classRows: classRows,
         directoryNames: directoryNames,
+        directoryEntries: directoryEntries,
         visibleOnline: visibleOnline,
         cardFor: cardFor,
         statusText: statusText,
         screenLabel: screenLabel,
+        publicGameRecord: publicGameRecord,
+        radarRecords: radarRecords,
         postCard: postCard,
         postPresence: postPresence,
         loadBoard: loadBoard,

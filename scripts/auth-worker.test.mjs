@@ -592,13 +592,24 @@ test('class sharing requires a roster session and rejects forged names and other
     assert.equal((await send(tokenC, '/class/presence', {
       name: '陳小樂', grade: 2, class: 'A', seat: '12', screen: '術語作答'
     })).status, 403);
-    assert.equal((await send(tokenA, '/class/board?grade=3&class=B')).status, 403);
-    assert.equal((await send(tokenC, '/class/board?grade=2&class=A')).status, 403);
+    assert.equal((await send(tokenA, '/class/card', {
+      name: '周同學', grade: 3, class: 'B', seat: '1', avatar: forgedPhoto, signature: '冒充別班'
+    })).status, 403);
+    assert.equal((await send(tokenA, '/class/presence', {
+      name: '周同學', grade: 3, class: 'B', seat: '1', screen: '術語作答'
+    })).status, 403);
+    const form3 = await (await send(tokenA, '/class/board?grade=3&class=B')).json();
+    assert.equal((await send(tokenA, '/class/board?grade=3&class=B')).status, 200);
+    assert.deepEqual(form3.cards.map((row) => row.name), ['周同學']);
+    assert.equal(form3.cards[0].signature, '');
+    assert.equal(form3.online.length, 0);
+    assert.equal(form3.cards[0].email, undefined);
+    assert.equal((await send(tokenC, '/class/board?grade=2&class=A')).status, 200);
 
     assert.equal((await send(tokenB, '/class/presence', { screen: '節奏挑戰' })).status, 200);
     const seenByA = await (await send(tokenA, '/class/board')).json();
     const seenByB = await (await send(tokenB, '/class/board')).json();
-    assert.equal(seenByB.cards.length, 2);
+    assert.equal(seenByB.cards.length, 3);
     const posted = seenByB.cards.find((row) => row.name === '陳小樂');
     const quiet = seenByB.cards.find((row) => row.name === '李同學');
     assert.equal(posted.avatar, photo);
@@ -607,15 +618,21 @@ test('class sharing requires a roster session and rejects forged names and other
     assert.equal(seenByA.online.length, 1);
     assert.equal(seenByA.online[0].name, '李同學');
     assert.equal(seenByA.online[0].screen, '節奏挑戰');
-    assert.equal(seenByA.cards.length, 2);
+    assert.equal(seenByA.cards.length, 3);
+    assert.equal(seenByA.cards.some((row) => row.name === '周同學'), true);
     assert.equal(JSON.stringify(seenByA).includes('@'), false);
     assert.equal(JSON.stringify(seenByA).includes('gameBests'), false);
     assert.equal(JSON.stringify(seenByA).includes('history'), false);
+    const onlyTwo = await (await send(tokenC, '/class/board?grade=2')).json();
+    assert.deepEqual(onlyTwo.cards.map((row) => row.name), ['李同學', '陳小樂']);
+    assert.equal(onlyTwo.online.length, 1);
+    assert.equal(onlyTwo.cards.some((row) => row.name === '周同學'), false);
 
     const otherClass = await (await send(tokenC, '/class/board')).json();
-    assert.deepEqual(otherClass.cards.map((row) => row.name), ['周同學']);
-    assert.equal(otherClass.online.length, 0);
-    assert.equal(otherClass.cards.some((row) => row.name === '陳小樂' || row.name === '李同學'), false);
+    assert.equal(otherClass.cards.length, 3);
+    assert.equal(otherClass.online.some((row) => row.name === '李同學'), true);
+    assert.equal(otherClass.cards.some((row) => row.name === '陳小樂'), true);
+    assert.equal(otherClass.cards.some((row) => row.name === '李同學'), true);
     const publicPresence = await (await worker.fetch(new Request('https://auth.example/presence', {
       headers: { Origin: origin }
     }), env)).json();
@@ -730,7 +747,7 @@ test('F1 and 中一 classmates stay on the board without a heartbeat, and a teac
 
     assert.equal((await send(studentA.token, '/class/card', { avatar: photo, signature: '新卡片' })).status, 200);
     const board = await (await send(studentA.token, '/class/board')).json();
-    assert.deepEqual(board.cards.map((row) => row.name), ['李同學', '周未登入', '陳小樂']);
+    assert.deepEqual(board.cards.map((row) => row.name), ['李同學', '周未登入', '陳小樂', '別班生']);
     const lee = board.cards.find((row) => row.name === '李同學');
     const absent = board.cards.find((row) => row.name === '周未登入');
     const self = board.cards.find((row) => row.name === '陳小樂');
@@ -742,22 +759,54 @@ test('F1 and 中一 classmates stay on the board without a heartbeat, and a teac
     assert.equal(absent.seat, '9');
     assert.equal(self.avatar, photo);
     assert.equal(board.online.length, 0);
-    assert.equal(board.cards.some((row) => row.name === '別班生' || row.name === '陳老師'), false);
+    assert.equal(board.cards.some((row) => row.name === '陳老師'), false);
+    assert.equal(board.cards.some((row) => row.name === '別班生'), true);
     const packed = JSON.stringify(board);
     assert.equal(packed.includes('@'), false);
     assert.equal(packed.includes('gameBests'), false);
     assert.equal(packed.includes('history'), false);
     assert.equal(packed.includes('88'), false);
 
-    assert.equal((await send(studentA.token, '/class/board?grade=F3&class=B')).status, 403);
+    const form3Read = await send(studentA.token, '/class/board?grade=F3&class=B');
+    assert.equal(form3Read.status, 200);
+    const form3Card = await form3Read.json();
+    assert.deepEqual(form3Card.cards.map((row) => row.name), ['別班生']);
+    assert.equal(form3Card.cards[0].email, undefined);
+    assert.equal(JSON.stringify(form3Card).includes('@'), false);
     assert.equal((await send(studentA.token, '/class/board?grade=中一&class=A')).status, 200);
+    const form1Only = await (await send(studentA.token, '/class/board?grade=中一&class=A')).json();
+    assert.deepEqual(form1Only.cards.map((row) => row.name), ['李同學', '周未登入', '陳小樂']);
+    assert.equal(form1Only.cards.some((row) => row.name === '別班生'), false);
+    assert.equal((await send(other.token, '/class/presence', { screen: '術語作答' })).status, 200);
+    const schoolOnline = await (await send(studentA.token, '/class/board')).json();
+    assert.equal(schoolOnline.online.some((row) => row.name === '別班生' && row.screen === '術語作答' && row.grade === '3' && row.class === 'B'), true);
+    const gradeOne = await (await send(studentA.token, '/class/board?grade=1')).json();
+    assert.equal(gradeOne.online.some((row) => row.name === '別班生'), false);
+    assert.equal(gradeOne.cards.some((row) => row.name === '別班生'), false);
+    assert.equal((await send(studentA.token, '/class/presence', {
+      name: '別班生', grade: '3', class: 'B', seat: '1', screen: '大廳'
+    })).status, 403);
+    assert.equal((await send(studentA.token, '/class/card', {
+      name: '別班生', grade: '3', class: 'B', seat: '1', avatar: photo, signature: '冒充'
+    })).status, 403);
+    const afterSpoof = await (await send(studentA.token, '/class/board?grade=3&class=B')).json();
+    assert.equal(afterSpoof.online.length, 1);
+    assert.equal(afterSpoof.online[0].name, '別班生');
+    assert.equal(afterSpoof.online[0].screen, '術語作答');
+    assert.equal(afterSpoof.cards[0].signature === '冒充', false);
     const otherBoard = await (await send(other.token, '/class/board')).json();
-    assert.deepEqual(otherBoard.cards.map((row) => row.name), ['別班生']);
+    assert.equal(otherBoard.cards.some((row) => row.name === '陳小樂'), true);
+    assert.equal(otherBoard.cards.some((row) => row.name === '別班生'), true);
+    assert.equal(otherBoard.cards.some((row) => row.name === '陳老師'), false);
 
-    const teacherMissing = await send(teacher.token, '/class/board');
-    assert.equal(teacherMissing.status, 403);
-    const teacherDenied = await teacherMissing.json();
-    assert.equal(teacherDenied.error, 'teacher_needs_class');
+    const teacherAll = await send(teacher.token, '/class/board');
+    assert.equal(teacherAll.status, 200);
+    const teacherAllBody = await teacherAll.json();
+    assert.equal(teacherAllBody.cards.some((row) => row.name === '陳老師'), false);
+    assert.equal(teacherAllBody.cards.some((row) => row.name === '陳小樂'), true);
+    assert.equal(teacherAllBody.cards.some((row) => row.name === '別班生'), true);
+    assert.equal(JSON.stringify(teacherAllBody).includes('@'), false);
+    assert.equal((await send(teacher.token, '/class/board?grade=nope')).status, 400);
     assert.equal((await send(teacher.token, '/class/board?grade=6&class=Z')).status, 404);
     const teacherSeen = await (await send(teacher.token, '/class/board?grade=F1&class=A')).json();
     assert.deepEqual(teacherSeen.cards.map((row) => row.name), ['李同學', '周未登入', '陳小樂']);
