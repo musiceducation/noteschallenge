@@ -3,8 +3,11 @@ import { createSign, generateKeyPairSync } from 'node:crypto';
 import test from 'node:test';
 import worker, {
   allowedOrigin,
+  classIdentity,
   clearJwksCache,
   mergeProfiles,
+  schoolClass,
+  schoolGrade,
   settlePresence,
   signSessionToken,
   verifyGoogleIdToken,
@@ -76,6 +79,13 @@ function memoryDb() {
       const compact = sql.replace(/\s+/g, ' ').trim();
       return {
         async all() {
+          if (compact.includes('FROM roster')) return { results: Array.from(roster.values()).map((row) => Object.assign({}, row)) };
+          if (compact.includes('FROM users')) return { results: Array.from(users.values()).map((row) => Object.assign({}, row)) };
+          if (compact.includes('FROM profiles') && !compact.includes('LIKE')) {
+            const results = [];
+            profiles.forEach((row, sub) => results.push({ sub: sub, data: row.data }));
+            return { results: results };
+          }
           if (compact.includes('FROM presence_log')) return { results: logs.map((row) => Object.assign({}, row)) };
           if (compact.includes('FROM presence')) return { results: presence.map((row) => Object.assign({}, row)) };
           throw new Error('unexpected all ' + compact);
@@ -588,19 +598,24 @@ test('class sharing requires a roster session and rejects forged names and other
     assert.equal((await send(tokenB, '/class/presence', { screen: '節奏挑戰' })).status, 200);
     const seenByA = await (await send(tokenA, '/class/board')).json();
     const seenByB = await (await send(tokenB, '/class/board')).json();
-    assert.equal(seenByB.cards.length, 1);
-    assert.equal(seenByB.cards[0].name, '陳小樂');
-    assert.equal(seenByB.cards[0].avatar, photo);
+    assert.equal(seenByB.cards.length, 2);
+    const posted = seenByB.cards.find((row) => row.name === '陳小樂');
+    const quiet = seenByB.cards.find((row) => row.name === '李同學');
+    assert.equal(posted.avatar, photo);
+    assert.equal(quiet.avatar, '🎵');
+    assert.equal(quiet.signature, '');
     assert.equal(seenByA.online.length, 1);
     assert.equal(seenByA.online[0].name, '李同學');
     assert.equal(seenByA.online[0].screen, '節奏挑戰');
+    assert.equal(seenByA.cards.length, 2);
     assert.equal(JSON.stringify(seenByA).includes('@'), false);
     assert.equal(JSON.stringify(seenByA).includes('gameBests'), false);
     assert.equal(JSON.stringify(seenByA).includes('history'), false);
 
     const otherClass = await (await send(tokenC, '/class/board')).json();
-    assert.equal(otherClass.cards.length, 0);
+    assert.deepEqual(otherClass.cards.map((row) => row.name), ['周同學']);
     assert.equal(otherClass.online.length, 0);
+    assert.equal(otherClass.cards.some((row) => row.name === '陳小樂' || row.name === '李同學'), false);
     const publicPresence = await (await worker.fetch(new Request('https://auth.example/presence', {
       headers: { Origin: origin }
     }), env)).json();
@@ -609,18 +624,152 @@ test('class sharing requires a roster session and rejects forged names and other
     env.NOW = now + (3 * 60 * 1000) + 1000;
     const expired = await (await send(tokenA, '/class/board')).json();
     assert.equal(expired.online.length, 0);
-    assert.equal(expired.cards[0].avatar, photo);
+    assert.equal(expired.cards.find((row) => row.name === '陳小樂').avatar, photo);
+    assert.equal(expired.cards.find((row) => row.name === '李同學').name, '李同學');
 
     assert.equal((await send(tokenB, '/class/presence', { screen: '拍號計時' })).status, 200);
     const refreshed = await (await send(tokenA, '/class/board')).json();
     assert.equal(refreshed.online.length, 1);
     assert.equal(refreshed.online[0].screen, '拍號計時');
-    assert.equal(refreshed.cards[0].avatar, photo);
+    assert.equal(refreshed.cards.find((row) => row.name === '陳小樂').avatar, photo);
 
     assert.equal((await send(tokenB, '/class/presence', { offline: true })).status, 200);
     const signedOut = await (await send(tokenA, '/class/board')).json();
     assert.equal(signedOut.online.length, 0);
-    assert.equal(signedOut.cards[0].avatar, photo);
+    assert.equal(signedOut.cards.find((row) => row.name === '陳小樂').avatar, photo);
+    assert.equal(signedOut.cards.find((row) => row.name === '李同學').name, '李同學');
+  } finally {
+    globalThis.fetch = realFetch;
+    clearJwksCache();
+  }
+});
+
+test('F1 and 中一 classmates stay on the board without a heartbeat, and a teacher can open that class', async () => {
+  assert.equal(schoolGrade('F1'), '1');
+  assert.equal(schoolGrade('中六'), '6');
+  assert.equal(schoolGrade('Form 2'), '2');
+  assert.equal(schoolClass('A班', 'F1'), 'A');
+  assert.equal(schoolClass('1A', '1'), 'A');
+  assert.equal(classIdentity({ name: '陳小樂', grade: 'F1', class: 'A' }).grade, '1');
+  assert.equal(classIdentity({ name: '陳小樂', grade: '中一', class: 'A班' }).class, 'A');
+  assert.equal(classIdentity({ name: '訪客', grade: 'F1', class: 'A' }), null);
+  assert.equal(classIdentity({ grade: 'F1', class: 'A', name: '' }), null);
+
+  keys();
+  clearJwksCache();
+  const now = Date.now();
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('/oauth2/v3/certs')) {
+      return new Response(JSON.stringify({ keys: [publicJwk] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    throw new Error('unexpected fetch ' + url);
+  };
+  const env = {
+    DB: memoryDb(),
+    GOOGLE_CLIENT_ID: CLIENT_ID,
+    JWT_SECRET: SECRET,
+    EXTRA_ALLOWED_EMAILS: 'teacher.allow@gmail.com',
+    NOW: now
+  };
+  const origin = 'https://noteschallenge.vercel.app';
+  const photo = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEA';
+  function roster(email, grade, klass, name, seat) {
+    env.DB.roster.set(email, { email, grade, class: klass, student_name: name, seat });
+  }
+  roster('a@school.edu.hk', 'F1', 'A', '陳小樂', '12');
+  roster('b@school.edu.hk', '中一', 'A班', '李同學', '4');
+  roster('quiet@school.edu.hk', '1', '1A', '周未登入', '9');
+  roster('c@school.edu.hk', 'F3', 'B', '別班生', '1');
+  async function login(email, sub, name) {
+    const credential = await googleToken(baseClaims(now, { email, sub, name }));
+    const res = await worker.fetch(new Request('https://auth.example/auth/google', {
+      method: 'POST',
+      headers: { Origin: origin, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential })
+    }), env);
+    const data = await res.json();
+    assert.equal(data.ok, true, email + ' ' + (data.error || ''));
+    return data;
+  }
+  const auth = (token) => ({ Origin: origin, 'Content-Type': 'application/json', Authorization: 'Bearer ' + token });
+  async function send(token, path, body) {
+    return worker.fetch(new Request('https://auth.example' + path, {
+      method: body ? 'POST' : 'GET',
+      headers: token ? auth(token) : { Origin: origin },
+      body: body ? JSON.stringify(body) : undefined
+    }), env);
+  }
+  try {
+    const studentA = await login('a@school.edu.hk', 'sub-a', '陳小樂');
+    assert.equal(studentA.binding.grade, '1');
+    assert.equal(studentA.binding.class, 'A');
+    const studentB = await login('b@school.edu.hk', 'sub-b', '李同學');
+    assert.equal(studentB.binding.grade, '1');
+    const other = await login('c@school.edu.hk', 'sub-c', '別班生');
+    const teacher = await login('teacher.allow@gmail.com', 'teacher-sub', '陳老師');
+    assert.equal(teacher.binding.role, 'teacher');
+
+    const oldProfile = await worker.fetch(new Request('https://auth.example/me/profile', {
+      method: 'PUT',
+      headers: auth(studentB.token),
+      body: JSON.stringify({
+        data: {
+          name: '李同學',
+          grade: 1,
+          class: 'A',
+          avatar: '🎻',
+          signature: '舊檔案',
+          email: 'b@school.edu.hk',
+          gameBests: { game2: 88 },
+          history: [{ score: 88, game: 'game2' }]
+        }
+      })
+    }), env);
+    assert.equal(oldProfile.status, 200);
+
+    assert.equal((await send(studentA.token, '/class/card', { avatar: photo, signature: '新卡片' })).status, 200);
+    const board = await (await send(studentA.token, '/class/board')).json();
+    assert.deepEqual(board.cards.map((row) => row.name), ['李同學', '周未登入', '陳小樂']);
+    const lee = board.cards.find((row) => row.name === '李同學');
+    const absent = board.cards.find((row) => row.name === '周未登入');
+    const self = board.cards.find((row) => row.name === '陳小樂');
+    assert.equal(lee.avatar, '🎻');
+    assert.equal(lee.signature, '舊檔案');
+    assert.equal(lee.seat, '4');
+    assert.equal(absent.avatar, '🎵');
+    assert.equal(absent.signature, '');
+    assert.equal(absent.seat, '9');
+    assert.equal(self.avatar, photo);
+    assert.equal(board.online.length, 0);
+    assert.equal(board.cards.some((row) => row.name === '別班生' || row.name === '陳老師'), false);
+    const packed = JSON.stringify(board);
+    assert.equal(packed.includes('@'), false);
+    assert.equal(packed.includes('gameBests'), false);
+    assert.equal(packed.includes('history'), false);
+    assert.equal(packed.includes('88'), false);
+
+    assert.equal((await send(studentA.token, '/class/board?grade=F3&class=B')).status, 403);
+    assert.equal((await send(studentA.token, '/class/board?grade=中一&class=A')).status, 200);
+    const otherBoard = await (await send(other.token, '/class/board')).json();
+    assert.deepEqual(otherBoard.cards.map((row) => row.name), ['別班生']);
+
+    const teacherMissing = await send(teacher.token, '/class/board');
+    assert.equal(teacherMissing.status, 403);
+    const teacherDenied = await teacherMissing.json();
+    assert.equal(teacherDenied.error, 'teacher_needs_class');
+    assert.equal((await send(teacher.token, '/class/board?grade=6&class=Z')).status, 404);
+    const teacherSeen = await (await send(teacher.token, '/class/board?grade=F1&class=A')).json();
+    assert.deepEqual(teacherSeen.cards.map((row) => row.name), ['李同學', '周未登入', '陳小樂']);
+    assert.equal(teacherSeen.cards.find((row) => row.name === '李同學').avatar, '🎻');
+    assert.equal(JSON.stringify(teacherSeen).includes('@'), false);
+    assert.equal((await send(teacher.token, '/class/card', {
+      name: '陳小樂', grade: 1, class: 'A', seat: '12', avatar: photo, signature: '老師冒充'
+    })).status, 403);
+    assert.equal((await send(teacher.token, '/class/presence', { screen: '大廳', name: '陳小樂' })).status, 403);
+    const still = await (await send(studentA.token, '/class/board')).json();
+    assert.equal(still.cards.find((row) => row.name === '陳小樂').signature, '新卡片');
+    assert.equal(still.online.some((row) => row.name === '陳老師'), false);
   } finally {
     globalThis.fetch = realFetch;
     clearJwksCache();

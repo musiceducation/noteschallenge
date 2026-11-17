@@ -316,9 +316,11 @@ function jsonResponse(data, status, cors) {
 
 function bindingFromRoster(roster) {
   if (!roster || !text(roster.student_name) || !text(roster.grade) || !text(roster.class)) return null;
+  const grade = schoolGrade(roster.grade) || String(roster.grade).trim();
+  const klass = schoolClass(roster.class, grade) || String(roster.class).trim().toUpperCase();
   return {
-    grade: String(roster.grade).trim(),
-    class: String(roster.class).trim().toUpperCase(),
+    grade: grade,
+    class: klass,
     name: String(roster.student_name).trim(),
     seat: text(roster.seat)
   };
@@ -544,13 +546,40 @@ async function requireSession(request, env) {
 }
 
 const CLASS_BLOCKED = { '訪客': 1, '測試人員': 1, '__guest__': 1, '__other__': 1 };
+const GRADE_WORDS = { '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6' };
+
+// School roster rows use F1–F6, 中一–中六, or 1–6. Class sharing only compares the form number.
+export function schoolGrade(value) {
+  const raw = text(value).replace(/\s+/g, '').replace(/\.$/, '');
+  if (/^[1-6]$/.test(raw)) return raw;
+  let match = /^F[.\-]?([1-6])$/i.exec(raw) || /^S([1-6])$/i.exec(raw) || /^FORM([1-6])$/i.exec(raw);
+  if (match) return match[1];
+  match = /^中([1-6一二三四五六])$/.exec(raw);
+  if (match) return GRADE_WORDS[match[1]] || match[1];
+  return '';
+}
+
+export function schoolClass(value, grade) {
+  const form = schoolGrade(grade);
+  let raw = text(value).replace(/\s+/g, '').replace(/班$/u, '').toUpperCase();
+  if (!raw) return '';
+  let match = /^(?:F|S)?([1-6])([A-Z])$/.exec(raw);
+  if (match && (!form || match[1] === form)) return match[2];
+  match = /^中([1-6一二三四五六])([A-Z])$/.exec(raw);
+  if (match) {
+    const n = GRADE_WORDS[match[1]] || match[1];
+    if (!form || n === form) return match[2];
+  }
+  if (/^[A-Z0-9]{1,8}$/.test(raw)) return raw;
+  return '';
+}
 
 export function classIdentity(body) {
   const src = plainObject(body);
   if (text(src.kind) === 'tester' || src.tester === true || src.guest === true) return null;
   const name = text(src.name).slice(0, 20);
-  const grade = String(parseInt(src.grade, 10) || 0);
-  const klass = text(src.class).toUpperCase();
+  const grade = schoolGrade(src.grade);
+  const klass = schoolClass(src.class, grade);
   const seat = text(src.seat || src.id).slice(0, 8);
   if (!/^[1-6]$/.test(grade)) return null;
   if (!/^[A-Z0-9]{1,8}$/.test(klass)) return null;
@@ -567,8 +596,8 @@ function clockMs(env) {
 function claimedIdentityMismatch(body, id) {
   const src = plainObject(body);
   if (text(src.name) && text(src.name) !== id.name) return true;
-  if (text(src.class) && text(src.class).toUpperCase() !== id.class) return true;
-  if (text(src.grade) && String(parseInt(src.grade, 10) || 0) !== String(id.grade)) return true;
+  if (text(src.class) && schoolClass(src.class, id.grade) !== id.class) return true;
+  if (text(src.grade) && schoolGrade(src.grade) !== String(id.grade)) return true;
   const claimedSeat = text(src.seat || src.id);
   if (claimedSeat && claimedSeat !== id.seat) return true;
   if (text(src.kind) === 'tester' || src.tester === true || src.guest === true) return true;
@@ -621,6 +650,93 @@ async function listClassCards(db, grade, klass) {
     cards.push(card);
   });
   return cards;
+}
+
+function matchClassCard(cards, name, seat) {
+  const same = (cards || []).filter((card) => card && card.name === name);
+  const wanted = text(seat);
+  for (let i = 0; i < same.length; i++) {
+    if (wanted && text(same[i].seat) === wanted) return same[i];
+  }
+  return same.length === 1 ? same[0] : null;
+}
+
+function publicBits(profile) {
+  const avatar = classAvatar(profile && profile.avatar);
+  return {
+    avatar: avatar || '🎵',
+    signature: text(profile && profile.signature).slice(0, 30)
+  };
+}
+
+async function listClassDirectory(db, grade, klass) {
+  const rosterLoaded = await db.prepare('SELECT email, grade, class, student_name, seat FROM roster').all();
+  const rosterRows = ((rosterLoaded && rosterLoaded.results) || []).filter((row) => {
+    const g = schoolGrade(row && row.grade);
+    return g === String(grade) && schoolClass(row && row.class, g) === klass;
+  });
+  const usersLoaded = await db.prepare('SELECT sub, email, student_name FROM users').all();
+  const byEmail = {};
+  ((usersLoaded && usersLoaded.results) || []).forEach((row) => {
+    const email = text(row && row.email).toLowerCase();
+    if (email && text(row.sub).indexOf('class:') !== 0) byEmail[email] = row;
+  });
+  const profilesLoaded = await db.prepare('SELECT sub, data FROM profiles').all();
+  const profileBySub = {};
+  ((profilesLoaded && profilesLoaded.results) || []).forEach((row) => {
+    if (!row || !row.sub || text(row.sub).indexOf('class:') === 0) return;
+    try { profileBySub[row.sub] = JSON.parse(row.data); } catch (e) { profileBySub[row.sub] = null; }
+  });
+  const posted = await listClassCards(db, grade, klass);
+  const cards = [];
+  rosterRows.forEach((row) => {
+    const id = classIdentity({
+      name: row.student_name,
+      grade: grade,
+      class: klass,
+      seat: row.seat
+    });
+    if (!id) return;
+    const card = matchClassCard(posted, id.name, id.seat);
+    let bits = card ? { avatar: card.avatar || '🎵', signature: text(card.signature).slice(0, 30) } : null;
+    if (!bits) {
+      const user = byEmail[text(row.email).toLowerCase()];
+      const stored = user ? profileBySub[user.sub] : null;
+      if (stored && (!text(stored.name) || text(stored.name) === id.name)) bits = publicBits(stored);
+    }
+    if (!bits) bits = { avatar: '🎵', signature: '' };
+    cards.push({
+      name: id.name,
+      grade: id.grade,
+      class: id.class,
+      seat: id.seat,
+      avatar: bits.avatar || '🎵',
+      signature: bits.signature || ''
+    });
+  });
+  cards.sort((a, b) => (parseInt(a.seat, 10) || 999) - (parseInt(b.seat, 10) || 999) || a.name.localeCompare(b.name, 'zh'));
+  return cards;
+}
+
+async function classBoardReader(request, env, url) {
+  const gate = await requireSession(request, env);
+  if (gate.error) return gate;
+  const account = await resolveAccount(env, gate.row);
+  if (!account) return { error: jsonResponse({ ok: false, error: 'not_on_roster' }, 403, corsHeaders(request)) };
+  if (account.teacher) {
+    const grade = schoolGrade(url.searchParams.get('grade'));
+    const klass = schoolClass(url.searchParams.get('class'), grade);
+    if (!grade || !klass) return { error: jsonResponse({ ok: false, error: 'teacher_needs_class' }, 403, corsHeaders(request)) };
+    return { id: { grade: grade, class: klass, name: '', seat: '' }, teacher: true };
+  }
+  const id = classIdentity(account.binding);
+  if (!id) return { error: jsonResponse({ ok: false, error: 'not_on_roster' }, 403, corsHeaders(request)) };
+  const qGrade = text(url.searchParams.get('grade'));
+  const qClass = text(url.searchParams.get('class'));
+  if ((qGrade && schoolGrade(qGrade) !== id.grade) || (qClass && schoolClass(qClass, id.grade) !== id.class)) {
+    return { error: jsonResponse({ ok: false, error: 'forbidden' }, 403, corsHeaders(request)) };
+  }
+  return { id: id, teacher: false };
 }
 
 function classOnline(rows, cards, grade, klass) {
@@ -748,19 +864,15 @@ export default {
       }
 
       if (path === '/class/board' && request.method === 'GET') {
-        const enrolled = await enrolledClassStudent(request, env);
-        if (enrolled.error) return enrolled.error;
-        const id = enrolled.id;
-        const qGrade = text(url.searchParams.get('grade'));
-        const qClass = text(url.searchParams.get('class'));
-        if ((qGrade && String(parseInt(qGrade, 10) || 0) !== String(id.grade)) || (qClass && qClass.toUpperCase() !== id.class)) {
-          return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
-        }
+        const reader = await classBoardReader(request, env, url);
+        if (reader.error) return reader.error;
+        const id = reader.id;
+        const cards = await listClassDirectory(env.DB, id.grade, id.class);
+        if (!cards.length) return jsonResponse({ ok: false, error: 'unknown_class' }, 404, cors);
         const loaded = await loadPresence(env.DB);
         const before = loaded.logs.length;
         const kept = settlePresence(loaded.rows, loaded.logs, null, clockMs(env), PRESENCE_IDLE_MS);
         await savePresence(env.DB, kept, loaded.logs, before);
-        const cards = await listClassCards(env.DB, id.grade, id.class);
         return jsonResponse({
           ok: true,
           cards: cards,
