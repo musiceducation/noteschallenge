@@ -617,8 +617,9 @@
         } catch (e) {}
         try { updateHubAsideFromProfile(profile); } catch (e) {}
         try {
-            if (!(opts && opts.skipRemote) && window.ClassShare && ClassShare.shareable(profile, { tester: !!(window.WebGoogleAuth && window.WebGoogleAuth.tester) })) {
-                ClassShare.postCard(profile);
+            const enrolled = classAuth();
+            if (!(opts && opts.skipRemote) && enrolled && window.ClassShare && profile.name === enrolled.binding.name && ClassShare.sameClass(profile, enrolled.binding)) {
+                ClassShare.postCard(profile, { token: enrolled.token });
             }
         } catch (e) {}
     }
@@ -1725,9 +1726,7 @@
         }
         next?.classList.add('active');
         try { if (window.WebGoogleAuth && window.WebGoogleAuth.noteScreen) window.WebGoogleAuth.noteScreen(screenId); } catch (e) {}
-        try {
-            if (window.ClassShare) ClassShare.note(state.currentUser, screenId, { tester: !!(window.WebGoogleAuth && window.WebGoogleAuth.tester) });
-        } catch (e) {}
+        try { noteClassPresence(screenId); } catch (e) {}
 
         if (isAppShell()) {
             document.body.classList.toggle('app-on-root', screenId === 'screen-app-root');
@@ -4751,13 +4750,38 @@
     // ==========================================
     let _viewProfileReturn = 'screen-classmates';
 
-    function classShareOpts() {
-        return { tester: !!(window.WebGoogleAuth && window.WebGoogleAuth.tester) };
+    function classAuth() {
+        const auth = window.WebGoogleAuth;
+        if (!auth || auth.tester || !auth.signedIn || !auth.token || !window.ClassShare) return null;
+        if (!ClassShare.shareable(auth.binding)) return null;
+        return { token: auth.token, binding: ClassShare.identity(auth.binding) };
+    }
+
+    function noteClassPresence(screenId, activity) {
+        if (!window.ClassShare) return;
+        const enrolled = classAuth();
+        const action = ClassShare.presenceAction({
+            token: enrolled && enrolled.token,
+            enrolled: !!enrolled,
+            tester: !!(window.WebGoogleAuth && window.WebGoogleAuth.tester),
+            visible: document.visibilityState !== 'hidden'
+        });
+        if (action !== 'ping') {
+            if (action === 'offline' && enrolled) ClassShare.postPresence(enrolled.binding, '', { token: enrolled.token, offline: true });
+            ClassShare.stop();
+            return;
+        }
+        ClassShare.note(enrolled.binding, screenId, { token: enrolled.token, activity: activity });
+    }
+
+    function clearClassBoard() {
+        state.classBoard = null;
+        if (window.ClassShare) ClassShare.stop();
     }
 
     function classmateScope() {
         const user = state.currentUser;
-        if (!window.ClassShare || !ClassShare.shareable(user, classShareOpts())) return null;
+        if (!window.ClassShare || !ClassShare.shareable(user, { tester: !!(window.WebGoogleAuth && window.WebGoogleAuth.tester) })) return null;
         return ClassShare.identity(user);
     }
 
@@ -4784,12 +4808,17 @@
     }
 
     function refreshClassBoard() {
+        const enrolled = classAuth();
         const scope = classmateScope();
-        if (!scope || !window.ClassShare) return Promise.resolve(null);
-        return ClassShare.loadBoard(scope).then(board => {
-            state.classBoard = board;
-            applyClassCards(board);
-            return board;
+        if (!enrolled || !scope || !window.ClassShare || !ClassShare.sameClass(enrolled.binding, scope)) {
+            state.classBoard = null;
+            return Promise.resolve(null);
+        }
+        return ClassShare.loadBoard(scope, { token: enrolled.token }).then(board => {
+            const fresh = ClassShare.takeBoard(board, scope);
+            state.classBoard = fresh;
+            applyClassCards(fresh);
+            return fresh;
         });
     }
 
@@ -5241,10 +5270,9 @@
                 id: user.seat || ''
             };
             try {
-                if (window.ClassShare && ClassShare.shareable(state.currentUser, { tester: !!(window.WebGoogleAuth && window.WebGoogleAuth.tester) })) {
-                    ClassShare.note(state.currentUser, 'screen-hub');
-                    ClassShare.postCard(loadProfile(state.currentUser));
-                }
+                const enrolled = classAuth();
+                if (!enrolled || !window.ClassShare || !ClassShare.sameClass(enrolled.binding, state.currentUser)) state.classBoard = null;
+                noteClassPresence('screen-hub');
             } catch (e) {}
         }
 
@@ -5424,6 +5452,7 @@
             try { paintWebAccount(); } catch (e) {}
             if (!auth || !auth.required) return;
             if (!auth.signedIn) {
+                clearClassBoard();
                 if (auth.ready) {
                     applyAccountBinding(null);
                     try {
@@ -5433,6 +5462,7 @@
                 }
                 return;
             }
+            clearClassBoard();
             applyAccountBinding(auth.binding);
         }
 
@@ -6023,6 +6053,22 @@
         if (hubSignOutBtn) hubSignOutBtn.addEventListener('click', webSignOut);
         if (profileSignOutBtn) profileSignOutBtn.addEventListener('click', webSignOut);
         window.addEventListener('webgoogle:session', onWebSession);
+        window.addEventListener('webgoogle:presence-stop', (ev) => {
+            const token = ev.detail && ev.detail.token;
+            if (token && window.ClassShare) ClassShare.postPresence(null, '', { token: token, offline: true });
+            clearClassBoard();
+        });
+        document.addEventListener('visibilitychange', () => {
+            if (!window.ClassShare) return;
+            const enrolled = classAuth();
+            if (document.visibilityState === 'hidden') {
+                if (enrolled) ClassShare.postPresence(enrolled.binding, '', { token: enrolled.token, offline: true });
+                ClassShare.stop();
+                return;
+            }
+            const active = document.querySelector('.screen.active');
+            noteClassPresence(active && active.id);
+        });
         onWebSession();
 
         document.getElementById('backToHubFromSetup').addEventListener('click', () => {
@@ -6708,7 +6754,7 @@
         document.getElementById('sqNote').textContent = AbrsmRhythmTerms.levelCoverageText(kind === 'value' ? 'value' : 'meter', level);
         switchScreen('screen-g2-duration');
         try {
-            if (window.ClassShare) ClassShare.note(user, null, { activity: title, tester: !!(window.WebGoogleAuth && window.WebGoogleAuth.tester) });
+            noteClassPresence(null, title);
         } catch (e) {}
         document.getElementById('sqExit').onclick = () => { if (syllabusQuiz.timer) clearInterval(syllabusQuiz.timer); switchScreen('screen-g2-setup'); };
         if (timed) {

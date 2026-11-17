@@ -512,50 +512,117 @@ test('allowlisted teacher email signs in without opening gmail.com, and presence
   }
 });
 
-test('class board shares a photo inside one class and drops guests, testers, and other classes', async () => {
-  const env = { DB: memoryDb(), GOOGLE_CLIENT_ID: CLIENT_ID, JWT_SECRET: SECRET };
+test('class sharing requires a roster session and rejects forged names and other classes', async () => {
+  keys();
+  clearJwksCache();
+  const now = Date.now();
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('/oauth2/v3/certs')) {
+      return new Response(JSON.stringify({ keys: [publicJwk] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    throw new Error('unexpected fetch ' + url);
+  };
+  const env = { DB: memoryDb(), GOOGLE_CLIENT_ID: CLIENT_ID, JWT_SECRET: SECRET, NOW: now };
   const origin = 'https://noteschallenge.vercel.app';
   const photo = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEA';
-  const headers = { Origin: origin, 'Content-Type': 'application/json' };
-  async function post(path, body) {
+  const forgedPhoto = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEB';
+  function roster(email, grade, klass, name, seat) {
+    env.DB.roster.set(email, { email, grade, class: klass, student_name: name, seat });
+  }
+  roster('a@school.edu.hk', '2', 'A', '陳小樂', '12');
+  roster('b@school.edu.hk', '2', 'A', '李同學', '4');
+  roster('c@school.edu.hk', '3', 'B', '周同學', '1');
+  async function login(email, sub, name) {
+    const credential = await googleToken(baseClaims(now, { email, sub, name }));
+    const res = await worker.fetch(new Request('https://auth.example/auth/google', {
+      method: 'POST',
+      headers: { Origin: origin, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential })
+    }), env);
+    const data = await res.json();
+    assert.equal(data.ok, true, email);
+    return data.token;
+  }
+  const auth = (token) => ({ Origin: origin, 'Content-Type': 'application/json', Authorization: 'Bearer ' + token });
+  async function send(token, path, body) {
     return worker.fetch(new Request('https://auth.example' + path, {
-      method: 'POST', headers: headers, body: JSON.stringify(body)
+      method: body ? 'POST' : 'GET',
+      headers: token ? auth(token) : { Origin: origin, 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined
     }), env);
   }
-  const saved = await post('/class/card', {
-    name: '陳小樂', grade: 2, class: 'a', seat: '12', avatar: photo, signature: '今天練拍號', level: 3, exp: 20
-  });
-  assert.equal(saved.status, 200);
-  const card = (await saved.json()).card;
-  assert.equal(card.avatar, photo);
-  assert.equal(card.class, 'A');
-  assert.equal(card.signature, '今天練拍號');
+  try {
+    const tokenA = await login('a@school.edu.hk', 'sub-a', '陳小樂');
+    const tokenB = await login('b@school.edu.hk', 'sub-b', '李同學');
+    const tokenC = await login('c@school.edu.hk', 'sub-c', '周同學');
 
-  const guest = await post('/class/card', { name: '訪客', grade: 2, class: 'A', seat: '1', avatar: '🎵' });
-  assert.equal(guest.status, 400);
-  const tester = await post('/class/presence', { name: '測試人員', grade: 2, class: 'A', seat: '1', screen: '大廳', kind: 'tester' });
-  assert.equal(tester.status, 400);
-  const other = await post('/class/card', { name: '李同學', grade: 3, class: 'B', seat: '4', avatar: '🎹', signature: '別班' });
-  assert.equal(other.status, 200);
+    assert.equal((await send('', '/class/board?grade=2&class=A')).status, 401);
+    assert.equal((await send('', '/class/card', {
+      name: '陳小樂', grade: 2, class: 'A', seat: '12', avatar: photo, email: 'a@school.edu.hk'
+    })).status, 401);
+    assert.equal((await send('', '/class/presence', {
+      name: '陳小樂', grade: 2, class: 'A', seat: '12', screen: '節奏挑戰'
+    })).status, 401);
 
-  const ping = await post('/class/presence', { name: '陳小樂', grade: 2, class: 'A', seat: '12', screen: '節奏挑戰' });
-  assert.equal(ping.status, 200);
-  await post('/class/presence', { name: '李同學', grade: 3, class: 'B', seat: '4', screen: '術語作答' });
+    const saved = await send(tokenA, '/class/card', {
+      avatar: photo, signature: '今天練拍號', email: 'a@school.edu.hk', gameBests: { game2: 99 }, history: [{ score: 1 }]
+    });
+    assert.equal(saved.status, 200);
+    const card = (await saved.json()).card;
+    assert.equal(card.avatar, photo);
+    assert.equal(card.signature, '今天練拍號');
+    assert.equal(card.email, undefined);
+    assert.equal(card.gameBests, undefined);
+    assert.equal(card.history, undefined);
 
-  const boardRes = await worker.fetch(new Request('https://auth.example/class/board?grade=2&class=A', {
-    headers: { Origin: origin }
-  }), env);
-  const board = await boardRes.json();
-  assert.equal(board.ok, true);
-  assert.equal(board.cards.length, 1);
-  assert.equal(board.cards[0].name, '陳小樂');
-  assert.equal(board.cards[0].avatar, photo);
-  assert.equal(board.online.length, 1);
-  assert.equal(board.online[0].screen, '節奏挑戰');
-  assert.equal(board.online[0].avatar, photo);
-  assert.equal(board.cards.some((row) => row.name === '訪客' || row.name === '測試人員' || row.class === 'B'), false);
-  assert.equal(board.online.some((row) => row.class !== 'A'), false);
+    assert.equal((await send(tokenB, '/class/card', {
+      name: '陳小樂', grade: 2, class: 'A', seat: '12', avatar: forgedPhoto, signature: '冒充'
+    })).status, 403);
+    assert.equal((await send(tokenC, '/class/presence', {
+      name: '陳小樂', grade: 2, class: 'A', seat: '12', screen: '術語作答'
+    })).status, 403);
+    assert.equal((await send(tokenA, '/class/board?grade=3&class=B')).status, 403);
+    assert.equal((await send(tokenC, '/class/board?grade=2&class=A')).status, 403);
 
-  const cors = boardRes.headers.get('Access-Control-Allow-Origin');
-  assert.equal(cors, origin);
+    assert.equal((await send(tokenB, '/class/presence', { screen: '節奏挑戰' })).status, 200);
+    const seenByA = await (await send(tokenA, '/class/board')).json();
+    const seenByB = await (await send(tokenB, '/class/board')).json();
+    assert.equal(seenByB.cards.length, 1);
+    assert.equal(seenByB.cards[0].name, '陳小樂');
+    assert.equal(seenByB.cards[0].avatar, photo);
+    assert.equal(seenByA.online.length, 1);
+    assert.equal(seenByA.online[0].name, '李同學');
+    assert.equal(seenByA.online[0].screen, '節奏挑戰');
+    assert.equal(JSON.stringify(seenByA).includes('@'), false);
+    assert.equal(JSON.stringify(seenByA).includes('gameBests'), false);
+    assert.equal(JSON.stringify(seenByA).includes('history'), false);
+
+    const otherClass = await (await send(tokenC, '/class/board')).json();
+    assert.equal(otherClass.cards.length, 0);
+    assert.equal(otherClass.online.length, 0);
+    const publicPresence = await (await worker.fetch(new Request('https://auth.example/presence', {
+      headers: { Origin: origin }
+    }), env)).json();
+    assert.equal(publicPresence.online.some((row) => row.name === '陳小樂' || row.name === '李同學'), false);
+
+    env.NOW = now + (3 * 60 * 1000) + 1000;
+    const expired = await (await send(tokenA, '/class/board')).json();
+    assert.equal(expired.online.length, 0);
+    assert.equal(expired.cards[0].avatar, photo);
+
+    assert.equal((await send(tokenB, '/class/presence', { screen: '拍號計時' })).status, 200);
+    const refreshed = await (await send(tokenA, '/class/board')).json();
+    assert.equal(refreshed.online.length, 1);
+    assert.equal(refreshed.online[0].screen, '拍號計時');
+    assert.equal(refreshed.cards[0].avatar, photo);
+
+    assert.equal((await send(tokenB, '/class/presence', { offline: true })).status, 200);
+    const signedOut = await (await send(tokenA, '/class/board')).json();
+    assert.equal(signedOut.online.length, 0);
+    assert.equal(signedOut.cards[0].avatar, photo);
+  } finally {
+    globalThis.fetch = realFetch;
+    clearJwksCache();
+  }
 });

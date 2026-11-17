@@ -468,7 +468,7 @@ export function settlePresence(rows, logs, entry, nowMs, idleMs) {
 }
 
 function publicOnline(rows) {
-  return rows.map((row) => ({
+  return rows.filter((row) => row.kind !== 'classmate').map((row) => ({
     name: row.display_name,
     classLabel: row.class_label || '',
     kind: row.kind
@@ -476,7 +476,7 @@ function publicOnline(rows) {
 }
 
 function publicLog(logs) {
-  return logs.slice(-80).reverse().map((row) => ({
+  return logs.filter((row) => row.kind !== 'classmate').slice(-80).reverse().map((row) => ({
     name: row.display_name,
     classLabel: row.class_label || '',
     kind: row.kind,
@@ -559,6 +559,22 @@ export function classIdentity(body) {
   return { name: name, grade: grade, class: klass, seat: seat };
 }
 
+function clockMs(env) {
+  const stamped = env && Number(env.NOW);
+  return Number.isFinite(stamped) && stamped > 0 ? stamped : Date.now();
+}
+
+function claimedIdentityMismatch(body, id) {
+  const src = plainObject(body);
+  if (text(src.name) && text(src.name) !== id.name) return true;
+  if (text(src.class) && text(src.class).toUpperCase() !== id.class) return true;
+  if (text(src.grade) && String(parseInt(src.grade, 10) || 0) !== String(id.grade)) return true;
+  const claimedSeat = text(src.seat || src.id);
+  if (claimedSeat && claimedSeat !== id.seat) return true;
+  if (text(src.kind) === 'tester' || src.tester === true || src.guest === true) return true;
+  return false;
+}
+
 function classKey(id) {
   return id.grade + '|' + id.class + '|' + id.name + '|' + id.seat;
 }
@@ -578,21 +594,17 @@ function classAvatar(value) {
   return s.slice(0, 16);
 }
 
-function publicClassCard(profile) {
-  const id = classIdentity(profile);
-  if (!id) return null;
-  const avatar = classAvatar(profile.avatar);
+function publicClassCard(profile, id) {
+  const who = id || classIdentity(profile);
+  if (!who) return null;
+  const avatar = classAvatar(profile && profile.avatar);
   return {
-    name: id.name,
-    grade: id.grade,
-    class: id.class,
-    seat: id.seat,
+    name: who.name,
+    grade: who.grade,
+    class: who.class,
+    seat: who.seat,
     avatar: avatar || '🎵',
-    signature: text(profile.signature).slice(0, 30),
-    level: Math.max(1, num(profile.level)),
-    exp: num(profile.exp),
-    totalPlayTime: num(profile.totalPlayTime),
-    gameBests: plainObject(profile.gameBests)
+    signature: text(profile && profile.signature).slice(0, 30)
   };
 }
 
@@ -645,35 +657,51 @@ function classLog(logs, grade, klass) {
   })).filter((row) => classIdentity(row));
 }
 
-async function saveClassCard(db, body) {
-  const id = classIdentity(body);
-  if (!id) return { error: 'invalid student', status: 400 };
-  const avatar = classAvatar(body.avatar);
+async function enrolledClassStudent(request, env) {
+  const gate = await requireSession(request, env);
+  if (gate.error) return gate;
+  const roster = await findRoster(env.DB, gate.row.email);
+  const binding = bindingFromRoster(roster);
+  const id = binding && classIdentity(binding);
+  if (!id) return { error: jsonResponse({ ok: false, error: 'not_on_roster' }, 403, corsHeaders(request)) };
+  return { id: id };
+}
+
+async function saveClassCard(db, id, body) {
+  if (claimedIdentityMismatch(body, id)) return { error: 'forbidden', status: 403 };
+  const avatar = classAvatar(body && body.avatar);
   if (avatar == null) return { error: 'avatar too large', status: 400 };
-  const existing = await readProfile(db, classSub(id));
-  const incoming = {
+  const existing = await readProfile(db, classSub(id)) || {};
+  const stored = {
     name: id.name,
-    grade: Number(id.grade),
+    grade: id.grade,
     class: id.class,
     seat: id.seat,
-    avatar: avatar,
-    signature: text(body.signature).slice(0, 30),
-    level: num(body.level) || 1,
-    exp: num(body.exp),
-    totalPlayTime: num(body.totalPlayTime),
-    gameBests: plainObject(body.gameBests),
-    history: []
+    avatar: avatar || classAvatar(existing.avatar) || '🎵',
+    signature: text(body && body.signature) ? text(body.signature).slice(0, 30) : text(existing.signature).slice(0, 30)
   };
-  const merged = mergeProfiles(existing || {}, incoming);
-  merged.name = id.name;
-  merged.grade = Number(id.grade);
-  merged.class = id.class;
-  merged.seat = id.seat;
-  merged.history = [];
-  const packed = JSON.stringify(merged);
+  const packed = JSON.stringify(stored);
   if (packed.length > PROFILE_MAX_CHARS) return { error: 'avatar too large', status: 400 };
-  await writeProfile(db, classSub(id), merged, new Date().toISOString());
-  return { card: publicClassCard(merged) };
+  await writeProfile(db, classSub(id), stored, new Date().toISOString());
+  return { card: publicClassCard(stored, id) };
+}
+
+function dropOwnPresence(rows, logs, id, nowIso) {
+  const presenceId = 'mate:' + classKey(id);
+  const kept = [];
+  (rows || []).forEach((row) => {
+    if (!row || row.id !== presenceId) { kept.push(row); return; }
+    logs.push({
+      presence_id: row.id,
+      kind: row.kind,
+      display_name: row.display_name,
+      class_label: row.class_label || '',
+      event: 'offline',
+      screen: row.screen || '',
+      at: nowIso
+    });
+  });
+  return kept;
 }
 
 export default {
@@ -720,16 +748,17 @@ export default {
       }
 
       if (path === '/class/board' && request.method === 'GET') {
-        const id = classIdentity({
-          grade: url.searchParams.get('grade'),
-          class: url.searchParams.get('class'),
-          name: '同學',
-          seat: '0'
-        });
-        if (!id) return jsonResponse({ ok: false, error: 'invalid class' }, 400, cors);
+        const enrolled = await enrolledClassStudent(request, env);
+        if (enrolled.error) return enrolled.error;
+        const id = enrolled.id;
+        const qGrade = text(url.searchParams.get('grade'));
+        const qClass = text(url.searchParams.get('class'));
+        if ((qGrade && String(parseInt(qGrade, 10) || 0) !== String(id.grade)) || (qClass && qClass.toUpperCase() !== id.class)) {
+          return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
+        }
         const loaded = await loadPresence(env.DB);
         const before = loaded.logs.length;
-        const kept = settlePresence(loaded.rows, loaded.logs, null, Date.now(), PRESENCE_IDLE_MS);
+        const kept = settlePresence(loaded.rows, loaded.logs, null, clockMs(env), PRESENCE_IDLE_MS);
         await savePresence(env.DB, kept, loaded.logs, before);
         const cards = await listClassCards(env.DB, id.grade, id.class);
         return jsonResponse({
@@ -741,31 +770,37 @@ export default {
       }
 
       if (path === '/class/card' && request.method === 'POST') {
+        const enrolled = await enrolledClassStudent(request, env);
+        if (enrolled.error) return enrolled.error;
         let body = {};
         try { body = await readJson(request); } catch (e) {
           return jsonResponse({ ok: false, error: 'invalid json' }, 400, cors);
         }
-        const saved = await saveClassCard(env.DB, body);
+        const saved = await saveClassCard(env.DB, enrolled.id, body);
         if (saved.error) return jsonResponse({ ok: false, error: saved.error }, saved.status, cors);
         return jsonResponse({ ok: true, card: saved.card }, 200, cors);
       }
 
       if (path === '/class/presence' && request.method === 'POST') {
+        const enrolled = await enrolledClassStudent(request, env);
+        if (enrolled.error) return enrolled.error;
         let body = {};
         try { body = await readJson(request); } catch (e) {
           return jsonResponse({ ok: false, error: 'invalid json' }, 400, cors);
         }
-        const id = classIdentity(body);
-        if (!id) return jsonResponse({ ok: false, error: 'invalid student' }, 400, cors);
+        const id = enrolled.id;
+        if (claimedIdentityMismatch(body, id)) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
         const loaded = await loadPresence(env.DB);
         const before = loaded.logs.length;
-        const kept = settlePresence(loaded.rows, loaded.logs, {
+        const nowMs = clockMs(env);
+        let kept = settlePresence(loaded.rows, loaded.logs, body.offline === true ? null : {
           id: 'mate:' + classKey(id),
           kind: 'classmate',
           displayName: id.name,
           classLabel: id.grade + '|' + id.class,
           screen: text(body.screen).slice(0, 40)
-        }, Date.now(), PRESENCE_IDLE_MS);
+        }, nowMs, PRESENCE_IDLE_MS);
+        if (body.offline === true) kept = dropOwnPresence(kept, loaded.logs, id, new Date(nowMs).toISOString());
         await savePresence(env.DB, kept, loaded.logs, before);
         const cards = await listClassCards(env.DB, id.grade, id.class);
         return jsonResponse({

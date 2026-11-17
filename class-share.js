@@ -1,6 +1,7 @@
 /**
  * Class-scoped classmate cards and presence.
- * Uses the classroom identity (grade + class + name + seat). No Google sign-in.
+ * Uploads and downloads only with a roster-bound Google session token.
+ * A hub name, grade, class, or seat is not a credential.
  * Guests and testers are not uploaded. Other classes are not returned.
  */
 (function (root, factory) {
@@ -38,6 +39,7 @@
         'screen-composition-studio': '創作工作室'
     };
     var timer = 0;
+    var beatToken = '';
     var lastUser = null;
     var lastScreen = '大廳';
 
@@ -181,12 +183,38 @@
         return String(cfg.authApiBase || '').replace(/\/$/, '');
     }
 
-    function postJson(path, body) {
+    function credential(opts) {
+        var token = opts && text(opts.token);
+        if (!token || token.length < 20 || (opts && opts.tester)) return '';
+        return token;
+    }
+
+    function emptyBoard() {
+        return { cards: [], online: [], log: [] };
+    }
+
+    function takeBoard(board, scope) {
+        if (!shareable(scope)) return emptyBoard();
+        return {
+            cards: classRows(board && board.cards, scope),
+            online: classRows(board && board.online, scope),
+            log: classRows(board && board.log, scope)
+        };
+    }
+
+    function presenceAction(state) {
+        state = state || {};
+        if (!credential(state) || state.enrolled === false || state.signedOut) return 'stop';
+        if (state.visible === false) return 'offline';
+        return 'ping';
+    }
+
+    function postJson(path, body, token) {
         var base = apiBase();
-        if (!base || typeof fetch !== 'function') return Promise.resolve(null);
+        if (!base || !token || typeof fetch !== 'function') return Promise.resolve(null);
         return fetch(base + path, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
             body: JSON.stringify(body)
         }).then(function (res) {
             return res.json().catch(function () { return null; });
@@ -194,49 +222,61 @@
     }
 
     function postCard(profile, opts) {
-        var card = cardFromProfile(profile);
-        if (!card || (opts && opts.tester)) return Promise.resolve(null);
-        return postJson('/class/card', card);
+        var token = credential(opts);
+        if (!token || !profile) return Promise.resolve(null);
+        var avatar = cleanAvatar(profile.avatar);
+        if (!avatar) return Promise.resolve(null);
+        return postJson('/class/card', {
+            avatar: avatar,
+            signature: text(profile.signature).slice(0, 30)
+        }, token);
     }
 
     function postPresence(user, screen, opts) {
-        if (!shareable(user, opts)) return Promise.resolve(null);
-        var id = identity(user);
-        id.screen = text(screen).slice(0, 40) || '大廳';
-        return postJson('/class/presence', id);
+        var token = credential(opts);
+        if (!token) return Promise.resolve(null);
+        var body = { screen: text(screen).slice(0, 40) };
+        if (opts && opts.offline) body.offline = true;
+        return postJson('/class/presence', body, token);
     }
 
-    function loadBoard(scope) {
-        var empty = { cards: [], online: [], log: [] };
+    function loadBoard(scope, opts) {
+        var token = credential(opts);
         var base = apiBase();
-        if (!base || !shareable(scope) || typeof fetch !== 'function') return Promise.resolve(empty);
-        var id = identity(scope);
-        var url = base + '/class/board?grade=' + encodeURIComponent(id.grade) + '&class=' + encodeURIComponent(id.class);
-        return fetch(url, { method: 'GET' }).then(function (res) {
+        if (!token || !base || !shareable(scope) || typeof fetch !== 'function') return Promise.resolve(emptyBoard());
+        return fetch(base + '/class/board', {
+            method: 'GET',
+            headers: { Authorization: 'Bearer ' + token }
+        }).then(function (res) {
             return res.json().catch(function () { return null; });
         }).then(function (data) {
-            if (!data || data.ok === false) return empty;
-            return {
-                cards: classRows(data.cards, id),
-                online: classRows(data.online, id),
-                log: classRows(data.log, id)
-            };
-        }).catch(function () { return empty; });
+            if (!data || data.ok === false) return emptyBoard();
+            return takeBoard(data, scope);
+        }).catch(function () { return emptyBoard(); });
+    }
+
+    function stop() {
+        lastUser = null;
+        beatToken = '';
+        if (timer) { clearInterval(timer); timer = 0; }
     }
 
     function note(user, screenId, opts) {
         opts = opts || {};
-        if (!shareable(user, opts)) {
-            lastUser = null;
-            return;
+        var token = credential(opts);
+        if (!token || !shareable(user, opts)) {
+            stop();
+            return false;
         }
+        beatToken = token;
         lastUser = identity(user);
         if (opts.activity) lastScreen = text(opts.activity).slice(0, 40) || lastScreen;
         else if (screenId) lastScreen = screenLabel(screenId);
-        postPresence(lastUser, lastScreen, opts);
+        postPresence(lastUser, lastScreen, { token: beatToken });
         if (!timer) timer = setInterval(function () {
-            if (lastUser) postPresence(lastUser, lastScreen);
+            if (beatToken && lastUser) postPresence(lastUser, lastScreen, { token: beatToken });
         }, 45000);
+        return true;
     }
 
     return {
@@ -255,6 +295,9 @@
         postCard: postCard,
         postPresence: postPresence,
         loadBoard: loadBoard,
-        note: note
+        takeBoard: takeBoard,
+        presenceAction: presenceAction,
+        note: note,
+        stop: stop
     };
 });
