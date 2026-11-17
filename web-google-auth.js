@@ -336,10 +336,16 @@
     }).catch(function () {});
   }
 
+  function setPresenceDot(on) {
+    var btn = document.getElementById('hubPresenceBtn');
+    if (btn) btn.classList.toggle('is-online', !!on);
+  }
+
   function startPresence() {
     if (presenceTimer) clearInterval(presenceTimer);
     pingPresence();
     presenceTimer = setInterval(pingPresence, 45000);
+    setPresenceDot(true);
   }
 
   function clearSession() {
@@ -351,6 +357,7 @@
     bindingKey = '';
     lastScreen = '';
     if (presenceTimer) { clearInterval(presenceTimer); presenceTimer = 0; }
+    setPresenceDot(false);
     try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
     try { sessionStorage.removeItem(TESTER_FLAG); } catch (e) {}
     showGate();

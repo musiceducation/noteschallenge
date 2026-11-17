@@ -1005,6 +1005,19 @@
         }
     }
 
+    function markStatShine(valueId) {
+        const val = document.getElementById(valueId);
+        if (!val) return;
+        const stat = val.closest('.profile-stat');
+        if (!stat) return;
+        const n = parseFloat(String(val.textContent).replace(/[^\d.]/g, '')) || 0;
+        stat.classList.remove('is-lit');
+        if (n > 0) {
+            void stat.offsetWidth;
+            stat.classList.add('is-lit');
+        }
+    }
+
     function renderProfileScreen(user) {
         const p = loadProfile(user);
         if (user && (user.seat || user.id)) p.seat = user.seat || user.id;
@@ -1043,6 +1056,10 @@
         document.getElementById('psMaxCombo').textContent = s.maxCombo;
         document.getElementById('psFCCount').textContent = s.fcCount;
         document.getElementById('psAPCount').textContent = s.apCount;
+        markStatShine('psTotalScore');
+        markStatShine('psMaxCombo');
+        markStatShine('psFCCount');
+        markStatShine('psAPCount');
 
         const bestText = (value) => (value ? String(value) : '---');
         const setBest = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = bestText(value); };
@@ -4770,6 +4787,10 @@
         document.getElementById('vpMaxCombo').textContent = maxCombo;
         document.getElementById('vpFCCount').textContent = fcCount;
         document.getElementById('vpAPCount').textContent = apCount;
+        markStatShine('vpTotalScore');
+        markStatShine('vpMaxCombo');
+        markStatShine('vpFCCount');
+        markStatShine('vpAPCount');
 
         const gb = rs ? rs.gameBests : p.gameBests;
         const vpBest = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value || '---'; };
