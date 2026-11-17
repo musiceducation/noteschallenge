@@ -194,7 +194,8 @@ for (const file of ['index.html', 'www/index.html']) {
 
 for (const boot of ['bootstrap-instruments.js', 'www/bootstrap-instruments.js']) {
   const src = fs.readFileSync(new URL('../' + boot, import.meta.url), 'utf8');
-  assert.match(src, /script\.js\?v=26/);
+  assert.match(src, /script\.js\?v=27/);
+  assert.doesNotMatch(src, /script\.js\?v=26/);
   assert.doesNotMatch(src, /script\.js\?v=25/);
   assert.doesNotMatch(src, /script\.js\?v=24/);
   assert.doesNotMatch(src, /script\.js\?v=23/);

@@ -463,7 +463,7 @@ assert.equal(currentProfiles.length, 1);
 assert.equal(Number(currentProfiles[0].score), 50);
 
 const gameSrc = fs.readFileSync(new URL('../script.js', import.meta.url), 'utf8');
-assert.equal(gameSrc.split('storeSharedRank(').length - 1, 4);
+assert.equal(gameSrc.split('storeSharedRank(').length - 1, 6);
 assert.equal(gameSrc.split('publishSharedRank(').length - 1, 2);
 const loadBody = gameSrc.slice(gameSrc.indexOf('async function loadRanks'), gameSrc.indexOf('function escHtml'));
 assert.doesNotMatch(loadBody, /storeSharedRank|publishSharedRank|publishBody/);
@@ -635,7 +635,8 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.match(page, /option value="keysig60">調號挑戰/);
   assert.match(page, /option value="solfege60">唱名挑戰/);
   assert.match(page, /option value="classroom" selected>課堂舊紀錄/);
-  assert.match(page, /rank-sync\.js\?v=4/);
+  assert.match(page, /rank-sync\.js\?v=5/);
+  assert.doesNotMatch(page, /rank-sync\.js\?v=4/);
   assert.doesNotMatch(page, /零失誤練習|英皇音名|英皇調號|英皇級別<\/label>|英皇術語|計入英皇榜/);
   assert.doesNotMatch(page, /value="abrsm-notes"|value="abrsm-keys"|value="rhythm-tap"|id="rankAbrsmGradeFilter"/);
 }

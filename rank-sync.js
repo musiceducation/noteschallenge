@@ -15,12 +15,23 @@ var RankSync = (function () {
             };
         }
         var graded = /^(rhythm-tap|notes|keys|rhythm|terms):(abrsm-g[1-5])$/.exec(rest);
-        if (!graded) return null;
+        if (graded) {
+            return {
+                storageKey: key,
+                gameKey: graded[1],
+                syllabusId: graded[2],
+                clefChoice: '',
+                level: ''
+            };
+        }
+        var level = /^(rhythm-level|rhythm-complete):(easy|medium|hard)$/.exec(rest);
+        if (!level) return null;
         return {
             storageKey: key,
-            gameKey: graded[1],
-            syllabusId: graded[2],
-            clefChoice: ''
+            gameKey: level[1],
+            syllabusId: '',
+            clefChoice: '',
+            level: level[2]
         };
     }
 
@@ -59,6 +70,7 @@ var RankSync = (function () {
             gameKey: parsed.gameKey,
             clefChoice: parsed.clefChoice,
             syllabusId: parsed.syllabusId,
+            level: parsed.level || '',
             score: parseInt(record.score, 10) || 0,
             name: record.name,
             class: record.class || '',
@@ -111,7 +123,7 @@ var RankSync = (function () {
 
     function legacySheetGame(gameKey) {
         if (gameKey === 'terms') return 'game3';
-        if (gameKey === 'rhythm' || gameKey === 'rhythm-tap') return 'game2';
+        if (gameKey === 'rhythm' || gameKey === 'rhythm-tap' || gameKey === 'rhythm-level' || gameKey === 'rhythm-complete') return 'game2';
         return 'game1';
     }
 
@@ -125,7 +137,7 @@ var RankSync = (function () {
             action: 'saveRank',
             game: legacySheetGame(parsed.gameKey),
             mode: parsed.storageKey,
-            mode_name: parsed.clefChoice ? ('音名譜號·' + parsed.clefChoice) : (parsed.gameKey + '·' + parsed.syllabusId),
+            mode_name: parsed.clefChoice ? ('音名譜號·' + parsed.clefChoice) : (parsed.gameKey + '·' + (parsed.level || parsed.syllabusId)),
             name: record.name,
             grade: record.grade,
             class: record.class || '',
