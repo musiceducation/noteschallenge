@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=19">
+    <link rel="stylesheet" href="style.css?v=20">
     <script>
     (function () {
         try {
@@ -67,7 +67,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js" defer></script>
     <script src="auth-config.js" defer></script>
     <script src="auth.js" defer></script>
-    <script src="web-google-auth.js?v=2" defer></script>
+    <script src="web-google-auth.js?v=3" defer></script>
     <script src="audio-engine.js" defer></script>
     <script src="app-orientation.js" defer></script>
     <script src="app-three-bg.js" defer></script>
@@ -114,7 +114,7 @@
                 </header>
                 <div class="app-game-list" role="list">
                     <button type="button" class="app-game-row app-game-row--1" data-launch="enterGame1" role="listitem">
-                        <span class="app-game-row-icon" aria-hidden="true">𝄞</span>
+                        <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-topic-notes.webp" alt="" width="40" height="40"></span>
                         <span class="app-game-row-text">
                             <span class="app-game-row-name">音名識辨</span>
                             <span class="app-game-row-desc">練習 · 1分鐘 · 零失誤</span>
@@ -122,7 +122,7 @@
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
                     </button>
                     <button type="button" class="app-game-row app-game-row--keysig" data-launch="enterKeysig" role="listitem">
-                        <span class="app-game-row-icon" aria-hidden="true">♯</span>
+                        <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-topic-keysig.webp" alt="" width="40" height="40"></span>
                         <span class="app-game-row-text">
                             <span class="app-game-row-name">調號辨別</span>
                             <span class="app-game-row-desc">看圖選大調 · 按升降號</span>
@@ -130,7 +130,7 @@
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
                     </button>
                     <button type="button" class="app-game-row app-game-row--solfege" data-launch="enterSolfege" role="listitem">
-                        <span class="app-game-row-icon" aria-hidden="true">Do</span>
+                        <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-topic-solfege.webp" alt="" width="40" height="40"></span>
                         <span class="app-game-row-text">
                             <span class="app-game-row-name">唱名辨別</span>
                             <span class="app-game-row-desc">課堂首調</span>
@@ -138,7 +138,7 @@
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
                     </button>
                     <button type="button" class="app-game-row app-game-row--chord" data-launch="enterChord" role="listitem">
-                        <span class="app-game-row-icon" aria-hidden="true">🎹</span>
+                        <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-topic-chord.webp" alt="" width="40" height="40"></span>
                         <span class="app-game-row-text">
                             <span class="app-game-row-name">和弦練習</span>
                             <span class="app-game-row-desc">看圖溫習 · 鍵盤作答</span>
@@ -146,7 +146,7 @@
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
                     </button>
                     <button type="button" class="app-game-row app-game-row--2" data-launch="enterGame2" role="listitem">
-                        <span class="app-game-row-icon" aria-hidden="true">🥁</span>
+                        <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-topic-rhythm.webp" alt="" width="40" height="40"></span>
                         <span class="app-game-row-text">
                             <span class="app-game-row-name">節奏識辨</span>
                             <span class="app-game-row-desc">節拍器 · 擊拍練習</span>
@@ -154,7 +154,7 @@
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
                     </button>
                     <button type="button" class="app-game-row app-game-row--3" data-launch="enterGame3" role="listitem">
-                        <span class="app-game-row-icon" aria-hidden="true">📖</span>
+                        <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-topic-terms.webp" alt="" width="40" height="40"></span>
                         <span class="app-game-row-text">
                             <span class="app-game-row-name">術語識辨</span>
                             <span class="app-game-row-desc">音樂術語記號</span>
@@ -162,7 +162,7 @@
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
                     </button>
                     <button type="button" class="app-game-row app-game-row--4" data-launch="enterGame4" role="listitem">
-                        <span class="app-game-row-icon" aria-hidden="true">🎻</span>
+                        <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-topic-instruments.webp" alt="" width="40" height="40"></span>
                         <span class="app-game-row-text">
                             <span class="app-game-row-name">樂器識辨</span>
                             <span class="app-game-row-desc">聽聲辨樂器</span>
@@ -170,7 +170,7 @@
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
                     </button>
                     <button type="button" class="app-game-row app-game-row--aural" data-launch="enterAural" role="listitem">
-                        <span class="app-game-row-icon" aria-hidden="true">🎧</span>
+                        <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-topic-listen.webp" alt="" width="40" height="40"></span>
                         <span class="app-game-row-text">
                             <span class="app-game-row-name">聽力</span>
                             <span class="app-game-row-desc">音程 · 節奏 · 色彩</span>
@@ -179,7 +179,7 @@
                     </button>
                     <!-- Classroom rollout: studio entry hidden; screens stay in the page. Remove hidden to restore. -->
                     <button type="button" class="app-game-row app-game-row--studio" data-launch="enterCompositionStudio" role="listitem" hidden>
-                        <span class="app-game-row-icon" aria-hidden="true">✏️</span>
+                        <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-mode-compose.webp" alt="" width="40" height="40"></span>
                         <span class="app-game-row-text">
                             <span class="app-game-row-name">創作工作室</span>
                             <span class="app-game-row-desc">節奏／旋律創作</span>
@@ -562,14 +562,14 @@
                 <div class="profile-section-title">各項最高分</div>
                 <p class="profile-bests-note">只計挑戰。練習分不入榜，亦不會蓋過較高最佳。</p>
                 <div class="profile-game-bests" id="profileGameBests">
-                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♩</span><span class="pgb-name">音名</span></div><div class="pgb-score" id="pgbNotes">---</div></div>
-                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♯</span><span class="pgb-name">調號</span></div><div class="pgb-score" id="pgbKeysig">---</div></div>
-                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">Do</span><span class="pgb-name">唱名</span></div><div class="pgb-score" id="pgbSolfege">---</div></div>
-                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">🎹</span><span class="pgb-name">和弦</span></div><div class="pgb-score" id="pgbChord">---</div></div>
-                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♬</span><span class="pgb-name">節奏</span></div><div class="pgb-score" id="pgbRhythm">---</div></div>
-                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">𝄞</span><span class="pgb-name">術語</span></div><div class="pgb-score" id="pgbTerms">---</div></div>
-                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">🎻</span><span class="pgb-name">樂器</span></div><div class="pgb-score" id="pgbInstr">---</div></div>
-                    <div class="profile-game-best" data-axis="listening" data-game-key="listening"><div class="pgb-top"><span class="pgb-icon">🎧</span><span class="pgb-name">聽力</span></div><div class="pgb-score" id="pgbListen">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon"><img src="img/ui/icon-topic-notes.webp" alt="" width="36" height="36"></span><span class="pgb-name">音名</span></div><div class="pgb-score" id="pgbNotes">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon"><img src="img/ui/icon-topic-keysig.webp" alt="" width="36" height="36"></span><span class="pgb-name">調號</span></div><div class="pgb-score" id="pgbKeysig">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon"><img src="img/ui/icon-topic-solfege.webp" alt="" width="36" height="36"></span><span class="pgb-name">唱名</span></div><div class="pgb-score" id="pgbSolfege">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon"><img src="img/ui/icon-topic-chord.webp" alt="" width="36" height="36"></span><span class="pgb-name">和弦</span></div><div class="pgb-score" id="pgbChord">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon"><img src="img/ui/icon-topic-rhythm.webp" alt="" width="36" height="36"></span><span class="pgb-name">節奏</span></div><div class="pgb-score" id="pgbRhythm">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon"><img src="img/ui/icon-topic-terms.webp" alt="" width="36" height="36"></span><span class="pgb-name">術語</span></div><div class="pgb-score" id="pgbTerms">---</div></div>
+                    <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon"><img src="img/ui/icon-topic-instruments.webp" alt="" width="36" height="36"></span><span class="pgb-name">樂器</span></div><div class="pgb-score" id="pgbInstr">---</div></div>
+                    <div class="profile-game-best" data-axis="listening" data-game-key="listening"><div class="pgb-top"><span class="pgb-icon"><img src="img/ui/icon-topic-listen.webp" alt="" width="36" height="36"></span><span class="pgb-name">聽力</span></div><div class="pgb-score" id="pgbListen">---</div></div>
                 </div>
             </div>
         </div>
@@ -592,13 +592,13 @@
         <div class="profile-card">
         <div class="profile-section-title"><i data-lucide="bar-chart-2"></i> 綜合數據</div>
         <div class="profile-stats-grid" id="profileStatsGrid">
-            <div class="profile-stat stat-accent-1"><div class="profile-stat-icon">🎮</div><div class="profile-stat-val" id="psTotalPlayed">0</div><div class="profile-stat-label">練習次數</div></div>
-            <div class="profile-stat stat-accent-2"><div class="profile-stat-icon">✅</div><div class="profile-stat-val" id="psCleared">0</div><div class="profile-stat-label">通關次數</div></div>
-            <div class="profile-stat stat-accent-3"><div class="profile-stat-icon">⭐</div><div class="profile-stat-val" id="psTotalScore">0</div><div class="profile-stat-label">總獲得分數</div></div>
-            <div class="profile-stat stat-accent-4"><div class="profile-stat-icon">🎯</div><div class="profile-stat-val" id="psAvgAccuracy">0%</div><div class="profile-stat-label">平均準確率</div></div>
-            <div class="profile-stat stat-accent-5"><div class="profile-stat-icon">🔥</div><div class="profile-stat-val" id="psMaxCombo">0</div><div class="profile-stat-label">最高連擊數</div></div>
-            <div class="profile-stat stat-accent-6"><div class="profile-stat-icon">💎</div><div class="profile-stat-val" id="psFCCount">0</div><div class="profile-stat-label">Full Combo</div></div>
-            <div class="profile-stat stat-accent-7"><div class="profile-stat-icon">👑</div><div class="profile-stat-val" id="psAPCount">0</div><div class="profile-stat-label">All Perfect</div></div>
+            <div class="profile-stat stat-accent-1"><div class="profile-stat-icon"><img src="img/ui/icon-stat-practice.webp" alt="" width="44" height="44"></div><div class="profile-stat-val" id="psTotalPlayed">0</div><div class="profile-stat-label">練習次數</div></div>
+            <div class="profile-stat stat-accent-2"><div class="profile-stat-icon"><img src="img/ui/icon-stat-cleared.webp" alt="" width="44" height="44"></div><div class="profile-stat-val" id="psCleared">0</div><div class="profile-stat-label">通關次數</div></div>
+            <div class="profile-stat stat-accent-3"><div class="profile-stat-icon"><img src="img/ui/ui-trophy.webp" alt="" width="44" height="44"></div><div class="profile-stat-val" id="psTotalScore">0</div><div class="profile-stat-label">總獲得分數</div></div>
+            <div class="profile-stat stat-accent-4"><div class="profile-stat-icon"><img src="img/ui/icon-stat-accuracy.webp" alt="" width="44" height="44"></div><div class="profile-stat-val" id="psAvgAccuracy">0%</div><div class="profile-stat-label">平均準確率</div></div>
+            <div class="profile-stat stat-accent-5"><div class="profile-stat-icon"><img src="img/ui/icon-stat-combo.webp" alt="" width="44" height="44"></div><div class="profile-stat-val" id="psMaxCombo">0</div><div class="profile-stat-label">最高連擊數</div></div>
+            <div class="profile-stat stat-accent-6"><div class="profile-stat-icon"><img src="img/ui/icon-stat-fc.webp" alt="" width="44" height="44"></div><div class="profile-stat-val" id="psFCCount">0</div><div class="profile-stat-label">Full Combo</div></div>
+            <div class="profile-stat stat-accent-7"><div class="profile-stat-icon"><img src="img/ui/icon-stat-ap.webp" alt="" width="44" height="44"></div><div class="profile-stat-val" id="psAPCount">0</div><div class="profile-stat-label">All Perfect</div></div>
         </div>
         </div>
 
@@ -661,25 +661,25 @@
         <div class="profile-card">
             <div class="profile-section-title">📊 數據統計</div>
             <div class="vp-stats-grid" id="vpStatsGrid">
-                <div class="profile-stat stat-accent-1"><div class="profile-stat-icon">🎮</div><div class="profile-stat-val" id="vpTotalPlayed">0</div><div class="profile-stat-label">遊戲次數</div></div>
-                <div class="profile-stat stat-accent-2"><div class="profile-stat-icon">✅</div><div class="profile-stat-val" id="vpCleared">0</div><div class="profile-stat-label">通關次數</div></div>
-                <div class="profile-stat stat-accent-3"><div class="profile-stat-icon">⭐</div><div class="profile-stat-val" id="vpTotalScore">0</div><div class="profile-stat-label">總分數</div></div>
-                <div class="profile-stat stat-accent-4"><div class="profile-stat-icon">🎯</div><div class="profile-stat-val" id="vpAvgAccuracy">0%</div><div class="profile-stat-label">平均準確率</div></div>
-                <div class="profile-stat stat-accent-5"><div class="profile-stat-icon">🔥</div><div class="profile-stat-val" id="vpMaxCombo">0</div><div class="profile-stat-label">最高連擊</div></div>
-                <div class="profile-stat stat-accent-6"><div class="profile-stat-icon">💎</div><div class="profile-stat-val" id="vpFCCount">0</div><div class="profile-stat-label">Full Combo</div></div>
-                <div class="profile-stat stat-accent-7"><div class="profile-stat-icon">👑</div><div class="profile-stat-val" id="vpAPCount">0</div><div class="profile-stat-label">All Perfect</div></div>
+                <div class="profile-stat stat-accent-1"><div class="profile-stat-icon"><img src="img/ui/icon-stat-practice.webp" alt="" width="44" height="44"></div><div class="profile-stat-val" id="vpTotalPlayed">0</div><div class="profile-stat-label">遊戲次數</div></div>
+                <div class="profile-stat stat-accent-2"><div class="profile-stat-icon"><img src="img/ui/icon-stat-cleared.webp" alt="" width="44" height="44"></div><div class="profile-stat-val" id="vpCleared">0</div><div class="profile-stat-label">通關次數</div></div>
+                <div class="profile-stat stat-accent-3"><div class="profile-stat-icon"><img src="img/ui/ui-trophy.webp" alt="" width="44" height="44"></div><div class="profile-stat-val" id="vpTotalScore">0</div><div class="profile-stat-label">總分數</div></div>
+                <div class="profile-stat stat-accent-4"><div class="profile-stat-icon"><img src="img/ui/icon-stat-accuracy.webp" alt="" width="44" height="44"></div><div class="profile-stat-val" id="vpAvgAccuracy">0%</div><div class="profile-stat-label">平均準確率</div></div>
+                <div class="profile-stat stat-accent-5"><div class="profile-stat-icon"><img src="img/ui/icon-stat-combo.webp" alt="" width="44" height="44"></div><div class="profile-stat-val" id="vpMaxCombo">0</div><div class="profile-stat-label">最高連擊</div></div>
+                <div class="profile-stat stat-accent-6"><div class="profile-stat-icon"><img src="img/ui/icon-stat-fc.webp" alt="" width="44" height="44"></div><div class="profile-stat-val" id="vpFCCount">0</div><div class="profile-stat-label">Full Combo</div></div>
+                <div class="profile-stat stat-accent-7"><div class="profile-stat-icon"><img src="img/ui/icon-stat-ap.webp" alt="" width="44" height="44"></div><div class="profile-stat-val" id="vpAPCount">0</div><div class="profile-stat-label">All Perfect</div></div>
             </div>
         </div>
         <div class="profile-card">
             <div class="profile-section-title"><i data-lucide="gamepad-2"></i> 最高分</div>
             <div class="profile-game-bests">
-                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♩</span><span class="pgb-name">音名</span></div><div class="pgb-score" id="vpNotes">---</div></div>
-                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♯</span><span class="pgb-name">調號</span></div><div class="pgb-score" id="vpKeysig">---</div></div>
-                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">Do</span><span class="pgb-name">唱名</span></div><div class="pgb-score" id="vpSolfege">---</div></div>
-                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">🎹</span><span class="pgb-name">和弦</span></div><div class="pgb-score" id="vpChord">---</div></div>
-                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">♬</span><span class="pgb-name">節奏</span></div><div class="pgb-score" id="vpRhythm">---</div></div>
-                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">𝄞</span><span class="pgb-name">術語</span></div><div class="pgb-score" id="vpTerms">---</div></div>
-                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon">🎻</span><span class="pgb-name">樂器</span></div><div class="pgb-score" id="vpInstr">---</div></div>
+                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon"><img src="img/ui/icon-topic-notes.webp" alt="" width="36" height="36"></span><span class="pgb-name">音名</span></div><div class="pgb-score" id="vpNotes">---</div></div>
+                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon"><img src="img/ui/icon-topic-keysig.webp" alt="" width="36" height="36"></span><span class="pgb-name">調號</span></div><div class="pgb-score" id="vpKeysig">---</div></div>
+                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon"><img src="img/ui/icon-topic-solfege.webp" alt="" width="36" height="36"></span><span class="pgb-name">唱名</span></div><div class="pgb-score" id="vpSolfege">---</div></div>
+                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon"><img src="img/ui/icon-topic-chord.webp" alt="" width="36" height="36"></span><span class="pgb-name">和弦</span></div><div class="pgb-score" id="vpChord">---</div></div>
+                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon"><img src="img/ui/icon-topic-rhythm.webp" alt="" width="36" height="36"></span><span class="pgb-name">節奏</span></div><div class="pgb-score" id="vpRhythm">---</div></div>
+                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon"><img src="img/ui/icon-topic-terms.webp" alt="" width="36" height="36"></span><span class="pgb-name">術語</span></div><div class="pgb-score" id="vpTerms">---</div></div>
+                <div class="profile-game-best"><div class="pgb-top"><span class="pgb-icon"><img src="img/ui/icon-topic-instruments.webp" alt="" width="36" height="36"></span><span class="pgb-name">樂器</span></div><div class="pgb-score" id="vpInstr">---</div></div>
             </div>
         </div>
     </div>
@@ -719,22 +719,22 @@
 
         <div class="mode-cards" id="modeCards">
             <div class="mode-card practice active" data-mode="practice" data-setup="notes">
-                <div class="mode-icon">📝</div><div class="mode-name">練習模式</div><div class="mode-desc">不限時，可反覆練習</div>
+                <div class="mode-icon"><img src="img/ui/icon-mode-practice.webp" alt="" width="72" height="72"></div><div class="mode-name">練習模式</div><div class="mode-desc">不限時，可反覆練習</div>
             </div>
             <div class="mode-card challenge" data-mode="classic60" data-setup="notes">
-                <div class="mode-icon">⏱️</div><div class="mode-name">1分鐘挑戰</div><div class="mode-desc">限時一分鐘，自選譜號，記入譜號榜</div>
+                <div class="mode-icon"><img src="img/ui/icon-mode-timer.webp" alt="" width="72" height="72"></div><div class="mode-name">1分鐘挑戰</div><div class="mode-desc">限時一分鐘，自選譜號，記入譜號榜</div>
             </div>
             <div class="mode-card challenge" data-mode="noMiss" data-setup="notes">
-                <div class="mode-icon"><i data-lucide="flame"></i></div><div class="mode-name">零失誤挑戰</div><div class="mode-desc">不限時，答錯一題即結束，自選譜號，記入零失誤榜</div>
+                <div class="mode-icon"><img src="img/ui/icon-mode-perfect.webp" alt="" width="72" height="72"></div><div class="mode-name">零失誤挑戰</div><div class="mode-desc">不限時，答錯一題即結束，自選譜號，記入零失誤榜</div>
                 <div class="mode-sub-btns">
                     <button type="button" class="mode-sub-btn" id="noMissViewRanks">🏆 零失誤排行榜</button>
                 </div>
             </div>
             <div class="mode-card keysig" data-mode="keysig_practice" data-setup="keysig">
-                <div class="mode-icon">𝄞</div><div class="mode-name">調號辨別</div><div class="mode-desc">看調號圖片，選出大調</div>
+                <div class="mode-icon"><img src="img/ui/mascot-keysig.webp" alt="" width="72" height="72"></div><div class="mode-name">調號辨別</div><div class="mode-desc">看調號圖片，選出大調</div>
             </div>
             <div class="mode-card solfege" data-mode="solfege_practice" data-setup="solfege">
-                <div class="mode-icon"><i data-lucide="mic"></i></div><div class="mode-name">唱名辨別</div><div class="mode-desc">課堂首調，不是英皇級別</div>
+                <div class="mode-icon"><img src="img/ui/mascot-solfege.webp" alt="" width="72" height="72"></div><div class="mode-name">唱名辨別</div><div class="mode-desc">課堂首調，不是英皇級別</div>
             </div>
         </div>
 
@@ -742,8 +742,8 @@
         <div class="keysig-solfege-sub-row" id="keysigSubRow" style="display:none;">
             <span class="practice-diff-label"><i data-lucide="target"></i> 模式</span>
             <div class="practice-diff-btns">
-                <button class="ks-mode-btn active" data-ksmode="practice"><i data-lucide="pencil-line"></i> 練習</button>
-                <button class="ks-mode-btn" data-ksmode="challenge"><i data-lucide="timer"></i> 1分鐘挑戰</button>
+                <button class="ks-mode-btn active" data-ksmode="practice"><img class="ui-mini" src="img/ui/icon-mode-practice.webp" alt="" width="20" height="20"> 練習</button>
+                <button class="ks-mode-btn" data-ksmode="challenge"><img class="ui-mini" src="img/ui/icon-mode-timer.webp" alt="" width="20" height="20"> 1分鐘挑戰</button>
             </div>
         </div>
         <div class="keysig-solfege-sub-row" id="keysigAccRow" style="display:none;">
@@ -760,8 +760,8 @@
         <div class="keysig-solfege-sub-row" id="solfegeSubRow" style="display:none;">
             <span class="practice-diff-label"><i data-lucide="target"></i> 模式</span>
             <div class="practice-diff-btns">
-                <button class="sol-mode-btn active" data-solmode="practice"><i data-lucide="pencil-line"></i> 練習</button>
-                <button class="sol-mode-btn" data-solmode="challenge"><i data-lucide="timer"></i> 1分鐘練習</button>
+                <button class="sol-mode-btn active" data-solmode="practice"><img class="ui-mini" src="img/ui/icon-mode-practice.webp" alt="" width="20" height="20"> 練習</button>
+                <button class="sol-mode-btn" data-solmode="challenge"><img class="ui-mini" src="img/ui/icon-mode-timer.webp" alt="" width="20" height="20"> 1分鐘練習</button>
             </div>
             <p class="abrsm-coverage">唱名是課堂首調（movable Do），不是英皇考試項目。</p>
         </div>
@@ -793,8 +793,8 @@
             <div class="game-subtitle">緊密排列 · 原位 · 根音在最低</div>
         </div>
         <div class="chord-mode-row" role="tablist" aria-label="和弦練習方式">
-            <button type="button" class="chord-mode-btn active" id="chordModeLearn" role="tab" aria-selected="true">📚 看圖溫習</button>
-            <button type="button" class="chord-mode-btn" id="chordModeChallenge" role="tab" aria-selected="false">🎯 和弦挑戰</button>
+            <button type="button" class="chord-mode-btn active" id="chordModeLearn" role="tab" aria-selected="true"><img class="ui-mini" src="img/ui/icon-mode-study.webp" alt="" width="22" height="22"> 看圖溫習</button>
+            <button type="button" class="chord-mode-btn" id="chordModeChallenge" role="tab" aria-selected="false"><img class="ui-mini" src="img/ui/icon-stat-accuracy.webp" alt="" width="22" height="22"> 和弦挑戰</button>
         </div>
         <div id="chordLearnPanel">
             <div class="chord-card-panel">
@@ -973,22 +973,22 @@
         </div>
         <div class="mode-cards" id="g2ModeCards">
             <div class="mode-card cards active" data-mode="practice" id="g2ModePractice">
-                <div class="mode-icon">🎴</div><div class="mode-name">課堂柯達伊</div><div class="mode-desc">節奏名練習，不是英皇級別</div>
+                <div class="mode-icon"><img src="img/ui/icon-mode-kodaly.webp" alt="" width="72" height="72"></div><div class="mode-name">課堂柯達伊</div><div class="mode-desc">節奏名練習，不是英皇級別</div>
             </div>
             <div class="mode-card challenge" data-mode="challenge" id="g2ModeChallenge">
-                <div class="mode-icon">𝄞</div><div class="mode-name">拍號練習</div><div class="mode-desc">跟所選英皇級別，不入榜</div>
+                <div class="mode-icon"><img src="img/ui/icon-mode-timesig.webp" alt="" width="72" height="72"></div><div class="mode-name">拍號練習</div><div class="mode-desc">跟所選英皇級別，不入榜</div>
             </div>
             <div class="mode-card onemin" data-mode="1min" id="g2Mode1Min">
-                <div class="mode-icon">⏱️</div><div class="mode-name">拍號計時</div><div class="mode-desc">同一級別，限時一分鐘，不入榜</div>
+                <div class="mode-icon"><img src="img/ui/icon-mode-timer.webp" alt="" width="72" height="72"></div><div class="mode-name">拍號計時</div><div class="mode-desc">同一級別，限時一分鐘，不入榜</div>
             </div>
             <div class="mode-card tap" data-mode="tap" id="g2ModeTap">
-                <div class="mode-icon">🥁</div><div class="mode-name">節奏挑戰</div><div class="mode-desc">根據譜上音符時值打節奏，分容易、中等、困難</div>
+                <div class="mode-icon"><img src="img/ui/icon-mode-drum.webp" alt="" width="72" height="72"></div><div class="mode-name">節奏挑戰</div><div class="mode-desc">根據譜上音符時值打節奏，分容易、中等、困難</div>
             </div>
             <div class="mode-card complete" data-mode="complete" id="g2ModeComplete">
-                <div class="mode-icon">◻️</div><div class="mode-name">補足小節</div><div class="mode-desc">4/4 未完，選一個時值填滿</div>
+                <div class="mode-icon"><img src="img/ui/icon-mode-complete.webp" alt="" width="72" height="72"></div><div class="mode-name">補足小節</div><div class="mode-desc">4/4 未完，選一個時值填滿</div>
             </div>
             <div class="mode-card duration" data-mode="duration" id="g2ModeDuration">
-                <div class="mode-icon">🎵</div><div class="mode-name">時值辨別</div><div class="mode-desc">同一英皇級別的音符、休止符和連音</div>
+                <div class="mode-icon"><img src="img/ui/icon-mode-duration.webp" alt="" width="72" height="72"></div><div class="mode-name">時值辨別</div><div class="mode-desc">同一英皇級別的音符、休止符和連音</div>
                 <div class="mode-sub-btns">
                     <button class="mode-sub-btn" id="durHelpBtn" title="練習說明">說明</button>
                     <button class="mode-sub-btn" id="durRefBtn" title="音符休止符時值">🎵 時值表</button>
@@ -996,7 +996,7 @@
             </div>
             <!-- 節奏拍回：靜態檔在 rhythm/。不寫入學生分數或排行榜。 -->
             <div class="mode-card compose" data-mode="compose" id="g2ModeCompose">
-                <div class="mode-icon">♩</div><div class="mode-name">節奏創作</div><div class="mode-desc">排 1–8 小節 · 試聽 · 打拍</div>
+                <div class="mode-icon"><img src="img/ui/icon-mode-compose.webp" alt="" width="72" height="72"></div><div class="mode-name">節奏創作</div><div class="mode-desc">排 1–8 小節 · 試聽 · 打拍</div>
             </div>
         </div>
         <div class="keysig-solfege-sub-row" id="g2AbrsmRow">
@@ -1172,10 +1172,10 @@
         </div>
         <div class="mode-cards" id="g3ModeCards">
             <div class="mode-card practice active" data-mode="practice" id="g3ModePractice">
-                <div class="mode-icon">📝</div><div class="mode-name">練習模式</div><div class="mode-desc">不限時，可反覆練習</div>
+                <div class="mode-icon"><img src="img/ui/icon-mode-practice.webp" alt="" width="72" height="72"></div><div class="mode-name">練習模式</div><div class="mode-desc">不限時，可反覆練習</div>
             </div>
             <div class="mode-card challenge" data-mode="challenge" id="g3ModeChallenge">
-                <div class="mode-icon">⏱️</div><div class="mode-name">限時挑戰</div><div class="mode-desc">同一英皇級別，限時一分鐘，不入榜</div>
+                <div class="mode-icon"><img src="img/ui/icon-mode-timer.webp" alt="" width="72" height="72"></div><div class="mode-name">限時挑戰</div><div class="mode-desc">同一英皇級別，限時一分鐘，不入榜</div>
             </div>
         </div>
         <div class="keysig-solfege-sub-row" id="g3AbrsmRow">
@@ -1406,10 +1406,10 @@
         </div>
         <div class="mode-cards" id="g4ModeCards">
             <div class="mode-card practice active" data-mode="practice" id="g4ModePractice">
-                <div class="mode-icon">📝</div><div class="mode-name">練習模式</div><div class="mode-desc">不限時，可反覆練習</div>
+                <div class="mode-icon"><img src="img/ui/icon-mode-practice.webp" alt="" width="72" height="72"></div><div class="mode-name">練習模式</div><div class="mode-desc">不限時，可反覆練習</div>
             </div>
             <div class="mode-card challenge" data-mode="challenge" id="g4ModeChallenge">
-                <div class="mode-icon">⏱️</div><div class="mode-name">限時挑戰</div><div class="mode-desc">限時一分鐘，計入排行榜</div>
+                <div class="mode-icon"><img src="img/ui/icon-mode-timer.webp" alt="" width="72" height="72"></div><div class="mode-name">限時挑戰</div><div class="mode-desc">限時一分鐘，計入排行榜</div>
             </div>
         </div>
 
@@ -1525,7 +1525,7 @@
         </div>
 
         <div class="chord-mode-row cn-inst-mode-row" id="cnInstModeRow" hidden role="tablist" aria-label="中國樂器練習方式">
-            <button type="button" class="chord-mode-btn active" id="cnInstModeLearn" role="tab" aria-selected="true">📚 看圖溫習</button>
+            <button type="button" class="chord-mode-btn active" id="cnInstModeLearn" role="tab" aria-selected="true"><img class="ui-mini" src="img/ui/icon-mode-study.webp" alt="" width="22" height="22"> 看圖溫習</button>
             <button type="button" class="chord-mode-btn" id="cnInstModeChallenge" role="tab" aria-selected="false">🎯 樂器挑戰</button>
             <!-- listen-prompt: 中國樂器十題的聽聽。成績仍只留在這一頁。 -->
             <button type="button" class="chord-mode-btn" id="cnInstModeListen" role="tab" aria-selected="false">👂 聽聽</button>
@@ -1812,7 +1812,7 @@
     <script src="aural-interval.js?v=1" defer></script>
     <script src="aural-rhythm.js?v=1" defer></script>
     <script src="aural-quality.js?v=1" defer></script>
-    <script src="bootstrap-instruments.js?v=15" data-app-bootstrap defer></script>
+    <script src="bootstrap-instruments.js?v=16" data-app-bootstrap defer></script>
     <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
 </body>
 </html>
