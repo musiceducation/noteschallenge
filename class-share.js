@@ -43,8 +43,42 @@
     var lastUser = null;
     var lastScreen = '大廳';
 
+    var GRADE_WORDS = { '一': '1', '二': '2', '三': '3', '四': '4', '五': '5', '六': '6' };
+
     function text(value) {
         return String(value == null ? '' : value).trim();
+    }
+
+    function schoolGrade(value) {
+        var raw = text(value).replace(/\s+/g, '').replace(/\.$/, '');
+        if (/^[1-6]$/.test(raw)) return raw;
+        var match = /^F[.\-]?([1-6])$/i.exec(raw) || /^S([1-6])$/i.exec(raw) || /^FORM([1-6])$/i.exec(raw);
+        if (match) return match[1];
+        match = /^中([1-6一二三四五六])$/.exec(raw);
+        if (match) return GRADE_WORDS[match[1]] || match[1];
+        return '';
+    }
+
+    function schoolClass(value, grade) {
+        var form = schoolGrade(grade);
+        var raw = text(value).replace(/\s+/g, '').replace(/班$/g, '').toUpperCase();
+        if (!raw) return '';
+        var match = /^(?:F|S)?([1-6])([A-Z])$/.exec(raw);
+        if (match && (!form || match[1] === form)) return match[2];
+        match = /^中([1-6一二三四五六])([A-Z])$/.exec(raw);
+        if (match) {
+            var n = GRADE_WORDS[match[1]] || match[1];
+            if (!form || n === form) return match[2];
+        }
+        if (/^[A-Z0-9]{1,8}$/.test(raw)) return raw;
+        return '';
+    }
+
+    function classScope(user) {
+        var grade = schoolGrade(user && user.grade);
+        var klass = schoolClass(user && user.class, grade);
+        if (!grade || !klass) return null;
+        return { grade: grade, class: klass };
     }
 
     function shareable(user, opts) {
@@ -54,26 +88,24 @@
         var name = text(user.name);
         if (!name || BLOCKED[name] || name.indexOf('訪客') === 0) return false;
         if (/[|%]/.test(name)) return false;
-        var grade = parseInt(user.grade, 10);
-        if (!(grade >= 1 && grade <= 6)) return false;
-        var klass = text(user.class);
-        if (!/^[A-Za-z0-9]{1,8}$/.test(klass)) return false;
-        return true;
+        return !!classScope(user);
     }
 
     function identity(user) {
+        var scope = classScope(user) || { grade: '', class: '' };
         return {
             name: text(user && user.name).slice(0, 20),
-            grade: parseInt(user && user.grade, 10) || 0,
-            class: text(user && user.class).toUpperCase().slice(0, 8),
+            grade: parseInt(scope.grade, 10) || 0,
+            class: scope.class,
             seat: text(user && (user.seat || user.id)).slice(0, 8)
         };
     }
 
     function sameClass(a, b) {
-        if (!a || !b) return false;
-        return String(parseInt(a.grade, 10) || 0) === String(parseInt(b.grade, 10) || 0)
-            && text(a.class).toUpperCase() === text(b.class).toUpperCase();
+        var left = classScope(a);
+        var right = classScope(b);
+        if (!left || !right) return false;
+        return left.grade === right.grade && left.class === right.class;
     }
 
     function cleanAvatar(value) {
@@ -138,15 +170,16 @@
     }
 
     function directoryNames(rosterNames, cards, scope) {
-        var roster = (rosterNames || []).map(text).filter(Boolean);
-        if (roster.length) return roster;
         var seen = {};
         var out = [];
-        classRows(cards, scope).forEach(function (card) {
-            if (seen[card.name]) return;
-            seen[card.name] = 1;
-            out.push(card.name);
-        });
+        function add(name) {
+            name = text(name);
+            if (!name || seen[name] || BLOCKED[name] || name.indexOf('訪客') === 0) return;
+            seen[name] = 1;
+            out.push(name);
+        }
+        classRows(cards, scope).forEach(function (card) { add(card.name); });
+        (rosterNames || []).forEach(add);
         return out;
     }
 
@@ -194,12 +227,19 @@
     }
 
     function takeBoard(board, scope) {
-        if (!shareable(scope)) return emptyBoard();
+        if (!classScope(scope)) return emptyBoard();
         return {
             cards: classRows(board && board.cards, scope),
             online: classRows(board && board.online, scope),
             log: classRows(board && board.log, scope)
         };
+    }
+
+    function failedBoard(error) {
+        var board = emptyBoard();
+        board.ok = false;
+        board.error = error || 'board_failed';
+        return board;
     }
 
     function presenceAction(state) {
@@ -243,16 +283,23 @@
     function loadBoard(scope, opts) {
         var token = credential(opts);
         var base = apiBase();
-        if (!token || !base || !shareable(scope) || typeof fetch !== 'function') return Promise.resolve(emptyBoard());
-        return fetch(base + '/class/board', {
+        opts = opts || {};
+        if (!token || !base || typeof fetch !== 'function') return Promise.resolve(failedBoard('unauthorized'));
+        if (!classScope(scope)) return Promise.resolve(failedBoard('not_on_roster'));
+        var path = '/class/board';
+        if (opts.teacher) path += '?grade=' + encodeURIComponent(classScope(scope).grade) + '&class=' + encodeURIComponent(classScope(scope).class);
+        return fetch(base + path, {
             method: 'GET',
             headers: { Authorization: 'Bearer ' + token }
         }).then(function (res) {
-            return res.json().catch(function () { return null; });
-        }).then(function (data) {
-            if (!data || data.ok === false) return emptyBoard();
-            return takeBoard(data, scope);
-        }).catch(function () { return emptyBoard(); });
+            return res.json().catch(function () { return null; }).then(function (data) {
+                if (!res.ok || !data || data.ok === false) return failedBoard((data && data.error) || ('HTTP ' + res.status));
+                var board = takeBoard(data, scope);
+                board.ok = true;
+                board.error = '';
+                return board;
+            });
+        }).catch(function () { return failedBoard('network'); });
     }
 
     function stop() {
@@ -281,6 +328,8 @@
 
     return {
         shareable: shareable,
+        schoolGrade: schoolGrade,
+        schoolClass: schoolClass,
         identity: identity,
         sameClass: sameClass,
         cleanAvatar: cleanAvatar,

@@ -8,6 +8,12 @@ const ClassShare = new Function(src + '\nreturn ClassShare;')();
 
 const student = { name: '陳小樂', grade: 2, class: 'A', seat: '12', avatar: '🎹', signature: '練拍號', level: 2, exp: 10 };
 assert.equal(ClassShare.shareable(student), true);
+assert.equal(ClassShare.shareable({ name: '陳小樂', grade: 'F1', class: 'A' }), true);
+assert.equal(ClassShare.shareable({ name: '陳小樂', grade: '中二', class: 'B班' }), true);
+assert.equal(ClassShare.identity({ name: '陳小樂', grade: 'F2', class: '2B' }).grade, 2);
+assert.equal(ClassShare.identity({ name: '陳小樂', grade: 'F2', class: '2B' }).class, 'B');
+assert.equal(ClassShare.sameClass({ grade: 'F1', class: 'A' }, { grade: '中一', class: 'A班' }), true);
+assert.equal(ClassShare.sameClass({ grade: 'F1', class: 'A' }, { grade: 'F3', class: 'A' }), false);
 assert.equal(ClassShare.shareable({ name: '訪客', grade: 2, class: 'A' }), false);
 assert.equal(ClassShare.shareable({ name: '測試人員', grade: 2, class: 'A' }), false);
 assert.equal(ClassShare.shareable(student, { tester: true }), false);
@@ -34,6 +40,11 @@ const rows = ClassShare.classRows([card, other, { name: '訪客', grade: 2, clas
 assert.deepEqual(rows.map((row) => row.name), ['陳小樂']);
 assert.deepEqual(ClassShare.directoryNames(['陳小樂', '周同學'], [card, other], student), ['陳小樂', '周同學']);
 assert.deepEqual(ClassShare.directoryNames([], [card, other], student), ['陳小樂']);
+const quiet = { name: '周未登入', grade: 'F1', class: 'A', seat: '9', avatar: '🎵', signature: '' };
+const same = Object.assign({}, card, { grade: 1, class: 'A' });
+assert.deepEqual(ClassShare.directoryNames(['陳小樂'], [same, quiet], { name: '陳小樂', grade: '中一', class: 'A班' }), ['陳小樂', '周未登入']);
+assert.equal(ClassShare.cardFor([same, quiet], '周未登入', '1').name, '周未登入');
+assert.notEqual(ClassShare.cardFor([same, quiet], '周未登入', '').name, '陳小樂');
 const online = ClassShare.visibleOnline(['陳小樂'], [
   { name: '陳小樂', grade: 2, class: 'A', seat: '12', screen: '節奏挑戰' },
   { name: '李同學', grade: 3, class: 'B', screen: '術語作答' },
@@ -73,6 +84,11 @@ await ClassShare.loadBoard(student);
 await ClassShare.postPresence(student, '大廳');
 assert.equal(ClassShare.note(student, 'screen-hub'), false);
 assert.equal(calls, 0);
+const denied = await ClassShare.loadBoard(student, { token: 'z'.repeat(24) });
+assert.equal(denied.ok, false);
+assert.equal(denied.error, 'unauthorized');
+assert.equal(denied.cards.length, 0);
+assert.equal(calls, 1);
 
 const tokenA = 'a'.repeat(24);
 const tokenB = 'b'.repeat(24);
