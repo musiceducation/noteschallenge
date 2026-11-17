@@ -8360,6 +8360,9 @@ body {
 .presence-heading { margin: 0 0 8px; font-size: 1.15rem; color: #2C1810; }
 .presence-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .presence-list li { font-weight: 700; color: #2C1810; line-height: 1.4; }
+.presence-person { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: #fff; border: 2px solid rgba(125, 82, 94, 0.18); border-radius: 14px; padding: 8px 10px; font: inherit; font-weight: 800; color: #2C1810; cursor: pointer; }
+.presence-person .cm-avatar { width: 42px; height: 42px; flex: none; font-size: 1.3rem; }
+.vp-presence { font-weight: 800; margin-top: 4px; color: #7d525e; }
 
 /* Topic names: one saturated hue each, dark enough for AA on cream paper. */
 #screen-hub .hub-game1 .hub-game-name { color: #4C2DB5; }

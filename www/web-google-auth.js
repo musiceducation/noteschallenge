@@ -349,11 +349,14 @@
   }
 
   function clearSession() {
+    var token = state.token;
+    var wasTester = state.tester;
     state.signedIn = false;
     state.user = null;
     state.binding = null;
     state.token = '';
     state.tester = false;
+    if (token && !wasTester) emit('webgoogle:presence-stop', { token: token });
     bindingKey = '';
     lastScreen = '';
     if (presenceTimer) { clearInterval(presenceTimer); presenceTimer = 0; }
@@ -521,6 +524,7 @@
     get ready() { return state.ready; },
     get signedIn() { return state.signedIn; },
     get tester() { return state.tester; },
+    get token() { return state.tester ? '' : state.token; },
     get user() { return state.user; },
     get binding() { return state.binding; },
     signOut: function () { clearSession(); renderGoogleButton(); },

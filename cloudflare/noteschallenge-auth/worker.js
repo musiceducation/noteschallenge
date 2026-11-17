@@ -288,8 +288,10 @@ export async function verifySessionToken(token, secret, nowMs) {
 export function allowedOrigin(origin) {
   const o = text(origin);
   if (o === 'https://musiceducation.github.io') return o;
+  if (o === 'https://noteschallenge.vercel.app') return o;
   if (/^http:\/\/localhost(?::\d+)?$/.test(o)) return o;
   if (/^http:\/\/127\.0\.0\.1(?::\d+)?$/.test(o)) return o;
+  if (o === 'https://localhost' || o === 'capacitor://localhost' || o === 'ionic://localhost') return o;
   return '';
 }
 
@@ -466,7 +468,7 @@ export function settlePresence(rows, logs, entry, nowMs, idleMs) {
 }
 
 function publicOnline(rows) {
-  return rows.map((row) => ({
+  return rows.filter((row) => row.kind !== 'classmate').map((row) => ({
     name: row.display_name,
     classLabel: row.class_label || '',
     kind: row.kind
@@ -474,7 +476,7 @@ function publicOnline(rows) {
 }
 
 function publicLog(logs) {
-  return logs.slice(-80).reverse().map((row) => ({
+  return logs.filter((row) => row.kind !== 'classmate').slice(-80).reverse().map((row) => ({
     name: row.display_name,
     classLabel: row.class_label || '',
     kind: row.kind,
@@ -541,6 +543,167 @@ async function requireSession(request, env) {
   return { session: session, row: row };
 }
 
+const CLASS_BLOCKED = { '訪客': 1, '測試人員': 1, '__guest__': 1, '__other__': 1 };
+
+export function classIdentity(body) {
+  const src = plainObject(body);
+  if (text(src.kind) === 'tester' || src.tester === true || src.guest === true) return null;
+  const name = text(src.name).slice(0, 20);
+  const grade = String(parseInt(src.grade, 10) || 0);
+  const klass = text(src.class).toUpperCase();
+  const seat = text(src.seat || src.id).slice(0, 8);
+  if (!/^[1-6]$/.test(grade)) return null;
+  if (!/^[A-Z0-9]{1,8}$/.test(klass)) return null;
+  if (!name || CLASS_BLOCKED[name] || name.indexOf('訪客') === 0) return null;
+  if (/[|%]/.test(name) || /[|%]/.test(seat)) return null;
+  return { name: name, grade: grade, class: klass, seat: seat };
+}
+
+function clockMs(env) {
+  const stamped = env && Number(env.NOW);
+  return Number.isFinite(stamped) && stamped > 0 ? stamped : Date.now();
+}
+
+function claimedIdentityMismatch(body, id) {
+  const src = plainObject(body);
+  if (text(src.name) && text(src.name) !== id.name) return true;
+  if (text(src.class) && text(src.class).toUpperCase() !== id.class) return true;
+  if (text(src.grade) && String(parseInt(src.grade, 10) || 0) !== String(id.grade)) return true;
+  const claimedSeat = text(src.seat || src.id);
+  if (claimedSeat && claimedSeat !== id.seat) return true;
+  if (text(src.kind) === 'tester' || src.tester === true || src.guest === true) return true;
+  return false;
+}
+
+function classKey(id) {
+  return id.grade + '|' + id.class + '|' + id.name + '|' + id.seat;
+}
+
+function classSub(id) {
+  return 'class:' + classKey(id);
+}
+
+function classAvatar(value) {
+  const s = text(value);
+  if (!s) return '';
+  if (s.indexOf('data:image/jpeg;base64,') === 0) {
+    if (s.length > 80000 || !/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(s)) return null;
+    return s;
+  }
+  if (s.indexOf('data:') === 0) return null;
+  return s.slice(0, 16);
+}
+
+function publicClassCard(profile, id) {
+  const who = id || classIdentity(profile);
+  if (!who) return null;
+  const avatar = classAvatar(profile && profile.avatar);
+  return {
+    name: who.name,
+    grade: who.grade,
+    class: who.class,
+    seat: who.seat,
+    avatar: avatar || '🎵',
+    signature: text(profile && profile.signature).slice(0, 30)
+  };
+}
+
+async function listClassCards(db, grade, klass) {
+  const prefix = 'class:' + grade + '|' + klass + '|';
+  const loaded = await db.prepare('SELECT sub, data FROM profiles WHERE sub LIKE ?').bind(prefix + '%').all();
+  const cards = [];
+  ((loaded && loaded.results) || []).forEach((row) => {
+    if (!row || text(row.sub).indexOf(prefix) !== 0) return;
+    let parsed = null;
+    try { parsed = JSON.parse(row.data); } catch (e) { parsed = null; }
+    const card = publicClassCard(parsed);
+    if (!card || card.grade !== String(grade) || card.class !== klass) return;
+    cards.push(card);
+  });
+  return cards;
+}
+
+function classOnline(rows, cards, grade, klass) {
+  const label = grade + '|' + klass;
+  const byKey = {};
+  cards.forEach((card) => { byKey[card.name + '|' + card.seat] = card; });
+  return rows.filter((row) => row && row.kind === 'classmate' && row.class_label === label).map((row) => {
+    const parts = text(row.id).split('|');
+    const name = row.display_name;
+    const seat = parts.length >= 4 ? parts.slice(3).join('|') : '';
+    const card = byKey[name + '|' + seat] || null;
+    return {
+      name: name,
+      grade: grade,
+      class: klass,
+      seat: card ? card.seat : seat,
+      screen: row.screen || '',
+      avatar: card ? card.avatar : '🎵',
+      signature: card ? card.signature : ''
+    };
+  }).filter((row) => classIdentity(row));
+}
+
+function classLog(logs, grade, klass) {
+  const label = grade + '|' + klass;
+  return logs.filter((row) => row && row.kind === 'classmate' && row.class_label === label).slice(-80).reverse().map((row) => ({
+    name: row.display_name,
+    grade: grade,
+    class: klass,
+    seat: '',
+    event: row.event,
+    screen: row.screen || '',
+    at: row.at
+  })).filter((row) => classIdentity(row));
+}
+
+async function enrolledClassStudent(request, env) {
+  const gate = await requireSession(request, env);
+  if (gate.error) return gate;
+  const roster = await findRoster(env.DB, gate.row.email);
+  const binding = bindingFromRoster(roster);
+  const id = binding && classIdentity(binding);
+  if (!id) return { error: jsonResponse({ ok: false, error: 'not_on_roster' }, 403, corsHeaders(request)) };
+  return { id: id };
+}
+
+async function saveClassCard(db, id, body) {
+  if (claimedIdentityMismatch(body, id)) return { error: 'forbidden', status: 403 };
+  const avatar = classAvatar(body && body.avatar);
+  if (avatar == null) return { error: 'avatar too large', status: 400 };
+  const existing = await readProfile(db, classSub(id)) || {};
+  const stored = {
+    name: id.name,
+    grade: id.grade,
+    class: id.class,
+    seat: id.seat,
+    avatar: avatar || classAvatar(existing.avatar) || '🎵',
+    signature: text(body && body.signature) ? text(body.signature).slice(0, 30) : text(existing.signature).slice(0, 30)
+  };
+  const packed = JSON.stringify(stored);
+  if (packed.length > PROFILE_MAX_CHARS) return { error: 'avatar too large', status: 400 };
+  await writeProfile(db, classSub(id), stored, new Date().toISOString());
+  return { card: publicClassCard(stored, id) };
+}
+
+function dropOwnPresence(rows, logs, id, nowIso) {
+  const presenceId = 'mate:' + classKey(id);
+  const kept = [];
+  (rows || []).forEach((row) => {
+    if (!row || row.id !== presenceId) { kept.push(row); return; }
+    logs.push({
+      presence_id: row.id,
+      kind: row.kind,
+      display_name: row.display_name,
+      class_label: row.class_label || '',
+      event: 'offline',
+      screen: row.screen || '',
+      at: nowIso
+    });
+  });
+  return kept;
+}
+
 export default {
   async fetch(request, env) {
     const cors = corsHeaders(request);
@@ -581,6 +744,68 @@ export default {
           user: publicUser(row),
           binding: binding,
           profile: profile
+        }, 200, cors);
+      }
+
+      if (path === '/class/board' && request.method === 'GET') {
+        const enrolled = await enrolledClassStudent(request, env);
+        if (enrolled.error) return enrolled.error;
+        const id = enrolled.id;
+        const qGrade = text(url.searchParams.get('grade'));
+        const qClass = text(url.searchParams.get('class'));
+        if ((qGrade && String(parseInt(qGrade, 10) || 0) !== String(id.grade)) || (qClass && qClass.toUpperCase() !== id.class)) {
+          return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
+        }
+        const loaded = await loadPresence(env.DB);
+        const before = loaded.logs.length;
+        const kept = settlePresence(loaded.rows, loaded.logs, null, clockMs(env), PRESENCE_IDLE_MS);
+        await savePresence(env.DB, kept, loaded.logs, before);
+        const cards = await listClassCards(env.DB, id.grade, id.class);
+        return jsonResponse({
+          ok: true,
+          cards: cards,
+          online: classOnline(kept, cards, id.grade, id.class),
+          log: classLog(loaded.logs, id.grade, id.class)
+        }, 200, cors);
+      }
+
+      if (path === '/class/card' && request.method === 'POST') {
+        const enrolled = await enrolledClassStudent(request, env);
+        if (enrolled.error) return enrolled.error;
+        let body = {};
+        try { body = await readJson(request); } catch (e) {
+          return jsonResponse({ ok: false, error: 'invalid json' }, 400, cors);
+        }
+        const saved = await saveClassCard(env.DB, enrolled.id, body);
+        if (saved.error) return jsonResponse({ ok: false, error: saved.error }, saved.status, cors);
+        return jsonResponse({ ok: true, card: saved.card }, 200, cors);
+      }
+
+      if (path === '/class/presence' && request.method === 'POST') {
+        const enrolled = await enrolledClassStudent(request, env);
+        if (enrolled.error) return enrolled.error;
+        let body = {};
+        try { body = await readJson(request); } catch (e) {
+          return jsonResponse({ ok: false, error: 'invalid json' }, 400, cors);
+        }
+        const id = enrolled.id;
+        if (claimedIdentityMismatch(body, id)) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
+        const loaded = await loadPresence(env.DB);
+        const before = loaded.logs.length;
+        const nowMs = clockMs(env);
+        let kept = settlePresence(loaded.rows, loaded.logs, body.offline === true ? null : {
+          id: 'mate:' + classKey(id),
+          kind: 'classmate',
+          displayName: id.name,
+          classLabel: id.grade + '|' + id.class,
+          screen: text(body.screen).slice(0, 40)
+        }, nowMs, PRESENCE_IDLE_MS);
+        if (body.offline === true) kept = dropOwnPresence(kept, loaded.logs, id, new Date(nowMs).toISOString());
+        await savePresence(env.DB, kept, loaded.logs, before);
+        const cards = await listClassCards(env.DB, id.grade, id.class);
+        return jsonResponse({
+          ok: true,
+          online: classOnline(kept, cards, id.grade, id.class)
         }, 200, cors);
       }
 

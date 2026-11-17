@@ -17,5 +17,9 @@ database_id = "688d6340-51fc-4959-8499-c1892d6b4e70"
 #                           without a roster row. This does not allow a whole domain.
 #                           Set it with: npx wrangler secret put EXTRA_ALLOWED_EMAILS
 #                           After adding the presence tables: npx wrangler d1 execute noteschallenge-auth --remote --file=schema.sql
+# Class cards and presence reuse the existing profiles and presence tables.
+# They require a roster session from Google sign-in. A name picked on the hub
+# is not a credential. Do not deploy this worker until the owner says 要上.
+# Do not set NOW in production; it is only a test clock.
 #
 # Do not commit JWT_SECRET or EXTRA_ALLOWED_EMAILS. GOOGLE_CLIENT_ID is public but must match the token `aud`.
