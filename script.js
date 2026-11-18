@@ -1845,11 +1845,25 @@
 
     function drawSharp(ctx, x, y, ls) {
         ctx.save();
-        ctx.fillStyle = '#1E1E2F';
-        ctx.font = `900 ${Math.round(ls * 2.2)}px Bravura, "Noto Music", "Apple Symbols", "Segoe UI Symbol", serif`;
-        ctx.textBaseline = 'middle';
-        ctx.textAlign = 'center';
-        ctx.fillText('\u266F', x, y);
+        ctx.translate(x, y);
+        ctx.strokeStyle = '#1E1E2F';
+        ctx.lineCap = 'butt';
+        const h = ls * 1.15;
+        const w = ls * 0.62;
+        ctx.lineWidth = Math.max(1.3, ls * 0.1);
+        ctx.beginPath();
+        ctx.moveTo(-w * 0.28, -h * 0.5);
+        ctx.lineTo(-w * 0.28, h * 0.5);
+        ctx.moveTo(w * 0.28, -h * 0.5);
+        ctx.lineTo(w * 0.28, h * 0.5);
+        ctx.stroke();
+        ctx.lineWidth = Math.max(2.1, ls * 0.18);
+        ctx.beginPath();
+        ctx.moveTo(-w * 0.58, -h * 0.06);
+        ctx.lineTo(w * 0.58, -h * 0.2);
+        ctx.moveTo(-w * 0.58, h * 0.2);
+        ctx.lineTo(w * 0.58, h * 0.06);
+        ctx.stroke();
         ctx.restore();
     }
 
@@ -1879,6 +1893,16 @@
     }
 
     function drawStaff() {
+        const gameType = state.modeConfig && state.modeConfig.gameType;
+        const plan = window.NotationStaff ? NotationStaff.paintPlan(gameType) : null;
+        if (plan && plan.view === 'signature') {
+            renderKeysigStaff(_keysigCurrentQ);
+            return;
+        }
+        if (plan && plan.view === 'signature-note') {
+            drawStaffWithKeySig();
+            return;
+        }
         if (state.currentNote && state.currentNote.abrsm) {
             renderAbrsmNote(state.currentNote);
             return;
@@ -2224,17 +2248,26 @@
         if (typeof Vex !== 'undefined' && Vex.Flow && Vex.Flow.Renderer) return Vex.Flow;
         return null;
     }
+    function clearEngravedStaffMeta(host) {
+        if (!host || !host.dataset) return;
+        delete host.dataset.signatureKey;
+        delete host.dataset.accCount;
+        delete host.dataset.staffView;
+        delete host.dataset.noteStep;
+    }
     function hideAbrsmStaff() {
         const host = document.getElementById('abrsmVf');
         if (!host) return;
         host.hidden = true;
         host.innerHTML = '';
+        clearEngravedStaffMeta(host);
     }
     function showAbrsmHost() {
         const host = document.getElementById('abrsmVf');
         if (!host) return null;
         host.hidden = false;
         host.innerHTML = '';
+        clearEngravedStaffMeta(host);
         if (dom.canvasWrapper) dom.canvasWrapper.style.display = 'none';
         const imgWrap = document.getElementById('keysigDisplay');
         if (imgWrap) imgWrap.style.display = 'none';
@@ -3169,10 +3202,10 @@
         const keysigOptions = document.getElementById('keysigOptions');
         const canvasWrapper = document.getElementById('canvasWrapper');
         const clefBadge = document.getElementById('clefBadge');
-        if (keysigDisplay) keysigDisplay.style.display = show ? 'flex' : 'none';
+        if (keysigDisplay) keysigDisplay.style.display = 'none';
         if (keysigOptions) keysigOptions.style.display = show ? 'grid' : 'none';
         if (canvasWrapper) canvasWrapper.style.display = show ? 'none' : '';
-        if (clefBadge) clefBadge.style.display = show ? 'none' : '';
+        if (clefBadge) clefBadge.style.display = show ? '' : '';
         if (dom.notesGrid) dom.notesGrid.style.display = show ? 'none' : '';
         hideAbrsmStaff();
     }
@@ -3189,14 +3222,53 @@
         return { correct, options, img: correct.img };
     }
 
+    function mountEngravedStaff(markup, aria, meta) {
+        const host = document.getElementById('abrsmVf');
+        if (!host) return null;
+        host.hidden = false;
+        host.innerHTML = markup || '';
+        host.setAttribute('aria-label', aria || '五線譜');
+        clearEngravedStaffMeta(host);
+        if (meta) {
+            if (meta.view) host.dataset.staffView = meta.view;
+            if (meta.keyId) host.dataset.signatureKey = meta.keyId;
+            host.dataset.accCount = String(meta.accCount || 0);
+            if (meta.noteStep != null && meta.noteStep !== '') host.dataset.noteStep = String(meta.noteStep);
+        }
+        if (dom.canvasWrapper) dom.canvasWrapper.style.display = 'none';
+        const imgWrap = document.getElementById('keysigDisplay');
+        if (imgWrap) imgWrap.style.display = 'none';
+        if (dom.clefBadge) {
+            dom.clefBadge.style.display = '';
+            dom.clefBadge.textContent = '高音譜號';
+        }
+        return host;
+    }
+
+    function renderKeysigStaff(q) {
+        const key = q && q.correct;
+        const clef = 'treble';
+        if (!window.NotationStaff) {
+            mountEngravedStaff('', '調號未能繪出', { view: 'signature', accCount: 0 });
+            return;
+        }
+        const known = key && NotationStaff.KEYS.some(item => item.id === key.id);
+        const keyId = known ? key.id : null;
+        const accs = keyId ? NotationStaff.accidentals(keyId, clef) : [];
+        const markup = NotationStaff.signatureMarkup({ keyId: keyId, clef: clef });
+        mountEngravedStaff(markup, '調號題', {
+            view: 'signature',
+            keyId: keyId || '',
+            accCount: accs.length
+        });
+    }
+
     function renderKeysigQuestion(q) {
         _keysigCurrentQ = q;
         const keysigImg = document.getElementById('keysigImg');
         const keysigOptions = document.getElementById('keysigOptions');
-        if (q.abrsm) {
-            if (keysigImg) keysigImg.removeAttribute('src');
-            renderAbrsmKey(q.correct);
-        } else if (keysigImg) { keysigImg.src = q.img; keysigImg.alt = '辨別此調號'; }
+        if (keysigImg) keysigImg.removeAttribute('src');
+        renderKeysigStaff(q);
         if (keysigOptions) keysigOptions.classList.toggle('abrsm-keys', !!q.abrsm);
         if (!keysigOptions) return;
         keysigOptions.innerHTML = '';
@@ -3256,7 +3328,12 @@
             // Highlight correct
             const opts = document.querySelectorAll('.keysig-opt-btn');
             opts.forEach(b => { if (b.textContent === q.correct.name) b.classList.add('correct'); });
-            setTimeout(() => { if (!state.gameActive) return; if (state.modeConfig.maxWrong !== Infinity) endGame(); else nextKeysigQuestion(); }, 1500);
+            const missed = q;
+            setTimeout(() => {
+                if (!state.gameActive || _keysigCurrentQ !== missed) return;
+                if (state.modeConfig.maxWrong !== Infinity) endGame();
+                else nextKeysigQuestion();
+            }, 1500);
         }
         updateScoreboard();
     }
@@ -3269,9 +3346,12 @@
         state.questionStartTime = Date.now();
         renderKeysigQuestion(q);
         enableGameControls(true);
+        dom.messageBox.textContent = '🎼 看調號，選出大調。';
+        dom.messageBox.className = 'message-box';
     }
 
     function startKeysigGame() {
+        _keysigCurrentQ = null;
         audio.init(); audio.warmUp();
         if (!ensurePlayIdentity()) return;
         saveSettings();
@@ -3303,9 +3383,9 @@
             dom.timeProgress.style.width = '100%';
             dom.timeProgress.style.transition = 'none';
             updateScoreboard();
+            nextKeysigQuestion();
             dom.messageBox.textContent = `🎼 ${state.modeConfig.name} — 練習開始。`;
             dom.messageBox.className = 'message-box';
-            nextKeysigQuestion();
             if (state.timeLeft !== Infinity) {
                 setTimeout(() => {
                     dom.timeProgress.style.transition = `width ${state.timeLeft}s linear`;
@@ -3383,121 +3463,32 @@
     }
 
     function drawStaffWithKeySig() {
-        // First draw the normal staff
-        if (!dom.canvas.logicalWidth) setupHDPI();
-        const w = dom.canvas.logicalWidth, h = dom.canvas.logicalHeight, ctx = dom.ctx;
-        if (!w || !h) return;
-        ctx.clearRect(0, 0, w, h);
-
-        const dpr = window.devicePixelRatio || 1;
-        const currentClef = 'treble';
-        const clefLoaded = clefImages[currentClef]?.complete && clefImages[currentClef]?.naturalWidth > 0;
-        const ls = w < 340 ? 14 : w < 400 ? 16 : 22;
-
-        // Rebuild staff cache for treble clef
-        if (!_staffCache || _staffCache.w !== w || _staffCache.h !== h || _staffCache.dpr !== dpr || _staffCache.clefLoaded !== clefLoaded || _staffCache.clef !== currentClef || _staffCache._isSolfegeCache) {
-            const oc = document.createElement('canvas');
-            oc.width = w * dpr; oc.height = h * dpr;
-            const oc_ctx = oc.getContext('2d');
-            oc_ctx.scale(dpr, dpr);
-            const _baseY = Math.round(h / 2 - ls * 1.15), _startX = w < 400 ? 30 : 50;
-            oc_ctx.strokeStyle = '#1E1E2F'; oc_ctx.lineWidth = 2; oc_ctx.lineCap = 'round';
-            oc_ctx.beginPath();
-            for (let i = 0; i < 5; i++) { oc_ctx.moveTo(_startX, _baseY + i * ls); oc_ctx.lineTo(w - _startX, _baseY + i * ls); }
-            oc_ctx.stroke();
-            drawTrebleClef(oc_ctx, _startX + (w < 400 ? 20 : 35), _baseY + ls * 3, ls);
-            _staffCache = { canvas: oc, w, h, dpr, ls, clefLoaded, clef: currentClef, baseY: _baseY, startX: _startX, _isSolfegeCache: false };
+        const note = state.currentNote;
+        const ready = !!(note && note.keySig && note.correctSolfege);
+        const clef = 'treble';
+        if (!window.NotationStaff) {
+            mountEngravedStaff('', '唱名未能繪出', { view: 'signature-note', accCount: 0 });
+            return;
         }
-        ctx.drawImage(_staffCache.canvas, 0, 0, w, h);
-
-        const baseY = _staffCache.baseY, startX = _staffCache.startX;
-        const clefEndX = startX + (w < 400 ? 20 : 35) + ls * 3;
-
-        // Draw key signature accidentals after clef
-        const keySig = state.currentNote ? state.currentNote.keySig : null;
-        let ksWidth = 0;
-        if (keySig) {
-            const ksStartX = clefEndX + ls * 0.5;
-            const spacing = ls * 1.0;
-            if (keySig.sharps > 0) {
-                for (let i = 0; i < keySig.sharps; i++) {
-                    const pos = KEYSIG_SHARP_POS_TREBLE[i];
-                    const y = baseY + pos.yFactor * ls;
-                    drawSharp(ctx, ksStartX + i * spacing, y, ls);
-                }
-                ksWidth = keySig.sharps * spacing + ls * 0.5;
-            } else if (keySig.flats > 0) {
-                for (let i = 0; i < keySig.flats; i++) {
-                    const pos = KEYSIG_FLAT_POS_TREBLE[i];
-                    const y = baseY + pos.yFactor * ls;
-                    drawFlat(ctx, ksStartX + i * spacing, y, ls);
-                }
-                ksWidth = keySig.flats * spacing + ls * 0.5;
-            }
-        }
-
-        // Note position: center between key sig end and staff end
-        const noteAreaStart = clefEndX + ksWidth + ls;
-        const staffEndX = w - startX;
-        const centerX = Math.round(noteAreaStart + (staffEndX - noteAreaStart) / 2);
-        const middleLineY = baseY + 2 * ls;
-
-        if (!state.currentNote) return;
-
-        const noteY = baseY + state.currentNote.yFactor * ls;
-
-        // Highlight line
-        const highlightLineEl = dom.highlightLine;
-        if (highlightLineEl && highlightLineEl.checked && !state.answered) {
-            ctx.strokeStyle = 'rgba(6, 214, 160, 0.4)'; ctx.lineWidth = ls * 0.8;
-            ctx.beginPath(); ctx.moveTo(centerX - 35, noteY); ctx.lineTo(centerX + 35, noteY); ctx.stroke();
-        }
-
-        // Ledger lines
-        ctx.strokeStyle = '#1E1E2F'; ctx.lineWidth = 2.5; const lW = 24;
-        ctx.beginPath();
-        if (state.currentNote.yFactor > 4) for (let i = 1; i <= Math.floor(state.currentNote.yFactor - 4); i++) { ctx.moveTo(centerX - lW, baseY + (4 + i) * ls); ctx.lineTo(centerX + lW, baseY + (4 + i) * ls); }
-        if (state.currentNote.yFactor < 0) for (let i = 1; i <= Math.floor(Math.abs(state.currentNote.yFactor)); i++) { ctx.moveTo(centerX - lW, baseY - i * ls); ctx.lineTo(centerX + lW, baseY - i * ls); }
-        ctx.stroke();
-
-        // Note: NO individual accidental drawn (key signature handles it)
-
-        // Draw note head (always filled for solfège mode)
-        ctx.fillStyle = '#1E1E2F'; ctx.strokeStyle = '#1E1E2F'; ctx.lineWidth = 2.5;
-        ctx.beginPath(); ctx.ellipse(centerX, noteY, ls * 0.65, ls * 0.48, -0.35, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath();
-        if (noteY < middleLineY) { ctx.moveTo(centerX - ls * 0.55, noteY + 2); ctx.lineTo(centerX - ls * 0.55, noteY + ls * 3.5); }
-        else { ctx.moveTo(centerX + ls * 0.55, noteY - 2); ctx.lineTo(centerX + ls * 0.55, noteY - ls * 3.5); }
-        ctx.stroke();
-
-        // Key name badge
-        if (keySig) {
-            ctx.save();
-            ctx.fillStyle = 'rgba(124, 58, 237, 0.85)';
-            ctx.font = `bold ${Math.round(ls * 0.7)}px 'Nunito', 'Noto Sans TC', sans-serif`;
-            ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-            ctx.fillText(keySig.name, startX + 4, baseY + ls * 4.3);
-            ctx.restore();
-        }
-
-        // Answer highlight
-        if (state.showAnswerHighlight) {
-            ctx.save();
-            ctx.strokeStyle = '#FF4A6B'; ctx.lineWidth = 3; ctx.setLineDash([6, 4]);
-            ctx.beginPath(); ctx.arc(centerX, noteY, ls * 1.3, 0, Math.PI * 2); ctx.stroke();
-            ctx.setLineDash([]);
-            const stemRight = noteY >= middleLineY;
-            const approxW = Math.max(36, ls * 1.7);
-            let sideX = centerX + (stemRight ? -1 : 1) * ls * 2.5;
-            sideX = Math.max(approxW / 2 + 6, Math.min(w - approxW / 2 - 6, sideX));
-            const key = drawLabeledPianoKey(ctx, state.currentNote.correctName, sideX, noteY, 'center', ls);
-            ctx.fillStyle = '#FF4A6B';
-            ctx.font = `bold ${Math.round(ls * 0.7)}px 'Nunito', 'Noto Sans TC', sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'top';
-            ctx.fillText(state.currentNote.correctSolfege, sideX, Math.min(key.bottom + 3, h - ls * 0.7));
-            ctx.restore();
-        }
+        const known = ready && NotationStaff.KEYS.some(item => item.id === note.keySig.id);
+        const keyId = known ? note.keySig.id : null;
+        const accs = keyId ? NotationStaff.accidentals(keyId, clef) : [];
+        const markup = NotationStaff.signatureMarkup({
+            keyId: keyId,
+            clef: clef,
+            keyName: ready ? note.keySig.name : '',
+            note: ready ? {
+                step: note.yFactor,
+                reveal: !!state.showAnswerHighlight,
+                solfege: state.showAnswerHighlight ? note.correctSolfege : ''
+            } : null
+        });
+        mountEngravedStaff(markup, '唱名題', {
+            view: 'signature-note',
+            keyId: keyId || '',
+            accCount: accs.length,
+            noteStep: ready ? note.yFactor : ''
+        });
     }
 
     function handleSolfegeAnswer(solName) {
@@ -3555,10 +3546,11 @@
             // Highlight correct button
             const correctBtn = document.querySelector(`.solfege-btn[data-sol="${state.currentNote.correctSolfege}"]`);
             if (correctBtn) correctBtn.classList.add('correct');
+            const missed = state.currentNote;
             setTimeout(() => {
-                if (!state.gameActive) return;
-                document.querySelectorAll('.solfege-btn').forEach(b => b.classList.remove('correct', 'wrong'));
-                if (state.modeConfig.maxWrong !== Infinity) endGame(); else nextSolfegeQuestion();
+                if (!state.gameActive || state.currentNote !== missed) return;
+                if (state.modeConfig.maxWrong !== Infinity) endGame();
+                else nextSolfegeQuestion();
             }, 1500);
         }
         updateScoreboard();
@@ -3575,9 +3567,13 @@
         // Invalidate staff cache so key sig is redrawn
         _staffCache = null;
         drawStaffWithKeySig();
-        // Enable solfege buttons
-        document.querySelectorAll('.solfege-btn').forEach(b => { b.disabled = false; });
+        document.querySelectorAll('.solfege-btn').forEach(b => {
+            b.disabled = false;
+            b.classList.remove('correct', 'wrong');
+        });
         enableGameControls(true);
+        dom.messageBox.textContent = '🎤 看調號和音符，選出唱名。';
+        dom.messageBox.className = 'message-box';
     }
 
     function startSolfegeGame() {
@@ -3614,9 +3610,9 @@
             dom.timeProgress.style.width = '100%';
             dom.timeProgress.style.transition = 'none';
             updateScoreboard();
+            nextSolfegeQuestion();
             dom.messageBox.textContent = `🎤 ${state.modeConfig.name} — 練習開始。`;
             dom.messageBox.className = 'message-box';
-            nextSolfegeQuestion();
             if (state.timeLeft !== Infinity) {
                 setTimeout(() => {
                     dom.timeProgress.style.transition = `width ${state.timeLeft}s linear`;
@@ -7017,7 +7013,9 @@
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'complete-choice';
-                btn.innerHTML = `<span class="complete-choice-symbol">${choice.symbol}</span><span class="complete-choice-label">${choice.label}</span>`;
+                btn.setAttribute('aria-label', choice.label);
+                const glyph = window.RhythmLevels && RhythmLevels.glyphSvg ? RhythmLevels.glyphSvg(choice.id) : '';
+                btn.innerHTML = `<span class="complete-choice-symbol" aria-hidden="true">${glyph}</span><span class="complete-choice-label">${choice.label}</span>`;
                 btn.onclick = () => {
                     if (round.locked) return;
                     round.locked = true;
