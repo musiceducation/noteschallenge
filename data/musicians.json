@@ -108,15 +108,15 @@
       "regionShort": "薩爾茨堡（今奧地利）",
       "portrait": {
         "src": "img/musicians/mozart.jpg",
-        "alt": "歷史畫像：沃爾夫岡·阿馬德烏斯·莫扎特。約瑟夫·朗格約1782至1783年的未完成油畫，側面，頸有白色領結。",
+        "alt": "歷史畫像：沃爾夫岡·阿馬德烏斯·莫扎特。約瑟夫·朗格約1782至1783年的未完成油畫，這張課堂圖是頭部裁切，側面，頸有白色領結。",
         "kind": "歷史畫像",
-        "caption": "約瑟夫·朗格畫，約1782至1783年，未完成。莫扎特在世時的肖像，不是身後想像畫。畫面右側大片未畫完，課堂用圖只裁近已畫的頭部，原作仍是未完成的畫布。",
+        "caption": "約瑟夫·朗格畫，約1782至1783年。這是莫扎特在世時的未完成油畫，不是身後想像畫。課堂檔是頭部裁切：原畫右側大片空白畫布沒有收入這張圖。臉的左緣仍有一條深色底，髮與衣領的筆觸也未畫完。",
         "posthumous": false,
         "reference": {
           "title": "Joseph Lange, unfinished portrait of Mozart, about 1782–1783",
           "url": "https://commons.wikimedia.org/wiki/File:Mozart_(unfinished)_by_Lange_1782.jpg",
           "holder": "薩爾茨堡莫扎特博物館常展此畫；數碼檔來自維基共享",
-          "license": "油畫本身屬公有領域：作者朗格卒於1831年。這是生前肖像，而且沒有畫完。維基共享標為公有領域。課堂圖裁去部分空白畫布，以便看見已畫的頭部；沒有把未完成的原作說成完成的肖像。"
+          "license": "油畫本身屬公有領域：作者朗格卒於1831年。原作沒有畫完，而且右側有大片空白畫布。課堂用的檔案只保留頭部，那片空白畫布不在圖內，所以不能說這張裁切仍展示整幅未完成的畫布。維基共享把原畫檔標為公有領域。"
         }
       },
       "facts": [
@@ -1283,5 +1283,78 @@
       "answer": 0,
       "explanation": "他生於澳門，祖籍廣州，1939年在延安首演《黃河大合唱》。三個地方不要併成同一個。"
     }
-  ]
+  ],
+  "hubComposite": {
+    "src": "img/musicians/hub-portraits.jpg",
+    "alt": "入口合成圖，不是新的歷史照片。上排由左至右：巴赫、莫扎特、貝多芬、蕭邦。下排由左至右：柴可夫斯基、德布西、聶耳、冼星海。每格取自該人已收錄的肖像檔，權利仍以各人說明為準。",
+    "order": [
+      "bach",
+      "mozart",
+      "beethoven",
+      "chopin",
+      "tchaikovsky",
+      "debussy",
+      "nie",
+      "xian"
+    ],
+    "caption": "大廳入口圖是由八張已收錄肖像裁成的合成縮圖，方便一次看見八個人。它不是另一張歷史照片，也不產生新的作者權利。聶耳與冼星海照片的攝影者不詳，合成沒有放寬那些限制。",
+    "derivedFrom": [
+      {
+        "id": "bach",
+        "file": "img/musicians/bach.jpg",
+        "title": "Elias Gottlob Haussmann, Johann Sebastian Bach, 1746",
+        "url": "https://commons.wikimedia.org/wiki/File:Johann_Sebastian_Bach_1746.jpg",
+        "license": "油畫本身屬公有領域：作者豪斯曼卒於1774年，在採用作者死後70年或100年的地區均已屆滿。維基共享把這張平面作品的忠實複製品標為公有領域。複製品的攝影者未具名，本專案不把「數碼檔的拍攝者」另寫成已查明。"
+      },
+      {
+        "id": "mozart",
+        "file": "img/musicians/mozart.jpg",
+        "title": "Joseph Lange, unfinished portrait of Mozart, about 1782–1783",
+        "url": "https://commons.wikimedia.org/wiki/File:Mozart_(unfinished)_by_Lange_1782.jpg",
+        "license": "油畫本身屬公有領域：作者朗格卒於1831年。這是生前肖像，而且沒有畫完。維基共享標為公有領域。課堂圖裁去部分空白畫布，以便看見已畫的頭部；沒有把未完成的原作說成完成的肖像。"
+      },
+      {
+        "id": "beethoven",
+        "file": "img/musicians/beethoven.jpg",
+        "title": "Joseph Karl Stieler, Ludwig van Beethoven, 1820",
+        "url": "https://commons.wikimedia.org/wiki/File:Beethoven.jpg",
+        "license": "油畫本身屬公有領域：作者施蒂勒卒於1858年。維基共享把複製品標為公有領域。數碼檔來源頁記載一則檔案館網址的存檔，拍攝該數碼檔的人未另具名。"
+      },
+      {
+        "id": "chopin",
+        "file": "img/musicians/chopin.jpg",
+        "title": "Eugène Delacroix, Frédéric Chopin, 1838, Louvre RF 1717",
+        "url": "https://commons.wikimedia.org/wiki/File:Eug%C3%A8ne_Ferdinand_Victor_Delacroix_043.jpg",
+        "license": "油畫本身屬公有領域：德拉克羅瓦卒於1863年。採用的數碼檔是 Yorck Project《10.000 Meisterwerke der Malerei》的公有領域發行，不是2024年在館內新拍、權利未明的照片。沒有使用那張標明2024年拍攝者的羅浮宮新照片。"
+      },
+      {
+        "id": "tchaikovsky",
+        "file": "img/musicians/tchaikovsky.jpg",
+        "title": "Alfred Fedetsky, Pyotr Ilyich Tchaikovsky, Kharkov, 26 March 1893",
+        "url": "https://commons.wikimedia.org/wiki/File:Tchaikovsky_2.jpg",
+        "license": "照片於1893年拍攝並流傳。維基共享作者頁記攝影者費傑茨基卒於1902年：在作者死後70年的地區，保護期於1970年代屆滿；在中國內地、香港、澳門以作者死後50年計算的規則下更早屆滿。美國亦因1893年出版而屬公有領域。此判斷依賴「卒於1902年」這一作者頁記載；本專案沒有另見一份官方死亡登記。"
+      },
+      {
+        "id": "debussy",
+        "file": "img/musicians/debussy.jpg",
+        "title": "Otto Wegener, Claude Debussy, June 1908",
+        "url": "https://commons.wikimedia.org/wiki/File:Claude_Debussy_1900.jpeg",
+        "license": "攝影者韋格納卒於1924年。法國及採用作者死後70年的地區，保護期於1990年代屆滿。中國內地、香港、澳門若按作者死後50年，更早屆滿。照片於1908年發表，在美國亦屬公有領域。數碼掃描來自 Gallica，掃描本身是平面舊照片的複製，本專案不把掃描員寫成新的作者。"
+      },
+      {
+        "id": "nie",
+        "file": "img/musicians/nie-er.jpg",
+        "title": "聶耳先生遺像，《聯華畫報》第6卷第4期，1935年12月31日，第16頁",
+        "url": "https://commons.wikimedia.org/wiki/File:%E8%81%82%E8%80%B3%E9%81%97%E5%83%8F_1935-7.jpg",
+        "license": "攝影者姓名不見於該期刊物著錄。中國內地對作者不詳或法人作品，保護期一般自發表起50年，1935年的刊物照片按此已屆滿。澳門第43/99/M號法令第23條：作者不詳的作品自發表起50年屆滿；2012年修法廢止了照片僅25年的特別條文，照片改回一般期限，1935年的不具名照片按50年亦已屆滿。香港把照片視為藝術作品，有姓名時為作者死後50年；作者不詳時不能改用一個未證實的卒年。若日後查出署名攝影者，而且卒年晚於當地期限的起算，權利判斷要重做。本專案不把它寫成全世界毫無限制，也不使用只有2006年新華社重刊、出處更弱的那張小提琴照片。"
+      },
+      {
+        "id": "xian",
+        "file": "img/musicians/xian-xinghai.jpg",
+        "title": "Liangyou (良友), December 1929, Shanghai, page 17",
+        "url": "https://archive.org/details/liangyou-1929.12/page/16/mode/2up",
+        "license": "1929年已在刊物發表，但攝影者不詳，所以不能只用「照片很舊」或「美國公有領域」概括全世界。美國：1929年出版的作品現已超過出版年保護期。中國內地：作者不詳作品一般自發表起50年。澳門第43/99/M號法令第23條：作者不詳則自發表起50年；照片25年特別條文已於2012年廢止。香港：照片屬藝術作品，有姓名時為作者死後50年；作者不詳時不能套用一個未證實的卒年。若日後查明攝影者且卒年較晚，個別地區的保護期可能仍在。共享檔案頁：https://commons.wikimedia.org/wiki/File:Xian_Xinghai_(%E6%B4%97%E6%98%9F%E6%B5%B7),_Liangyou,_1929-12-30.jpg 。本專案不把它寫成毫無限制。"
+      }
+    ]
+  }
 }

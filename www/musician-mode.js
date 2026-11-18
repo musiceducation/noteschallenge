@@ -13,7 +13,7 @@
     else boot();
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
-  var DATA_URL = 'data/musicians.json?v=3';
+  var DATA_URL = 'data/musicians.json?v=4';
   var STORE_KEY = 'musicianPracticeLocalV1';
   var ROUND_SIZE_NOTE = 8;
 
@@ -236,6 +236,15 @@
       );
     }
 
+    function hubCredit() {
+      var hub = bank.hubComposite;
+      if (!hub) return '';
+      var rows = (hub.derivedFrom || []).map(function (item) {
+        return '<li><a href="' + esc(item.url) + '" target="_blank" rel="noopener noreferrer">' + esc(item.title) + '</a><p>' + esc(item.license) + '</p></li>';
+      }).join('');
+      return '<section class="musician-hub-credit"><h2>大廳入口合成圖</h2><p>' + esc(hub.caption) + '</p><img src="' + esc(hub.src) + '" alt="' + esc(hub.alt) + '"><ol class="musician-sources">' + rows + '</ol></section>';
+    }
+
     function showCredits(musician) {
       view = { name: 'credits', id: musician ? musician.id : '' };
       setBack('← 返回卡片');
@@ -243,7 +252,8 @@
       if (musician) {
         blocks = '<h1>' + esc(musician.nameZh) + '的來源</h1>' + sourceList(sourcesFor(musician));
       } else {
-        blocks = '<h1>來源與圖片</h1><p>每項史實都附上查過的頁面。肖像是歷史畫像或歷史照片，說明裡分開寫作者、日期和權利範圍。權利未完全查清的，頁面會直接寫出，不寫成全世界都能自由使用。</p>' +
+        blocks = '<h1>來源與圖片</h1><p>每項史實都附上查過的頁面。肖像是歷史畫像或歷史照片。權利未完全查清的，下面直接寫出，不寫成全世界都能自由使用。</p>' +
+          hubCredit() +
           bank.musicians.map(function (item) {
             return '<h2>' + esc(item.nameZh) + '</h2>' + sourceList(sourcesFor(item));
           }).join('');

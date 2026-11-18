@@ -211,9 +211,31 @@
 .illust-musician {
   background: #f4f0e8;
 }
-.illust-musician .illust-img {
+#screen-hub .hub-games-grid .hub-topic-musician .illust-img {
+  width: 100%;
+  height: 100%;
   object-fit: contain;
+  object-position: center;
   background: #f4f0e8;
+}
+#screen-hub .hub-topic-musician .hub-game-illust {
+  height: 156px;
+}
+#screen-hub .hub-topic-musician:hover .illust-img,
+#screen-hub .hub-topic-musician:active .illust-img,
+#screen-hub .hub-topic-musician.is-pressed .illust-img {
+  transform: none;
+}
+.musician-hub-credit img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 12px;
+  background: #f4f0e8;
+}
+.musician-hub-credit li p {
+  margin: 4px 0 10px;
+  color: #3f3a36;
 }
 .musician-card:focus-visible,
 .musician-actions button:focus-visible,
