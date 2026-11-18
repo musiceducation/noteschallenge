@@ -3328,7 +3328,12 @@
             // Highlight correct
             const opts = document.querySelectorAll('.keysig-opt-btn');
             opts.forEach(b => { if (b.textContent === q.correct.name) b.classList.add('correct'); });
-            setTimeout(() => { if (!state.gameActive) return; if (state.modeConfig.maxWrong !== Infinity) endGame(); else nextKeysigQuestion(); }, 1500);
+            const missed = q;
+            setTimeout(() => {
+                if (!state.gameActive || _keysigCurrentQ !== missed) return;
+                if (state.modeConfig.maxWrong !== Infinity) endGame();
+                else nextKeysigQuestion();
+            }, 1500);
         }
         updateScoreboard();
     }
@@ -3341,6 +3346,8 @@
         state.questionStartTime = Date.now();
         renderKeysigQuestion(q);
         enableGameControls(true);
+        dom.messageBox.textContent = '🎼 看調號，選出大調。';
+        dom.messageBox.className = 'message-box';
     }
 
     function startKeysigGame() {
@@ -3376,9 +3383,9 @@
             dom.timeProgress.style.width = '100%';
             dom.timeProgress.style.transition = 'none';
             updateScoreboard();
+            nextKeysigQuestion();
             dom.messageBox.textContent = `🎼 ${state.modeConfig.name} — 練習開始。`;
             dom.messageBox.className = 'message-box';
-            nextKeysigQuestion();
             if (state.timeLeft !== Infinity) {
                 setTimeout(() => {
                     dom.timeProgress.style.transition = `width ${state.timeLeft}s linear`;
@@ -3539,10 +3546,11 @@
             // Highlight correct button
             const correctBtn = document.querySelector(`.solfege-btn[data-sol="${state.currentNote.correctSolfege}"]`);
             if (correctBtn) correctBtn.classList.add('correct');
+            const missed = state.currentNote;
             setTimeout(() => {
-                if (!state.gameActive) return;
-                document.querySelectorAll('.solfege-btn').forEach(b => b.classList.remove('correct', 'wrong'));
-                if (state.modeConfig.maxWrong !== Infinity) endGame(); else nextSolfegeQuestion();
+                if (!state.gameActive || state.currentNote !== missed) return;
+                if (state.modeConfig.maxWrong !== Infinity) endGame();
+                else nextSolfegeQuestion();
             }, 1500);
         }
         updateScoreboard();
@@ -3559,9 +3567,13 @@
         // Invalidate staff cache so key sig is redrawn
         _staffCache = null;
         drawStaffWithKeySig();
-        // Enable solfege buttons
-        document.querySelectorAll('.solfege-btn').forEach(b => { b.disabled = false; });
+        document.querySelectorAll('.solfege-btn').forEach(b => {
+            b.disabled = false;
+            b.classList.remove('correct', 'wrong');
+        });
         enableGameControls(true);
+        dom.messageBox.textContent = '🎤 看調號和音符，選出唱名。';
+        dom.messageBox.className = 'message-box';
     }
 
     function startSolfegeGame() {
@@ -3598,9 +3610,9 @@
             dom.timeProgress.style.width = '100%';
             dom.timeProgress.style.transition = 'none';
             updateScoreboard();
+            nextSolfegeQuestion();
             dom.messageBox.textContent = `🎤 ${state.modeConfig.name} — 練習開始。`;
             dom.messageBox.className = 'message-box';
-            nextSolfegeQuestion();
             if (state.timeLeft !== Infinity) {
                 setTimeout(() => {
                     dom.timeProgress.style.transition = `width ${state.timeLeft}s linear`;

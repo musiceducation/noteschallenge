@@ -132,6 +132,18 @@ for (const file of ['script.js', 'www/script.js']) {
   assert.match(solfege, /signatureMarkup/);
   assert.match(solfege, /note\.keySig/);
   assert.equal(solfege.includes('fillText'), false, file);
+  const nextKey = src.slice(src.indexOf('function nextKeysigQuestion'), src.indexOf('function startKeysigGame'));
+  assert.match(nextKey, /看調號，選出大調/);
+  assert.match(nextKey, /message-box/);
+  const nextSol = src.slice(src.indexOf('function nextSolfegeQuestion'), src.indexOf('function startSolfegeGame'));
+  assert.match(nextSol, /看調號和音符，選出唱名/);
+  assert.match(nextSol, /classList\.remove\('correct', 'wrong'\)/);
+  const keyWrong = src.slice(src.indexOf('正確答案是 ${q.correct.name}'), src.indexOf('function nextKeysigQuestion'));
+  assert.match(keyWrong, /setTimeout/);
+  assert.equal(keyWrong.split('setTimeout')[0].includes('nextKeysigQuestion'), false);
+  const solWrong = src.slice(src.indexOf('請記下正確答案。`;'), src.indexOf('function nextSolfegeQuestion'));
+  assert.match(solWrong, /setTimeout/);
+  assert.equal(solWrong.split('setTimeout')[0].includes('nextSolfegeQuestion'), false);
 }
 
 for (const file of ['index.html', 'www/index.html']) {
