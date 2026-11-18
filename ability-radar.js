@@ -97,13 +97,25 @@
     return { x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius };
   }
 
+  function esc(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  }
+
+  function tagLine(axis) {
+    var map = root.BaaMusicMap;
+    if (!map || typeof map.tagLine !== 'function') return '';
+    return map.tagLine(axis.id);
+  }
+
   function svgFor(axes) {
-    var cx = 180;
-    var cy = 168;
+    var cx = 200;
+    var cy = 196;
     var maxR = 108;
     var total = axes.length;
     var rings = [0.25, 0.5, 0.75, 1];
-    var parts = ['<svg class="ability-radar-svg" viewBox="0 0 360 340" role="img" aria-label="音樂能力雷達圖">'];
+    var parts = ['<svg class="ability-radar-svg" viewBox="-36 0 472 392" role="img" aria-label="音樂能力雷達圖">'];
     rings.forEach(function (ring) {
       var pts = [];
       for (var i = 0; i < total; i++) pts.push(point(cx, cy, maxR * ring, i, total));
@@ -127,8 +139,9 @@
     axes.forEach(function (axis, index) {
       var label = point(cx, cy, maxR + 28, index, total);
       var text = axis.score == null ? '未有紀錄' : String(axis.score);
-      parts.push('<text class="ability-radar-label" x="' + label.x.toFixed(1) + '" y="' + (label.y - 6).toFixed(1) + '" text-anchor="middle">' + axis.label + '</text>');
-      parts.push('<text class="ability-radar-value' + (axis.score == null ? ' is-empty' : '') + '" x="' + label.x.toFixed(1) + '" y="' + (label.y + 10).toFixed(1) + '" text-anchor="middle">' + text + '</text>');
+      var tag = tagLine(axis);
+      parts.push('<text class="ability-radar-label" x="' + label.x.toFixed(1) + '" y="' + (label.y - 6).toFixed(1) + '" text-anchor="middle">' + esc(axis.label) + (tag ? '<tspan class="ability-radar-tag" dx="4">' + esc(tag) + '</tspan>' : '') + '</text>');
+      parts.push('<text class="ability-radar-value' + (axis.score == null ? ' is-empty' : '') + '" x="' + label.x.toFixed(1) + '" y="' + (label.y + 12).toFixed(1) + '" text-anchor="middle">' + esc(text) + '</text>');
     });
     parts.push('</svg>');
     return parts.join('');
@@ -137,7 +150,10 @@
   function render(container, profile) {
     if (!container) return null;
     var axes = evaluate(profile);
-    container.innerHTML = svgFor(axes) + '<p class="ability-radar-summary">' + summarise(axes) + '</p>';
+    var html = svgFor(axes) + '<p class="ability-radar-summary">' + summarise(axes) + '</p>';
+    var map = root.BaaMusicMap;
+    if (map && typeof map.legendHtml === 'function') html += map.legendHtml();
+    container.innerHTML = html;
     return axes;
   }
 

@@ -2,7 +2,21 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const src = fs.readFileSync(new URL('../ability-radar.js', import.meta.url), 'utf8');
-const AbilityRadar = new Function(src + '\nreturn globalThis.AbilityRadar;')();
+const mapSrc = fs.readFileSync(new URL('../baa-music-map.js', import.meta.url), 'utf8');
+const AbilityRadar = new Function(mapSrc + '\n' + src + '\nreturn globalThis.AbilityRadar;')();
+const scoringSrc = src.slice(0, src.indexOf('function point'));
+assert.doesNotMatch(scoringSrc, /BaaMusicMap/);
+assert.deepEqual(AbilityRadar.axes.map((axis) => axis.id), ['reading', 'solfege', 'harmony', 'rhythm', 'theory', 'instruments', 'listening']);
+assert.deepEqual(AbilityRadar.axes.map((axis) => axis.games.join(',')), [
+  'game1,keysig',
+  'solfege',
+  'chord',
+  'game2',
+  'game3',
+  'game4',
+  'aural-interval,aural-rhythm,aural-quality,listenInterval,listenRhythm,listenColor'
+]);
+assert.deepEqual(AbilityRadar.axes.map((axis) => axis.scale), [200, 200, 200, 2000, 200, 200, 100]);
 
 const empty = AbilityRadar.evaluate({ history: [], gameBests: {} });
 assert.equal(empty.length, 7);
@@ -21,14 +35,28 @@ const profile = {
   ]
 };
 const scored = AbilityRadar.evaluate(profile);
-const reading = scored.find((axis) => axis.id === 'reading').score;
-const rhythm = scored.find((axis) => axis.id === 'rhythm').score;
-const listening = scored.find((axis) => axis.id === 'listening').score;
-const solfege = scored.find((axis) => axis.id === 'solfege').score;
-assert.ok(reading > 0 && reading <= 100);
-assert.ok(rhythm > 0 && rhythm <= 100);
-assert.ok(listening > 0 && listening <= 100);
-assert.equal(solfege, null);
+const byId = Object.fromEntries(scored.map((axis) => [axis.id, axis.score]));
+assert.deepEqual(byId, {
+  reading: 47,
+  solfege: null,
+  harmony: null,
+  rhythm: 66,
+  theory: null,
+  instruments: null,
+  listening: 76
+});
+const withAppreciation = {
+  gameBests: Object.assign({ 'appreciate-form': 90 }, profile.gameBests),
+  history: profile.history.concat([
+    { game: 'appreciate-form', score: 90, accuracy: 100, challenge: true },
+    { game: 'appreciate-genre', score: 40, accuracy: 50, challenge: true },
+    { game: 'appreciate-traits', score: 70, accuracy: 80, challenge: true }
+  ])
+};
+assert.deepEqual(
+  AbilityRadar.evaluate(withAppreciation).map((axis) => axis.score),
+  scored.map((axis) => axis.score)
+);
 assert.match(AbilityRadar.summarise(scored), /較強係/);
 assert.match(AbilityRadar.summarise(scored), /可以再練/);
 assert.doesNotMatch(AbilityRadar.summarise(scored), /聽力（0）/);
@@ -38,10 +66,18 @@ AbilityRadar.render(host, profile);
 assert.match(host.innerHTML, /<svg/);
 assert.match(host.innerHTML, /未有紀錄/);
 assert.match(host.innerHTML, /聽力/);
+assert.match(host.innerHTML, /C-1/);
+assert.match(host.innerHTML, /教師補錄/);
+assert.match(host.innerHTML, /未由本平台評核/);
+assert.match(host.innerHTML, /不是澳門教育及青年發展局的基本學力達標評級/);
+assert.match(host.innerHTML, /readonly/);
 
-assert.equal(
-  fs.readFileSync(new URL('../www/ability-radar.js', import.meta.url), 'utf8'),
-  fs.readFileSync(new URL('../ability-radar.js', import.meta.url), 'utf8')
-);
+['ability-radar.js', 'baa-music-map.js', 'appreciate-listen.js', 'style.css', 'index.html', 'script.js', 'bootstrap-instruments.js'].forEach((file) => {
+  assert.equal(
+    fs.readFileSync(new URL('../www/' + file, import.meta.url), 'utf8'),
+    fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8'),
+    file
+  );
+});
 
 console.log('ability-radar tests passed');

@@ -712,7 +712,8 @@
 
     const PROFILE_GAME_LABELS = {
         game1: '音名識辨', keysig: '調號辨別', solfege: '唱名辨別', chord: '和弦練習', game2: '節奏識辨', game3: '術語識辨', game4: '樂器識辨',
-        listening: '聽力', 'aural-interval': '音程聽辨', 'aural-rhythm': '節奏聽寫', 'aural-quality': '和弦色彩'
+        listening: '聽力', 'aural-interval': '音程聽辨', 'aural-rhythm': '節奏聽寫', 'aural-quality': '和弦色彩',
+        'appreciate-form': '曲式聽辨', 'appreciate-genre': '歌曲體裁', 'appreciate-traits': '音樂特點'
     };
 
     let _profilePlayStartedAt = 0;
@@ -1755,17 +1756,15 @@
             } catch (e) {}
         }
 
-        const auralScreen = screenId === 'screen-aural' || (screenId && screenId.indexOf('screen-aural-') === 0);
-        const leftAural = prevScreenId === 'screen-aural' || (prevScreenId && prevScreenId.indexOf('screen-aural-') === 0);
-        if (auralScreen) audio.bgPause();
-        else if (leftAural && screenId !== 'screen-composition-studio') audio.bgPlay();
+        const quietScreen = screenId === 'screen-aural' || screenId === 'screen-appreciate' || screenId === 'screen-composition-studio' || (screenId && screenId.indexOf('screen-aural-') === 0);
+        const leftQuiet = prevScreenId === 'screen-aural' || prevScreenId === 'screen-appreciate' || prevScreenId === 'screen-composition-studio' || (prevScreenId && prevScreenId.indexOf('screen-aural-') === 0);
+        if (quietScreen) audio.bgPause();
+        else if (leftQuiet) audio.bgPlay();
 
-        // 創作工作室：暫停背景樂；鎖定橫向（離開後恢復直向）
+        // 創作工作室：鎖定橫向（離開後恢復直向）。背景樂已在上面暫停。
         if (screenId === 'screen-composition-studio') {
-            audio.bgPause();
             try { window.AppOrientation && window.AppOrientation.lockLandscape(); } catch (e) {}
         } else if (prevScreenId === 'screen-composition-studio') {
-            audio.bgPlay();
             try { window.AppOrientation && window.AppOrientation.lockPortrait(); } catch (e) {}
         }
         
@@ -5438,6 +5437,40 @@
             if (id) switchScreen(id);
         });
 
+        const APPRECIATE_KEYS = ['appreciate-form', 'appreciate-genre', 'appreciate-traits'];
+        window.addEventListener('appreciate-result', (ev) => {
+            const detail = ev && ev.detail;
+            if (!detail || detail.mode !== 'challenge') return;
+            if (window.WebGoogleAuth && window.WebGoogleAuth.tester) return;
+            const gameKey = String(detail.gameKey || '');
+            if (APPRECIATE_KEYS.indexOf(gameKey) < 0) return;
+            const u = getHubUser();
+            if (!u || !u.name || (_profileApi() && _profileApi().isGuest(u))) return;
+            const score = parseInt(detail.score, 10) || 0;
+            const accuracy = parseInt(detail.accuracy, 10) || 0;
+            const maxCombo = parseInt(detail.maxCombo, 10) || 0;
+            const profile = loadProfile(u);
+            if (!profile.gameBests) profile.gameBests = {};
+            if (score > (profile.gameBests[gameKey] || 0)) profile.gameBests[gameKey] = score;
+            if (!Array.isArray(profile.history)) profile.history = [];
+            profile.history.push({
+                date: new Date().toLocaleString('zh-TW'),
+                game: gameKey,
+                score: score,
+                accuracy: accuracy,
+                maxCombo: maxCombo,
+                challenge: true,
+                practice: false
+            });
+            if (profile.history.length > 30) profile.history = profile.history.slice(-30);
+            if (profile.stats) profile.stats.totalPlayed = (profile.stats.totalPlayed || 0) + 1;
+            saveProfile(profile, { skipRemote: true });
+        });
+        window.addEventListener('appreciate-navigate', (ev) => {
+            const id = ev && ev.detail && ev.detail.screen;
+            if (id) switchScreen(id);
+        });
+
         window.addEventListener('chord-local-best', (ev) => {
             const score = parseInt(ev && ev.detail && ev.detail.score, 10) || 0;
             const u = getHubUser();
@@ -5705,6 +5738,19 @@
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 enterAuralEl.click();
+            }
+        });
+
+        const enterAppreciateEl = document.getElementById('enterAppreciate');
+        enterAppreciateEl?.addEventListener('click', () => {
+            if (!requireHubLogin(hubNameField)) return;
+            syncFromHub();
+            switchScreen('screen-appreciate');
+        });
+        enterAppreciateEl?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                enterAppreciateEl.click();
             }
         });
 

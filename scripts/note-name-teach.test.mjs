@@ -167,10 +167,10 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.match(page, /abrsm-curriculum\.js\?v=1/);
   assert.match(page, /abrsm-note-grade\.js\?v=4/);
   assert.match(page, /chinese-instrument-challenge\.js\?v=3/);
-  assert.match(page, /style\.css\?v=22/);
+  assert.match(page, /style\.css\?v=23/);
   assert.doesNotMatch(page, /style\.css\?v=21/);
   assert.doesNotMatch(page, /style\.css\?v=20/);
-  assert.match(page, /bootstrap-instruments\.js\?v=19/);
+  assert.match(page, /bootstrap-instruments\.js\?v=20/);
   assert.doesNotMatch(page, /bootstrap-instruments\.js\?v=18/);
   assert.doesNotMatch(page, /bootstrap-instruments\.js\?v=17/);
   assert.doesNotMatch(page, /bootstrap-instruments\.js\?v=16/);
@@ -199,7 +199,7 @@ for (const file of ['index.html', 'www/index.html']) {
 
 for (const boot of ['bootstrap-instruments.js', 'www/bootstrap-instruments.js']) {
   const src = fs.readFileSync(new URL('../' + boot, import.meta.url), 'utf8');
-  assert.match(src, /script\.js\?v=31/);
+  assert.match(src, /script\.js\?v=32/);
   assert.doesNotMatch(src, /script\.js\?v=30/);
   assert.doesNotMatch(src, /script\.js\?v=29/);
   assert.doesNotMatch(src, /script\.js\?v=28/);
@@ -220,7 +220,9 @@ for (const file of ['index.html', 'www/index.html']) {
   const page = fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8');
   assert.match(page, /id="g2ModeCompose"/);
   assert.doesNotMatch(page, /id="enterRhythmComposer"|data-launch="enterRhythmComposer"/);
-  assert.match(page, /id="enterCompositionStudio"[^>]*hidden/);
+  assert.match(page, /id="enterCompositionStudio"/);
+  assert.doesNotMatch(page, /id="enterCompositionStudio"[^>]*hidden/);
+  assert.match(page, /不計入能力圖，亦不是基本學力達標/);
 }
 assert.equal(
   fs.readFileSync(new URL('../note-name-teach.js', import.meta.url), 'utf8'),
