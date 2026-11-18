@@ -324,6 +324,15 @@
     }).join('');
   }
 
+  function codeList(codes) {
+    var open = (codes || []).filter(function (row) { return row && !text(row.revokedAt); });
+    if (!open.length) return '<li>未有有效短碼。</li>';
+    return open.map(function (row) {
+      return '<li><b>' + esc(row.code) + '</b> ' + esc(gradeLabel(row.grade)) + esc(row.class) +
+        '　<button type="button" class="btn-view-ranks" data-revoke="' + esc(row.code) + '">作廢</button></li>';
+    }).join('');
+  }
+
   function render(doc, state) {
     var rootEl = doc.getElementById('classroomRoot');
     if (!rootEl) return;
@@ -349,14 +358,12 @@
       return '<li><b>' + esc(activity ? activity.label : row.activity) + '</b> ' +
         esc(difficultyLabel(activity, row.difficulty)) + '　' + esc(formatWindow(row)) + '　' + mine + '</li>';
     }).join('') || '<li>老師還沒有佈置挑戰。</li>';
-    var teacher = state.teacher ? '' : ' hidden';
-    rootEl.innerHTML =
-      '<section class="card classroom-card"><h2>課堂任務</h2><p>只計挑戰分數。練習、創作工作室同訪客不會當成完成。</p><ul class="classroom-list" id="classroomStudentList">' +
-      studentBits + '</ul></section>' +
-      '<section class="card classroom-card"' + teacher + '><h2>老師佈置</h2>' +
+    var gradeOptions = '<option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option>';
+    var teacherBlocks = state.teacher ? (
+      '<section class="card classroom-card"><h2>老師佈置</h2>' +
       '<p>為一個班指定挑戰、可選難度，同埋澳門時間的開始／結束。練習同創作工作室不能佈置。</p>' +
       '<form id="classroomAssignForm" class="classroom-form">' +
-      '<label>年級<select name="grade"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></label>' +
+      '<label>年級<select name="grade">' + gradeOptions + '</select></label>' +
       '<label>班別<input name="class" maxlength="8" required placeholder="A"></label>' +
       '<label>挑戰<select name="activity">' + activities + '</select></label>' +
       '<label>難度（可留空）<select name="difficulty"><option value="">不限</option></select></label>' +
@@ -364,9 +371,11 @@
       '<label>結束<input name="end" type="datetime-local" required></label>' +
       '<button type="submit" class="btn-start">儲存課題</button></form>' +
       '<ul class="classroom-list" id="classroomTeacherList">' + assignments + '</ul></section>' +
-      '<section class="card classroom-card"' + teacher + '><h2>課堂紀錄</h2>' +
+      '<section class="card classroom-card"><h2>課堂紀錄</h2>' +
       '<p>A 演唱與演奏、B-5 同儕互評。這是觀察，不是達標評級，也不會出現在同學卡片。</p>' +
       '<form id="classroomRecordForm" class="classroom-form">' +
+      '<label>年級<select name="grade">' + gradeOptions + '</select></label>' +
+      '<label>班別<input name="class" maxlength="8" required placeholder="A"></label>' +
       '<label>學生<input name="studentName" required maxlength="20"></label>' +
       '<label>座號<input name="seat" maxlength="8"></label>' +
       '<label>項目<select name="item">' + items + '</select></label>' +
@@ -375,23 +384,33 @@
       '<button type="submit" class="btn-start">儲存紀錄</button></form>' +
       '<h3>紙筆測試</h3><p>平台沒有紙筆測驗。這裡只記老師另行輸入的結果。</p>' +
       '<form id="classroomPaperForm" class="classroom-form">' +
+      '<label>年級<select name="grade">' + gradeOptions + '</select></label>' +
+      '<label>班別<input name="class" maxlength="8" required placeholder="A"></label>' +
       '<label>學生<input name="studentName" required maxlength="20"></label>' +
       '<label>座號<input name="seat" maxlength="8"></label>' +
       '<label>結果<textarea name="note" rows="2" required maxlength="500"></textarea></label>' +
       '<button type="submit" class="btn-start">儲存紙筆</button></form></section>' +
-      '<section class="card classroom-card"' + teacher + '><h2>評估報告</h2>' +
+      '<section class="card classroom-card"><h2>評估報告</h2>' +
       '<p>欄目依照第28/2020號行政法規：口語、實作、檔案、紙筆測試、數碼測試。數碼測試只來自挑戰分數、七軸雷達同鑑賞挑戰。</p>' +
       '<div class="classroom-actions"><button type="button" class="btn-view-ranks" id="classroomCsvBtn">下載 CSV</button>' +
       '<button type="button" class="btn-view-ranks" id="classroomPrintBtn">列印預覽</button></div>' +
       '<div id="classroomPrint">' + printableHtml(reportRows(state)) + '</div></section>' +
-      '<section class="card classroom-card" id="classroomCodeCard"><h2>班級短碼</h2>' +
-      '<p>6–8 個字。學生用短碼、姓名、班別同座號加入，不必用學校 Google。短碼可以到期同作廢。</p>' +
-      '<form id="classroomCodeForm" class="classroom-form"' + teacher + '>' +
-      '<label>年級<select name="grade"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></label>' +
+      '<section class="card classroom-card"><h2>發出短碼</h2>' +
+      '<form id="classroomCodeForm" class="classroom-form">' +
+      '<label>年級<select name="grade">' + gradeOptions + '</select></label>' +
       '<label>班別<input name="class" maxlength="8" required placeholder="A"></label>' +
       '<label>有效時數<input name="hours" type="number" min="1" max="720" value="24"></label>' +
       '<button type="submit" class="btn-start">產生短碼</button></form>' +
-      '<p id="classroomCodeOut"></p>' +
+      '<p id="classroomCodeOut">' + esc(state.codeMessage || '') + '</p>' +
+      '<ul class="classroom-list" id="classroomCodeList">' + codeList(state.codes) + '</ul></section>'
+    ) : '';
+    rootEl.innerHTML =
+      '<p class="classroom-disclaimer" id="classroomNotice">' + esc(state.notice || '') + '</p>' +
+      '<section class="card classroom-card"><h2>課堂任務</h2><p>只計挑戰分數。練習、創作工作室同訪客不會當成完成。</p><ul class="classroom-list" id="classroomStudentList">' +
+      studentBits + '</ul></section>' +
+      teacherBlocks +
+      '<section class="card classroom-card" id="classroomCodeCard"><h2>班級短碼</h2>' +
+      '<p>6–8 個字。學生用短碼、姓名、班別同座號加入，不必用學校 Google。短碼可以到期同作廢。</p>' +
       '<form id="classroomJoinForm" class="classroom-form">' +
       '<label>短碼<input name="code" minlength="6" maxlength="8" required autocomplete="off"></label>' +
       '<label>姓名<input name="name" required maxlength="20"></label>' +
@@ -443,6 +462,8 @@
       var channel = text(data.get('channel'));
       if (!item || item.channels.indexOf(channel) < 0) return;
       state.onRecord && state.onRecord({
+        grade: text(data.get('grade')),
+        className: text(data.get('class')).toUpperCase(),
         studentName: text(data.get('studentName')),
         seat: text(data.get('seat')),
         item: item.id,
@@ -455,6 +476,8 @@
       event.preventDefault();
       var data = new FormData(paper);
       state.onPaper && state.onPaper({
+        grade: text(data.get('grade')),
+        className: text(data.get('class')).toUpperCase(),
         studentName: text(data.get('studentName')),
         seat: text(data.get('seat')),
         note: text(data.get('note'))
@@ -479,6 +502,13 @@
         hours: Number(data.get('hours')) || 24
       });
     });
+    var revokeNodes = doc.querySelectorAll ? doc.querySelectorAll('[data-revoke]') : [];
+    for (var r = 0; r < revokeNodes.length; r++) {
+      revokeNodes[r].addEventListener('click', function (event) {
+        var code = event.currentTarget && event.currentTarget.getAttribute('data-revoke');
+        state.onRevoke && state.onRevoke(code);
+      });
+    }
     var join = doc.getElementById('classroomJoinForm');
     if (join) join.addEventListener('submit', function (event) {
       event.preventDefault();
@@ -492,11 +522,195 @@
     });
   }
 
+  var MIGRATION_NOTICE = '課堂服務尚未準備好，請老師稍後再試。';
+
+  function isTeacher(auth) {
+    return !!(auth && auth.signedIn && !auth.tester && auth.binding && auth.binding.role === 'teacher');
+  }
+
+  function viewerClass(auth) {
+    var binding = auth && auth.binding || {};
+    if (!auth || !auth.signedIn || auth.tester || isTeacher(auth)) return null;
+    if (!namedStudent({ name: binding.name })) return null;
+    if (binding.role === 'code' || binding.name) {
+      return { grade: text(binding.grade), className: text(binding.class).toUpperCase() };
+    }
+    return null;
+  }
+
+  function assignmentsFor(rows, auth) {
+    var list = Array.isArray(rows) ? rows : [];
+    if (isTeacher(auth)) return list.slice();
+    var who = viewerClass(auth);
+    if (!who || !who.grade || !who.className) return [];
+    return list.filter(function (row) {
+      return text(row.grade) === who.grade && text(row.class || row.className).toUpperCase() === who.className;
+    });
+  }
+
+  function normalizeRecord(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      grade: text(row.grade),
+      className: text(row.class || row.className),
+      studentName: text(row.studentName || row.student_name),
+      seat: text(row.seat),
+      item: text(row.item),
+      channel: text(row.channel),
+      note: text(row.note)
+    };
+  }
+
+  function normalizePaper(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      studentName: text(row.studentName || row.student_name),
+      seat: text(row.seat),
+      note: text(row.note)
+    };
+  }
+
+  function normalizeStudent(row) {
+    if (!row || !namedStudent(row)) return null;
+    return {
+      name: namedStudent(row),
+      grade: text(row.grade),
+      class: text(row.class || row.className),
+      seat: text(row.seat),
+      history: Array.isArray(row.history) ? row.history : [],
+      gameBests: row.gameBests && typeof row.gameBests === 'object' ? row.gameBests : {}
+    };
+  }
+
+  function loadPaths(auth) {
+    if (isTeacher(auth)) {
+      return [
+        { method: 'GET', path: '/class/assignments' },
+        { method: 'GET', path: '/class/records' },
+        { method: 'GET', path: '/class/report' },
+        { method: 'GET', path: '/class/codes' }
+      ];
+    }
+    if (viewerClass(auth)) return [{ method: 'GET', path: '/class/assignments' }];
+    return [];
+  }
+
+  function saveRequest(kind, row) {
+    if (kind === 'assignment') {
+      return { method: 'POST', path: '/class/assignments', body: {
+        grade: row.grade, class: row.className, activity: row.activity,
+        difficulty: row.difficulty || '', startsAt: row.startsAt, endsAt: row.endsAt
+      } };
+    }
+    if (kind === 'record') {
+      return { method: 'POST', path: '/class/records', body: {
+        grade: row.grade, class: row.className, studentName: row.studentName,
+        seat: row.seat, item: row.item, channel: row.channel, note: row.note
+      } };
+    }
+    if (kind === 'paper') {
+      return { method: 'POST', path: '/class/paper', body: {
+        grade: row.grade, class: row.className, studentName: row.studentName,
+        seat: row.seat, note: row.note
+      } };
+    }
+    if (kind === 'code') {
+      return { method: 'POST', path: '/class/codes', body: {
+        grade: row.grade, class: row.className, hours: row.hours || 24, length: 7
+      } };
+    }
+    if (kind === 'revoke') {
+      return { method: 'POST', path: '/class/codes', body: { revoke: true, code: text(row && row.code).toUpperCase() } };
+    }
+    return null;
+  }
+
+  function migrationResult(result) {
+    return !!(result && (result.status === 503 || (result.data && result.data.error === 'migration_required')));
+  }
+
+  function applyPayloads(auth, results) {
+    var list = results || [];
+    if (list.some(migrationResult)) {
+      return { notice: MIGRATION_NOTICE, assignments: [], records: [], papers: [], students: [], codes: [] };
+    }
+    var assignments = assignmentsFor((list[0] && list[0].data && list[0].data.assignments) || [], auth);
+    if (!isTeacher(auth)) {
+      return { notice: '', assignments: assignments, records: [], papers: [], students: [], codes: [] };
+    }
+    var report = (list[2] && list[2].data) || {};
+    var recordRows = report.records || (list[1] && list[1].data && list[1].data.records) || [];
+    return {
+      notice: '',
+      assignments: assignments,
+      records: recordRows.map(normalizeRecord).filter(Boolean),
+      papers: (report.papers || []).map(normalizePaper).filter(Boolean),
+      students: (report.students || []).map(normalizeStudent).filter(Boolean),
+      codes: (list[3] && list[3].data && list[3].data.codes) || []
+    };
+  }
+
+  function callApi(fetchImpl, base, token, method, path, body) {
+    var headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = 'Bearer ' + token;
+    return fetchImpl(base + path, {
+      method: method,
+      headers: headers,
+      body: body ? JSON.stringify(body) : undefined
+    }).then(function (res) {
+      return res.json().then(function (data) {
+        return { status: res.status, data: data || {} };
+      }, function () {
+        return { status: res.status, data: {} };
+      });
+    });
+  }
+
+  function authBase() {
+    var cfg = root.MUSIC_APP_AUTH || {};
+    var base = cfg.authApiBase || '';
+    try {
+      var host = root.location && root.location.hostname;
+      var q = new URLSearchParams(root.location.search || '').get('authApi');
+      if (q && (host === 'localhost' || host === '127.0.0.1')) base = q;
+    } catch (err) {}
+    return String(base || '').replace(/\/$/, '');
+  }
+
+  function loadClassroom(auth, base, fetchImpl) {
+    var paths = loadPaths(auth);
+    var token = auth && auth.token || '';
+    if (!base || !token || !paths.length) return Promise.resolve(applyPayloads(auth, []));
+    return Promise.all(paths.map(function (item) {
+      return callApi(fetchImpl, base, token, item.method, item.path);
+    })).then(function (results) {
+      return applyPayloads(auth, results);
+    });
+  }
+
+  function saveClassroom(auth, base, fetchImpl, kind, row) {
+    if (!isTeacher(auth)) return Promise.resolve({ ok: false, error: 'forbidden' });
+    if ((kind === 'record' || kind === 'paper') && !namedStudent({ name: row && row.studentName })) {
+      return Promise.resolve({ ok: false, error: 'bad_student' });
+    }
+    var req = saveRequest(kind, row || {});
+    if (!req || !base) return Promise.resolve({ ok: false, error: 'offline', notice: '課堂服務尚未連上。' });
+    return callApi(fetchImpl, base, auth.token || '', req.method, req.path, req.body).then(function (result) {
+      if (migrationResult(result)) return { ok: false, error: 'migration_required', notice: MIGRATION_NOTICE };
+      if (!result.data || result.data.ok === false || result.status >= 400) {
+        return { ok: false, error: (result.data && result.data.error) || 'failed' };
+      }
+      return { ok: true, data: result.data };
+    });
+  }
+
   function demoAllowed() {
     try {
       var host = root.location && root.location.hostname;
       if (host !== 'localhost' && host !== '127.0.0.1') return false;
-      return new URLSearchParams(root.location.search).get('classroomDemo') === '1';
+      return new URLSearchParams(root.location.search || '').get('classroomDemo') === '1';
     } catch (err) {
       return false;
     }
@@ -555,23 +769,18 @@
       var hub = doc.getElementById('screen-hub');
       if (hub) hub.classList.add('active');
     });
-    function authBase() {
-      var cfg = root.MUSIC_APP_AUTH || {};
-      var base = cfg.authApiBase || '';
-      try {
-        var host = root.location && root.location.hostname;
-        var q = new URLSearchParams(root.location.search).get('authApi');
-        if (q && (host === 'localhost' || host === '127.0.0.1')) base = q;
-      } catch (err) {}
-      return String(base || '').replace(/\/$/, '');
-    }
+    var fetchImpl = root.fetch ? root.fetch.bind(root) : function () { return Promise.reject(new Error('offline')); };
     function postJoin(row, out) {
+      if (!namedStudent({ name: row.name })) {
+        if (out) out.textContent = '訪客同測試人員不能用短碼加入。';
+        return;
+      }
       var base = authBase();
       if (!base) {
         if (out) out.textContent = '這部瀏覽器還沒有連上登入服務。';
         return;
       }
-      fetch(base + '/class/join', {
+      fetchImpl(base + '/class/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: row.code, name: row.name, class: row.className, seat: row.seat })
@@ -581,77 +790,162 @@
         if (data.ok && root.WebGoogleAuth && typeof root.WebGoogleAuth.adoptCodeSession === 'function') {
           root.WebGoogleAuth.adoptCodeSession(data);
           out.textContent = '已加入 ' + row.name + '。此身份只限該班，看不到同學電郵。';
+          refresh();
           return;
         }
-        var message = { bad_code: '短碼不正確。', revoked: '短碼已作廢。', expired: '短碼已過期。', rate_limited: '試太多次，請稍後再試。', bad_student: '姓名、班別或座號不符合。訪客同測試人員不能加入。' };
+        var message = { bad_code: '短碼不正確。', revoked: '短碼已作廢。', expired: '短碼已過期。', rate_limited: '試太多次，請稍後再試。', bad_student: '訪客同測試人員不能加入。' };
         out.textContent = message[data.error] || '未能加入。';
       }).catch(function () {
         if (out) out.textContent = '未能連上登入服務。';
       });
     }
     var gateForm = doc.getElementById('webCodeJoinForm');
-    if (gateForm) gateForm.addEventListener('submit', function (event) {
-      event.preventDefault();
-      var data = new FormData(gateForm);
-      postJoin({
-        code: text(data.get('code')).toUpperCase(),
-        name: text(data.get('name')),
-        className: text(data.get('class')).toUpperCase(),
-        seat: text(data.get('seat'))
-      }, doc.getElementById('webCodeJoinOut'));
-    });
-    if (!demoAllowed()) {
-      var stored = readStore(root.localStorage, 'cskphc');
-      var quiet = {
-        teacher: false,
-        students: localStudents(root.localStorage),
-        assignments: stored.assignments,
-        records: stored.records,
-        papers: stored.papers,
-        evaluate: root.AbilityRadar && root.AbilityRadar.evaluate,
-        onJoin: function (row) { postJoin(row, doc.getElementById('classroomJoinOut')); }
-      };
-      render(doc, quiet);
-      return;
+    if (gateForm && !gateForm.dataset.bound) {
+      gateForm.dataset.bound = '1';
+      gateForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        var data = new FormData(gateForm);
+        postJoin({
+          code: text(data.get('code')).toUpperCase(),
+          name: text(data.get('name')),
+          className: text(data.get('class')).toUpperCase(),
+          seat: text(data.get('seat'))
+        }, doc.getElementById('webCodeJoinOut'));
+      });
     }
-    var state = demoState();
-    state.evaluate = root.AbilityRadar && root.AbilityRadar.evaluate;
-    var overlay = doc.getElementById('webGoogleAuthOverlay');
-    if (overlay) overlay.hidden = true;
-    if (doc.documentElement) doc.documentElement.classList.remove('web-auth-pending');
-    state.onAssign = function (row) {
-      if (!row.startsAt || !row.endsAt) return;
-      state.assignments.push(row);
-      render(doc, state);
-    };
-    state.onRecord = function (row) {
-      if (!namedStudent({ name: row.studentName })) return;
-      state.records.push(row);
-      render(doc, state);
-    };
-    state.onPaper = function (row) {
-      if (!namedStudent({ name: row.studentName })) return;
-      state.papers.push(row);
-      render(doc, state);
-    };
-    state.onCode = function (row) {
-      var out = doc.getElementById('classroomCodeOut');
-      if (out) out.textContent = '示範短碼 K7M4QP2　' + gradeLabel(row.grade) + row.className + '　24 小時內有效，可作廢。不會顯示電郵。';
-    };
-    state.onJoin = function (row) {
-      var out = doc.getElementById('classroomJoinOut');
-      if (!out) return;
-      if (row.code !== 'K7M4QP2') {
-        out.textContent = '這是示範頁。請用短碼 K7M4QP2，或在已連上 worker 的環境使用老師發出的短碼。';
-        return;
+    function selfProfile(auth) {
+      var who = viewerClass(auth);
+      if (!who) return null;
+      var locals = localStudents(root.localStorage);
+      for (var i = 0; i < locals.length; i++) {
+        if (text(locals[i].name) === text(auth.binding.name)) return locals[i];
       }
-      if (!namedStudent({ name: row.name })) {
-        out.textContent = '訪客同測試人員不能用短碼加入。';
-        return;
+      return { name: auth.binding.name, grade: who.grade, class: who.className, seat: text(auth.binding.seat), history: [] };
+    }
+    var heldCodeMessage = '';
+    function paint(state) {
+      state.evaluate = root.AbilityRadar && root.AbilityRadar.evaluate;
+      if (!state.onJoin) state.onJoin = function (row) { postJoin(row, doc.getElementById('classroomJoinOut')); };
+      render(doc, state);
+    }
+    function refresh() {
+      if (demoAllowed()) {
+        var demo = demoState();
+        var overlay = doc.getElementById('webGoogleAuthOverlay');
+        if (overlay) overlay.hidden = true;
+        if (doc.documentElement && doc.documentElement.classList) doc.documentElement.classList.remove('web-auth-pending');
+        demo.onAssign = function (row) {
+          if (!row.startsAt || !row.endsAt) return;
+          demo.assignments.push(row);
+          paint(demo);
+        };
+        demo.onRecord = function (row) {
+          if (!namedStudent({ name: row.studentName })) return;
+          demo.records.push(row);
+          paint(demo);
+        };
+        demo.onPaper = function (row) {
+          if (!namedStudent({ name: row.studentName })) return;
+          demo.papers.push(row);
+          paint(demo);
+        };
+        demo.onCode = function (row) {
+          demo.codeMessage = '示範短碼 K7M4QP2　' + gradeLabel(row.grade) + row.className + '　24 小時內有效，可作廢。不會顯示電郵。';
+          paint(demo);
+        };
+        demo.onJoin = function (row) {
+          var out = doc.getElementById('classroomJoinOut');
+          if (!out) return;
+          if (row.code !== 'K7M4QP2') {
+            out.textContent = '這是示範頁。請用短碼 K7M4QP2，或在已連上 worker 的環境使用老師發出的短碼。';
+            return;
+          }
+          if (!namedStudent({ name: row.name })) {
+            out.textContent = '訪客同測試人員不能用短碼加入。';
+            return;
+          }
+          out.textContent = '已加入 ' + row.name + '　' + row.className + ' 班 ' + row.seat + ' 號。此身份只限該班，看不到同學電郵。';
+        };
+        paint(demo);
+        return Promise.resolve();
       }
-      out.textContent = '已加入 ' + row.name + '　' + row.className + ' 班 ' + row.seat + ' 號。此身份只限該班，看不到同學電郵。';
-    };
-    render(doc, state);
+      var auth = root.WebGoogleAuth || {};
+      var teacher = isTeacher(auth);
+      var base = authBase();
+      var state = {
+        teacher: teacher,
+        students: [],
+        assignments: [],
+        records: [],
+        papers: [],
+        codes: [],
+        notice: '',
+        codeMessage: heldCodeMessage,
+        selfProfile: selfProfile(auth)
+      };
+      function bindLive(extra) {
+        state.teacher = teacher;
+        state.onAssign = function (row) { return persist('assignment', row); };
+        state.onRecord = function (row) { return persist('record', row); };
+        state.onPaper = function (row) { return persist('paper', row); };
+        state.onCode = function (row) { return persist('code', row); };
+        state.onRevoke = function (code) { return persist('revoke', { code: code }); };
+        if (extra) {
+          state.notice = extra.notice || '';
+          state.codeMessage = extra.codeMessage || state.codeMessage;
+        }
+        paint(state);
+      }
+      function persist(kind, row) {
+        if (!teacher) return Promise.resolve();
+        if (!base || !auth.token) {
+          state.notice = '課堂服務尚未連上。';
+          bindLive();
+          return Promise.resolve();
+        }
+        return saveClassroom(auth, base, fetchImpl, kind, row).then(function (saved) {
+          if (!saved.ok && saved.notice) {
+            state.notice = saved.notice;
+            state.assignments = [];
+            state.records = [];
+            state.papers = [];
+            state.students = [];
+            bindLive();
+            return;
+          }
+          if (saved.ok && kind === 'code' && saved.data && saved.data.code) {
+            heldCodeMessage = '短碼 ' + saved.data.code + '　' + gradeLabel(saved.data.grade) + saved.data.class + '。可作廢。不會顯示電郵。';
+          }
+          return refresh();
+        });
+      }
+      if (!teacher && !viewerClass(auth)) {
+        bindLive();
+        return Promise.resolve();
+      }
+      if (!base || !auth.token) {
+        state.notice = '課堂服務尚未連上。';
+        bindLive();
+        return Promise.resolve();
+      }
+      return loadClassroom(auth, base, fetchImpl).then(function (loaded) {
+        state.assignments = loaded.assignments;
+        state.records = loaded.records;
+        state.papers = loaded.papers;
+        state.students = loaded.students;
+        state.codes = loaded.codes;
+        state.notice = loaded.notice;
+        bindLive();
+      }).catch(function () {
+        state.notice = '未能連上課堂服務。';
+        bindLive();
+      });
+    }
+    if (root.addEventListener && !root.__classroomSessionBound) {
+      root.__classroomSessionBound = true;
+      root.addEventListener('webgoogle:session', function () { refresh(); });
+    }
+    return refresh();
   }
 
   if (root.document) {
@@ -676,6 +970,14 @@
     namedStudent: namedStudent,
     readStore: readStore,
     writeStore: writeStore,
+    isTeacher: isTeacher,
+    assignmentsFor: assignmentsFor,
+    loadPaths: loadPaths,
+    saveRequest: saveRequest,
+    loadClassroom: loadClassroom,
+    saveClassroom: saveClassroom,
+    demoAllowed: demoAllowed,
+    MIGRATION_NOTICE: MIGRATION_NOTICE,
     mount: mount
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
