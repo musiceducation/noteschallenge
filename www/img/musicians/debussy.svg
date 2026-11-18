@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 340" role="img">
+  <!-- Original stylized illustration, not a historical photograph.
+       Reference: Otto Wegener, Claude Debussy, 1908.
+       https://commons.wikimedia.org/wiki/File:Claude_Debussy_1900.jpeg
+       Photograph is public domain (photographer died 1924). This file does not embed the photograph. -->
+  <rect width="280" height="340" rx="28" fill="#DCE8E2"/>
+  <ellipse cx="140" cy="274" rx="88" ry="54" fill="#24312E"/>
+  <ellipse cx="140" cy="158" rx="46" ry="54" fill="#E8C2AE"/>
+  <path d="M92 140c12-48 88-52 104 4 6 22-2 34 0 48-14-14-26-12-36 2-12-16-26-16-38-2-8-16-18-32-30-52z" fill="#2A211C"/>
+  <path d="M116 188c10 20 36 22 48 4-2 16-16 26-32 24-16-2-22-12-16-28z" fill="#2A211C"/>
+  <circle cx="126" cy="156" r="4" fill="#3A2E28"/>
+  <circle cx="156" cy="156" r="4" fill="#3A2E28"/>
+  <path d="M116 146h18M148 146h18" stroke="#E8C2AE" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="186" cy="210" r="12" fill="#E8C2AE"/>
+  <rect x="178" y="220" width="16" height="22" rx="6" fill="#F7F4EF"/>
+  <text x="140" y="328" text-anchor="middle" font-family="Nunito, sans-serif" font-size="14" font-weight="700" fill="#5C4636">插畫</text>
+</svg>

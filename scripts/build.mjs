@@ -69,6 +69,8 @@ for (const f of [
   "www/baa-music-map.js",
   "appreciate-listen.js",
   "www/appreciate-listen.js",
+  "musician-mode.js",
+  "www/musician-mode.js",
   "classroom.js",
   "www/classroom.js",
   "aural-score.js",
@@ -83,7 +85,7 @@ for (const f of [
   "www/aural-quality.js",
   "cloudflare/noteschallenge-auth/worker.js"
 ]) checkJs(f);
-for (const f of ["data/instrument-bank.json", "data/instrument-structure.json"]) checkJson(f);
+for (const f of ["data/instrument-bank.json", "data/instrument-structure.json", "data/musicians.json", "www/data/musicians.json"]) checkJson(f);
 
 for (const f of ["index.html", "style.css", "privacy.html", "www/privacy.html", "PRIVACY.md"]) {
   if (!fs.existsSync(path.join(root, f))) fail(`missing ${f}`);

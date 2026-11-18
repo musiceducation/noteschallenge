@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 340" role="img">
+  <!-- Original stylized illustration, not a historical photograph.
+       Reference: Eugène Delacroix, Frédéric Chopin, 1838, Musée du Louvre, RF 1717.
+       https://commons.wikimedia.org/wiki/File:Fr%C3%A9d%C3%A9ric_Chopin_-_Eug%C3%A8ne_Delacroix_-_Mus%C3%A9e_du_Louvre_Peintures_RF_1717.jpg
+       Painting is public domain (artist died 1863). This file does not embed the photograph. -->
+  <rect width="280" height="340" rx="28" fill="#EAD8C8"/>
+  <ellipse cx="140" cy="272" rx="84" ry="54" fill="#1C1A19"/>
+  <path d="M116 214h48l6 22H110z" fill="#F7F4EF"/>
+  <ellipse cx="140" cy="160" rx="44" ry="54" fill="#F4D9C8"/>
+  <path d="M90 140c10-52 92-58 108 2 8 26 0 40-4 52-14-16-28-14-40 2-14-16-30-16-44-2-8-14-16-32-20-54z" fill="#4A3428"/>
+  <path d="M168 128c22 4 28 22 16 34" stroke="#3A281E" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <circle cx="126" cy="160" r="4" fill="#3A2E28"/>
+  <circle cx="156" cy="158" r="4" fill="#3A2E28"/>
+  <path d="M118 150h16M148 148h16" stroke="#6B5348" stroke-width="3" stroke-linecap="round"/>
+  <path d="M130 180c6 5 14 5 20-1" stroke="#C48A78" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <text x="140" y="328" text-anchor="middle" font-family="Nunito, sans-serif" font-size="14" font-weight="700" fill="#5C4636">插畫</text>
+</svg>

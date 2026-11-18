@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 340" role="img">
+  <!-- Original stylized illustration, not a historical photograph.
+       Reference: Alfred Fedetsky, Pyotr Ilyich Tchaikovsky, Kharkov, 14/26 March 1893.
+       https://commons.wikimedia.org/wiki/File:Tchaikovsky_2.jpg
+       Photograph is public domain (photographer died 1902; published 1893). This file does not embed the photograph. -->
+  <rect width="280" height="340" rx="28" fill="#E4E7F2"/>
+  <ellipse cx="140" cy="274" rx="90" ry="54" fill="#2A3142"/>
+  <path d="M116 220h48v18c0 12-10 18-24 18s-24-6-24-18z" fill="#F7F4EF"/>
+  <ellipse cx="140" cy="156" rx="46" ry="52" fill="#F0CDB8"/>
+  <path d="M96 150c8-36 28-52 44-52s36 16 44 52c6 8 2 16-4 22-12-6-16 0-18 10-8-8-20-8-28 2-8-12-20-12-28-2-8-8-14-16-10-32z" fill="#E7E4DC"/>
+  <path d="M118 112c10-18 36-18 46 0" stroke="#F4F1EA" stroke-width="16" fill="none" stroke-linecap="round"/>
+  <path d="M118 186c10 22 34 24 46 4 2 14-8 24-22 24s-26-8-24-28z" fill="#F7F4EF"/>
+  <circle cx="126" cy="156" r="4" fill="#3A2E28"/>
+  <circle cx="156" cy="156" r="4" fill="#3A2E28"/>
+  <path d="M118 146h16M148 146h16" stroke="#6B5348" stroke-width="3" stroke-linecap="round"/>
+  <path d="M132 172c5 4 12 4 16 0" stroke="#C48A78" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <text x="140" y="328" text-anchor="middle" font-family="Nunito, sans-serif" font-size="14" font-weight="700" fill="#5C4636">插畫</text>
+</svg>
