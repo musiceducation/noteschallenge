@@ -6656,6 +6656,18 @@ html.app-shell #socialAuthOverlay.visible {
 }
 html.web-auth-pending #webGoogleAuthOverlay { display: flex; }
 html.app-shell #webGoogleAuthOverlay { display: none !important; }
+/* Extra login lines must stay reachable on a short phone. Auto margins keep the card centered when it fits. */
+#webGoogleAuthOverlay {
+    overflow-y: auto;
+    align-items: flex-start;
+}
+#webGoogleAuthOverlay .social-auth-card {
+    margin-top: auto;
+    margin-bottom: auto;
+}
+#webGoogleAuthOverlay .social-auth-sub + .web-tester-note {
+    margin: 0 0 16px;
+}
 .web-google-btn-host { display: flex; justify-content: center; min-height: 44px; }
 .web-google-btn-host:empty { display: none; }
 #webGoogleStubBtn[hidden] { display: none !important; }

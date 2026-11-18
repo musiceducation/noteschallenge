@@ -85,6 +85,22 @@ assert.equal(Classroom.ACTIVITIES.some((item) => item.id === 'studio' || item.id
 assert.match(html, /privacy\.html/);
 assert.match(html, /id="screen-classroom"/);
 assert.match(html, /id="webCodeJoinForm"/);
+for (const file of ['../index.html', '../www/index.html']) {
+  const page = fs.readFileSync(new URL(file, import.meta.url), 'utf8');
+  const start = page.indexOf('id="webGoogleAuthOverlay"');
+  const overlay = page.slice(start, page.indexOf('firebase-app-compat', start));
+  assert.match(overlay, /學校 Google 或者班級短碼/);
+  assert.match(overlay, /有學校 Google 帳號嘅學生，請用 Google 登入。登入之後，你嘅姓名同班別會自動顯示，唔使自己揀。/);
+  assert.match(overlay, /未用學校 Google 嘅學生，可以喺同一頁輸入老師發嘅 6–8 位短碼，再填姓名、班別同座號入場。/);
+  assert.match(overlay, /老師登入之後，喺主頁「任務」產生短碼。/);
+  assert.match(overlay, /測試人員唔使電郵。呢個身分唔會入正式排行榜，亦唔會改到學生分數。/);
+  assert.match(overlay, /短碼身份只限該班，看不到同學電郵。/);
+  assert.match(overlay, /id="webGoogleBtn"/);
+  assert.match(overlay, /id="webCodeJoinForm"/);
+  assert.match(overlay, /href="privacy\.html"/);
+  assert.equal(overlay.includes('請用你自己嘅 Google 帳號登入'), false);
+  assert.equal(overlay.includes('不必用學校 Google'), false);
+}
 assert.match(fs.readFileSync(new URL('../privacy.html', import.meta.url), 'utf8'), /沒有聲稱資料只留在澳門/);
 assert.match(fs.readFileSync(new URL('../PRIVACY.md', import.meta.url), 'utf8'), /可能在澳門以外/);
 assert.doesNotMatch(fs.readFileSync(new URL('../PRIVACY.md', import.meta.url), 'utf8'), /資料不出境/);

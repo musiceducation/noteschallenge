@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=24">
+    <link rel="stylesheet" href="style.css?v=25">
     <script>
     (function () {
         try {
@@ -49,19 +49,21 @@
             </div>
         </div>
     </div>
-    <!-- 網頁版：必須先用自己的 Google 帳號登入。App 不顯示呢層。 -->
+    <!-- 網頁版：學校 Google 或者班級短碼。App 不顯示呢層。 -->
     <div id="webGoogleAuthOverlay" class="web-google-auth" role="dialog" aria-modal="true" aria-labelledby="webGoogleAuthTitle">
         <div class="social-auth-card">
             <div class="social-auth-logo"><img src="img/ui/ui-profile.webp" alt=""></div>
-            <h2 id="webGoogleAuthTitle" class="social-auth-title">請用你自己嘅 Google 帳號登入</h2>
-            <p class="social-auth-sub">請用你自己嘅 Google 帳號登入。登入之後，你嘅姓名同班別會自動顯示，唔使自己揀。</p>
+            <h2 id="webGoogleAuthTitle" class="social-auth-title">學校 Google 或者班級短碼</h2>
+            <p class="social-auth-sub">有學校 Google 帳號嘅學生，請用 Google 登入。登入之後，你嘅姓名同班別會自動顯示，唔使自己揀。</p>
+            <p class="social-auth-sub">未用學校 Google 嘅學生，可以喺同一頁輸入老師發嘅 6–8 位短碼，再填姓名、班別同座號入場。</p>
+            <p class="web-tester-note">老師登入之後，喺主頁「任務」產生短碼。</p>
             <div id="webGoogleAuthError" class="social-auth-misconfig" hidden></div>
             <div id="webGoogleBtn" class="web-google-btn-host"></div>
             <button type="button" id="webGoogleStubBtn" class="social-auth-btn social-auth-btn-google" hidden>使用 Google 帳號登入</button>
             <button type="button" id="webTesterBtn" class="web-tester-btn">測試人員</button>
             <p class="web-tester-note">測試人員唔使電郵。呢個身分唔會入正式排行榜，亦唔會改到學生分數。</p>
             <form id="webCodeJoinForm" class="classroom-form web-code-join">
-                <p class="web-tester-note">用老師發的 6–8 位班級短碼加入。只需姓名、班別同座號，不必用學校 Google。短碼身份只限該班，看不到同學電郵。</p>
+                <p class="web-tester-note">短碼身份只限該班，看不到同學電郵。</p>
                 <label>短碼<input name="code" minlength="6" maxlength="8" autocomplete="off" required></label>
                 <label>姓名<input name="name" maxlength="20" required></label>
                 <label>班別<input name="class" maxlength="8" required></label>
