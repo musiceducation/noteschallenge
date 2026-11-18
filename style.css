@@ -1901,6 +1901,9 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .hub-topic-pitch { grid-column: span 3; }
     .hub-topic-skill { grid-column: span 4; }
     .hub-game-rhythm { grid-column: span 4; }
+    .hub-topic-listen,
+    .hub-topic-appreciate,
+    .hub-game-studio { grid-column: span 4; }
     .hub-game-card { min-height: 248px; }
     .hub-game-illust { height: 104px; }
 }
@@ -2806,6 +2809,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     #screen-hub .hub-games-grid {
         grid-template-columns: repeat(4, minmax(0, 1fr));
     }
+    #screen-hub .hub-game-card { grid-column: auto; }
 }
 
 /* ===== 📸 Image Lightbox ===== */
@@ -7993,7 +7997,7 @@ body.app-shell.app-on-root .sound-toggle {
         max-width: none;
         margin: 0;
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(5, minmax(0, 1fr));
         grid-template-rows: repeat(2, minmax(0, 1fr));
         grid-auto-flow: row;
         grid-auto-rows: minmax(0, 1fr);
@@ -8072,9 +8076,30 @@ body.app-shell.app-on-root .sound-toggle {
 .ability-radar-shape { fill: rgba(125, 82, 94, 0.28); stroke: #7d525e; stroke-width: 2; }
 .ability-radar-dot { fill: #7d525e; }
 .ability-radar-label { font-size: 13px; font-weight: 800; fill: #1b1c17; font-family: inherit; }
+.ability-radar-tag { font-size: 10px; font-weight: 800; fill: #7d525e; font-family: inherit; }
 .ability-radar-value { font-size: 12px; font-weight: 700; fill: #356572; font-family: inherit; }
 .ability-radar-value.is-empty { fill: #827376; }
 .ability-radar-summary { margin: 6px 0 0; font-weight: 800; color: var(--text-dark); line-height: 1.4; text-align: center; }
+.ability-baa { width: 100%; text-align: left; margin-top: 8px; display: grid; gap: 8px; }
+.ability-axis-tags { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; justify-content: center; }
+.ability-axis-tags li { background: #FFF8EE; border: 2px solid #E8B15A; border-radius: 999px; padding: 3px 8px; font-size: 0.75rem; font-weight: 800; color: #2C1810; }
+.ability-axis-tags b { color: #7d525e; font-weight: 900; }
+.ability-baa-disclaimer { margin: 0; font-size: 0.78rem; font-weight: 800; color: #7d525e; line-height: 1.45; text-align: left; }
+.ability-domain { background: rgba(255, 248, 238, 0.9); border: 2px solid #E8B15A; border-radius: 14px; padding: 8px 10px; }
+.ability-domain-head { font-weight: 900; color: #2C1810; }
+.ability-domain-status { margin: 4px 0 0; font-size: 0.75rem; font-weight: 800; color: #7d525e; line-height: 1.4; }
+.ability-domain-list { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 3px; }
+.ability-domain-list li { font-size: 0.78rem; font-weight: 700; color: #2C1810; line-height: 1.35; }
+.ability-domain-note, .ability-teacher-note-hint { margin: 4px 0 0; font-size: 0.72rem; color: #5C4636; font-weight: 700; line-height: 1.4; }
+.ability-teacher-note { display: grid; gap: 4px; border: 2px dashed #E8B15A; border-radius: 14px; padding: 8px 10px; background: #FFF8EE; }
+.ability-teacher-note-title { font-weight: 900; color: #2C1810; }
+.ability-teacher-note textarea { width: 100%; box-sizing: border-box; resize: none; border: 1px solid #E8B15A; border-radius: 10px; background: #fff; color: #827376; font: inherit; font-size: 0.78rem; padding: 6px 8px; }
+.appreciate-source, .appreciate-task-note { margin: 0; color: #fff3df; font-weight: 700; line-height: 1.45; text-align: center; }
+.appreciate-diagram { min-height: 1.2em; margin: 6px 0 0; font-weight: 900; color: #FFD15A; letter-spacing: 0.04em; }
+#appreciateOptions .aural-opt { font-size: 1rem; text-align: left; padding: 10px 12px; }
+.hub-topic-appreciate .hub-game-name { color: #7d525e; }
+.illust-appreciate { background: #f8f1f3; }
+#screen-hub .hub-topic-appreciate .hub-game-name { color: #7d525e; }
 
 .profile-identity {
     display: flex; align-items: center; gap: 10px; width: 100%; flex-wrap: wrap;

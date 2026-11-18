@@ -367,10 +367,10 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.match(html, /id="g4ChineseTenBtn"/);
   assert.match(html, /id="g4ScopeNote"/);
   assert.match(html, /合成示範音色，不是現場錄音/);
-  assert.match(html, /style\.css\?v=22/);
+  assert.match(html, /style\.css\?v=23/);
   assert.doesNotMatch(html, /style\.css\?v=21/);
   assert.doesNotMatch(html, /style\.css\?v=20/);
-  assert.match(html, /bootstrap-instruments\.js\?v=19/);
+  assert.match(html, /bootstrap-instruments\.js\?v=20/);
   assert.doesNotMatch(html, /bootstrap-instruments\.js\?v=18/);
   assert.doesNotMatch(html, /bootstrap-instruments\.js\?v=17/);
   assert.doesNotMatch(html, /bootstrap-instruments\.js\?v=16/);
@@ -398,7 +398,7 @@ for (const file of ['style.css', 'www/style.css']) {
 
 for (const file of ['bootstrap-instruments.js', 'www/bootstrap-instruments.js']) {
   const js = fs.readFileSync(path.join(root, file), 'utf8');
-  assert.match(js, /script\.js\?v=31/);
+  assert.match(js, /script\.js\?v=32/);
   assert.equal(js.includes('script.js?v=30'), false);
   assert.equal(js.includes('script.js?v=29'), false);
   assert.equal(js.includes('script.js?v=28'), false);

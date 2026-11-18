@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=22">
+    <link rel="stylesheet" href="style.css?v=23">
     <script>
     (function () {
         try {
@@ -177,8 +177,15 @@
                         </span>
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
                     </button>
-                    <!-- Classroom rollout: studio entry hidden; screens stay in the page. Remove hidden to restore. -->
-                    <button type="button" class="app-game-row app-game-row--studio" data-launch="enterCompositionStudio" role="listitem" hidden>
+                    <button type="button" class="app-game-row app-game-row--appreciate" data-launch="enterAppreciate" role="listitem">
+                        <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-topic-listen.webp" alt="" width="40" height="40"></span>
+                        <span class="app-game-row-text">
+                            <span class="app-game-row-name">音樂鑑賞</span>
+                            <span class="app-game-row-desc">曲式 · 體裁 · 特點</span>
+                        </span>
+                        <span class="app-game-row-chevron" aria-hidden="true">›</span>
+                    </button>
+                    <button type="button" class="app-game-row app-game-row--studio" data-launch="enterCompositionStudio" role="listitem">
                         <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-mode-compose.webp" alt="" width="40" height="40"></span>
                         <span class="app-game-row-text">
                             <span class="app-game-row-name">創作工作室</span>
@@ -381,8 +388,22 @@
                 <div class="hub-game-desc" aria-hidden="true">音程 · 節奏 · 色彩</div>
                 <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
             </div>
-            <!-- Classroom rollout: hub card hidden; studio screen/logic stay. Remove hidden and restore tabindex="0" to show again. -->
-            <div class="hub-game-card hub-game-studio" id="enterCompositionStudio" role="button" tabindex="-1" hidden aria-label="創作工作室：伴奏與配音創作，播放, 匯出, 分享。按一下開始創作。">
+            <div class="hub-game-card hub-topic-appreciate" id="enterAppreciate" role="button" tabindex="0" aria-label="音樂鑑賞：曲式、歌曲體裁、音樂特點。原創短句，不計入聽力軸。按一下開始。">
+                <div class="hub-game-tag" aria-hidden="true">鑑賞</div>
+                <div class="hub-game-illust illust-appreciate" aria-hidden="true">
+                    <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="18" y="28" width="164" height="64" rx="12" fill="#FFF8EE" stroke="#E8B15A" stroke-width="3"/>
+                        <text x="36" y="68" font-size="22" font-weight="700" fill="#7d525e" font-family="Nunito, sans-serif">A</text>
+                        <text x="78" y="68" font-size="22" font-weight="700" fill="#7d525e" font-family="Nunito, sans-serif">B</text>
+                        <text x="120" y="68" font-size="22" font-weight="700" fill="#7d525e" font-family="Nunito, sans-serif">A</text>
+                        <text x="154" y="68" font-size="16" fill="#C2410C" font-family="serif">♪</text>
+                    </svg>
+                </div>
+                <div class="hub-game-name" aria-hidden="true">音樂鑑賞</div>
+                <div class="hub-game-desc" aria-hidden="true">曲式 · 體裁 · 音樂特點<br>原創短句，不計入聽力</div>
+                <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
+            </div>
+            <div class="hub-game-card hub-game-studio" id="enterCompositionStudio" role="button" tabindex="0" aria-label="創作工作室：節奏與旋律創作。不計入能力圖，亦不是達標評級。按一下開始創作。">
                 <div class="hub-game-tag" aria-hidden="true">創作</div>
                 <div class="hub-game-illust illust-studio" aria-hidden="true">
                     <div class="illust-bg"></div>
@@ -425,7 +446,7 @@
     <div id="screen-composition-studio" class="screen">
         <button class="btn-back-hub" id="studioBackBtn" type="button">← 返回主頁</button>
         <h1 class="game-title studio-main-title"><span class="title-icon">✏️</span> 創作工作室</h1>
-        <p class="studio-sub studio-sub--compact">高音譜、4/4 · 節奏／旋律 · 試聽、下載或上傳備份</p>
+        <p class="studio-sub studio-sub--compact">高音譜、4/4 · 節奏／旋律創作。不計入能力圖，亦不是基本學力達標。</p>
 
         <div class="studio-demo-bar">
             <button type="button" class="studio-demo-toggle" id="studioDemoToggle" aria-pressed="false" title="投影或大螢幕時放大文字與按鈕">
@@ -1787,6 +1808,61 @@
         </div>
     </div>
 
+    <div id="screen-appreciate" class="screen aural-screen">
+        <button class="btn-back-hub" id="appreciateBackHub" type="button">← 返回主頁</button>
+        <div id="appreciateMenu">
+            <h1 class="game-title">音樂鑑賞</h1>
+            <p class="game-subtitle">先聽原創短句，再選。練習分不會入榜，亦不計入聽力軸。</p>
+            <p class="appreciate-source">聲音是為課堂寫的原創短句，由網頁音訊即時奏出，沒有使用商業錄音。澳門現成曲例未收錄。</p>
+            <div class="aural-menu">
+                <button type="button" class="aural-menu-card" id="appreciateOpenForm">
+                    <span class="aural-menu-name">曲式聽辨</span>
+                    <span class="aural-menu-desc">B-3　二段體、三段體、回旋曲式。</span>
+                </button>
+                <button type="button" class="aural-menu-card" id="appreciateOpenGenre">
+                    <span class="aural-menu-name">歌曲體裁</span>
+                    <span class="aural-menu-desc">B-2　藝術歌曲、民歌、流行歌曲、宗教歌曲，以及基本功能。</span>
+                </button>
+                <button type="button" class="aural-menu-card" id="appreciateOpenTraits">
+                    <span class="aural-menu-name">音樂特點</span>
+                    <span class="aural-menu-desc">B-1　用術語描述。B-4　只到原創短句，不是文化分析。</span>
+                </button>
+            </div>
+        </div>
+        <div id="appreciateSetup" hidden>
+            <h1 class="game-title" id="appreciateSetupTitle">曲式聽辨</h1>
+            <p class="game-subtitle" id="appreciateSetupBlurb"></p>
+            <p class="appreciate-task-note" id="appreciateSetupHint"></p>
+            <div class="aural-choice-row" id="appreciateModes" role="group" aria-label="模式">
+                <button type="button" class="aural-choice is-on" data-mode="practice">練習模式</button>
+                <button type="button" class="aural-choice" data-mode="challenge">六題挑戰</button>
+            </div>
+            <button type="button" class="btn-start aural-start" id="appreciateStart">開始</button>
+        </div>
+        <div id="appreciatePlay" hidden>
+            <div class="aural-hud">
+                <span class="aural-score" id="appreciateScore">0</span>
+                <span id="appreciateMeta">準備</span>
+            </div>
+            <div class="aural-play-layout">
+                <div class="aural-play-side">
+                    <button type="button" class="aural-replay" id="appreciateReplay">🔊 再聽一次</button>
+                    <p class="aural-prompt" id="appreciatePrompt">聽完再選。</p>
+                    <p class="appreciate-diagram" id="appreciateDiagram"></p>
+                    <p class="aural-feedback" id="appreciateFeedback" aria-live="polite"></p>
+                    <button type="button" class="aural-end" id="appreciateEnd">結束練習</button>
+                </div>
+                <div class="aural-options appreciate-options" id="appreciateOptions" role="group" aria-label="鑑賞選項"></div>
+            </div>
+        </div>
+        <div id="appreciateResult" hidden>
+            <h2 class="aural-result-title" id="appreciateResultTitle">完成</h2>
+            <p class="aural-result-body" id="appreciateResultBody"></p>
+            <div id="appreciateBoard"></div>
+            <button type="button" class="btn-start aural-start" id="appreciateAgain">再玩一次</button>
+        </div>
+    </div>
+
     <!-- ===================================== -->
     <!-- 教學圖片 Lightbox Modal               -->
     <!-- ===================================== -->
@@ -1815,13 +1891,15 @@
     <script src="rank-sync.js?v=6" defer></script>
     <script src="class-share.js?v=4" defer></script>
     <script src="profile-store.js?v=1" defer></script>
-    <script src="ability-radar.js?v=1" defer></script>
+    <script src="baa-music-map.js?v=1" defer></script>
+    <script src="ability-radar.js?v=2" defer></script>
     <script src="aural-score.js?v=1" defer></script>
     <script src="aural-audio.js?v=1" defer></script>
     <script src="aural-interval.js?v=1" defer></script>
     <script src="aural-rhythm.js?v=1" defer></script>
     <script src="aural-quality.js?v=1" defer></script>
-    <script src="bootstrap-instruments.js?v=19" data-app-bootstrap defer></script>
+    <script src="appreciate-listen.js?v=1" defer></script>
+    <script src="bootstrap-instruments.js?v=20" data-app-bootstrap defer></script>
     <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
 </body>
 </html>
