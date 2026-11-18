@@ -41,6 +41,10 @@ console.log("build: validate (root =", root + ")");
 
 for (const f of [
   "script.js",
+  "notation-staff.js",
+  "www/notation-staff.js",
+  "rhythm-levels.js",
+  "www/rhythm-levels.js",
   "bootstrap-instruments.js",
   "chord-keyboard.js",
   "profile-store.js",

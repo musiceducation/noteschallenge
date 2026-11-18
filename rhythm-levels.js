@@ -213,6 +213,19 @@ var RhythmLevels = (function () {
         };
     }
 
+    function glyphSvg(id) {
+        var bodies = {
+            whole: '<ellipse cx="18" cy="34" rx="11" ry="7.2" fill="none" stroke="#1E1E2F" stroke-width="2.3" transform="rotate(-18 18 34)"/>',
+            half: '<ellipse cx="16" cy="40" rx="9" ry="6.2" fill="none" stroke="#1E1E2F" stroke-width="2.2" transform="rotate(-18 16 40)"/><path d="M23.2 38 V8" stroke="#1E1E2F" stroke-width="1.8" fill="none"/>',
+            quarter: '<ellipse cx="16" cy="40" rx="8.4" ry="5.8" fill="#1E1E2F" transform="rotate(-18 16 40)"/><path d="M22.6 38 V8" stroke="#1E1E2F" stroke-width="1.8" fill="none"/>',
+            eighth: '<ellipse cx="15" cy="42" rx="8.4" ry="5.8" fill="#1E1E2F" transform="rotate(-18 15 42)"/><path d="M21.6 40 V8" stroke="#1E1E2F" stroke-width="1.8" fill="none"/><path d="M21.6 8c6 2 9 8 8 14" stroke="#1E1E2F" stroke-width="1.8" fill="none"/>',
+            sixteenth: '<ellipse cx="14" cy="46" rx="8.2" ry="5.6" fill="#1E1E2F" transform="rotate(-18 14 46)"/><path d="M20.4 44 V6" stroke="#1E1E2F" stroke-width="1.8" fill="none"/><path d="M20.4 6c6 2 9 7 8 12 M20.4 14c6 2 9 7 8 12" stroke="#1E1E2F" stroke-width="1.8" fill="none"/>'
+        };
+        var body = bodies[id];
+        if (!body) return '';
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 64" class="duration-glyph" focusable="false" aria-hidden="true">' + body + '</svg>';
+    }
+
     function coverageText(levelId) {
         if (levelId === 'medium') return '中等用 2/4、3/4、4/4。在全音符、二分音符、四分音符之外，加上同一拍裡面連在一起的八分音符。';
         if (levelId === 'hard') return '困難仍用 2/4、3/4、4/4，並加入十六分音符。較易的音符仍會出現。符尾只連在同一拍內，不跨拍，也不跨小節線。';
@@ -236,6 +249,7 @@ var RhythmLevels = (function () {
         saveBest: saveBest,
         challengeSpec: challengeSpec,
         coverageText: coverageText,
-        choiceList: choiceList
+        choiceList: choiceList,
+        glyphSvg: glyphSvg
     };
 })();

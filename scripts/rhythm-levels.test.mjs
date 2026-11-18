@@ -64,6 +64,18 @@ for (const level of RhythmLevels.LEVELS) {
 
 const easyChoices = RhythmLevels.choiceList('easy').map((choice) => choice.id);
 assert.deepEqual(easyChoices, ['whole', 'half', 'quarter']);
+for (const id of ['whole', 'half', 'quarter', 'eighth', 'sixteenth']) {
+  const choice = RhythmLevels.CHOICES[id];
+  assert.ok(choice.label, id);
+  const glyph = RhythmLevels.glyphSvg(id);
+  assert.match(glyph, /<svg/);
+  assert.match(glyph, /<(ellipse|path) /);
+  assert.doesNotMatch(glyph, /font-family/);
+  assert.doesNotMatch(glyph, /[\u{1D100}-\u{1D1FF}]/u);
+  assert.equal(glyph.includes(choice.symbol), false, id);
+  assert.equal(glyph.includes('clef'), false, id);
+}
+assert.equal(RhythmLevels.glyphSvg('nope'), '');
 assert.equal(RhythmLevels.choiceList('medium').some((choice) => choice.id === 'eighth'), true);
 assert.equal(RhythmLevels.choiceList('medium').some((choice) => choice.id === 'sixteenth'), false);
 assert.equal(RhythmLevels.choiceList('hard').some((choice) => choice.id === 'sixteenth'), true);
@@ -125,6 +137,8 @@ assert.match(game, /節奏挑戰舊英皇/);
 assert.match(game, /RhythmLevels\.buildBar/);
 assert.match(game, /storageKey: RhythmLevels\.storageKey\('tap'/);
 assert.match(game, /launchCompleteMeasure/);
+assert.match(game, /RhythmLevels\.glyphSvg/);
+assert.equal(game.includes('complete-choice-symbol">${choice.symbol}'), false);
 assert.match(game, /ensurePlayIdentity/);
 assert.doesNotMatch(game, /請先請先選擇姓名/);
 assert.match(www, /RhythmLevels\.buildBar/);
