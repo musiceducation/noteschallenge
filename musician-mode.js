@@ -13,7 +13,7 @@
     else boot();
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
-  var DATA_URL = 'data/musicians.json?v=1';
+  var DATA_URL = 'data/musicians.json?v=3';
   var STORE_KEY = 'musicianPracticeLocalV1';
   var ROUND_SIZE_NOTE = 8;
 
@@ -179,8 +179,9 @@
       var cards = bank.musicians.map(function (musician) {
         var seen = store.seen[musician.id] ? '<span class="musician-seen">已看過</span>' : '<span class="musician-seen musician-seen--new">未看</span>';
         return '<button type="button" class="musician-card" data-open="' + esc(musician.id) + '">' +
-          '<img src="' + esc(musician.portrait.src) + '" alt="' + esc(musician.portrait.alt) + '" width="280" height="340">' +
+          '<span class="musician-photo"><img src="' + esc(musician.portrait.src) + '" alt="' + esc(musician.portrait.alt) + '"></span>' +
           '<span class="musician-card-body">' +
+          '<span class="musician-kind">' + esc(musician.portrait.kind) + '</span>' +
           '<span class="musician-era">' + esc(musician.era) + '</span>' +
           '<span class="musician-name">' + esc(musician.nameZh) + '</span>' +
           '<span class="musician-en">' + esc(musician.nameEn) + '</span>' +
@@ -215,7 +216,10 @@
         '<article class="musician-detail">' +
           '<div class="musician-detail-layout">' +
             '<figure><img src="' + esc(musician.portrait.src) + '" alt="' + esc(musician.portrait.alt) + '">' +
-            '<figcaption>' + esc(musician.portrait.label) + '</figcaption></figure>' +
+            '<figcaption><span class="musician-kind">' + esc(musician.portrait.kind) + '</span> ' +
+            esc(musician.portrait.caption) +
+            (musician.portrait.posthumous ? ' 這是遺像，不是在世時的新畫。' : '') +
+            '</figcaption></figure>' +
             '<div>' +
               '<p class="musician-era">' + esc(musician.era) + '</p>' +
               '<h1>' + esc(musician.nameZh) + '</h1>' +
@@ -239,7 +243,7 @@
       if (musician) {
         blocks = '<h1>' + esc(musician.nameZh) + '的來源</h1>' + sourceList(sourcesFor(musician));
       } else {
-        blocks = '<h1>來源與圖片</h1><p>每一項史實都附上查閱過的頁面。畫像是依公有領域參考畫的插畫，不是照片。</p>' +
+        blocks = '<h1>來源與圖片</h1><p>每項史實都附上查過的頁面。肖像是歷史畫像或歷史照片，說明裡分開寫作者、日期和權利範圍。權利未完全查清的，頁面會直接寫出，不寫成全世界都能自由使用。</p>' +
           bank.musicians.map(function (item) {
             return '<h2>' + esc(item.nameZh) + '</h2>' + sourceList(sourcesFor(item));
           }).join('');
@@ -263,7 +267,7 @@
           '<p class="musician-progress" id="musicianQuizTitle">第 ' + (cursor + 1) + ' / ' + round.length + ' 題 · ' + esc(musician ? musician.nameZh : '') + ' · 練習，不上傳</p>' +
           '<h1 class="musician-prompt">' + esc(question.prompt) + '</h1>' +
           '<div class="musician-options" role="group" aria-label="答案選項">' + options + '</div>' +
-          '<div class="musician-explain" id="musicianExplain" aria-live="polite">選一個答案。說明會留在這個位置，版面不會往下跳。</div>' +
+          '<div class="musician-explain" id="musicianExplain" aria-live="polite">選一個答案。</div>' +
           '<div class="musician-actions"><button type="button" class="musician-primary" data-act="next" disabled>' + nextLabel + '</button></div>' +
         '</section>'
       );
@@ -325,7 +329,7 @@
       var answerText = question.choices[question.answer];
       if (explain) {
         explain.textContent = (result.correct ? '答對。' : '這題不是這個答案。') +
-          '卡片上的說法是：' + answerText + '。' + result.explanation;
+          answerText + '。' + result.explanation;
       }
       var next = host.querySelector('[data-act="next"]');
       if (next) next.disabled = false;

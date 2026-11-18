@@ -28,15 +28,18 @@ assert.deepEqual(bank.musicians.map((m) => m.nameZh), NAMES);
 
 const seenQuestions = new Set();
 for (const musician of bank.musicians) {
-  assert.ok(musician.portrait && musician.portrait.src.endsWith('.svg'));
-  assert.match(musician.portrait.alt, /插畫/);
+  assert.ok(musician.portrait && musician.portrait.src.endsWith('.jpg'));
+  assert.match(musician.portrait.alt, /歷史(畫像|照片)/);
+  assert.doesNotMatch(musician.portrait.alt, /插畫/);
+  assert.match(musician.portrait.kind, /歷史/);
+  assert.ok(musician.portrait.caption);
   assert.match(musician.portrait.reference.url, /^https:\/\//);
-  assert.ok(musician.portrait.reference.license);
-  const svgPath = path.join(root, musician.portrait.src);
-  const svg = fs.readFileSync(svgPath, 'utf8');
-  assert.match(svg, /<svg/);
-  assert.doesNotMatch(svg, /<(?:image|img)\b/i);
-  assert.doesNotMatch(svg, /\b(?:href|src)\s*=\s*["']https?:/i);
+  assert.ok(musician.portrait.reference.license.length > 40);
+  const imagePath = path.join(root, musician.portrait.src);
+  const bytes = fs.readFileSync(imagePath);
+  assert.ok(bytes.length > 1000, musician.id);
+  assert.equal(bytes[0], 0xff);
+  assert.equal(bytes[1], 0xd8);
   const own = bank.questions.filter((q) => q.musicianId === musician.id);
   assert.ok(own.length >= 3, musician.id + ' needs 3 questions');
   for (const fact of musician.facts) {
@@ -60,7 +63,8 @@ for (const musician of bank.musicians) {
       if (index !== question.answer) assert.equal(support.includes(choice), false, question.id + ' distractor also on card: ' + choice);
     });
     assert.ok(question.explanation);
-    assert.equal(api.gradeChoice(question, question.answer).correct, true);
+    assert.doesNotMatch(question.prompt, /卡片怎樣|卡片上|卡片寫|卡片要/);
+  assert.equal(api.gradeChoice(question, question.answer).correct, true);
     assert.equal(api.gradeChoice(question, (question.answer + 1) % 4).correct, false);
   }
 }
@@ -89,13 +93,29 @@ second.round.forEach((question) => {
 const mode = fs.readFileSync(path.join(root, 'musician-mode.js'), 'utf8');
 assert.doesNotMatch(mode, /recordGameResult|rank-sync|script\.google|ability-radar|aural-score|google\.script/);
 assert.match(mode, /不上傳/);
+assert.match(mode, /選一個答案。/);
+assert.doesNotMatch(mode, /版面不會往下跳|卡片上的說法/);
+assert.match(fs.readFileSync(path.join(root, 'musician-mode.css'), 'utf8'), /\.musician-explain\s*\{[^}]*min-height:\s*6\.75rem/);
+assert.match(bank.musicians.find((m) => m.id === 'nie').portrait.reference.license, /攝影者姓名不見於/);
+assert.match(bank.musicians.find((m) => m.id === 'xian').portrait.reference.license, /不把它寫成毫無限制/);
+assert.equal(bank.musicians.find((m) => m.id === 'beethoven').regionShort, '波恩（今德國）');
+const baptism = bank.musicians.find((m) => m.id === 'beethoven').facts.find((f) => f.id === 'birth').text;
+assert.match(baptism, /1770年12月17日在波恩受洗/);
+assert.match(baptism, /12月16日/);
+for (const musician of bank.musicians) {
+  for (const fact of musician.facts) {
+    if (fact.label === '可學的一點') assert.equal(fact.text.startsWith('可學的一點'), false, musician.id);
+  }
+}
 
 for (const file of ['index.html', 'www/index.html']) {
   const page = fs.readFileSync(path.join(root, file), 'utf8');
   assert.match(page, /id="enterMusician"/);
   assert.match(page, /id="screen-musician"/);
-  assert.match(page, /musician-mode\.js\?v=2/);
-  assert.match(page, /musician-mode\.css\?v=1/);
+  assert.match(page, /musician-mode\.js\?v=5/);
+  assert.match(page, /musician-mode\.css\?v=3/);
+  assert.match(page, /img\/musicians\/hub-portraits\.jpg/);
+  assert.doesNotMatch(page, /img\/musicians\/bach\.svg/);
   assert.match(page, /不計入能力圖/);
 }
 for (const file of ['script.js', 'www/script.js']) {
