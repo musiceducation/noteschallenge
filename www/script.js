@@ -843,10 +843,12 @@
         if (!Array.isArray(profile.history)) profile.history = [];
         profile.history.push({
             date: new Date().toLocaleString('zh-TW'),
+            at: new Date().toISOString(),
             game: gameKey,
             score: score || 0,
             accuracy: accuracy || 0,
             maxCombo: maxCombo || 0,
+            difficulty: difficulty || '',
             challenge: !practiceResult,
             practice: practiceResult,
         });
@@ -3857,6 +3859,7 @@
 
     async function submitProfileResultToGAS(game, user, score, accuracy, maxCombo, profile) {
         if (!user || !user.name || !profile) return;
+        if (window.WebGoogleAuth && window.WebGoogleAuth.binding && window.WebGoogleAuth.binding.role === 'code') return;
         const record = {
             action: 'saveProfileResult',
             game,
@@ -5455,10 +5458,12 @@
             if (!Array.isArray(profile.history)) profile.history = [];
             profile.history.push({
                 date: new Date().toLocaleString('zh-TW'),
+                at: new Date().toISOString(),
                 game: gameKey,
                 score: score,
                 accuracy: accuracy,
                 maxCombo: maxCombo,
+                difficulty: 'challenge',
                 challenge: true,
                 practice: false
             });
@@ -7888,7 +7893,7 @@
 
         // Record to profile
         if (rchalState.user) {
-            recordGameResult(rchalState.user, 'game2', rchalState.score, accuracy, rchalState.maxCombo, null, rchalState.counts);
+            recordGameResult(rchalState.user, 'game2', rchalState.score, accuracy, rchalState.maxCombo, (rchalState.level && rchalState.level.id) || '', rchalState.counts);
         }
 
         let grade, gradeColor;

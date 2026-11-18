@@ -99,6 +99,33 @@
     return axis.tags.join(' · ');
   }
 
+  /** Hub cards reuse axis tags, or a domain item id already listed above. */
+  var HUB = [
+    { id: 'enterGame1', axis: 'reading' },
+    { id: 'enterKeysig', axis: 'reading' },
+    { id: 'enterSolfege', axis: 'solfege' },
+    { id: 'enterChord', axis: 'harmony' },
+    { id: 'enterGame2', axis: 'rhythm' },
+    { id: 'enterGame3', axis: 'theory' },
+    { id: 'enterGame4', axis: 'instruments' },
+    { id: 'enterAural', axis: 'listening' },
+    { id: 'enterAppreciate', tags: ['B-1', 'B-2', 'B-3', 'B-4'] },
+    { id: 'enterCompositionStudio', tags: ['D-1–D-6'] }
+  ];
+
+  function hubTags(id) {
+    var row = null;
+    for (var i = 0; i < HUB.length; i++) {
+      if (HUB[i].id === id) row = HUB[i];
+    }
+    if (!row) return [];
+    if (row.axis) {
+      var axis = axisById(row.axis);
+      return axis ? axis.tags.slice() : [];
+    }
+    return row.tags.slice();
+  }
+
   function statusLabel(code) {
     if (code === 'none') return UNAUDITED;
     if (code === 'partial') return '部分練習，未判定達標';
@@ -129,7 +156,7 @@
       '<div class="ability-teacher-note">' +
       '<div class="ability-teacher-note-title">教師補錄</div>' +
       '<textarea rows="2" readonly placeholder="這一版只留位置，不會寫入本機或雲端。" aria-label="教師補錄，不會儲存"></textarea>' +
-      '<p class="ability-teacher-note-hint">演唱、演奏、同儕互評可在課堂紙本補記。此欄不會儲存。</p>' +
+      '<p class="ability-teacher-note-hint">演唱、演奏、同儕互評請記入「教師紀錄」。這個欄位仍然不會儲存。</p>' +
       '</div></div>';
   }
 
@@ -141,6 +168,8 @@
     axes: AXES,
     domains: DOMAINS,
     tagLine: tagLine,
+    hub: HUB,
+    hubTags: hubTags,
     legendHtml: legendHtml,
     statusLabel: statusLabel
   };

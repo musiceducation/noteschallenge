@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=23">
+    <link rel="stylesheet" href="style.css?v=24">
     <script>
     (function () {
         try {
@@ -60,6 +60,16 @@
             <button type="button" id="webGoogleStubBtn" class="social-auth-btn social-auth-btn-google" hidden>使用 Google 帳號登入</button>
             <button type="button" id="webTesterBtn" class="web-tester-btn">測試人員</button>
             <p class="web-tester-note">測試人員唔使電郵。呢個身分唔會入正式排行榜，亦唔會改到學生分數。</p>
+            <form id="webCodeJoinForm" class="classroom-form web-code-join">
+                <p class="web-tester-note">用老師發的 6–8 位班級短碼加入。只需姓名、班別同座號，不必用學校 Google。短碼身份只限該班，看不到同學電郵。</p>
+                <label>短碼<input name="code" minlength="6" maxlength="8" autocomplete="off" required></label>
+                <label>姓名<input name="name" maxlength="20" required></label>
+                <label>班別<input name="class" maxlength="8" required></label>
+                <label>座號<input name="seat" maxlength="8" required></label>
+                <button type="submit" class="social-auth-btn social-auth-btn-google">用短碼加入</button>
+                <p id="webCodeJoinOut" class="web-tester-note"></p>
+            </form>
+            <p class="web-tester-note"><a href="privacy.html">私隱說明</a></p>
         </div>
     </div>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" defer></script>
@@ -67,7 +77,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js" defer></script>
     <script src="auth-config.js" defer></script>
     <script src="auth.js" defer></script>
-    <script src="web-google-auth.js?v=4" defer></script>
+    <script src="web-google-auth.js?v=5" defer></script>
     <script src="audio-engine.js" defer></script>
     <script src="app-orientation.js" defer></script>
     <script src="app-three-bg.js" defer></script>
@@ -116,7 +126,7 @@
                     <button type="button" class="app-game-row app-game-row--1" data-launch="enterGame1" role="listitem">
                         <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-topic-notes.webp" alt="" width="40" height="40"></span>
                         <span class="app-game-row-text">
-                            <span class="app-game-row-name">音名識辨</span>
+                            <span class="app-game-row-name">音名識辨</span><span class="app-domain-chip">C-1</span>
                             <span class="app-game-row-desc">練習 · 1分鐘 · 零失誤</span>
                         </span>
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
@@ -124,7 +134,7 @@
                     <button type="button" class="app-game-row app-game-row--keysig" data-launch="enterKeysig" role="listitem">
                         <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-topic-keysig.webp" alt="" width="40" height="40"></span>
                         <span class="app-game-row-text">
-                            <span class="app-game-row-name">調號辨別</span>
+                            <span class="app-game-row-name">調號辨別</span><span class="app-domain-chip">C-1</span>
                             <span class="app-game-row-desc">看圖選大調 · 按升降號</span>
                         </span>
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
@@ -132,7 +142,7 @@
                     <button type="button" class="app-game-row app-game-row--solfege" data-launch="enterSolfege" role="listitem">
                         <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-topic-solfege.webp" alt="" width="40" height="40"></span>
                         <span class="app-game-row-text">
-                            <span class="app-game-row-name">唱名辨別</span>
+                            <span class="app-game-row-name">唱名辨別</span><span class="app-domain-chip">C-1 · C-4</span>
                             <span class="app-game-row-desc">課堂首調</span>
                         </span>
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
@@ -140,7 +150,7 @@
                     <button type="button" class="app-game-row app-game-row--chord" data-launch="enterChord" role="listitem">
                         <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-topic-chord.webp" alt="" width="40" height="40"></span>
                         <span class="app-game-row-text">
-                            <span class="app-game-row-name">和弦練習</span>
+                            <span class="app-game-row-name">和弦練習</span><span class="app-domain-chip">C</span>
                             <span class="app-game-row-desc">看圖溫習 · 鍵盤作答</span>
                         </span>
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
@@ -148,7 +158,7 @@
                     <button type="button" class="app-game-row app-game-row--2" data-launch="enterGame2" role="listitem">
                         <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-topic-rhythm.webp" alt="" width="40" height="40"></span>
                         <span class="app-game-row-text">
-                            <span class="app-game-row-name">節奏識辨</span>
+                            <span class="app-game-row-name">節奏識辨</span><span class="app-domain-chip">C-1</span>
                             <span class="app-game-row-desc">節拍器 · 擊拍練習</span>
                         </span>
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
@@ -156,7 +166,7 @@
                     <button type="button" class="app-game-row app-game-row--3" data-launch="enterGame3" role="listitem">
                         <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-topic-terms.webp" alt="" width="40" height="40"></span>
                         <span class="app-game-row-text">
-                            <span class="app-game-row-name">術語識辨</span>
+                            <span class="app-game-row-name">術語識辨</span><span class="app-domain-chip">C-2</span>
                             <span class="app-game-row-desc">音樂術語記號</span>
                         </span>
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
@@ -164,7 +174,7 @@
                     <button type="button" class="app-game-row app-game-row--4" data-launch="enterGame4" role="listitem">
                         <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-topic-instruments.webp" alt="" width="40" height="40"></span>
                         <span class="app-game-row-text">
-                            <span class="app-game-row-name">樂器識辨</span>
+                            <span class="app-game-row-name">樂器識辨</span><span class="app-domain-chip">C-3</span>
                             <span class="app-game-row-desc">聽聲辨樂器</span>
                         </span>
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
@@ -172,7 +182,7 @@
                     <button type="button" class="app-game-row app-game-row--aural" data-launch="enterAural" role="listitem">
                         <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-topic-listen.webp" alt="" width="40" height="40"></span>
                         <span class="app-game-row-text">
-                            <span class="app-game-row-name">聽力</span>
+                            <span class="app-game-row-name">聽力</span><span class="app-domain-chip">C-4</span>
                             <span class="app-game-row-desc">音程 · 節奏 · 色彩</span>
                         </span>
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
@@ -180,7 +190,7 @@
                     <button type="button" class="app-game-row app-game-row--appreciate" data-launch="enterAppreciate" role="listitem">
                         <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-topic-listen.webp" alt="" width="40" height="40"></span>
                         <span class="app-game-row-text">
-                            <span class="app-game-row-name">音樂鑑賞</span>
+                            <span class="app-game-row-name">音樂鑑賞</span><span class="app-domain-chip">B-1 · B-2 · B-3 · B-4</span>
                             <span class="app-game-row-desc">曲式 · 體裁 · 特點</span>
                         </span>
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
@@ -188,7 +198,7 @@
                     <button type="button" class="app-game-row app-game-row--studio" data-launch="enterCompositionStudio" role="listitem">
                         <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-mode-compose.webp" alt="" width="40" height="40"></span>
                         <span class="app-game-row-text">
-                            <span class="app-game-row-name">創作工作室</span>
+                            <span class="app-game-row-name">創作工作室</span><span class="app-domain-chip">D-1–D-6</span>
                             <span class="app-game-row-desc">節奏／旋律創作</span>
                         </span>
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
@@ -273,6 +283,7 @@
                 <button class="hub-social-corner-btn" id="hubClassmatesBtn" title="同學名冊" type="button">👥</button>
                 <button class="hub-social-corner-btn hub-fullscreen-btn" id="hubFullscreenBtn" type="button" title="全螢幕" aria-label="全螢幕" aria-pressed="false">⛶</button>
                 <button class="hub-profile-corner-btn" id="hubPresenceBtn" title="在線同紀錄" type="button">在線</button>
+                <button class="hub-profile-corner-btn" id="hubClassroomBtn" title="課堂任務" type="button">任務</button>
                 <button class="hub-profile-corner-btn" id="hubProfileBtn" title="個人檔案" type="button"><img class="lobby-ico" src="img/ui/ui-profile.webp" alt="">檔案</button>
                 <button type="button" class="hub-aside-profile-btn" id="hubAsideProfileBtn" hidden>完整檔案</button>
                 <span id="hubAccountEmail" class="lobby-email"></span>
@@ -315,8 +326,9 @@
         </div>
 
         <div class="hub-games-grid">
-            <div class="hub-game-card hub-game1 hub-topic-pitch" id="enterGame1" role="button" tabindex="0" aria-label="音名識辨：練習模式、1分鐘挑戰、零失誤挑戰、看圖學習。按一下開始。">
+            <div class="hub-game-card hub-game1 hub-topic-pitch" id="enterGame1" role="button" tabindex="0" aria-label="音名識辨：練習模式、1分鐘挑戰、零失誤挑戰、看圖學習。基本學力 C-1。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">音名</div>
+                <div class="hub-domain-tags"><span class="hub-domain-chip">C-1</span></div>
                 <div class="hub-game-illust illust-1" aria-hidden="true">
                     <img class="illust-img" src="img/ui/hub-scene-notes.webp" alt="" loading="lazy" decoding="async">
                 </div>
@@ -325,8 +337,9 @@
                 <button type="button" class="hub-card-teach js-open-note-teach" id="openNoteTeachFromHub">看圖學習</button>
                 <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
             </div>
-            <div class="hub-game-card hub-topic-keysig hub-topic-pitch" id="enterKeysig" role="button" tabindex="0" aria-label="調號辨別：看調號圖片，按升降號數目練習或 1 分鐘挑戰。按一下開始。">
+            <div class="hub-game-card hub-topic-keysig hub-topic-pitch" id="enterKeysig" role="button" tabindex="0" aria-label="調號辨別：看調號圖片，按升降號數目練習或 1 分鐘挑戰。基本學力 C-1。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">調號</div>
+                <div class="hub-domain-tags"><span class="hub-domain-chip">C-1</span></div>
                 <div class="hub-game-illust illust-keysig" aria-hidden="true">
                     <img class="illust-img" src="img/ui/hub-scene-keysig.webp" alt="" loading="lazy" decoding="async">
                 </div>
@@ -334,8 +347,9 @@
                 <div class="hub-game-desc" aria-hidden="true">看圖選大調 · 按升降號</div>
                 <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
             </div>
-            <div class="hub-game-card hub-topic-solfege hub-topic-pitch" id="enterSolfege" role="button" tabindex="0" aria-label="唱名辨別：課堂首調，練習或挑戰。按一下開始。">
+            <div class="hub-game-card hub-topic-solfege hub-topic-pitch" id="enterSolfege" role="button" tabindex="0" aria-label="唱名辨別：課堂首調，練習或挑戰。基本學力 C-1、C-4。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">唱名</div>
+                <div class="hub-domain-tags"><span class="hub-domain-chip">C-1</span><span class="hub-domain-chip">C-4</span></div>
                 <div class="hub-game-illust illust-solfege" aria-hidden="true">
                     <img class="illust-img" src="img/ui/hub-scene-solfege.webp" alt="" loading="lazy" decoding="async">
                 </div>
@@ -343,8 +357,9 @@
                 <div class="hub-game-desc" aria-hidden="true">課堂首調 · 練習或挑戰</div>
                 <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
             </div>
-            <div class="hub-game-card hub-topic-chord hub-topic-pitch" id="enterChord" role="button" tabindex="0" aria-label="和弦練習：看圖溫習，或在鍵盤彈出和弦。按一下開始。">
+            <div class="hub-game-card hub-topic-chord hub-topic-pitch" id="enterChord" role="button" tabindex="0" aria-label="和弦練習：看圖溫習，或在鍵盤彈出和弦。基本學力 C。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">和弦</div>
+                <div class="hub-domain-tags"><span class="hub-domain-chip">C</span></div>
                 <div class="hub-game-illust illust-chord" aria-hidden="true">
                     <img class="illust-img" src="img/ui/hub-scene-chord.webp" alt="" loading="lazy" decoding="async">
                 </div>
@@ -352,8 +367,9 @@
                 <div class="hub-game-desc" aria-hidden="true">看圖溫習 · 鍵盤作答</div>
                 <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
             </div>
-            <div class="hub-game-card hub-game2 hub-topic-skill" id="enterGame2" role="button" tabindex="0" aria-label="節奏識辨：課堂柯達伊、拍號、節奏挑戰、時值辨別、節奏創作。按一下開始。">
+            <div class="hub-game-card hub-game2 hub-topic-skill" id="enterGame2" role="button" tabindex="0" aria-label="節奏識辨：課堂柯達伊、拍號、節奏挑戰、時值辨別、節奏創作。基本學力 C-1。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">節奏</div>
+                <div class="hub-domain-tags"><span class="hub-domain-chip">C-1</span></div>
                 <div class="hub-game-illust illust-2" aria-hidden="true">
                     <img class="illust-img" src="img/ui/hub-scene-rhythm.webp" alt="" loading="lazy" decoding="async">
                 </div>
@@ -361,8 +377,9 @@
                 <div class="hub-game-desc" aria-hidden="true">辨認節奏型 · 依照節拍器擊拍</div>
                 <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
             </div>
-            <div class="hub-game-card hub-game3 hub-topic-skill" id="enterGame3" role="button" tabindex="0" aria-label="術語識辨：辨認音樂術語及記號。按一下開始。">
+            <div class="hub-game-card hub-game3 hub-topic-skill" id="enterGame3" role="button" tabindex="0" aria-label="術語識辨：辨認音樂術語及記號。基本學力 C-2。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">術語</div>
+                <div class="hub-domain-tags"><span class="hub-domain-chip">C-2</span></div>
                 <div class="hub-game-illust illust-3" aria-hidden="true">
                     <img class="illust-img" src="img/ui/hub-scene-terms.webp" alt="" loading="lazy" decoding="async">
                 </div>
@@ -370,8 +387,9 @@
                 <div class="hub-game-desc" aria-hidden="true">辨認音樂術語及記號 · 限時作答可得加分</div>
                 <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
             </div>
-            <div class="hub-game-card hub-game4 hub-topic-skill" id="enterGame4" role="button" tabindex="0" aria-label="樂器識辨：聽聲辨認樂器，認識管弦樂家族。按一下開始。">
+            <div class="hub-game-card hub-game4 hub-topic-skill" id="enterGame4" role="button" tabindex="0" aria-label="樂器識辨：聽聲辨認樂器，認識管弦樂家族。基本學力 C-3。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">樂器</div>
+                <div class="hub-domain-tags"><span class="hub-domain-chip">C-3</span></div>
                 <div class="hub-game-illust illust-4" aria-hidden="true">
                     <img class="illust-img" src="img/ui/hub-scene-instruments.webp" alt="" loading="lazy" decoding="async">
                 </div>
@@ -379,8 +397,9 @@
                 <div class="hub-game-desc" aria-hidden="true">聽音辨認樂器 · 認識管弦樂家族</div>
                 <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
             </div>
-            <div class="hub-game-card hub-topic-listen" id="enterAural" role="button" tabindex="0" aria-label="聽力：音程聽辨、節奏聽寫、和弦色彩。按一下開始。">
+            <div class="hub-game-card hub-topic-listen" id="enterAural" role="button" tabindex="0" aria-label="聽力：音程聽辨、節奏聽寫、和弦色彩。基本學力 C-4。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">聽力</div>
+                <div class="hub-domain-tags"><span class="hub-domain-chip">C-4</span></div>
                 <div class="hub-game-illust illust-listen" aria-hidden="true">
                     <img class="illust-img" src="img/ui/hub-scene-listen.webp" alt="" loading="lazy" decoding="async">
                 </div>
@@ -388,8 +407,9 @@
                 <div class="hub-game-desc" aria-hidden="true">音程 · 節奏 · 色彩</div>
                 <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
             </div>
-            <div class="hub-game-card hub-topic-appreciate" id="enterAppreciate" role="button" tabindex="0" aria-label="音樂鑑賞：曲式、歌曲體裁、音樂特點。原創短句，不計入聽力軸。按一下開始。">
+            <div class="hub-game-card hub-topic-appreciate" id="enterAppreciate" role="button" tabindex="0" aria-label="音樂鑑賞：曲式、歌曲體裁、音樂特點。原創短句，不計入聽力軸。基本學力 B-1、B-2、B-3、B-4。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">鑑賞</div>
+                <div class="hub-domain-tags"><span class="hub-domain-chip">B-1</span><span class="hub-domain-chip">B-2</span><span class="hub-domain-chip">B-3</span><span class="hub-domain-chip">B-4</span></div>
                 <div class="hub-game-illust illust-appreciate" aria-hidden="true">
                     <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <rect x="18" y="28" width="164" height="64" rx="12" fill="#FFF8EE" stroke="#E8B15A" stroke-width="3"/>
@@ -403,8 +423,9 @@
                 <div class="hub-game-desc" aria-hidden="true">曲式 · 體裁 · 音樂特點<br>原創短句，不計入聽力</div>
                 <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
             </div>
-            <div class="hub-game-card hub-game-studio" id="enterCompositionStudio" role="button" tabindex="0" aria-label="創作工作室：節奏與旋律創作。不計入能力圖，亦不是達標評級。按一下開始創作。">
+            <div class="hub-game-card hub-game-studio" id="enterCompositionStudio" role="button" tabindex="0" aria-label="創作工作室：節奏與旋律創作。不計入能力圖，亦不是達標評級。基本學力 D-1–D-6。按一下開始創作。">
                 <div class="hub-game-tag" aria-hidden="true">創作</div>
+                <div class="hub-domain-tags"><span class="hub-domain-chip">D-1–D-6</span></div>
                 <div class="hub-game-illust illust-studio" aria-hidden="true">
                     <div class="illust-bg"></div>
                     <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -436,6 +457,7 @@
         </div>
 
         <button class="btn-view-ranks web-only-ui" id="hubViewRanksBtn"><img class="lobby-trophy" src="img/ui/ui-trophy.webp" alt="">查看排行榜</button>
+        <footer class="site-footer"><a href="privacy.html">私隱說明</a></footer>
         </div><!-- /.hub-main-col -->
         </div><!-- /.hub-layout -->
     </div>
@@ -1864,6 +1886,16 @@
     </div>
 
     <!-- ===================================== -->
+    <!-- 課堂任務、紀錄與評估報告              -->
+    <!-- ===================================== -->
+    <div id="screen-classroom" class="screen">
+        <button class="btn-back-hub" id="classroomBackBtn" type="button">← 返回主頁</button>
+        <h1 class="game-title">課堂任務</h1>
+        <p class="game-subtitle">課題、觀察紀錄同評估報告。不是基本學力達標證書。</p>
+        <div id="classroomRoot"></div>
+    </div>
+
+    <!-- ===================================== -->
     <!-- 教學圖片 Lightbox Modal               -->
     <!-- ===================================== -->
     <div id="imgLightbox" class="img-lightbox" style="display:none;" role="dialog" aria-modal="true" aria-label="教學圖表">
@@ -1891,7 +1923,7 @@
     <script src="rank-sync.js?v=6" defer></script>
     <script src="class-share.js?v=4" defer></script>
     <script src="profile-store.js?v=1" defer></script>
-    <script src="baa-music-map.js?v=1" defer></script>
+    <script src="baa-music-map.js?v=2" defer></script>
     <script src="ability-radar.js?v=2" defer></script>
     <script src="aural-score.js?v=1" defer></script>
     <script src="aural-audio.js?v=1" defer></script>
@@ -1899,7 +1931,8 @@
     <script src="aural-rhythm.js?v=1" defer></script>
     <script src="aural-quality.js?v=1" defer></script>
     <script src="appreciate-listen.js?v=1" defer></script>
-    <script src="bootstrap-instruments.js?v=20" data-app-bootstrap defer></script>
+    <script src="classroom.js?v=1" defer></script>
+    <script src="bootstrap-instruments.js?v=21" data-app-bootstrap defer></script>
     <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
 </body>
 </html>

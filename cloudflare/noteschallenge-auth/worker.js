@@ -8,6 +8,9 @@
  *   JWT_SECRET             HMAC secret for session tokens
  *   ALLOWED_EMAIL_DOMAINS  optional comma list of school domains; empty = any verified Google account
  *   EXTRA_ALLOWED_EMAILS   optional comma list of exact emails (teacher accounts). Not a domain.
+ *   EXTRA_ALLOWED_EMAIL_SCHOOLS  optional email=schoolId pairs. Unset extras stay on cskphc.
+ *   DEFAULT_SCHOOL_ID      optional. Unset means cskphc, the first tenant (cskphc.edu.mo).
+ * Do not set NOW in production. Deploy later with keep_bindings so secrets stay.
  */
 
 const GOOGLE_JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
@@ -16,6 +19,17 @@ const JWKS_TTL_MS = 60 * 60 * 1000;
 const CLOCK_SKEW_SEC = 60;
 const PROFILE_MAX_CHARS = 200000;
 const PRESENCE_IDLE_MS = 3 * 60 * 1000;
+export const DEFAULT_SCHOOL_ID = 'cskphc';
+export const DEFAULT_SCHOOL_DOMAIN = 'cskphc.edu.mo';
+const JOIN_EMAIL_HOST = 'join.invalid';
+const JOIN_LIMIT = 8;
+const JOIN_WINDOW_MS = 10 * 60 * 1000;
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+const joinHits = new Map();
+export function clearJoinLimits() {
+  joinHits.clear();
+}
 
 const STAT_KEYS = ['totalPlayed', 'cleared', 'totalScore', 'totalAccuracy', 'accuracyCount', 'maxCombo', 'fcCount', 'apCount'];
 const DIFF_KEYS = ['easy', 'normal', 'hard', 'expert'];
@@ -82,11 +96,15 @@ function mergeHistory(a, b) {
       if (!item || typeof item !== 'object' || Array.isArray(item)) return;
       const row = {
         date: text(item.date).slice(0, 40),
-        game: text(item.game).slice(0, 20),
+        game: text(item.game).slice(0, 40),
         score: num(item.score),
         accuracy: Math.min(100, num(item.accuracy)),
         maxCombo: num(item.maxCombo)
       };
+      if (item.challenge === true || item.challenge === false) row.challenge = item.challenge === true;
+      if (item.practice === true || item.practice === false) row.practice = item.practice === true;
+      if (text(item.at)) row.at = text(item.at).slice(0, 40);
+      if (text(item.difficulty)) row.difficulty = text(item.difficulty).slice(0, 40);
       const id = [row.date, row.game, row.score, row.accuracy, row.maxCombo].join('|');
       if (seen.has(id)) return;
       seen.add(id);
@@ -151,6 +169,50 @@ export function extraEmailOk(email, raw) {
 export function teacherBinding(claims) {
   const name = text(claims && claims.name).slice(0, 40) || '老師';
   return { grade: '', class: '', name: name, seat: '', role: 'teacher' };
+}
+
+export function rowSchool(row) {
+  return text(row && row.school_id) || DEFAULT_SCHOOL_ID;
+}
+
+export function allowListFor(env, domainRows) {
+  const base = String((env && env.ALLOWED_EMAIL_DOMAINS) || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+  if (!base.length) return '';
+  const extra = (domainRows || []).map((row) => text(row && row.domain).toLowerCase()).filter(Boolean);
+  return Array.from(new Set(base.concat(extra))).join(',');
+}
+
+export function extraSchoolMap(raw) {
+  const out = {};
+  String(raw || '').split(',').forEach((part) => {
+    const bits = part.split('=');
+    const email = text(bits[0]).toLowerCase();
+    const schoolId = text(bits[1]);
+    if (email && schoolId && /^[a-z0-9]{2,32}$/.test(schoolId)) out[email] = schoolId;
+  });
+  return out;
+}
+
+export function schoolForAccount(email, domainRows, env) {
+  const domain = text(email).split('@')[1].toLowerCase();
+  const rows = Array.isArray(domainRows) ? domainRows : [];
+  for (let i = 0; i < rows.length; i++) {
+    if (text(rows[i] && rows[i].domain).toLowerCase() === domain && text(rows[i].school_id)) return text(rows[i].school_id);
+  }
+  if (extraEmailOk(email, env && env.EXTRA_ALLOWED_EMAILS)) {
+    const mapped = extraSchoolMap(env && env.EXTRA_ALLOWED_EMAIL_SCHOOLS)[text(email).toLowerCase()];
+    if (mapped) return mapped;
+  }
+  return text(env && env.DEFAULT_SCHOOL_ID) || DEFAULT_SCHOOL_ID;
+}
+
+async function loadSchoolDomains(db) {
+  try {
+    const loaded = await db.prepare('SELECT domain, school_id FROM school_domains').all();
+    return (loaded && loaded.results) || [];
+  } catch (e) {
+    return [];
+  }
 }
 
 async function importRsa(jwk) {
@@ -249,12 +311,21 @@ async function hmacKey(secret) {
 export async function signSessionToken(claims, secret, nowMs) {
   const nowSec = Math.floor((nowMs == null ? Date.now() : nowMs) / 1000);
   const header = jsonB64url({ alg: 'HS256', typ: 'JWT' });
-  const body = jsonB64url({
+  const payload = {
     sub: claims.sub,
     email: claims.email,
     iat: nowSec,
     exp: nowSec + SESSION_TTL_SEC
-  });
+  };
+  if (claims.kind === 'code') {
+    payload.kind = 'code';
+    payload.schoolId = text(claims.schoolId);
+    payload.grade = text(claims.grade);
+    payload.class = text(claims.class);
+    payload.name = text(claims.name).slice(0, 20);
+    payload.seat = text(claims.seat).slice(0, 8);
+  }
+  const body = jsonB64url(payload);
   const data = header + '.' + body;
   const key = await hmacKey(secret);
   const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data));
@@ -282,7 +353,16 @@ export async function verifySessionToken(token, secret, nowMs) {
   const nowSec = Math.floor((nowMs == null ? Date.now() : nowMs) / 1000);
   if (typeof payload.exp !== 'number' || payload.exp < nowSec) return null;
   if (!text(payload.sub) || !text(payload.email)) return null;
-  return { sub: text(payload.sub), email: text(payload.email).toLowerCase() };
+  const session = { sub: text(payload.sub), email: text(payload.email).toLowerCase() };
+  if (payload.kind === 'code') {
+    session.kind = 'code';
+    session.schoolId = text(payload.schoolId);
+    session.grade = text(payload.grade);
+    session.class = text(payload.class);
+    session.name = text(payload.name);
+    session.seat = text(payload.seat);
+  }
+  return session;
 }
 
 export function allowedOrigin(origin) {
@@ -327,9 +407,11 @@ function bindingFromRoster(roster) {
 }
 
 function publicUser(row) {
+  const email = text(row.email);
+  const hidden = email.endsWith('@' + JOIN_EMAIL_HOST);
   return {
     sub: row.sub,
-    email: row.email,
+    email: hidden ? '' : email,
     name: row.name || '',
     picture: row.picture || '',
     grade: row.grade || '',
@@ -352,9 +434,24 @@ function bearer(request) {
 }
 
 async function findRoster(db, email) {
-  return db.prepare(
-    'SELECT email, grade, class, student_name, seat FROM roster WHERE lower(email) = lower(?)'
-  ).bind(text(email).toLowerCase()).first();
+  const key = text(email).toLowerCase();
+  try {
+    return await db.prepare(
+      'SELECT email, grade, class, student_name, seat, school_id FROM roster WHERE lower(email) = lower(?)'
+    ).bind(key).first();
+  } catch (e) {
+    return db.prepare(
+      'SELECT email, grade, class, student_name, seat FROM roster WHERE lower(email) = lower(?)'
+    ).bind(key).first();
+  }
+}
+
+async function allRoster(db) {
+  try {
+    return await db.prepare('SELECT email, grade, class, student_name, seat, school_id FROM roster').all();
+  } catch (e) {
+    return db.prepare('SELECT email, grade, class, student_name, seat FROM roster').all();
+  }
 }
 
 async function getUser(db, sub) {
@@ -525,12 +622,13 @@ async function savePresence(db, rows, logs, previousLogCount) {
   }
 }
 
-async function resolveAccount(env, row) {
+async function resolveAccount(env, row, schoolId) {
+  const wanted = schoolId || DEFAULT_SCHOOL_ID;
   const roster = await findRoster(env.DB, row.email);
-  const rosterBinding = bindingFromRoster(roster);
-  if (rosterBinding) return { binding: rosterBinding, roster: roster, teacher: false };
-  if (extraEmailOk(row.email, env.EXTRA_ALLOWED_EMAILS)) {
-    return { binding: teacherBinding({ name: row.student_name || row.name }), roster: null, teacher: true };
+  const rosterBinding = roster && rowSchool(roster) === wanted ? bindingFromRoster(roster) : null;
+  if (rosterBinding) return { binding: rosterBinding, roster: roster, teacher: false, schoolId: wanted };
+  if (extraEmailOk(row.email, env.EXTRA_ALLOWED_EMAILS) && schoolForAccount(row.email, await loadSchoolDomains(env.DB), env) === wanted) {
+    return { binding: teacherBinding({ name: row.student_name || row.name }), roster: null, teacher: true, schoolId: wanted };
   }
   return null;
 }
@@ -608,8 +706,27 @@ function classKey(id) {
   return id.grade + '|' + id.class + '|' + id.name + '|' + id.seat;
 }
 
-function classSub(id) {
-  return 'class:' + classKey(id);
+function classSub(id, schoolId) {
+  const school = schoolId || DEFAULT_SCHOOL_ID;
+  if (school === DEFAULT_SCHOOL_ID) return 'class:' + classKey(id);
+  return 'class:' + school + ':' + classKey(id);
+}
+
+function codeClassSub(id, schoolId) {
+  return 'class:code:' + (schoolId || DEFAULT_SCHOOL_ID) + ':' + classKey(id);
+}
+
+function classSubSchool(sub) {
+  const rest = text(sub).slice('class:'.length);
+  if (rest.indexOf('code:') === 0) {
+    const bits = rest.slice('code:'.length).split(':');
+    return { schoolId: bits[0] || DEFAULT_SCHOOL_ID, coded: true, key: bits.slice(1).join(':') };
+  }
+  const split = /^([a-z0-9]{2,32}):(.+)$/.exec(rest);
+  if (split && split[2].indexOf('|') !== -1 && split[1] !== DEFAULT_SCHOOL_ID) {
+    return { schoolId: split[1], coded: false, key: split[2] };
+  }
+  return { schoolId: DEFAULT_SCHOOL_ID, coded: false, key: rest };
 }
 
 function classAvatar(value) {
@@ -637,11 +754,13 @@ function publicClassCard(profile, id) {
   };
 }
 
-async function listClassCards(db, grade, klass) {
+async function listClassCards(db, grade, klass, schoolId) {
+  const wanted = schoolId || DEFAULT_SCHOOL_ID;
   const loaded = await db.prepare('SELECT sub, data FROM profiles WHERE sub LIKE ?').bind('class:%').all();
   const cards = [];
   ((loaded && loaded.results) || []).forEach((row) => {
     if (!row || text(row.sub).indexOf('class:') !== 0) return;
+    if (classSubSchool(row.sub).schoolId !== wanted) return;
     let parsed = null;
     try { parsed = JSON.parse(row.data); } catch (e) { parsed = null; }
     const card = publicClassCard(parsed);
@@ -670,9 +789,11 @@ function publicBits(profile) {
   };
 }
 
-async function listClassDirectory(db, grade, klass) {
-  const rosterLoaded = await db.prepare('SELECT email, grade, class, student_name, seat FROM roster').all();
+async function listClassDirectory(db, grade, klass, schoolId) {
+  const wanted = schoolId || DEFAULT_SCHOOL_ID;
+  const rosterLoaded = await allRoster(db);
   const rosterRows = ((rosterLoaded && rosterLoaded.results) || []).filter((row) => {
+    if (rowSchool(row) !== wanted) return false;
     const g = schoolGrade(row && row.grade);
     const c = schoolClass(row && row.class, g);
     if (!g || !c) return false;
@@ -692,7 +813,7 @@ async function listClassDirectory(db, grade, klass) {
     if (!row || !row.sub || text(row.sub).indexOf('class:') === 0) return;
     try { profileBySub[row.sub] = JSON.parse(row.data); } catch (e) { profileBySub[row.sub] = null; }
   });
-  const posted = await listClassCards(db, grade, klass);
+  const posted = await listClassCards(db, grade, klass, wanted);
   const cards = [];
   rosterRows.forEach((row) => {
     const g = schoolGrade(row.grade);
@@ -721,6 +842,14 @@ async function listClassDirectory(db, grade, klass) {
       signature: bits.signature || ''
     });
   });
+  const seen = {};
+  cards.forEach((card) => { seen[card.grade + '|' + card.class + '|' + card.name + '|' + card.seat] = 1; });
+  posted.forEach((card) => {
+    const key = card.grade + '|' + card.class + '|' + card.name + '|' + card.seat;
+    if (seen[key]) return;
+    seen[key] = 1;
+    cards.push(card);
+  });
   cards.sort((a, b) => String(a.grade).localeCompare(String(b.grade)) || String(a.class).localeCompare(String(b.class)) || ((parseInt(a.seat, 10) || 999) - (parseInt(b.seat, 10) || 999)) || a.name.localeCompare(b.name, 'zh'));
   return cards;
 }
@@ -739,14 +868,26 @@ function boardQueryFilter(url) {
 async function classBoardReader(request, env, url) {
   const gate = await requireSession(request, env);
   if (gate.error) return gate;
-  const account = await resolveAccount(env, gate.row);
+  const domains = await loadSchoolDomains(env.DB);
+  if (gate.session.kind === 'code') {
+    const id = classIdentity({
+      name: gate.session.name,
+      grade: gate.session.grade,
+      class: gate.session.class,
+      seat: gate.session.seat
+    });
+    if (!id || !gate.session.schoolId) return { error: jsonResponse({ ok: false, error: 'not_on_roster' }, 403, corsHeaders(request)) };
+    return { id: id, filter: { grade: id.grade, class: id.class }, teacher: false, schoolId: gate.session.schoolId, code: true };
+  }
+  const schoolId = schoolForAccount(gate.row.email, domains, env);
+  const account = await resolveAccount(env, gate.row, schoolId);
   if (!account) return { error: jsonResponse({ ok: false, error: 'not_on_roster' }, 403, corsHeaders(request)) };
   const filter = boardQueryFilter(url);
   if (filter.error) return { error: jsonResponse({ ok: false, error: filter.error }, 400, corsHeaders(request)) };
-  if (account.teacher) return { filter: filter, teacher: true };
+  if (account.teacher) return { filter: filter, teacher: true, schoolId: schoolId };
   const id = classIdentity(account.binding);
   if (!id) return { error: jsonResponse({ ok: false, error: 'not_on_roster' }, 403, corsHeaders(request)) };
-  return { id: id, filter: filter, teacher: false };
+  return { id: id, filter: filter, teacher: false, schoolId: schoolId };
 }
 
 function presencePlace(row) {
@@ -761,6 +902,11 @@ function presenceSeat(row) {
   return parts.length >= 4 ? parts.slice(3).join('|') : '';
 }
 
+function presenceSchool(row) {
+  const label = text(row && row.class_label).split('|');
+  return label[2] || DEFAULT_SCHOOL_ID;
+}
+
 function inBoardFilter(place, grade, klass) {
   if (!place.grade || !place.class) return false;
   if (grade && place.grade !== String(grade)) return false;
@@ -768,7 +914,9 @@ function inBoardFilter(place, grade, klass) {
   return true;
 }
 
-function classOnline(rows, cards, grade, klass) {
+function classOnline(rows, cards, grade, klass, schoolId) {
+  const wanted = schoolId || DEFAULT_SCHOOL_ID;
+  rows = (rows || []).filter((row) => presenceSchool(row) === wanted);
   const byKey = {};
   cards.forEach((card) => { byKey[card.grade + '|' + card.class + '|' + card.name + '|' + card.seat] = card; });
   return rows.filter((row) => row && row.kind === 'classmate' && inBoardFilter(presencePlace(row), grade, klass)).map((row) => {
@@ -788,8 +936,9 @@ function classOnline(rows, cards, grade, klass) {
   }).filter((row) => classIdentity(row));
 }
 
-function classLog(logs, grade, klass) {
-  return logs.filter((row) => row && row.kind === 'classmate' && inBoardFilter(presencePlace(row), grade, klass)).slice(-80).reverse().map((row) => {
+function classLog(logs, grade, klass, schoolId) {
+  const wanted = schoolId || DEFAULT_SCHOOL_ID;
+  return logs.filter((row) => row && row.kind === 'classmate' && presenceSchool(row) === wanted && inBoardFilter(presencePlace(row), grade, klass)).slice(-80).reverse().map((row) => {
     const place = presencePlace(row);
     return {
       name: row.display_name,
@@ -806,18 +955,34 @@ function classLog(logs, grade, klass) {
 async function enrolledClassStudent(request, env) {
   const gate = await requireSession(request, env);
   if (gate.error) return gate;
+  if (gate.session.kind === 'code') {
+    const id = classIdentity({
+      name: gate.session.name,
+      grade: gate.session.grade,
+      class: gate.session.class,
+      seat: gate.session.seat
+    });
+    if (!id || !gate.session.schoolId) return { error: jsonResponse({ ok: false, error: 'not_on_roster' }, 403, corsHeaders(request)) };
+    return { id: id, schoolId: gate.session.schoolId, code: true };
+  }
+  const domains = await loadSchoolDomains(env.DB);
+  const schoolId = schoolForAccount(gate.row.email, domains, env);
   const roster = await findRoster(env.DB, gate.row.email);
+  if (!roster || rowSchool(roster) !== schoolId) {
+    return { error: jsonResponse({ ok: false, error: 'not_on_roster' }, 403, corsHeaders(request)) };
+  }
   const binding = bindingFromRoster(roster);
   const id = binding && classIdentity(binding);
   if (!id) return { error: jsonResponse({ ok: false, error: 'not_on_roster' }, 403, corsHeaders(request)) };
-  return { id: id };
+  return { id: id, schoolId: schoolId, code: false };
 }
 
-async function saveClassCard(db, id, body) {
+async function saveClassCard(db, id, body, schoolId, coded) {
   if (claimedIdentityMismatch(body, id)) return { error: 'forbidden', status: 403 };
   const avatar = classAvatar(body && body.avatar);
   if (avatar == null) return { error: 'avatar too large', status: 400 };
-  const existing = await readProfile(db, classSub(id)) || {};
+  const sub = coded ? codeClassSub(id, schoolId) : classSub(id, schoolId);
+  const existing = await readProfile(db, sub) || {};
   const stored = {
     name: id.name,
     grade: id.grade,
@@ -828,12 +993,21 @@ async function saveClassCard(db, id, body) {
   };
   const packed = JSON.stringify(stored);
   if (packed.length > PROFILE_MAX_CHARS) return { error: 'avatar too large', status: 400 };
-  await writeProfile(db, classSub(id), stored, new Date().toISOString());
+  await writeProfile(db, sub, stored, new Date().toISOString());
   return { card: publicClassCard(stored, id) };
 }
 
-function dropOwnPresence(rows, logs, id, nowIso) {
-  const presenceId = 'mate:' + classKey(id);
+function presenceIdFor(id, schoolId) {
+  if (!schoolId || schoolId === DEFAULT_SCHOOL_ID) return 'mate:' + classKey(id);
+  return 'mate:' + schoolId + ':' + classKey(id);
+}
+
+function classLabelForStudent(id, schoolId) {
+  return id.grade + '|' + id.class + '|' + (schoolId || DEFAULT_SCHOOL_ID);
+}
+
+function dropOwnPresence(rows, logs, id, nowIso, schoolId) {
+  const presenceId = presenceIdFor(id, schoolId);
   const kept = [];
   (rows || []).forEach((row) => {
     if (!row || row.id !== presenceId) { kept.push(row); return; }
@@ -848,6 +1022,374 @@ function dropOwnPresence(rows, logs, id, nowIso) {
     });
   });
   return kept;
+}
+
+const ASSIGNABLE = {
+  game1: ['classic60', 'bass60', 'mixed60', 'noMiss'],
+  keysig: ['keysig60'],
+  solfege: ['solfege60'],
+  chord: [],
+  game2: ['easy', 'medium', 'hard'],
+  game3: ['easy', 'medium', 'hard'],
+  game4: [],
+  aural: [],
+  appreciate: []
+};
+
+const RECORD_CHANNELS = {
+  'A-1': ['口語', '實作'],
+  'A-2': ['口語', '實作'],
+  'A-3': ['實作'],
+  'A-4': ['實作'],
+  'B-5': ['口語', '檔案']
+};
+
+function newId(prefix) {
+  const bytes = new Uint8Array(9);
+  crypto.getRandomValues(bytes);
+  return prefix + bytesToB64url(bytes);
+}
+
+function randomCode(length) {
+  const n = length === 6 || length === 8 ? length : 7;
+  const bytes = new Uint8Array(n);
+  crypto.getRandomValues(bytes);
+  let out = '';
+  for (let i = 0; i < n; i++) out += CODE_ALPHABET[bytes[i] % CODE_ALPHABET.length];
+  return out;
+}
+
+async function bumpJoinLimit(db, key, nowMs) {
+  const mem = joinHits.get(key) || { hits: 0, start: nowMs };
+  if (nowMs - mem.start > JOIN_WINDOW_MS) {
+    mem.hits = 0;
+    mem.start = nowMs;
+  }
+  mem.hits += 1;
+  joinHits.set(key, mem);
+  let hits = mem.hits;
+  try {
+    const row = await db.prepare('SELECT key, hits, window_start FROM join_limits WHERE key = ?').bind(key).first();
+    let stored = row ? Number(row.hits) || 0 : 0;
+    let start = row && row.window_start ? Date.parse(row.window_start) : nowMs;
+    if (!row || !Number.isFinite(start) || nowMs - start > JOIN_WINDOW_MS) {
+      stored = 1;
+      start = nowMs;
+    } else {
+      stored += 1;
+    }
+    const startIso = new Date(start).toISOString();
+    if (row) {
+      await db.prepare('UPDATE join_limits SET hits = ?, window_start = ? WHERE key = ?').bind(stored, startIso, key).run();
+    } else {
+      await db.prepare('INSERT INTO join_limits (key, hits, window_start) VALUES (?, ?, ?)').bind(key, stored, startIso).run();
+    }
+    if (stored > hits) hits = stored;
+  } catch (e) { /* memory window still applies before the table exists */ }
+  return hits <= JOIN_LIMIT;
+}
+
+async function classActor(request, env) {
+  const gate = await requireSession(request, env);
+  if (gate.error) return gate;
+  if (gate.session.kind === 'code') {
+    const id = classIdentity({
+      name: gate.session.name, grade: gate.session.grade, class: gate.session.class, seat: gate.session.seat
+    });
+    if (!id || !gate.session.schoolId) return { error: jsonResponse({ ok: false, error: 'forbidden' }, 403, corsHeaders(request)) };
+    return { schoolId: gate.session.schoolId, teacher: false, grade: id.grade, className: id.class, code: true };
+  }
+  const domains = await loadSchoolDomains(env.DB);
+  const schoolId = schoolForAccount(gate.row.email, domains, env);
+  const account = await resolveAccount(env, gate.row, schoolId);
+  if (!account) return { error: jsonResponse({ ok: false, error: 'not_on_roster' }, 403, corsHeaders(request)) };
+  if (account.teacher) return { schoolId: schoolId, teacher: true, code: false };
+  const id = classIdentity(account.binding);
+  if (!id) return { error: jsonResponse({ ok: false, error: 'not_on_roster' }, 403, corsHeaders(request)) };
+  return { schoolId: schoolId, teacher: false, grade: id.grade, className: id.class, code: false };
+}
+
+function migration(cors) {
+  return jsonResponse({ ok: false, error: 'migration_required' }, 503, cors);
+}
+
+function safeHistory(profile) {
+  const hist = profile && Array.isArray(profile.history) ? profile.history : [];
+  return hist.filter((row) => row && typeof row === 'object').map((row) => ({
+    date: text(row.date).slice(0, 40),
+    game: text(row.game).slice(0, 40),
+    score: num(row.score),
+    accuracy: Math.min(100, num(row.accuracy)),
+    maxCombo: num(row.maxCombo),
+    challenge: row.challenge === true,
+    practice: row.practice === true,
+    at: text(row.at).slice(0, 40),
+    difficulty: text(row.difficulty).slice(0, 40)
+  }));
+}
+
+async function handleClassroom(request, env, path, cors) {
+  const classroomPath = path === '/class/assignments' || path === '/class/records' || path === '/class/paper' || path === '/class/report' || path === '/class/codes' || path === '/class/join';
+  if (!classroomPath) return null;
+  const nowMs = clockMs(env);
+  const nowIso = new Date(nowMs).toISOString();
+  try {
+    if (path === '/class/join' && request.method === 'POST') {
+      let body = {};
+      try { body = await readJson(request); } catch (e) {
+        return jsonResponse({ ok: false, error: 'invalid json' }, 400, cors);
+      }
+      const ip = text(request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For')).split(',')[0].trim() || 'local';
+      const allowed = await bumpJoinLimit(env.DB, 'join:' + ip, nowMs);
+      if (!allowed) return jsonResponse({ ok: false, error: 'rate_limited' }, 429, cors);
+      const code = text(body.code).toUpperCase();
+      if (!/^[A-HJ-NP-Z2-9]{6,8}$/.test(code)) return jsonResponse({ ok: false, error: 'bad_code' }, 400, cors);
+      let row = null;
+      try {
+        row = await env.DB.prepare('SELECT code, school_id, grade, class, expires_at, revoked_at FROM class_codes WHERE code = ?').bind(code).first();
+      } catch (e) {
+        return migration(cors);
+      }
+      if (!row) return jsonResponse({ ok: false, error: 'bad_code' }, 404, cors);
+      if (text(row.revoked_at)) return jsonResponse({ ok: false, error: 'revoked' }, 403, cors);
+      if (Date.parse(row.expires_at) < nowMs) return jsonResponse({ ok: false, error: 'expired' }, 403, cors);
+      const id = classIdentity({ name: body.name, grade: row.grade, class: body.class, seat: body.seat });
+      if (!id || id.class !== text(row.class) || id.grade !== text(row.grade)) {
+        return jsonResponse({ ok: false, error: 'bad_student' }, 400, cors);
+      }
+      const schoolId = text(row.school_id) || DEFAULT_SCHOOL_ID;
+      const sub = 'join:' + schoolId + ':' + newId('');
+      const email = 'codeuser-' + sub.replace(/[^a-z0-9]+/gi, '').slice(0, 24) + '@' + JOIN_EMAIL_HOST;
+      await applyIdentity(env.DB, { sub: sub, email: email, name: id.name, picture: '' }, {
+        grade: id.grade, class: id.class, name: id.name, seat: id.seat
+      }, nowIso);
+      const saved = await saveClassCard(env.DB, id, { avatar: '🎵', signature: '' }, schoolId, true);
+      if (saved.error) return jsonResponse({ ok: false, error: saved.error }, saved.status, cors);
+      const token = await signSessionToken({
+        sub: sub, email: email, kind: 'code', schoolId: schoolId, grade: id.grade, class: id.class, name: id.name, seat: id.seat
+      }, env.JWT_SECRET, nowMs);
+      return jsonResponse({
+        ok: true,
+        token: token,
+        schoolId: schoolId,
+        binding: { grade: id.grade, class: id.class, name: id.name, seat: id.seat, role: 'code' },
+        user: { email: '', name: id.name, student_name: id.name },
+        card: saved.card
+      }, 200, cors);
+    }
+
+    const actor = await classActor(request, env);
+    if (actor.error) return actor.error;
+
+    if (path === '/class/assignments' && request.method === 'GET') {
+      let loaded;
+      try {
+        loaded = await env.DB.prepare('SELECT id, school_id, grade, class, activity, difficulty, starts_at, ends_at FROM assignments WHERE school_id = ?').bind(actor.schoolId).all();
+      } catch (e) { return migration(cors); }
+      let rows = (loaded && loaded.results) || [];
+      if (!actor.teacher) rows = rows.filter((row) => text(row.grade) === actor.grade && text(row.class) === actor.className);
+      return jsonResponse({
+        ok: true,
+        assignments: rows.map((row) => ({
+          id: row.id, grade: row.grade, class: row.class, activity: row.activity,
+          difficulty: row.difficulty || '', startsAt: row.starts_at, endsAt: row.ends_at
+        }))
+      }, 200, cors);
+    }
+
+    if (path === '/class/assignments' && request.method === 'POST') {
+      if (!actor.teacher) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
+      let body = {};
+      try { body = await readJson(request); } catch (e) {
+        return jsonResponse({ ok: false, error: 'invalid json' }, 400, cors);
+      }
+      const activity = text(body.activity);
+      if (!Object.prototype.hasOwnProperty.call(ASSIGNABLE, activity)) {
+        return jsonResponse({ ok: false, error: 'not_assignable' }, 400, cors);
+      }
+      const difficulty = text(body.difficulty);
+      if (difficulty && ASSIGNABLE[activity].indexOf(difficulty) < 0) {
+        return jsonResponse({ ok: false, error: 'bad_difficulty' }, 400, cors);
+      }
+      const grade = schoolGrade(body.grade);
+      const klass = schoolClass(body.class, grade);
+      const startsAt = text(body.startsAt);
+      const endsAt = text(body.endsAt);
+      if (!grade || !klass || !Date.parse(startsAt) || !Date.parse(endsAt) || Date.parse(endsAt) < Date.parse(startsAt)) {
+        return jsonResponse({ ok: false, error: 'bad_window' }, 400, cors);
+      }
+      const id = newId('as_');
+      try {
+        await env.DB.prepare(
+          'INSERT INTO assignments (id, school_id, grade, class, activity, difficulty, starts_at, ends_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        ).bind(id, actor.schoolId, grade, klass, activity, difficulty, startsAt, endsAt, nowIso).run();
+      } catch (e) { return migration(cors); }
+      return jsonResponse({ ok: true, assignment: { id: id, grade: grade, class: klass, activity: activity, difficulty: difficulty, startsAt: startsAt, endsAt: endsAt } }, 200, cors);
+    }
+
+    if (path === '/class/records' && request.method === 'GET') {
+      if (!actor.teacher) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
+      let loaded;
+      try {
+        loaded = await env.DB.prepare('SELECT id, grade, class, student_name, seat, item, channel, note, created_at FROM classroom_records WHERE school_id = ?').bind(actor.schoolId).all();
+      } catch (e) { return migration(cors); }
+      return jsonResponse({ ok: true, records: (loaded && loaded.results) || [] }, 200, cors);
+    }
+
+    if (path === '/class/records' && request.method === 'POST') {
+      if (!actor.teacher) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
+      let body = {};
+      try { body = await readJson(request); } catch (e) {
+        return jsonResponse({ ok: false, error: 'invalid json' }, 400, cors);
+      }
+      const item = text(body.item);
+      const channel = text(body.channel);
+      const channels = RECORD_CHANNELS[item];
+      const who = classIdentity({ name: body.studentName, grade: body.grade, class: body.class, seat: body.seat || '1' });
+      if (!channels || channels.indexOf(channel) < 0 || !who) {
+        return jsonResponse({ ok: false, error: 'bad_record' }, 400, cors);
+      }
+      const grade = schoolGrade(body.grade);
+      const klass = schoolClass(body.class, grade);
+      if (!grade || !klass) return jsonResponse({ ok: false, error: 'bad_record' }, 400, cors);
+      const note = text(body.note).slice(0, 500);
+      if (!note) return jsonResponse({ ok: false, error: 'bad_record' }, 400, cors);
+      const id = newId('rec_');
+      try {
+        await env.DB.prepare(
+          'INSERT INTO classroom_records (id, school_id, grade, class, student_name, seat, item, channel, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        ).bind(id, actor.schoolId, grade, klass, who.name, text(body.seat).slice(0, 8), item, channel, note, nowIso).run();
+      } catch (e) { return migration(cors); }
+      return jsonResponse({ ok: true, record: { id: id, grade: grade, class: klass, studentName: who.name, seat: text(body.seat).slice(0, 8), item: item, channel: channel, note: note } }, 200, cors);
+    }
+
+    if (path === '/class/paper' && request.method === 'POST') {
+      if (!actor.teacher) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
+      let body = {};
+      try { body = await readJson(request); } catch (e) {
+        return jsonResponse({ ok: false, error: 'invalid json' }, 400, cors);
+      }
+      const who = classIdentity({ name: body.studentName, grade: '1', class: 'A', seat: body.seat || '1' });
+      const grade = schoolGrade(body.grade);
+      const klass = schoolClass(body.class, grade);
+      const note = text(body.note).slice(0, 500);
+      if (!who || !grade || !klass || !note) return jsonResponse({ ok: false, error: 'bad_record' }, 400, cors);
+      const id = newId('paper_');
+      try {
+        await env.DB.prepare(
+          'INSERT INTO paper_entries (id, school_id, grade, class, student_name, seat, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        ).bind(id, actor.schoolId, grade, klass, who.name, text(body.seat).slice(0, 8), note, nowIso).run();
+      } catch (e) { return migration(cors); }
+      return jsonResponse({ ok: true, paper: { id: id, grade: grade, class: klass, studentName: who.name, seat: text(body.seat).slice(0, 8), note: note } }, 200, cors);
+    }
+
+    if (path === '/class/report' && request.method === 'GET') {
+      if (!actor.teacher) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
+      const url = new URL(request.url);
+      const filter = boardQueryFilter(url);
+      if (filter.error) return jsonResponse({ ok: false, error: filter.error }, 400, cors);
+      const cards = await listClassDirectory(env.DB, filter.grade, filter.class, actor.schoolId);
+      const rosterLoaded = await allRoster(env.DB);
+      const usersLoaded = await env.DB.prepare('SELECT sub, email, student_name FROM users').all();
+      const profilesLoaded = await env.DB.prepare('SELECT sub, data FROM profiles').all();
+      const byEmail = {};
+      ((usersLoaded && usersLoaded.results) || []).forEach((row) => {
+        const email = text(row && row.email).toLowerCase();
+        if (email && email.indexOf('@' + JOIN_EMAIL_HOST) < 0 && text(row.sub).indexOf('class:') !== 0 && text(row.sub).indexOf('join:') !== 0) byEmail[email] = row;
+      });
+      const profileBySub = {};
+      ((profilesLoaded && profilesLoaded.results) || []).forEach((row) => {
+        try { profileBySub[row.sub] = JSON.parse(row.data); } catch (e) { profileBySub[row.sub] = null; }
+      });
+      const students = [];
+      ((rosterLoaded && rosterLoaded.results) || []).forEach((row) => {
+        if (rowSchool(row) !== actor.schoolId) return;
+        const g = schoolGrade(row.grade);
+        const c = schoolClass(row.class, g);
+        if (filter.grade && g !== filter.grade) return;
+        if (filter.class && c !== filter.class) return;
+        const id = classIdentity({ name: row.student_name, grade: g, class: c, seat: row.seat });
+        if (!id) return;
+        const user = byEmail[text(row.email).toLowerCase()];
+        const stored = user ? profileBySub[user.sub] : null;
+        students.push({
+          name: id.name, grade: id.grade, class: id.class, seat: id.seat,
+          history: safeHistory(stored),
+          gameBests: stored && stored.gameBests && typeof stored.gameBests === 'object' ? stored.gameBests : {}
+        });
+      });
+      let records = [];
+      let papers = [];
+      try {
+        const rec = await env.DB.prepare('SELECT grade, class, student_name, seat, item, channel, note FROM classroom_records WHERE school_id = ?').bind(actor.schoolId).all();
+        records = ((rec && rec.results) || []).map((row) => ({
+          grade: row.grade, class: row.class, studentName: row.student_name, seat: row.seat, item: row.item, channel: row.channel, note: row.note
+        }));
+        const paper = await env.DB.prepare('SELECT grade, class, student_name, seat, note FROM paper_entries WHERE school_id = ?').bind(actor.schoolId).all();
+        papers = ((paper && paper.results) || []).map((row) => ({
+          grade: row.grade, class: row.class, studentName: row.student_name, seat: row.seat, note: row.note
+        }));
+      } catch (e) { return migration(cors); }
+      return jsonResponse({ ok: true, students: students, records: records, papers: papers, cards: cards }, 200, cors);
+    }
+
+    if (path === '/class/codes' && request.method === 'GET') {
+      if (!actor.teacher) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
+      let loaded;
+      try {
+        loaded = await env.DB.prepare('SELECT code, grade, class, expires_at, revoked_at FROM class_codes WHERE school_id = ?').bind(actor.schoolId).all();
+      } catch (e) { return migration(cors); }
+      return jsonResponse({
+        ok: true,
+        codes: ((loaded && loaded.results) || []).map((row) => ({
+          code: row.code, grade: row.grade, class: row.class, expiresAt: row.expires_at, revokedAt: row.revoked_at || ''
+        }))
+      }, 200, cors);
+    }
+
+    if (path === '/class/codes' && request.method === 'POST') {
+      if (!actor.teacher) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
+      let body = {};
+      try { body = await readJson(request); } catch (e) {
+        return jsonResponse({ ok: false, error: 'invalid json' }, 400, cors);
+      }
+      if (body.revoke === true) {
+        const code = text(body.code).toUpperCase();
+        try {
+          const row = await env.DB.prepare('SELECT code, school_id, revoked_at FROM class_codes WHERE code = ?').bind(code).first();
+          if (!row || text(row.school_id) !== actor.schoolId) return jsonResponse({ ok: false, error: 'bad_code' }, 404, cors);
+          await env.DB.prepare('UPDATE class_codes SET revoked_at = ? WHERE code = ? AND school_id = ?').bind(nowIso, code, actor.schoolId).run();
+        } catch (e) { return migration(cors); }
+        return jsonResponse({ ok: true, code: code, revokedAt: nowIso }, 200, cors);
+      }
+      const limited = await bumpJoinLimit(env.DB, 'code:' + actor.schoolId, nowMs);
+      if (!limited) return jsonResponse({ ok: false, error: 'rate_limited' }, 429, cors);
+      const grade = schoolGrade(body.grade);
+      const klass = schoolClass(body.class, grade);
+      const hours = Math.min(24 * 30, Math.max(1, Number(body.hours) || 24));
+      const length = Number(body.length) || 7;
+      if (!grade || !klass) return jsonResponse({ ok: false, error: 'bad_class' }, 400, cors);
+      let code = '';
+      try {
+        for (let i = 0; i < 5; i++) {
+          const candidate = randomCode(length);
+          const existing = await env.DB.prepare('SELECT code FROM class_codes WHERE code = ?').bind(candidate).first();
+          if (!existing) { code = candidate; break; }
+        }
+        if (!code) return jsonResponse({ ok: false, error: 'bad_code' }, 500, cors);
+        const expires = new Date(nowMs + hours * 60 * 60 * 1000).toISOString();
+        await env.DB.prepare(
+          'INSERT INTO class_codes (code, school_id, grade, class, expires_at, revoked_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        ).bind(code, actor.schoolId, grade, klass, expires, '', nowIso).run();
+        return jsonResponse({ ok: true, code: code, grade: grade, class: klass, expiresAt: expires }, 200, cors);
+      } catch (e) { return migration(cors); }
+    }
+
+    return null;
+  } catch (err) {
+    console.error('[noteschallenge-auth]', err && err.message ? err.message : err);
+    return jsonResponse({ ok: false, error: 'server error' }, 500, cors);
+  }
 }
 
 export default {
@@ -865,16 +1407,18 @@ export default {
         try { body = await readJson(request); } catch (e) {
           return jsonResponse({ ok: false, error: 'invalid json' }, 400, cors);
         }
+        const domains = await loadSchoolDomains(env.DB);
         const verified = await verifyGoogleIdToken(body && body.credential, {
           clientId: env.GOOGLE_CLIENT_ID,
-          allowedDomains: env.ALLOWED_EMAIL_DOMAINS,
+          allowedDomains: allowListFor(env, domains),
           extraEmails: env.EXTRA_ALLOWED_EMAILS,
           fetch: fetch,
           now: Date.now
         });
         if (!verified.ok) return jsonResponse({ ok: false, error: verified.error }, 401, cors);
+        const schoolId = schoolForAccount(verified.claims.email, domains, env);
         const roster = await findRoster(env.DB, verified.claims.email);
-        const rosterBinding = bindingFromRoster(roster);
+        const rosterBinding = roster && rowSchool(roster) === schoolId ? bindingFromRoster(roster) : null;
         const teacher = !rosterBinding && extraEmailOk(verified.claims.email, env.EXTRA_ALLOWED_EMAILS);
         if (!rosterBinding && !teacher) return jsonResponse({ ok: false, error: 'not_on_roster' }, 403, cors);
         const nowIso = new Date().toISOString();
@@ -889,6 +1433,7 @@ export default {
           token: token,
           user: publicUser(row),
           binding: binding,
+          schoolId: schoolId,
           profile: profile
         }, 200, cors);
       }
@@ -897,7 +1442,7 @@ export default {
         const reader = await classBoardReader(request, env, url);
         if (reader.error) return reader.error;
         const filter = reader.filter || { grade: '', class: '' };
-        const cards = await listClassDirectory(env.DB, filter.grade, filter.class);
+        const cards = await listClassDirectory(env.DB, filter.grade, filter.class, reader.schoolId);
         if (!cards.length) return jsonResponse({ ok: false, error: 'unknown_class' }, 404, cors);
         const loaded = await loadPresence(env.DB);
         const before = loaded.logs.length;
@@ -906,8 +1451,8 @@ export default {
         return jsonResponse({
           ok: true,
           cards: cards,
-          online: classOnline(kept, cards, filter.grade, filter.class),
-          log: classLog(loaded.logs, filter.grade, filter.class)
+          online: classOnline(kept, cards, filter.grade, filter.class, reader.schoolId),
+          log: classLog(loaded.logs, filter.grade, filter.class, reader.schoolId)
         }, 200, cors);
       }
 
@@ -918,7 +1463,7 @@ export default {
         try { body = await readJson(request); } catch (e) {
           return jsonResponse({ ok: false, error: 'invalid json' }, 400, cors);
         }
-        const saved = await saveClassCard(env.DB, enrolled.id, body);
+        const saved = await saveClassCard(env.DB, enrolled.id, body, enrolled.schoolId, enrolled.code);
         if (saved.error) return jsonResponse({ ok: false, error: saved.error }, saved.status, cors);
         return jsonResponse({ ok: true, card: saved.card }, 200, cors);
       }
@@ -936,18 +1481,18 @@ export default {
         const before = loaded.logs.length;
         const nowMs = clockMs(env);
         let kept = settlePresence(loaded.rows, loaded.logs, body.offline === true ? null : {
-          id: 'mate:' + classKey(id),
+          id: presenceIdFor(id, enrolled.schoolId),
           kind: 'classmate',
           displayName: id.name,
-          classLabel: id.grade + '|' + id.class,
+          classLabel: classLabelForStudent(id, enrolled.schoolId),
           screen: text(body.screen).slice(0, 40)
         }, nowMs, PRESENCE_IDLE_MS);
-        if (body.offline === true) kept = dropOwnPresence(kept, loaded.logs, id, new Date(nowMs).toISOString());
+        if (body.offline === true) kept = dropOwnPresence(kept, loaded.logs, id, new Date(nowMs).toISOString(), enrolled.schoolId);
         await savePresence(env.DB, kept, loaded.logs, before);
-        const cards = await listClassCards(env.DB, id.grade, id.class);
+        const cards = await listClassCards(env.DB, id.grade, id.class, enrolled.schoolId);
         return jsonResponse({
           ok: true,
-          online: classOnline(kept, cards, id.grade, id.class)
+          online: classOnline(kept, cards, id.grade, id.class, enrolled.schoolId)
         }, 200, cors);
       }
 
@@ -967,8 +1512,11 @@ export default {
             if (!row || text(row.email).toLowerCase() !== session.email) {
               return jsonResponse({ ok: false, error: 'unauthorized' }, 401, cors);
             }
+            if (session.kind === 'code') return jsonResponse({ ok: false, error: 'not_on_roster' }, 403, cors);
+            const domains = await loadSchoolDomains(env.DB);
+            const schoolId = schoolForAccount(row.email, domains, env);
             const roster = await findRoster(env.DB, row.email);
-            const rosterBinding = bindingFromRoster(roster);
+            const rosterBinding = roster && rowSchool(roster) === schoolId ? bindingFromRoster(roster) : null;
             const teacher = !rosterBinding && extraEmailOk(row.email, env.EXTRA_ALLOWED_EMAILS);
             if (!rosterBinding && !teacher) return jsonResponse({ ok: false, error: 'not_on_roster' }, 403, cors);
             const binding = teacher ? teacherBinding({ name: row.student_name || row.name }) : rosterBinding;
@@ -1007,19 +1555,21 @@ export default {
         const row = gate.row;
 
         if (request.method === 'GET' && path === '/me') {
-          const account = await resolveAccount(env, row);
+          const domains = await loadSchoolDomains(env.DB);
+          const account = await resolveAccount(env, row, schoolForAccount(row.email, domains, env));
           if (!account) return jsonResponse({ ok: false, error: 'not_on_roster' }, 403, cors);
           const nowIso = new Date().toISOString();
           const next = account.teacher
             ? await applyIdentity(env.DB, row, account.binding, nowIso)
             : await applyRoster(env.DB, row, account.roster, nowIso);
           const profile = await readProfile(env.DB, next.sub);
-          return jsonResponse({ ok: true, user: publicUser(next), binding: account.binding, profile: profile }, 200, cors);
+          return jsonResponse({ ok: true, user: publicUser(next), binding: account.binding, schoolId: account.schoolId, profile: profile }, 200, cors);
         }
 
         if (request.method === 'PUT' && path === '/me/binding') {
           try { await readJson(request); } catch (e) {}
-          const account = await resolveAccount(env, row);
+          const domains = await loadSchoolDomains(env.DB);
+          const account = await resolveAccount(env, row, schoolForAccount(row.email, domains, env));
           if (!account) return jsonResponse({ ok: false, error: 'not_on_roster' }, 403, cors);
           const nowIso = new Date().toISOString();
           const next = account.teacher
@@ -1050,6 +1600,9 @@ export default {
           return jsonResponse({ ok: true, profile: merged }, 200, cors);
         }
       }
+
+      const classroom = await handleClassroom(request, env, path, cors);
+      if (classroom) return classroom;
 
       return jsonResponse({ ok: false, error: 'not found' }, 404, cors);
     } catch (err) {
