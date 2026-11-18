@@ -167,7 +167,8 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.match(page, /abrsm-curriculum\.js\?v=1/);
   assert.match(page, /abrsm-note-grade\.js\?v=4/);
   assert.match(page, /chinese-instrument-challenge\.js\?v=3/);
-  assert.match(page, /style\.css\?v=24/);
+  assert.match(page, /style\.css\?v=25/);
+  assert.doesNotMatch(page, /style\.css\?v=24/);
   assert.doesNotMatch(page, /style\.css\?v=23/);
   assert.doesNotMatch(page, /style\.css\?v=21/);
   assert.doesNotMatch(page, /style\.css\?v=20/);
