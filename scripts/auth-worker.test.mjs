@@ -2,11 +2,15 @@ import assert from 'node:assert/strict';
 import { createSign, generateKeyPairSync } from 'node:crypto';
 import test from 'node:test';
 import worker, {
+  allowListFor,
   allowedOrigin,
   classIdentity,
+  clearJoinLimits,
   clearJwksCache,
+  DEFAULT_SCHOOL_ID,
   mergeProfiles,
   schoolClass,
+  schoolForAccount,
   schoolGrade,
   settlePresence,
   signSessionToken,
@@ -67,16 +71,106 @@ function baseClaims(nowMs, extra) {
   }, extra || {});
 }
 
+const CLASSROOM_TABLES = ['school_domains', 'schools', 'assignments', 'classroom_records', 'paper_entries', 'class_codes', 'join_limits'];
+
+function classroomBag(compact, bags) {
+  const table = CLASSROOM_TABLES.find((name) => compact.includes(name));
+  if (!table) return null;
+  const rows = bags[table];
+  function values(args) {
+    return args.map((value) => value);
+  }
+  function wherePairs(sql, args, from) {
+    const part = sql.includes(' WHERE ') ? sql.split(' WHERE ')[1] : '';
+    const names = [];
+    const re = /(\w+)\s*=\s*\?/g;
+    let match;
+    while ((match = re.exec(part))) names.push(match[1]);
+    return names.map((name, index) => [name, args[from + index]]);
+  }
+  function same(row, pairs) {
+    return pairs.every(([col, value]) => String(row[col] == null ? '' : row[col]) === String(value == null ? '' : value));
+  }
+  function apply(args) {
+    if (compact.startsWith('INSERT')) {
+      const cols = compact.slice(compact.indexOf('(') + 1, compact.indexOf(')')).split(',').map((col) => col.trim());
+      const row = {};
+      cols.forEach((col, index) => { row[col] = args[index]; });
+      const key = cols[0];
+      if (compact.includes('OR IGNORE') && rows.some((item) => item[key] === row[key])) return;
+      const existing = rows.findIndex((item) => item[key] === row[key]);
+      if (existing >= 0 && key === 'key') rows[existing] = row;
+      else rows.push(row);
+      return;
+    }
+    if (compact.startsWith('UPDATE')) {
+      const setSql = compact.split(' SET ')[1].split(' WHERE ')[0];
+      const setNames = [];
+      const re = /(\w+)\s*=\s*\?/g;
+      let match;
+      while ((match = re.exec(setSql))) setNames.push(match[1]);
+      const pairs = wherePairs(compact, args, setNames.length);
+      rows.forEach((row) => {
+        if (!same(row, pairs)) return;
+        setNames.forEach((name, index) => { row[name] = args[index]; });
+      });
+      return;
+    }
+    if (compact.startsWith('DELETE')) {
+      const pairs = wherePairs(compact, args, 0);
+      for (let i = rows.length - 1; i >= 0; i--) if (same(rows[i], pairs)) rows.splice(i, 1);
+    }
+  }
+  return {
+    async all() {
+      return { results: rows.map((row) => Object.assign({}, row)) };
+    },
+    async run() {
+      return { success: true };
+    },
+    bind(...args) {
+      values(args);
+      return {
+        async all() {
+          const pairs = wherePairs(compact, args, 0);
+          return { results: rows.filter((row) => same(row, pairs)).map((row) => Object.assign({}, row)) };
+        },
+        async first() {
+          const pairs = wherePairs(compact, args, 0);
+          const found = rows.find((row) => same(row, pairs));
+          return found ? Object.assign({}, found) : null;
+        },
+        async run() {
+          apply(args);
+          return { success: true };
+        }
+      };
+    }
+  };
+}
+
 function memoryDb() {
   const users = new Map();
   const profiles = new Map();
   const roster = new Map();
   const presence = [];
   const logs = [];
+  const bags = {
+    school_domains: [],
+    schools: [],
+    assignments: [],
+    classroom_records: [],
+    paper_entries: [],
+    class_codes: [],
+    join_limits: []
+  };
   const db = {
+    bags,
     roster,
     prepare(sql) {
       const compact = sql.replace(/\s+/g, ' ').trim();
+      const bag = classroomBag(compact, bags);
+      if (bag) return bag;
       return {
         async all() {
           if (compact.includes('FROM roster')) return { results: Array.from(roster.values()).map((row) => Object.assign({}, row)) };
@@ -822,5 +916,153 @@ test('F1 and 中一 classmates stay on the board without a heartbeat, and a teac
   } finally {
     globalThis.fetch = realFetch;
     clearJwksCache();
+  }
+});
+
+test('cskphc.edu.mo stays the first tenant and other schools stay isolated', async () => {
+  assert.equal(DEFAULT_SCHOOL_ID, 'cskphc');
+  assert.equal(allowListFor({ ALLOWED_EMAIL_DOMAINS: '' }, []), '');
+  assert.equal(allowListFor({ ALLOWED_EMAIL_DOMAINS: 'cskphc.edu.mo' }, [{ domain: 'north.edu', school_id: 'north' }]), 'cskphc.edu.mo,north.edu');
+  assert.equal(schoolForAccount('pupil@cskphc.edu.mo', [{ domain: 'cskphc.edu.mo', school_id: 'cskphc' }], { ALLOWED_EMAIL_DOMAINS: 'cskphc.edu.mo' }), 'cskphc');
+  assert.equal(schoolForAccount('pupil@cskphc.edu.mo', [], { ALLOWED_EMAIL_DOMAINS: 'cskphc.edu.mo' }), 'cskphc');
+  assert.equal(schoolForAccount('teacher.allow@gmail.com', [], { EXTRA_ALLOWED_EMAILS: 'teacher.allow@gmail.com' }), 'cskphc');
+
+  keys();
+  clearJwksCache();
+  clearJoinLimits();
+  const now = Date.now();
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('/oauth2/v3/certs')) {
+      return new Response(JSON.stringify({ keys: [publicJwk] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    throw new Error('unexpected fetch ' + url);
+  };
+  const env = {
+    DB: memoryDb(),
+    GOOGLE_CLIENT_ID: CLIENT_ID,
+    JWT_SECRET: SECRET,
+    ALLOWED_EMAIL_DOMAINS: 'cskphc.edu.mo',
+    EXTRA_ALLOWED_EMAILS: 'teacher.allow@gmail.com',
+    NOW: now
+  };
+  env.DB.bags.school_domains.push(
+    { domain: 'cskphc.edu.mo', school_id: 'cskphc' },
+    { domain: 'north.edu', school_id: 'north' }
+  );
+  function roster(email, grade, klass, name, seat, schoolId) {
+    env.DB.roster.set(email, { email, grade, class: klass, student_name: name, seat, school_id: schoolId });
+  }
+  roster('a@cskphc.edu.mo', '1', 'A', '陳小樂', '12', 'cskphc');
+  roster('b@north.edu', '1', 'A', '北校生', '4', 'north');
+  const origin = 'https://noteschallenge.vercel.app';
+  async function login(email, sub, name) {
+    const credential = await googleToken(baseClaims(now, { email, sub, name }));
+    const res = await worker.fetch(new Request('https://auth.example/auth/google', {
+      method: 'POST',
+      headers: { Origin: origin, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential })
+    }), env);
+    const data = await res.json();
+    assert.equal(data.ok, true, email + ' ' + (data.error || ''));
+    return data;
+  }
+  const auth = (token) => ({ Origin: origin, 'Content-Type': 'application/json', Authorization: 'Bearer ' + token });
+  async function send(token, path, body, headers) {
+    return worker.fetch(new Request('https://auth.example' + path, {
+      method: body ? 'POST' : 'GET',
+      headers: Object.assign({ Origin: origin, 'Content-Type': 'application/json' }, token ? { Authorization: 'Bearer ' + token } : {}, headers || {}),
+      body: body ? JSON.stringify(body) : undefined
+    }), env);
+  }
+  try {
+    const home = await login('a@cskphc.edu.mo', 'sub-home', '陳小樂');
+    assert.equal(home.schoolId, 'cskphc');
+    assert.equal(home.binding.role, undefined);
+    assert.deepEqual(home.binding, { grade: '1', class: 'A', name: '陳小樂', seat: '12' });
+    const north = await login('b@north.edu', 'sub-north', '北校生');
+    assert.equal(north.schoolId, 'north');
+    const teacher = await login('teacher.allow@gmail.com', 'teacher-sub', '陳老師');
+    assert.equal(teacher.schoolId, 'cskphc');
+    assert.equal(teacher.binding.role, 'teacher');
+
+    const homeBoard = await (await send(home.token, '/class/board')).json();
+    assert.deepEqual(homeBoard.cards.map((row) => row.name), ['陳小樂']);
+    assert.equal(JSON.stringify(homeBoard).includes('@'), false);
+    const northBoard = await (await send(north.token, '/class/board')).json();
+    assert.deepEqual(northBoard.cards.map((row) => row.name), ['北校生']);
+    assert.equal(northBoard.cards.some((row) => row.name === '陳小樂'), false);
+
+    const made = await send(teacher.token, '/class/assignments', {
+      grade: '1', class: 'A', activity: 'game1', difficulty: 'classic60',
+      startsAt: '2026-11-01T00:00:00.000Z', endsAt: '2026-11-30T16:00:00.000Z'
+    });
+    assert.equal(made.status, 200);
+    const studio = await send(teacher.token, '/class/assignments', {
+      grade: '1', class: 'A', activity: 'studio', difficulty: '',
+      startsAt: '2026-11-01T00:00:00.000Z', endsAt: '2026-11-30T16:00:00.000Z'
+    });
+    assert.equal(studio.status, 400);
+    const seenByHome = await (await send(home.token, '/class/assignments')).json();
+    assert.equal(seenByHome.assignments.length, 1);
+    const seenByNorth = await (await send(north.token, '/class/assignments')).json();
+    assert.equal(seenByNorth.assignments.length, 0);
+
+    const noted = await send(teacher.token, '/class/records', {
+      grade: '1', class: 'A', studentName: '陳小樂', seat: '12', item: 'A-1', channel: '實作', note: '課堂演唱觀察，不是達標。'
+    });
+    assert.equal(noted.status, 200);
+    const privateNote = '課堂演唱觀察，不是達標。';
+    const boardAfter = await (await send(home.token, '/class/board')).json();
+    assert.equal(JSON.stringify(boardAfter).includes(privateNote), false);
+    assert.equal(JSON.stringify(boardAfter).includes('@'), false);
+    assert.equal((await send(north.token, '/class/records')).status, 403);
+
+    const report = await (await send(teacher.token, '/class/report?grade=1&class=A')).json();
+    assert.equal(report.students.some((row) => row.name === '北校生'), false);
+    assert.equal(report.records[0].note, privateNote);
+    assert.equal(report.records[0].channel, '實作');
+    assert.equal(JSON.stringify(report.students).includes('@'), false);
+    assert.equal(JSON.stringify(report.cards).includes('@'), false);
+
+    const codeRes = await send(teacher.token, '/class/codes', { grade: '1', class: 'A', hours: 2, length: 7 });
+    assert.equal(codeRes.status, 200);
+    const codeBody = await codeRes.json();
+    assert.match(codeBody.code, /^[A-HJ-NP-Z2-9]{7}$/);
+    const joined = await send('', '/class/join', { code: codeBody.code, name: '短碼生', class: 'A', seat: '8' }, { 'CF-Connecting-IP': '203.0.113.10' });
+    assert.equal(joined.status, 200);
+    const joinBody = await joined.json();
+    assert.equal(joinBody.user.email, '');
+    assert.equal(joinBody.binding.role, 'code');
+    assert.equal(joinBody.card.email, undefined);
+    assert.equal(JSON.stringify(joinBody.card).includes('@'), false);
+    const codeBoard = await (await send(joinBody.token, '/class/board?grade=3&class=B')).json();
+    assert.equal(codeBoard.cards.some((row) => row.name === '北校生'), false);
+    assert.equal(codeBoard.cards.some((row) => row.name === '短碼生'), true);
+    assert.equal(JSON.stringify(codeBoard).includes('@'), false);
+    assert.equal((await send(joinBody.token, '/class/card', {
+      name: '陳小樂', grade: '1', class: 'A', seat: '12', signature: '冒充'
+    })).status, 403);
+    assert.equal((await send(joinBody.token, '/class/report')).status, 403);
+    const homeStill = await (await send(home.token, '/class/board')).json();
+    assert.equal(homeStill.cards.find((row) => row.name === '陳小樂').signature || '', '');
+
+    for (let i = 0; i < 8; i++) {
+      await send('', '/class/join', { code: 'ZZZZZZ', name: '短碼生', class: 'A', seat: '8' }, { 'CF-Connecting-IP': '203.0.113.11' });
+    }
+    const limited = await send('', '/class/join', { code: codeBody.code, name: '短碼生', class: 'A', seat: '8' }, { 'CF-Connecting-IP': '203.0.113.11' });
+    assert.equal(limited.status, 429);
+
+    const revoked = await send(teacher.token, '/class/codes', { revoke: true, code: codeBody.code });
+    assert.equal(revoked.status, 200);
+    clearJoinLimits();
+    const after = await send('', '/class/join', { code: codeBody.code, name: '另一人', class: 'A', seat: '9' }, { 'CF-Connecting-IP': '203.0.113.12' });
+    assert.equal(after.status, 403);
+    const northRevoke = await send(north.token, '/class/codes', { revoke: true, code: codeBody.code });
+    assert.equal(northRevoke.status, 403);
+  } finally {
+    globalThis.fetch = realFetch;
+    clearJwksCache();
+    clearJoinLimits();
   }
 });

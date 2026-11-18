@@ -40,6 +40,80 @@ CREATE TABLE IF NOT EXISTS presence (
   online_at TEXT NOT NULL
 );
 
+-- School tenants. The current school is the first tenant.
+-- Domain cskphc.edu.mo keeps the existing Google login when ALLOWED_EMAIL_DOMAINS
+-- is cskphc.edu.mo. Rows without school_id are treated as cskphc.
+-- Apply migrate-tenancy.sql on the existing D1 database before deploying the worker.
+-- Do not set NOW. Deploy with keep_bindings so JWT_SECRET and EXTRA_ALLOWED_EMAILS stay.
+CREATE TABLE IF NOT EXISTS schools (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS school_domains (
+  domain TEXT PRIMARY KEY,
+  school_id TEXT NOT NULL
+);
+
+INSERT OR IGNORE INTO schools (id, name, created_at)
+VALUES ('cskphc', 'cskphc.edu.mo', '2026-11-01T00:00:00.000Z');
+
+INSERT OR IGNORE INTO school_domains (domain, school_id)
+VALUES ('cskphc.edu.mo', 'cskphc');
+
+CREATE TABLE IF NOT EXISTS assignments (
+  id TEXT PRIMARY KEY,
+  school_id TEXT NOT NULL,
+  grade TEXT NOT NULL,
+  class TEXT NOT NULL,
+  activity TEXT NOT NULL,
+  difficulty TEXT,
+  starts_at TEXT NOT NULL,
+  ends_at TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS classroom_records (
+  id TEXT PRIMARY KEY,
+  school_id TEXT NOT NULL,
+  grade TEXT NOT NULL,
+  class TEXT NOT NULL,
+  student_name TEXT NOT NULL,
+  seat TEXT,
+  item TEXT NOT NULL,
+  channel TEXT NOT NULL,
+  note TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS paper_entries (
+  id TEXT PRIMARY KEY,
+  school_id TEXT NOT NULL,
+  grade TEXT NOT NULL,
+  class TEXT NOT NULL,
+  student_name TEXT NOT NULL,
+  seat TEXT,
+  note TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS class_codes (
+  code TEXT PRIMARY KEY,
+  school_id TEXT NOT NULL,
+  grade TEXT NOT NULL,
+  class TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  revoked_at TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS join_limits (
+  key TEXT PRIMARY KEY,
+  hits INTEGER NOT NULL,
+  window_start TEXT NOT NULL
+);
+
 -- Sign-in and screen record. Not the leaderboard.
 CREATE TABLE IF NOT EXISTS presence_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

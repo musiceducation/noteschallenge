@@ -16,7 +16,13 @@ database_id = "688d6340-51fc-4959-8499-c1892d6b4e70"
 #   EXTRA_ALLOWED_EMAILS    optional secret: comma-separated exact emails that may sign in
 #                           without a roster row. This does not allow a whole domain.
 #                           Set it with: npx wrangler secret put EXTRA_ALLOWED_EMAILS
-#                           After adding the presence tables: npx wrangler d1 execute noteschallenge-auth --remote --file=schema.sql
+#                           Unset, these accounts stay on the cskphc tenant.
+#   EXTRA_ALLOWED_EMAIL_SCHOOLS  optional plain var, email=schoolId pairs. Not a secret.
+#                           Leave unset so current teacher logins stay on cskphc.
+#   DEFAULT_SCHOOL_ID       optional. Unset means cskphc.
+#                           After the tenancy tables: npx wrangler d1 execute noteschallenge-auth --remote --file=migrate-tenancy.sql
+#                           Do that before deploying this worker. Do not set NOW.
+#                           Deploy with keep_bindings so existing secrets stay.
 # Class cards and presence reuse the existing profiles and presence tables.
 # They require a roster session from Google sign-in. A name picked on the hub
 # is not a credential. Do not deploy this worker until the owner says 要上.

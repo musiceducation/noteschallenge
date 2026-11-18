@@ -8698,4 +8698,54 @@ body:has(#screen-chord-card.screen.active) {
     }
 }
 
+.hub-domain-tags {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px;
+    max-width: 52%;
+}
+.hub-domain-chip,
+.app-domain-chip {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    padding: 3px 7px;
+    border-radius: 999px;
+    color: #4e4458;
+    background: rgba(255, 248, 238, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.92);
+    box-shadow: 0 4px 12px rgba(80, 50, 60, 0.08);
+    backdrop-filter: blur(8px);
+}
+.app-domain-chip { margin-left: 8px; vertical-align: middle; }
+.site-footer { margin: 4px 0 18px; text-align: center; }
+.site-footer a { color: #7d525e; font-weight: 800; }
+.classroom-card { text-align: left; }
+.classroom-form { display: grid; gap: 10px; margin: 12px 0; }
+.classroom-form label { display: grid; gap: 4px; font-weight: 700; color: #4e4458; }
+.classroom-form input,
+.classroom-form select,
+.classroom-form textarea {
+    font: inherit;
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(125, 82, 94, 0.25);
+    background: rgba(255, 255, 255, 0.8);
+}
+.classroom-list { margin: 8px 0 0; padding-left: 1.1rem; }
+.classroom-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.classroom-report { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.classroom-report th,
+.classroom-report td { border: 1px solid rgba(125, 82, 94, 0.2); padding: 6px; vertical-align: top; }
+.classroom-disclaimer { font-size: 0.85rem; color: #7d525e; }
+.web-code-join { margin-top: 14px; text-align: left; }
+.privacy-page { max-width: 760px; margin: 24px auto; padding: 20px; }
+.privacy-page h1 { margin-top: 0; }
+.privacy-page a { color: #7d525e; font-weight: 800; }
+
 

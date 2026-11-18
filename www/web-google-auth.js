@@ -9,6 +9,7 @@
   'use strict';
 
   var SESSION_KEY = 'ncWebGoogleSession';
+  var CODE_KEY = 'ncCodeSession';
   var cfg = window.MUSIC_APP_AUTH || {};
   var state = {
     required: false,
@@ -362,6 +363,7 @@
     if (presenceTimer) { clearInterval(presenceTimer); presenceTimer = 0; }
     setPresenceDot(false);
     try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+    try { localStorage.removeItem(CODE_KEY); } catch (e) {}
     try { sessionStorage.removeItem(TESTER_FLAG); } catch (e) {}
     showGate();
     notifySession();
@@ -375,6 +377,7 @@
     state.signedIn = true;
     bindingKey = '';
     try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+    try { localStorage.removeItem(CODE_KEY); } catch (e) {}
     try { sessionStorage.setItem(TESTER_FLAG, '1'); } catch (e) {}
     hideGate();
     setError('');
@@ -466,6 +469,11 @@
       return;
     }
     if (!token || !apiBase()) {
+      var codeRaw = '';
+      try { codeRaw = localStorage.getItem(CODE_KEY) || ''; } catch (e) {}
+      if (codeRaw) {
+        try { if (adoptCodeSession(JSON.parse(codeRaw), false)) return; } catch (e) {}
+      }
       state.ready = true;
       showGate();
       renderGoogleButton();
@@ -519,6 +527,30 @@
     });
   }
 
+  function adoptCodeSession(data, persist) {
+    if (!data || !data.token || !data.binding || data.binding.role !== 'code') return false;
+    if (!text(data.binding.name) || !text(data.binding.class)) return false;
+    state.tester = false;
+    state.token = data.token;
+    state.user = { email: '', name: data.binding.name, student_name: data.binding.name };
+    state.binding = data.binding;
+    state.signedIn = true;
+    state.ready = true;
+    if (persist !== false) {
+      try {
+        localStorage.setItem(CODE_KEY, JSON.stringify({
+          token: data.token,
+          binding: data.binding,
+          schoolId: data.schoolId || ''
+        }));
+      } catch (e) {}
+    }
+    hideGate();
+    setError('');
+    notifySession();
+    return true;
+  }
+
   window.WebGoogleAuth = {
     get required() { return state.required; },
     get ready() { return state.ready; },
@@ -544,6 +576,7 @@
     },
     saveBinding: saveBinding,
     syncProfile: syncProfile,
+    adoptCodeSession: adoptCodeSession,
     mergeProfiles: mergeProfiles
   };
 

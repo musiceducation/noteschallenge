@@ -64,15 +64,16 @@ globalThis.WebGoogleAuth = { tester: true };
 assert.equal(Listen.canSavePlayer({ name: '陳同學', grade: '1', class: 'A' }), false);
 
 const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-assert.match(html, /baa-music-map\.js\?v=1/);
+assert.match(html, /baa-music-map\.js\?v=2/);
 assert.match(html, /ability-radar\.js\?v=2/);
 assert.match(html, /appreciate-listen\.js\?v=1/);
-assert.match(html, /style\.css\?v=23/);
-assert.match(html, /bootstrap-instruments\.js\?v=20/);
+assert.match(html, /classroom\.js\?v=2/);
+assert.match(html, /style\.css\?v=24/);
+assert.match(html, /bootstrap-instruments\.js\?v=21/);
 assert.match(html, /id="screen-appreciate"/);
 assert.match(html, /id="enterAppreciate"/);
 assert.doesNotMatch(html, /id="enterCompositionStudio"[^>]*hidden/);
-assert.match(fs.readFileSync(new URL('../bootstrap-instruments.js', import.meta.url), 'utf8'), /script\.js\?v=32/);
+assert.match(fs.readFileSync(new URL('../bootstrap-instruments.js', import.meta.url), 'utf8'), /script\.js\?v=33/);
 assert.match(fs.readFileSync(new URL('../script.js', import.meta.url), 'utf8'), /skipRemote: true/);
 
 console.log('appreciate-listen tests passed');

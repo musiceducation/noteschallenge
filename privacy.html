@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>私隱說明 — 互動音樂學習站</title>
+    <link rel="stylesheet" href="style.css?v=24">
+</head>
+<body>
+    <main class="card privacy-page">
+        <h1>私隱說明</h1>
+        <p>這頁說明互動音樂學習站目前實際存放同處理哪些資料。這是課堂工具的說明，不是法律意見，也不是官方證書。</p>
+        <h2>網站在哪裡運行</h2>
+        <ul>
+            <li>網頁由 Vercel 提供，網址是 noteschallenge.vercel.app，另外有一份相同的 www 頁面。</li>
+            <li>網頁版 Google 登入由 Cloudflare Worker <code>noteschallenge-auth</code> 處理。帳戶、名冊、班別卡片、在線狀態、課題、課堂紀錄同類碼存在 Cloudflare D1。</li>
+            <li>Google 登入使用 Google OAuth。電郵用來核對學校網域同名冊。</li>
+            <li>已登入學生的挑戰分數可以經 Google Apps Script 追加到 Google 試算表。鑑賞練習預設只留在這部裝置，不會送到那個排行榜。</li>
+        </ul>
+        <p>以上服務的機房由 Vercel、Cloudflare 同 Google 各自決定，可能在澳門以外。本站沒有聲稱資料只留在澳門。</p>
+        <h2>公開同學卡片</h2>
+        <p>其他同學看得到的卡片只有姓名、年級、班別、座號、頭像同簽名。卡片不會帶電郵、挑戰分數、教師評語或私人筆記。</p>
+        <h2>教師才看得到的資料</h2>
+        <p>課題完成情況、A 演唱與演奏同 B-5 同儕互評的觀察、紙筆結果，以及評估報告，只給已登入的該校教師。這些紀錄不是基本學力達標評級。</p>
+        <h2>班級短碼</h2>
+        <p>短碼用來加入指定的一班。學生提供姓名、班別同座號。這個身份不能改其他同學的資料，不能看到電郵，也不會把電郵放進公開卡片。老師可以讓短碼到期或作廢。短時間內試太多次會被拒絕。</p>
+        <h2>不會寫入正式紀錄的身份</h2>
+        <p>訪客、測試人員，以及沒有姓名的練習，不會寫進學生名冊或評估報告。</p>
+        <p><a href="index.html">返回學習站</a></p>
+    </main>
+</body>
+</html>
