@@ -293,6 +293,7 @@
       'screen-game4': '樂器作答',
       'screen-note-teach': '看圖學習',
       'screen-chord-card': '和弦',
+      'screen-staff-interval': '看譜辨音程',
       'screen-aural': '聽力',
       'screen-aural-interval': '音程聽辨',
       'screen-aural-rhythm': '節奏聽寫',

@@ -77,6 +77,8 @@ for (const f of [
   "www/aural-audio.js",
   "aural-interval.js",
   "www/aural-interval.js",
+  "staff-interval.js",
+  "www/staff-interval.js",
   "aural-rhythm.js",
   "www/aural-rhythm.js",
   "aural-quality.js",

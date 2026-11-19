@@ -102,6 +102,7 @@
   /** Hub cards reuse axis tags, or a domain item id already listed above. */
   var HUB = [
     { id: 'enterGame1', axis: 'reading' },
+    { id: 'enterStaffInterval', axis: 'reading' },
     { id: 'enterKeysig', axis: 'reading' },
     { id: 'enterSolfege', axis: 'solfege' },
     { id: 'enterChord', axis: 'harmony' },
