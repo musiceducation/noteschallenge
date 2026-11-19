@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=24">
+    <link rel="stylesheet" href="style.css?v=26">
     <script>
     (function () {
         try {
@@ -77,7 +77,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js" defer></script>
     <script src="auth-config.js" defer></script>
     <script src="auth.js" defer></script>
-    <script src="web-google-auth.js?v=5" defer></script>
+    <script src="web-google-auth.js?v=6" defer></script>
     <script src="audio-engine.js" defer></script>
     <script src="app-orientation.js" defer></script>
     <script src="app-three-bg.js" defer></script>
@@ -128,6 +128,14 @@
                         <span class="app-game-row-text">
                             <span class="app-game-row-name">音名識辨</span><span class="app-domain-chip">C-1</span>
                             <span class="app-game-row-desc">練習 · 1分鐘 · 零失誤</span>
+                        </span>
+                        <span class="app-game-row-chevron" aria-hidden="true">›</span>
+                    </button>
+                    <button type="button" class="app-game-row app-game-row--interval" data-launch="enterStaffInterval" role="listitem">
+                        <span class="app-game-row-icon" aria-hidden="true"><img src="img/ui/icon-topic-interval.webp" alt="" width="40" height="40"></span>
+                        <span class="app-game-row-text">
+                            <span class="app-game-row-name">看譜辨音程</span><span class="app-domain-chip">C-1</span>
+                            <span class="app-game-row-desc">看譜選音程 · 練習 · 1分鐘</span>
                         </span>
                         <span class="app-game-row-chevron" aria-hidden="true">›</span>
                     </button>
@@ -335,6 +343,16 @@
                 <div class="hub-game-name" aria-hidden="true">音名識辨</div>
                 <div class="hub-game-desc" aria-hidden="true">練習 · 1分鐘挑戰 · 零失誤</div>
                 <button type="button" class="hub-card-teach js-open-note-teach" id="openNoteTeachFromHub">看圖學習</button>
+                <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
+            </div>
+            <div class="hub-game-card hub-topic-interval hub-topic-pitch" id="enterStaffInterval" role="button" tabindex="0" aria-label="看譜辨音程：看兩個音選出音程。高音或低音譜號，練習或 1 分鐘。基本學力 C-1。按一下開始。">
+                <div class="hub-game-tag" aria-hidden="true">音程</div>
+                <div class="hub-domain-tags"><span class="hub-domain-chip">C-1</span></div>
+                <div class="hub-game-illust illust-interval" aria-hidden="true">
+                    <img class="illust-img" src="img/ui/hub-scene-interval.webp" alt="" loading="lazy" decoding="async">
+                </div>
+                <div class="hub-game-name" aria-hidden="true">看譜辨音程</div>
+                <div class="hub-game-desc" aria-hidden="true">看兩個音 · 練習或 1 分鐘</div>
                 <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
             </div>
             <div class="hub-game-card hub-topic-keysig hub-topic-pitch" id="enterKeysig" role="button" tabindex="0" aria-label="調號辨別：看調號圖片，按升降號數目練習或 1 分鐘挑戰。基本學力 C-1。按一下開始。">
@@ -1004,7 +1022,7 @@
             <div class="ranking-section">
                 <h2 class="rank-title">🏆 排行榜</h2>
                 <div class="rank-filters">
-                    <div class="rank-filter"><label>遊戲</label><select id="rankGameFilter"><option value="game1">一：音名識辨</option><option value="game2">二：節奏識辨</option><option value="game3">三：術語識辨</option><option value="game4">四：樂器識辨</option></select></div>
+                    <div class="rank-filter"><label>遊戲</label><select id="rankGameFilter"><option value="game1">一：音名識辨</option><option value="staff-interval">看譜辨音程</option><option value="game2">二：節奏識辨</option><option value="game3">三：術語識辨</option><option value="game4">四：樂器識辨</option></select></div>
                     <div class="rank-filter"><label>班別</label><select id="rankClassFilter"><option value="0">全部</option><option value="A">A班</option><option value="B">B班</option><option value="C">C班</option><option value="D">D班</option></select></div>
                     <div class="rank-filter"><label>年級</label><select id="rankGradeFilter"><option value="0">全部</option><option value="1" selected>中一</option><option value="2">中二</option><option value="3">中三</option><option value="4">中四</option><option value="5">中五</option><option value="6">中六</option></select></div>
                     <div class="rank-filter"><label>榜</label><select id="rankModeFilter"><option value="notes-clef" selected>音名譜號</option><option value="noMiss">零失誤挑戰</option><option value="keysig60">調號挑戰</option><option value="solfege60">唱名挑戰</option></select></div>
@@ -1678,6 +1696,65 @@
 
 
     <!-- ===================================== -->
+    <!-- 看譜辨音程                             -->
+    <!-- ===================================== -->
+    <div id="screen-staff-interval" class="screen">
+        <button class="btn-back-hub" id="staffIntervalBack" type="button">← 返回主頁</button>
+        <div id="staffIntervalSetup">
+            <h1 class="game-title">看譜辨音程</h1>
+            <div class="card staff-interval-card">
+                <p class="staff-interval-lead">看五線譜上的兩個音，選出音程。低音在左，高音在右。可以不填姓名練習。</p>
+                <div class="staff-interval-group">
+                    <div class="staff-interval-label">方式</div>
+                    <div class="staff-interval-choices" id="staffIntervalModes" role="group" aria-label="方式">
+                        <button type="button" class="staff-interval-choice is-on" data-mode="practice" aria-pressed="true">練習模式</button>
+                        <button type="button" class="staff-interval-choice" data-mode="challenge" aria-pressed="false">1 分鐘挑戰</button>
+                    </div>
+                </div>
+                <div class="staff-interval-group">
+                    <div class="staff-interval-label">譜號</div>
+                    <div class="staff-interval-choices" id="staffIntervalClefs" role="group" aria-label="譜號">
+                        <button type="button" class="staff-interval-choice is-on" data-clef="treble" aria-pressed="true">高音譜號</button>
+                        <button type="button" class="staff-interval-choice" data-clef="bass" aria-pressed="false">低音譜號</button>
+                    </div>
+                </div>
+                <div class="staff-interval-group">
+                    <div class="staff-interval-label">級別</div>
+                    <div class="staff-interval-choices" id="staffIntervalLevels" role="group" aria-label="級別">
+                        <button type="button" class="staff-interval-choice is-on" data-level="1" aria-pressed="true" data-hint="只問二度至八度，暫不分辨大、小、純。">第 1 級 · 度數</button>
+                        <button type="button" class="staff-interval-choice" data-level="2" aria-pressed="false" data-hint="二度、三度要分大和小。四度、五度、八度是純音程。">第 2 級 · 大、小、純</button>
+                    </div>
+                </div>
+                <p class="staff-interval-hint" id="staffIntervalHint">只問二度至八度，暫不分辨大、小、純。</p>
+                <button type="button" class="btn-start" id="staffIntervalStart">開始</button>
+            </div>
+        </div>
+        <div id="staffIntervalPlay" hidden>
+            <div class="card staff-interval-card">
+                <div class="staff-interval-hud">
+                    <span class="staff-interval-score" id="staffIntervalScore">0 / 0</span>
+                    <span id="staffIntervalMeta">準備</span>
+                </div>
+                <div class="staff-interval-staff" id="staffIntervalStaff"></div>
+                <p class="staff-interval-prompt" id="staffIntervalPrompt">這兩個音相距幾度？</p>
+                <p class="staff-interval-feedback" id="staffIntervalFeedback" aria-live="polite"></p>
+                <button type="button" class="staff-interval-next" id="staffIntervalNext" hidden>下一題</button>
+                <div class="staff-interval-options" id="staffIntervalOptions" role="group" aria-label="音程選項"></div>
+                <button type="button" class="staff-interval-end" id="staffIntervalEnd">結束練習</button>
+            </div>
+        </div>
+        <div id="staffIntervalResult" hidden>
+            <div class="card staff-interval-card">
+                <h2 class="staff-interval-result-title" id="staffIntervalResultTitle">完成</h2>
+                <p class="staff-interval-result-body" id="staffIntervalResultBody"></p>
+                <div id="staffIntervalBoard"></div>
+                <button type="button" class="btn-start" id="staffIntervalAgain">再玩一次</button>
+                <button type="button" class="staff-interval-end" id="staffIntervalResultBack">返回主頁</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================== -->
     <!-- 聽力：音程聽辨                         -->
     <!-- ===================================== -->
     <div id="screen-aural" class="screen">
@@ -1921,18 +1998,19 @@
     <script src="chinese-instrument-challenge.js?v=3" defer></script>
     <script src="chord-keyboard.js?v=2" defer></script>
     <script src="rank-sync.js?v=6" defer></script>
-    <script src="class-share.js?v=4" defer></script>
+    <script src="class-share.js?v=5" defer></script>
     <script src="profile-store.js?v=1" defer></script>
-    <script src="baa-music-map.js?v=2" defer></script>
+    <script src="baa-music-map.js?v=3" defer></script>
     <script src="ability-radar.js?v=2" defer></script>
     <script src="aural-score.js?v=1" defer></script>
     <script src="aural-audio.js?v=1" defer></script>
+    <script src="staff-interval.js?v=1" defer></script>
     <script src="aural-interval.js?v=1" defer></script>
     <script src="aural-rhythm.js?v=1" defer></script>
     <script src="aural-quality.js?v=1" defer></script>
     <script src="appreciate-listen.js?v=1" defer></script>
-    <script src="classroom.js?v=2" defer></script>
-    <script src="bootstrap-instruments.js?v=21" data-app-bootstrap defer></script>
+    <script src="classroom.js?v=3" defer></script>
+    <script src="bootstrap-instruments.js?v=22" data-app-bootstrap defer></script>
     <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
 </body>
 </html>

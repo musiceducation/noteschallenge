@@ -6,8 +6,8 @@ const www = fs.readFileSync(new URL('../www/class-share.js', import.meta.url), '
 assert.equal(src, www);
 for (const file of ['../index.html', '../www/index.html']) {
   const html = fs.readFileSync(new URL(file, import.meta.url), 'utf8');
-  assert.match(html, /class-share\.js\?v=4/);
-  assert.doesNotMatch(html, /class-share\.js\?v=3/);
+  assert.match(html, /class-share\.js\?v=5/);
+  assert.doesNotMatch(html, /class-share\.js\?v=4/);
 }
 const ClassShare = new Function(src + '\nreturn ClassShare;')();
 

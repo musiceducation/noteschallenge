@@ -90,7 +90,7 @@ assert.match(fs.readFileSync(new URL('../PRIVACY.md', import.meta.url), 'utf8'),
 assert.doesNotMatch(fs.readFileSync(new URL('../PRIVACY.md', import.meta.url), 'utf8'), /資料不出境/);
 assert.match(fs.readFileSync(new URL('../script.js', import.meta.url), 'utf8'), /skipRemote: true/);
 assert.match(fs.readFileSync(new URL('../script.js', import.meta.url), 'utf8'), /binding\.role === 'code'/);
-assert.match(html, /classroom\.js\?v=2/);
+assert.match(html, /classroom\.js\?v=3/);
 
 function jsonResponse(status, data) {
   return {

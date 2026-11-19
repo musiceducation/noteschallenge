@@ -711,7 +711,7 @@
     function _expForLevel(lvl) { return lvl * 100; }
 
     const PROFILE_GAME_LABELS = {
-        game1: '音名識辨', keysig: '調號辨別', solfege: '唱名辨別', chord: '和弦練習', game2: '節奏識辨', game3: '術語識辨', game4: '樂器識辨',
+        game1: '音名識辨', 'staff-interval': '看譜辨音程', keysig: '調號辨別', solfege: '唱名辨別', chord: '和弦練習', game2: '節奏識辨', game3: '術語識辨', game4: '樂器識辨',
         listening: '聽力', 'aural-interval': '音程聽辨', 'aural-rhythm': '節奏聽寫', 'aural-quality': '和弦色彩',
         'appreciate-form': '曲式聽辨', 'appreciate-genre': '歌曲體裁', 'appreciate-traits': '音樂特點'
     };
@@ -1758,8 +1758,8 @@
             } catch (e) {}
         }
 
-        const quietScreen = screenId === 'screen-aural' || screenId === 'screen-appreciate' || screenId === 'screen-composition-studio' || (screenId && screenId.indexOf('screen-aural-') === 0);
-        const leftQuiet = prevScreenId === 'screen-aural' || prevScreenId === 'screen-appreciate' || prevScreenId === 'screen-composition-studio' || (prevScreenId && prevScreenId.indexOf('screen-aural-') === 0);
+        const quietScreen = screenId === 'screen-aural' || screenId === 'screen-staff-interval' || screenId === 'screen-appreciate' || screenId === 'screen-composition-studio' || (screenId && screenId.indexOf('screen-aural-') === 0);
+        const leftQuiet = prevScreenId === 'screen-aural' || prevScreenId === 'screen-staff-interval' || prevScreenId === 'screen-appreciate' || prevScreenId === 'screen-composition-studio' || (prevScreenId && prevScreenId.indexOf('screen-aural-') === 0);
         if (quietScreen) audio.bgPause();
         else if (leftQuiet) audio.bgPlay();
 
@@ -4238,6 +4238,10 @@
     }
     function renderRanks() {
         const gf = document.getElementById('rankGameFilter');
+        if (gf && gf.value === 'staff-interval') {
+            renderRanksForGame('staff-interval', deviceClassroomRows('staff-interval'));
+            return;
+        }
         if (gf && (gf.value === 'game2' || gf.value === 'game3')) {
             const noteClefWrapEarly = document.getElementById('rankNoteClefWrap');
             if (noteClefWrapEarly) noteClefWrapEarly.style.display = 'none';
@@ -4702,6 +4706,10 @@
             const rhythmKindWrap = document.getElementById('rankRhythmKindWrap');
             if (rhythmKindWrap) rhythmKindWrap.style.display = (gfVal === 'game2' || gfVal === 'game3') ? '' : 'none';
             if (gfVal === 'game2' || gfVal === 'game3') syncRankKindOptions(gfVal);
+            if (gfVal === 'staff-interval') {
+                renderRanksForGame('staff-interval', deviceClassroomRows('staff-interval'));
+                return;
+            }
             const noteClefWrap = document.getElementById('rankNoteClefWrap');
             if (noteClefWrap && gfVal !== 'game1') noteClefWrap.style.display = 'none';
             const dfWrap = document.getElementById('rankDiffFilterWrap');
@@ -5440,6 +5448,34 @@
             if (id) switchScreen(id);
         });
 
+        window.addEventListener('staff-interval-navigate', (ev) => {
+            const id = ev && ev.detail && ev.detail.screen;
+            if (id) switchScreen(id);
+        });
+        window.addEventListener('staff-interval-result', (ev) => {
+            const detail = ev && ev.detail;
+            if (!detail || detail.mode !== 'challenge') return;
+            if (window.WebGoogleAuth && window.WebGoogleAuth.tester) return;
+            const u = getHubUser();
+            if (!u || !u.name || (_profileApi() && _profileApi().isGuest(u))) return;
+            if (u.name === '訪客' || u.name === '測試人員' || String(u.name).indexOf('測試') === 0) return;
+            const score = parseInt(detail.score, 10) || 0;
+            const accuracy = parseInt(detail.accuracy, 10) || 0;
+            const maxCombo = parseInt(detail.maxCombo, 10) || 0;
+            recordGameResult(
+                { name: u.name, grade: u.grade, class: u.class || '', seat: u.seat || u.id || '' },
+                'staff-interval', score, accuracy, maxCombo, 'challenge'
+            );
+            if (detail.uploadsScore) {
+                submitScoreToGAS('staff-interval', {
+                    name: u.name,
+                    grade: u.grade,
+                    class: u.class || '',
+                    seat: u.seat || u.id || ''
+                }, score, accuracy, maxCombo, '看譜辨音程·1分鐘');
+            }
+        });
+
         const APPRECIATE_KEYS = ['appreciate-form', 'appreciate-genre', 'appreciate-traits'];
         window.addEventListener('appreciate-result', (ev) => {
             const detail = ev && ev.detail;
@@ -5759,6 +5795,24 @@
             }
         });
 
+        const enterStaffIntervalEl = document.getElementById('enterStaffInterval');
+        enterStaffIntervalEl?.addEventListener('click', () => {
+            if (window.WebGoogleAuth && window.WebGoogleAuth.required && !window.WebGoogleAuth.signedIn) return;
+            if (isAppShell() && window.MusicAppAuth && window.MusicAppAuth.required && !window.MusicAppAuth.signedIn) {
+                requireHubLogin(hubNameField);
+                return;
+            }
+            if (requireHubLogin(hubNameField, true)) syncFromHub();
+            else state.currentUser = null;
+            window.dispatchEvent(new CustomEvent('staff-interval-open'));
+            switchScreen('screen-staff-interval');
+        });
+        enterStaffIntervalEl?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                enterStaffIntervalEl.click();
+            }
+        });
         const enterGame1El = document.getElementById('enterGame1');
         enterGame1El.addEventListener('click', () => openSetupTopic('notes'));
         enterGame1El.addEventListener('keydown', (e) => {

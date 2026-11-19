@@ -17,6 +17,9 @@
       { id: 'mixed60', label: '混合譜 1分鐘' },
       { id: 'noMiss', label: '零失誤挑戰' }
     ]},
+    { id: 'staff-interval', label: '看譜辨音程', games: ['staff-interval'], hub: 'enterStaffInterval', difficulties: [
+      { id: 'challenge', label: '1分鐘挑戰' }
+    ]},
     { id: 'keysig', label: '調號辨別', games: ['keysig'], hub: 'enterKeysig', difficulties: [
       { id: 'keysig60', label: '調號挑戰' }
     ]},

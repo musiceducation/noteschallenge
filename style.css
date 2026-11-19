@@ -2003,6 +2003,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     position: absolute; inset: 0; opacity: 0.12; border-radius: inherit;
 }
 .illust-1 { background: #f6f1f8; }
+.illust-interval { background: #FFF8EE; }
 .illust-1 .illust-bg { opacity: 0; }
 .illust-2 { background: #f8f3ef; }
 .illust-2 .illust-bg { opacity: 0; }
@@ -7997,7 +7998,7 @@ body.app-shell.app-on-root .sound-toggle {
         max-width: none;
         margin: 0;
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(6, minmax(0, 1fr));
         grid-template-rows: repeat(2, minmax(0, 1fr));
         grid-auto-flow: row;
         grid-auto-rows: minmax(0, 1fr);
@@ -8398,6 +8399,7 @@ body {
 
 /* Topic names: one saturated hue each, dark enough for AA on cream paper. */
 #screen-hub .hub-game1 .hub-game-name { color: #4C2DB5; }
+#screen-hub .hub-topic-interval .hub-game-name { color: #9A3412; }
 #screen-hub .hub-topic-keysig .hub-game-name { color: #1D4ED8; }
 #screen-hub .hub-topic-solfege .hub-game-name { color: #0B7A45; }
 #screen-hub .hub-topic-chord .hub-game-name { color: #A21CAF; }
@@ -8648,6 +8650,7 @@ body:has(#screen-g2-setup.screen.active),
 body:has(#screen-g3-setup.screen.active),
 body:has(#screen-g4-setup.screen.active),
 body:has(#screen-aural.screen.active),
+body:has(#screen-staff-interval.screen.active),
 body:has(#screen-chord-card.screen.active) {
     background-image:
         radial-gradient(ellipse at 12% 0%, rgba(255, 220, 176, 0.5), transparent 46%),
@@ -8747,5 +8750,136 @@ body:has(#screen-chord-card.screen.active) {
 .privacy-page { max-width: 760px; margin: 24px auto; padding: 20px; }
 .privacy-page h1 { margin-top: 0; }
 .privacy-page a { color: #7d525e; font-weight: 800; }
+
+/* 看譜辨音程：玻璃設定卡、大按鈕、譜面回饋不帶到下一題。 */
+#staffIntervalSetup[hidden],
+#staffIntervalPlay[hidden],
+#staffIntervalResult[hidden] { display: none !important; }
+#screen-staff-interval { align-items: stretch; width: min(860px, 100%); }
+.staff-interval-card {
+    text-align: left;
+    background: rgba(255, 248, 238, 0.94);
+    border: 1px solid rgba(232, 177, 90, 0.85);
+    box-shadow: 0 10px 24px rgba(20, 30, 70, 0.16);
+}
+.staff-interval-lead,
+.staff-interval-hint,
+.staff-interval-prompt,
+.staff-interval-result-body {
+    margin: 0 0 12px;
+    color: #2C1810;
+    font-weight: 700;
+    line-height: 1.45;
+}
+.staff-interval-group { margin: 0 0 14px; }
+.staff-interval-label {
+    margin-bottom: 8px;
+    font-weight: 900;
+    color: #7d525e;
+}
+.staff-interval-choices { display: flex; flex-wrap: wrap; gap: 10px; }
+.staff-interval-choice,
+.staff-interval-opt,
+.staff-interval-next,
+.staff-interval-end {
+    font-family: inherit;
+    font-weight: 800;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.staff-interval-choice {
+    flex: 1 1 180px;
+    min-height: 56px;
+    padding: 12px 16px;
+    border-radius: 18px;
+    border: 2px solid #E8B15A;
+    background: #fff;
+    color: #2C1810;
+    font-size: 1.15rem;
+}
+.staff-interval-choice.is-on {
+    background: #FF9F1C;
+    border-color: #C2410C;
+    color: #3A2208;
+}
+.staff-interval-hud {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+    color: #2C1810;
+    font-weight: 800;
+}
+.staff-interval-score { font-size: 1.6rem; font-weight: 900; color: #9A3412; }
+.staff-interval-staff {
+    background: #FFF8EE;
+    border-radius: 18px;
+    border: 2px solid rgba(232, 177, 90, 0.65);
+    overflow: hidden;
+}
+.staff-interval-staff.is-correct { border-color: #059669; }
+.staff-interval-staff.is-wrong { border-color: #e11d48; }
+.staff-interval-svg { display: block; width: min(100%, 720px); height: auto; margin: 0 auto; }
+.staff-interval-feedback {
+    min-height: 2.8em;
+    margin: 8px 0;
+    font-weight: 900;
+    font-size: 1.15rem;
+    color: #2C1810;
+}
+.staff-interval-feedback.is-correct { color: #047857; }
+.staff-interval-feedback.is-wrong { color: #be123c; }
+.staff-interval-next,
+.staff-interval-end {
+    width: 100%;
+    min-height: 56px;
+    border-radius: 16px;
+    font-size: 1.2rem;
+}
+.staff-interval-next {
+    margin-bottom: 12px;
+    border: none;
+    background: #FFD15A;
+    color: #3A2208;
+}
+.staff-interval-end {
+    margin-top: 12px;
+    border: 2px solid #E8B15A;
+    background: #fff;
+    color: #2C1810;
+}
+.staff-interval-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+    gap: 10px;
+}
+.staff-interval-opt {
+    min-height: 76px;
+    border-radius: 18px;
+    border: 2px solid #E8B15A;
+    background: #FFF8EE;
+    color: #2C1810;
+    font-size: 1.35rem;
+}
+.staff-interval-opt:disabled { cursor: default; }
+.staff-interval-opt.is-correct { background: #d1fae5; border-color: #059669; }
+.staff-interval-opt.is-wrong { background: #ffe4e6; border-color: #e11d48; }
+.staff-interval-result-title { margin: 0 0 8px; color: #2C1810; }
+.staff-interval-board-title { margin: 8px 0; font-size: 1rem; color: #2C1810; }
+.staff-interval-board-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(44, 24, 16, 0.12);
+    font-weight: 800;
+    color: #2C1810;
+}
+.staff-interval-board-row.is-self { color: #9A3412; }
+.app-game-row--interval .app-game-row-icon { background: #FFF3E4; }
+@media (max-width: 640px) {
+    .staff-interval-choice { flex-basis: 100%; font-size: 1.2rem; min-height: 60px; }
+    .staff-interval-opt { min-height: 72px; font-size: 1.28rem; }
+}
 
 
