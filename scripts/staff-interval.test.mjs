@@ -66,7 +66,9 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.match(html, /id="screen-staff-interval"/);
   assert.match(html, /看譜辨音程/);
   assert.match(html, /staff-interval\.js\?v=1/);
-  assert.match(html, /style\.css\?v=25/);
+  assert.match(html, /style\.css\?v=26/);
+  assert.match(html, /hub-scene-interval\.webp/);
+  assert.match(html, /icon-topic-interval\.webp/);
   const screen = html.slice(html.indexOf('id="screen-staff-interval"'), html.indexOf('id="screen-aural"'));
   assert.match(screen, /高音譜號/);
   assert.match(screen, /低音譜號/);
