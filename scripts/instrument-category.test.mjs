@@ -371,7 +371,8 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.doesNotMatch(html, /style\.css\?v=23/);
   assert.doesNotMatch(html, /style\.css\?v=21/);
   assert.doesNotMatch(html, /style\.css\?v=20/);
-  assert.match(html, /bootstrap-instruments\.js\?v=21/);
+  assert.match(html, /bootstrap-instruments\.js\?v=22/);
+  assert.doesNotMatch(html, /bootstrap-instruments\.js\?v=21/);
   assert.doesNotMatch(html, /bootstrap-instruments\.js\?v=20/);
   assert.doesNotMatch(html, /bootstrap-instruments\.js\?v=18/);
   assert.doesNotMatch(html, /bootstrap-instruments\.js\?v=17/);

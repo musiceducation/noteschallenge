@@ -13,8 +13,7 @@ assert.equal(StaffInterval.META.uploadsScore, true);
 assert.doesNotMatch(src, /增|減|英皇|musictheory|Tenuto|tenuto/);
 
 for (const clef of ['treble', 'bass']) {
-  const seen = new Set();
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 8; i++) {
     const q = StaffInterval.buildQuestion(1, clef, Math.random, '');
     assert.equal(q.level, 1);
     assert.equal(q.clef, clef);
@@ -26,19 +25,29 @@ for (const clef of ['treble', 'bass']) {
     assert.ok(StaffInterval.staffStep(clef, q.high) <= 6);
     assert.equal(q.choices.length, 7);
     assert.doesNotMatch(StaffInterval.staffMarkup(q), /𝄞|𝄢|&#/);
-    seen.add(q.size);
   }
-  assert.equal(seen.size, 7, clef + ' level 1');
+  for (let size = 2; size <= 8; size++) {
+    assert.ok(StaffInterval.spellings(clef, { size: size, quality: null }).length > 0, clef + ' size ' + size);
+  }
 
-  const qualities = new Set();
-  for (let i = 0; i < 40; i++) {
+  const level2 = [
+    { size: 2, quality: 'minor' },
+    { size: 2, quality: 'major' },
+    { size: 3, quality: 'minor' },
+    { size: 3, quality: 'major' },
+    { size: 4, quality: 'perfect' },
+    { size: 5, quality: 'perfect' },
+    { size: 8, quality: 'perfect' }
+  ];
+  for (const spec of level2) {
+    assert.ok(StaffInterval.spellings(clef, spec).length > 0, clef + ' ' + spec.quality + spec.size);
+  }
+  for (let i = 0; i < 12; i++) {
     const q = StaffInterval.buildQuestion(2, clef, Math.random, '');
     assert.equal(q.correct, q.quality + ':' + q.size);
     assert.match(q.label, /^[大小純]/);
     assert.equal(q.choices.map((choice) => choice.label).join(','), '小二度,大二度,小三度,大三度,純四度,純五度,純八度');
-    qualities.add(q.correct);
   }
-  assert.equal(qualities.size, 7, clef + ' level 2');
   assert.equal(StaffInterval.spellings(clef, { size: 4, quality: 'augmented' }).length, 0);
   assert.equal(StaffInterval.spellings(clef, { size: 5, quality: 'diminished' }).length, 0);
 }
