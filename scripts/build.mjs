@@ -69,6 +69,8 @@ for (const f of [
   "www/baa-music-map.js",
   "appreciate-listen.js",
   "www/appreciate-listen.js",
+  "composer-game.js",
+  "www/composer-game.js",
   "classroom.js",
   "www/classroom.js",
   "aural-score.js",
@@ -108,6 +110,7 @@ for (const f of [
   "aural-interval.js",
   "aural-rhythm.js",
   "aural-quality.js",
+  "composer-game.js",
   "rhythm-levels.js"
 ]) {
   const rootPath = path.join(root, f);

@@ -1739,6 +1739,7 @@
                 if (g4State._nextTimer) { clearTimeout(g4State._nextTimer); g4State._nextTimer = null; }
                 if (next && next.id !== 'screen-game4-result') g4State._ended = true;
             }
+            if (cid === 'screen-composers' && window.ComposerGame) { window.ComposerGame.stop(); }
             if (_countdownTimerId) { clearInterval(_countdownTimerId); _countdownTimerId = null; dom.countdownOverlay?.classList.remove('show'); }
         }
 
@@ -5527,6 +5528,10 @@
             const id = ev && ev.detail && ev.detail.screen;
             if (id) switchScreen(id);
         });
+        window.addEventListener('composer-navigate', (ev) => {
+            const id = ev && ev.detail && ev.detail.screen;
+            if (id) switchScreen(id);
+        });
 
         window.addEventListener('chord-local-best', (ev) => {
             const score = parseInt(ev && ev.detail && ev.detail.score, 10) || 0;
@@ -5808,6 +5813,19 @@
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 enterAppreciateEl.click();
+            }
+        });
+
+        const enterComposersEl = document.getElementById('enterComposers');
+        enterComposersEl?.addEventListener('click', () => {
+            if (!requireHubLogin(hubNameField)) return;
+            syncFromHub();
+            switchScreen('screen-composers');
+        });
+        enterComposersEl?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                enterComposersEl.click();
             }
         });
 

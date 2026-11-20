@@ -430,6 +430,21 @@
                 <div class="hub-game-desc" aria-hidden="true">曲式 · 體裁 · 音樂特點<br>原創短句，不計入聽力</div>
                 <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
             </div>
+            <div class="hub-game-card hub-topic-listen hub-topic-composers" id="enterComposers" role="button" tabindex="0" aria-label="西方音樂家：圖鑑試聽、音樂偵探、時間軸快排、時期歸隊。按一下開始。">
+                <div class="hub-game-tag" aria-hidden="true">音樂家</div>
+                <div class="hub-domain-tags"><span class="hub-domain-chip">B-4</span></div>
+                <div class="hub-game-illust illust-composers" aria-hidden="true">
+                    <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="18" y="24" width="164" height="72" rx="14" fill="#FFF8EE" stroke="#C2410C" stroke-width="3"/>
+                        <text x="42" y="68" font-size="30" fill="#C2410C" font-family="serif">𝄞</text>
+                        <text x="82" y="56" font-size="16" font-weight="800" fill="#2C1810" font-family="Noto Sans TC, sans-serif">巴洛克→現代</text>
+                        <text x="82" y="78" font-size="13" font-weight="700" fill="#7D525E" font-family="Nunito, sans-serif">10 位經典作曲家</text>
+                    </svg>
+                </div>
+                <div class="hub-game-name" aria-hidden="true">西方音樂家</div>
+                <div class="hub-game-desc" aria-hidden="true">圖鑑試聽 · 偵探 · 時間軸 · 歸隊</div>
+                <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
+            </div>
             <div class="hub-game-card hub-game-studio" id="enterCompositionStudio" role="button" tabindex="0" aria-label="創作工作室：節奏與旋律創作。不計入能力圖，亦不是達標評級。基本學力 D-1–D-6。按一下開始創作。">
                 <div class="hub-game-tag" aria-hidden="true">創作</div>
                 <div class="hub-domain-tags"><span class="hub-domain-chip">D-1–D-6</span></div>
@@ -1893,6 +1908,22 @@
     </div>
 
     <!-- ===================================== -->
+    <!-- 西方音樂家：圖鑑、偵探、時間軸、歸隊  -->
+    <!-- ===================================== -->
+    <div id="screen-composers" class="screen aural-screen">
+        <button class="btn-back-hub" id="composerBackHub" type="button">← 返回主頁</button>
+        <h1 class="game-title">西方音樂家</h1>
+        <p class="game-subtitle">聽公版經典主題認識巴洛克至現代 10 位大師，圖鑑溫習或挑戰高分。</p>
+        <div class="composer-tabs" id="composerTabs" role="tablist" aria-label="音樂家玩法">
+            <button type="button" class="hub-filter-pill is-active" role="tab" aria-selected="true" data-composer-tab="atlas">📚 圖鑑試聽</button>
+            <button type="button" class="hub-filter-pill" role="tab" aria-selected="false" data-composer-tab="detective">🕵️ 音樂偵探</button>
+            <button type="button" class="hub-filter-pill" role="tab" aria-selected="false" data-composer-tab="timeline">⏳ 時間軸快排</button>
+            <button type="button" class="hub-filter-pill" role="tab" aria-selected="false" data-composer-tab="erasort">📦 時期歸隊 60s</button>
+        </div>
+        <div id="composerRoot" class="composer-root"></div>
+    </div>
+
+    <!-- ===================================== -->
     <!-- 課堂任務、紀錄與評估報告              -->
     <!-- ===================================== -->
     <div id="screen-classroom" class="screen">
@@ -1938,6 +1969,7 @@
     <script src="aural-rhythm.js?v=2" defer></script>
     <script src="aural-quality.js?v=2" defer></script>
     <script src="appreciate-listen.js?v=1" defer></script>
+    <script src="composer-game.js?v=1" defer></script>
     <script src="classroom.js?v=2" defer></script>
     <script src="bootstrap-instruments.js?v=22" data-app-bootstrap defer></script>
     <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>

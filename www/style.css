@@ -8799,5 +8799,116 @@ body:has(#screen-chord-card.screen.active) {
     .bg-note { opacity: 0.14; }
 }
 
+/* ===== 西方音樂家模組 ===== */
+.composer-tabs, .composer-era-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin: 8px 0 14px;
+}
+.composer-root { width: 100%; max-width: 920px; margin: 0 auto; }
+.composer-atlas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 12px;
+}
+.composer-card {
+    background: var(--ds-surface-container-lowest);
+    border: 1.5px solid rgba(125, 82, 94, 0.16);
+    border-radius: 18px;
+    padding: 14px 16px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: var(--ds-shadow-cloud);
+}
+.composer-card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.composer-era-badge { color: #fff; font-size: 0.75rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; }
+.composer-years { font-size: 0.78rem; font-weight: 700; color: var(--ds-on-surface-variant); }
+.composer-name { font-size: 1.15rem; font-weight: 900; color: var(--ds-on-surface); margin: 0; }
+.composer-en { font-size: 0.82rem; font-weight: 700; color: var(--ds-on-surface-variant); }
+.composer-title-tag { font-size: 0.85rem; font-weight: 800; color: var(--ds-primary); }
+.composer-tip { font-size: 0.84rem; color: var(--ds-on-surface-variant); line-height: 1.45; margin: 0; flex: 1; }
+.composer-listen-btn, .composer-clue-btn {
+    min-height: 44px;
+    padding: 8px 14px;
+    border-radius: 12px;
+    border: 1.5px solid rgba(194, 65, 12, 0.35);
+    background: var(--ds-surface-container-low);
+    color: var(--ds-on-primary-container);
+    font-weight: 800;
+    cursor: pointer;
+}
+.composer-listen-btn:hover, .composer-clue-btn:hover:not(:disabled) { background: var(--ds-primary-container); }
+.composer-clue-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.composer-hud {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+    background: var(--ds-surface-container-lowest);
+    border-radius: 14px; padding: 10px 16px; margin-bottom: 12px;
+    font-weight: 800; color: var(--ds-on-surface);
+    border: 1.5px solid rgba(125, 82, 94, 0.14);
+}
+.composer-stage {
+    background: var(--ds-surface-container-lowest);
+    border-radius: 20px; padding: 18px;
+    border: 1.5px solid rgba(125, 82, 94, 0.16);
+    display: flex; flex-direction: column; gap: 14px;
+}
+.composer-stage-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.composer-clues { display: flex; flex-direction: column; gap: 8px; }
+.composer-clue {
+    background: var(--ds-surface-container-low);
+    border-left: 4px solid var(--ds-primary);
+    padding: 8px 12px; border-radius: 8px; font-weight: 700; text-align: left;
+}
+.composer-hint { color: var(--ds-on-surface-variant); font-size: 0.9rem; margin: 0; }
+.composer-feedback { min-height: 1.4em; font-weight: 800; color: var(--ds-on-surface); margin: 0; }
+.composer-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.composer-timeline-slots { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; }
+.composer-slot {
+    min-width: 110px; min-height: 48px; padding: 8px 14px; border-radius: 14px;
+    border: 2px dashed rgba(125, 82, 94, 0.35); background: var(--ds-surface);
+    display: inline-flex; align-items: center; gap: 6px; font-weight: 800; cursor: pointer;
+}
+.composer-slot.is-filled { border-style: solid; border-color: var(--ds-primary); background: var(--ds-primary-container); }
+.composer-slot-num {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--ds-primary); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 0.78rem;
+}
+.composer-arrow { font-weight: 900; color: var(--ds-on-surface-variant); }
+.composer-timeline-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.composer-tl-card {
+    min-height: 64px; padding: 12px; border-radius: 14px;
+    border: 1.5px solid rgba(125, 82, 94, 0.22); background: #fff;
+    display: flex; flex-direction: column; gap: 4px; text-align: left; cursor: pointer;
+}
+.composer-tl-card.is-used { opacity: 0.4; }
+.composer-sort-card {
+    padding: 20px; border-radius: 16px; background: var(--ds-surface-container-low);
+    border: 2px solid rgba(194, 65, 12, 0.25);
+}
+.composer-sort-headline { font-size: 1.35rem; font-weight: 900; color: var(--ds-on-surface); }
+.composer-sort-sub { font-size: 0.9rem; font-weight: 700; color: var(--ds-on-surface-variant); margin-top: 6px; }
+.composer-era-bins { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.composer-era-bin {
+    min-height: 64px; padding: 12px; border-radius: 16px; border: 2px solid var(--era-c, var(--ds-primary));
+    background: #fff; color: var(--ds-on-surface);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    cursor: pointer; font-size: 1rem;
+}
+.composer-era-bin small { color: var(--ds-on-surface-variant); font-weight: 700; font-size: 0.78rem; }
+.composer-result {
+    background: var(--ds-surface-container-lowest); border-radius: 20px; padding: 24px 18px;
+    border: 1.5px solid rgba(125, 82, 94, 0.16); display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.composer-result-score { font-size: 2.2rem; font-weight: 900; color: var(--ds-primary); margin: 0; }
+.composer-board { width: 100%; max-width: 360px; margin: 6px 0; }
+@media (max-width: 480px) {
+    .composer-options, .composer-era-bins { grid-template-columns: 1fr; }
+}
+
+
 
 
