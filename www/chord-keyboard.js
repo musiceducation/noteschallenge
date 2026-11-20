@@ -443,6 +443,7 @@
 
         function paintChallenge() {
             var question = round.questions[round.index];
+            var needed = toneCount(question);
             if (challengeMount) {
                 challengeMount.innerHTML = renderCard(question.root, question.type, {
                     prompt: true,
@@ -450,7 +451,16 @@
                     selected: round.selected
                 });
             }
-            if (confirmBtn) confirmBtn.disabled = round.locked || round.selected.length !== toneCount(question);
+            if (confirmBtn) confirmBtn.disabled = round.locked || round.selected.length !== needed;
+            if (messageEl && !round.locked) {
+                if (round.selected.length > needed) {
+                    messageEl.className = 'message-box warning';
+                    messageEl.textContent = '這個和弦只需選 ' + needed + ' 個音（目前已選 ' + round.selected.length + ' 個），請點選已亮起的琴鍵取消多餘的音。';
+                } else {
+                    messageEl.className = 'message-box';
+                    messageEl.textContent = '請在鍵盤彈出這個和弦，再按確認。點多一次可以取消。';
+                }
+            }
             updateHud();
         }
 
@@ -553,6 +563,7 @@
                 if (!key) return;
                 var midi = parseInt(key.getAttribute('data-midi'), 10);
                 if (isNaN(midi)) return;
+                if (options && typeof options.playMidi === 'function') options.playMidi(midi);
                 var at = round.selected.indexOf(midi);
                 if (at >= 0) round.selected.splice(at, 1);
                 else round.selected.push(midi);

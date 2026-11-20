@@ -240,7 +240,14 @@
                 finish(false);
                 return;
             }
-            question = buildQuestion(level, Math.random, harmonic);
+            var lastCorrect = question ? question.correct : '';
+            var next = buildQuestion(level, Math.random, harmonic);
+            if (poolForLevel(level).length > 1) {
+                for (var tries = 0; tries < 10 && next.correct === lastCorrect; tries++) {
+                    next = buildQuestion(level, Math.random, harmonic);
+                }
+            }
+            question = next;
             lockAnswer = false;
             var prompt = doc.getElementById('auralIntervalPrompt');
             prompt.textContent = level <= 1 ? '聽兩個音，選出度數。' : '聽兩個音，選出音程（大、小或純）。';
@@ -316,6 +323,10 @@
             } else if (outcome.kept) {
                 title.textContent = '挑戰結束';
                 body.textContent = '這次 ' + run.score + ' 分（準確率 ' + outcome.detail.accuracy + '%）。已寫入個人檔案的聽力分數。較低的舊分不會蓋過這次。';
+                renderBoard(outcome.rows, who);
+            } else if (!outcome.best) {
+                title.textContent = '挑戰結束';
+                body.textContent = '這次 0 分（準確率 ' + outcome.detail.accuracy + '%）。未寫入更高的聽力分數。';
                 renderBoard(outcome.rows, who);
             } else {
                 title.textContent = '挑戰結束';

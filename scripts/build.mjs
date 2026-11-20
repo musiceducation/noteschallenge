@@ -97,4 +97,24 @@ if (!rhythmPage.includes("/rhythm/_next/static/chunks/2etrih5d8jkz5.css?v=2")) {
 }
 console.log("ok", "rhythm/index.html");
 
+for (const f of [
+  "index.html",
+  "script.js",
+  "bootstrap-instruments.js",
+  "chord-keyboard.js",
+  "aural-score.js",
+  "aural-audio.js",
+  "aural-interval.js",
+  "aural-rhythm.js",
+  "aural-quality.js",
+  "rhythm-levels.js"
+]) {
+  const rootPath = path.join(root, f);
+  const wwwPath = path.join(root, "www", f);
+  if (fs.existsSync(wwwPath) && !fs.readFileSync(rootPath).equals(fs.readFileSync(wwwPath))) {
+    fail(`out of sync: ${f} !== www/${f}`);
+  }
+}
+console.log("ok", "root <-> www parity");
+
 console.log("build: done");

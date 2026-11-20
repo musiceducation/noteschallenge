@@ -214,7 +214,12 @@
         function ask() {
             if (!running) return;
             if (run.mode === 'challenge' && Date.now() >= endsAt) { finish(); return; }
-            question = buildQuestion(level, phrase, Math.random);
+            var lastKey = question ? (question.kind + ':' + question.id) : '';
+            var next = buildQuestion(level, phrase, Math.random);
+            for (var tries = 0; tries < 10 && (next.kind + ':' + next.id) === lastKey; tries++) {
+                next = buildQuestion(level, phrase, Math.random);
+            }
+            question = next;
             lockAnswer = false;
             var prompt = doc.getElementById('auralQualityPrompt');
             prompt.textContent = question.kind === 'cadence' ? '聽終止式，選出種類。' : '聽色彩，選出大調或小調。';

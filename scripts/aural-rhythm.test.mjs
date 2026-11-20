@@ -37,6 +37,11 @@ assert.equal(question.choices.filter((choice) => choice.id === question.id).leng
 assert.equal(question.choices.length, 4);
 assert.match(Rhythm.notationSvg(question.cells), /<svg/);
 assert.equal(question.choices.some((choice) => choice.cells.some((cell) => cell.rest)), false);
+const dqeqqSvg = Rhythm.notationSvg(Rhythm.BARS.find((item) => item.id === 'dqeqq').bar.cells);
+assert.doesNotMatch(dqeqqSvg, /height="3\.2"/);
+assert.match(dqeqqSvg, /<path d=/);
+const eqeqqSvg = Rhythm.notationSvg(Rhythm.BARS.find((item) => item.id === 'eqeqq').bar.cells);
+assert.equal((eqeqqSvg.match(/<path d=/g) || []).length, 2);
 
 const practice = Rhythm.createRun('practice');
 Rhythm.scoreAnswer(practice, true);

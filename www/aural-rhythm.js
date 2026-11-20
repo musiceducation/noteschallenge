@@ -100,6 +100,10 @@
         return body + '<rect x="' + (x + 14) + '" y="16" width="1.8" height="30" fill="#164e63"/>';
     }
 
+    function eighthFlag(x) {
+        return '<path d="M' + (x + 15) + ' 17 C' + (x + 23) + ' 21,' + (x + 24) + ' 28,' + (x + 19) + ' 34" fill="none" stroke="#164e63" stroke-width="2" stroke-linecap="round"/>';
+    }
+
     function notationSvg(cells) {
         var x = 6;
         var parts = ['<line x1="4" y1="58" x2="999" y2="58" stroke="#99f6e4" stroke-width="2"/>'];
@@ -123,13 +127,14 @@
             if (item.beats === 1.5 && next && !next.rest && next.beats === 0.5) {
                 parts.push(noteHead(x, true));
                 parts.push('<circle cx="' + (x + 22) + '" cy="50" r="2.3" fill="#164e63"/>');
-                parts.push(noteHead(x + 28, true));
-                parts.push('<rect x="' + (x + 15) + '" y="16" width="30" height="3.2" fill="#164e63"/>');
+                parts.push(noteHead(x + 30, true) + eighthFlag(x + 30));
                 x += 62;
                 i += 2;
                 continue;
             }
             parts.push(noteHead(x, item.beats < 2));
+            if (item.beats === 1.5) parts.push('<circle cx="' + (x + 22) + '" cy="50" r="2.3" fill="#164e63"/>');
+            if (item.beats === 0.5) parts.push(eighthFlag(x));
             x += item.beats >= 2 ? 36 : 30;
             i++;
         }
@@ -280,7 +285,14 @@
         function ask() {
             if (!running) return;
             if (run.mode === 'challenge' && Date.now() >= endsAt) { finish(); return; }
-            question = buildQuestion(level, Math.random);
+            var lastId = question ? question.id : '';
+            var next = buildQuestion(level, Math.random);
+            if (poolForLevel(level).length > 1) {
+                for (var tries = 0; tries < 10 && next.id === lastId; tries++) {
+                    next = buildQuestion(level, Math.random);
+                }
+            }
+            question = next;
             lockAnswer = false;
             var host = doc.getElementById('auralRhythmOptions');
             host.innerHTML = question.choices.map(function (choice) {

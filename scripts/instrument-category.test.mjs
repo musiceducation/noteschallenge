@@ -371,7 +371,7 @@ for (const file of ['index.html', 'www/index.html']) {
   assert.doesNotMatch(html, /style\.css\?v=23/);
   assert.doesNotMatch(html, /style\.css\?v=21/);
   assert.doesNotMatch(html, /style\.css\?v=20/);
-  assert.match(html, /bootstrap-instruments\.js\?v=21/);
+  assert.match(html, /bootstrap-instruments\.js\?v=22/);
   assert.doesNotMatch(html, /bootstrap-instruments\.js\?v=20/);
   assert.doesNotMatch(html, /bootstrap-instruments\.js\?v=18/);
   assert.doesNotMatch(html, /bootstrap-instruments\.js\?v=17/);
@@ -400,7 +400,7 @@ for (const file of ['style.css', 'www/style.css']) {
 
 for (const file of ['bootstrap-instruments.js', 'www/bootstrap-instruments.js']) {
   const js = fs.readFileSync(path.join(root, file), 'utf8');
-  assert.match(js, /script\.js\?v=33/);
+  assert.match(js, /script\.js\?v=34/);
   assert.equal(js.includes('script.js?v=32'), false);
   assert.equal(js.includes('script.js?v=30'), false);
   assert.equal(js.includes('script.js?v=29'), false);
