@@ -1,0 +1,270 @@
+/* Musician module only. Light reading surface so headings stay dark-on-light
+   over the site's night background. Claude design route was already rate-limited. */
+.musician-screen {
+  max-width: 1100px;
+  color: #1c1917;
+  background: #f4f0e8;
+  border-radius: 20px;
+  padding: 16px 16px 28px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+}
+.musician-screen .btn-back-hub {
+  color: #1c1917;
+  background: #fff;
+}
+.musician-head h1,
+.musician-detail h1,
+.musician-credits h1,
+.musician-summary h1,
+.musician-prompt {
+  margin: 0;
+  font-family: "Noto Sans TC", "Lexend", sans-serif;
+  font-size: 1.7rem;
+  line-height: 1.3;
+  color: #1c1917;
+}
+.musician-head p,
+.musician-detail p,
+.musician-credits p,
+.musician-summary p,
+.musician-fact p,
+.musician-detail figcaption {
+  margin: 8px 0 0;
+  color: #3f3a36;
+  line-height: 1.6;
+  font-size: 1rem;
+}
+.musician-disclaimer {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-left: 4px solid #9a3412;
+  background: #fff;
+  color: #1c1917;
+}
+.musician-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+.musician-actions button,
+.musician-option,
+.musician-card {
+  font: inherit;
+  color: #1c1917;
+}
+.musician-actions button,
+.musician-option {
+  min-height: 48px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 2px solid #c4b8a8;
+  background: #fff;
+  cursor: pointer;
+}
+.musician-primary {
+  background: #9a3412;
+  border-color: #9a3412;
+  color: #fff;
+}
+.musician-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.musician-gallery {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+.musician-card {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
+  border: 1px solid #ddd4c8;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+}
+.musician-photo,
+.musician-detail figure {
+  margin: 0;
+  background: #e7e1d8;
+}
+.musician-photo {
+  height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.musician-card img {
+  display: block;
+  max-width: 100%;
+  max-height: 280px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+.musician-detail img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 460px;
+  margin: 0 auto;
+  object-fit: contain;
+  background: #e7e1d8;
+}
+.musician-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px 16px;
+}
+.musician-kind,
+.musician-era {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.musician-kind {
+  background: #efeae3;
+  color: #3f3a36;
+}
+.musician-era {
+  background: #f3e4c4;
+  color: #3d2e12;
+}
+.musician-name {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #1c1917;
+}
+.musician-en,
+.musician-meta,
+.musician-seen {
+  color: #3f3a36;
+  font-size: 0.95rem;
+}
+.musician-detail,
+.musician-credits,
+.musician-quiz,
+.musician-summary {
+  padding: 8px 4px 4px;
+}
+.musician-detail-layout,
+.musician-options {
+  display: grid;
+  gap: 16px;
+}
+.musician-fact {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #e4dccf;
+}
+.musician-fact h3,
+.musician-credits h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  color: #6b2d12;
+}
+.musician-sources {
+  margin: 8px 0 0;
+  padding-left: 1.2rem;
+}
+.musician-sources a {
+  color: #9a3412;
+}
+.musician-option {
+  text-align: left;
+}
+.musician-option.is-correct {
+  background: #e7f6ee;
+  border-color: #0b7a45;
+}
+.musician-option.is-wrong {
+  background: #fdecec;
+  border-color: #9f1239;
+}
+.musician-explain {
+  min-height: 6.75rem;
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #fff;
+  color: #1c1917;
+  border: 1px solid #e4dccf;
+}
+.musician-score {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1c1917;
+}
+.musician-misses {
+  margin: 8px 0 0;
+  padding-left: 1.2rem;
+}
+.illust-musician {
+  background: #f4f0e8;
+}
+#screen-hub .hub-games-grid .hub-topic-musician .illust-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  background: #f4f0e8;
+}
+#screen-hub .hub-topic-musician .hub-game-illust {
+  height: 156px;
+}
+#screen-hub .hub-topic-musician:hover .illust-img,
+#screen-hub .hub-topic-musician:active .illust-img,
+#screen-hub .hub-topic-musician.is-pressed .illust-img {
+  transform: none;
+}
+.musician-hub-credit img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 12px;
+  background: #f4f0e8;
+}
+.musician-hub-credit li p {
+  margin: 4px 0 10px;
+  color: #3f3a36;
+}
+.musician-card:focus-visible,
+.musician-actions button:focus-visible,
+.musician-option:focus-visible,
+.musician-sources a:focus-visible,
+#musicianBackBtn:focus-visible {
+  outline: 3px solid #9a3412;
+  outline-offset: 2px;
+}
+@media (min-width: 700px) {
+  .musician-gallery,
+  .musician-detail-layout {
+    grid-template-columns: 1fr 1fr;
+  }
+  .musician-options {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (min-width: 1100px) {
+  .musician-gallery { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .hub-topic-musician { grid-column: span 4; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .musician-card,
+  .musician-option,
+  .musician-actions button,
+  .musician-screen {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

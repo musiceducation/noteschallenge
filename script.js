@@ -1770,8 +1770,8 @@
             } catch (e) {}
         }
 
-        const quietScreen = screenId === 'screen-aural' || screenId === 'screen-appreciate' || screenId === 'screen-composition-studio' || (screenId && screenId.indexOf('screen-aural-') === 0);
-        const leftQuiet = prevScreenId === 'screen-aural' || prevScreenId === 'screen-appreciate' || prevScreenId === 'screen-composition-studio' || (prevScreenId && prevScreenId.indexOf('screen-aural-') === 0);
+        const quietScreen = screenId === 'screen-aural' || screenId === 'screen-appreciate' || screenId === 'screen-musician' || screenId === 'screen-composition-studio' || (screenId && screenId.indexOf('screen-aural-') === 0);
+        const leftQuiet = prevScreenId === 'screen-aural' || prevScreenId === 'screen-appreciate' || prevScreenId === 'screen-musician' || prevScreenId === 'screen-composition-studio' || (prevScreenId && prevScreenId.indexOf('screen-aural-') === 0);
         if (quietScreen) audio.bgPause();
         else if (leftQuiet) audio.bgPlay();
 
@@ -5504,6 +5504,10 @@
             const id = ev && ev.detail && ev.detail.screen;
             if (id) switchScreen(id);
         });
+        window.addEventListener('musician-navigate', (ev) => {
+            const id = ev && ev.detail && ev.detail.screen;
+            if (id) switchScreen(id);
+        });
 
         window.addEventListener('chord-local-best', (ev) => {
             const score = parseInt(ev && ev.detail && ev.detail.score, 10) || 0;
@@ -5785,6 +5789,19 @@
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 enterAppreciateEl.click();
+            }
+        });
+
+        const enterMusicianEl = document.getElementById('enterMusician');
+        enterMusicianEl?.addEventListener('click', () => {
+            if (!requireHubLogin(hubNameField)) return;
+            syncFromHub();
+            switchScreen('screen-musician');
+        });
+        enterMusicianEl?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                enterMusicianEl.click();
             }
         });
 

@@ -1,0 +1,1360 @@
+{
+  "id": "musician-cards-v1",
+  "phase": "practice-recall",
+  "language": "zh-Hant",
+  "uploadsScore": false,
+  "countsTowardRadar": false,
+  "disclaimer": "這是史實記憶練習，不是音樂鑑賞（B）或演奏（A）的評核，不上傳，也不計入能力圖。",
+  "musicians": [
+    {
+      "id": "bach",
+      "nameZh": "巴赫",
+      "nameEn": "Johann Sebastian Bach",
+      "years": "1685–1750",
+      "era": "巴洛克時期",
+      "regionShort": "艾森納赫（今德國）",
+      "portrait": {
+        "src": "img/musicians/bach.jpg",
+        "alt": "歷史畫像：約翰·塞巴斯蒂安·巴赫。豪斯曼1746年油畫，巴赫戴假髮，手持寫有卡農的樂譜。",
+        "kind": "歷史畫像",
+        "caption": "埃利亞斯·戈特洛布·豪斯曼畫，1746年。萊比錫城市歷史博物館。畫中人在世時的肖像。",
+        "posthumous": false,
+        "reference": {
+          "title": "Elias Gottlob Haussmann, Johann Sebastian Bach, 1746",
+          "url": "https://commons.wikimedia.org/wiki/File:Johann_Sebastian_Bach_1746.jpg",
+          "holder": "萊比錫城市歷史博物館藏畫；數碼檔來自維基共享",
+          "license": "油畫本身屬公有領域：作者豪斯曼卒於1774年，在採用作者死後70年或100年的地區均已屆滿。維基共享把這張平面作品的忠實複製品標為公有領域。複製品的攝影者未具名，本專案不把「數碼檔的拍攝者」另寫成已查明。"
+        }
+      },
+      "facts": [
+        {
+          "id": "era",
+          "label": "時期",
+          "text": "巴洛克時期",
+          "sources": [
+            {
+              "title": "Chamber Music Society of Lincoln Center：Johann Sebastian Bach (1685–1750)",
+              "url": "https://www.chambermusicsociety.org/about-the-music/composers/johann-sebastian-bach"
+            }
+          ]
+        },
+        {
+          "id": "birth",
+          "label": "出生",
+          "text": "1685年3月21日生於艾森納赫。當時屬神聖羅馬帝國的薩克森-艾森納赫，今在德國。",
+          "sources": [
+            {
+              "title": "巴赫檔案館年表",
+              "url": "https://www.bacharchivleipzig.de/de/neutral/johann-sebastian-bach-%E2%80%93-eine-chronologie"
+            },
+            {
+              "title": "Chamber Music Society of Lincoln Center：Johann Sebastian Bach (1685–1750)",
+              "url": "https://www.chambermusicsociety.org/about-the-music/composers/johann-sebastian-bach"
+            }
+          ]
+        },
+        {
+          "id": "span",
+          "label": "生卒年",
+          "text": "生卒年是1685年至1750年。",
+          "sources": [
+            {
+              "title": "Chamber Music Society of Lincoln Center：Johann Sebastian Bach (1685–1750)",
+              "url": "https://www.chambermusicsociety.org/about-the-music/composers/johann-sebastian-bach"
+            }
+          ]
+        },
+        {
+          "id": "wtc",
+          "label": "代表作品",
+          "text": "《平均律鍵盤曲集》有兩冊，每冊是前奏曲與賦格，涵蓋全部大調與小調。第一冊約1722年在克滕完成。",
+          "sources": [
+            {
+              "title": "法國國家圖書館目錄：Das wohltemperierte Klavier, BWV 846-893",
+              "url": "https://catalogue.bnf.fr/ark:/12148/cb139151495"
+            }
+          ]
+        },
+        {
+          "id": "passion",
+          "label": "代表作品",
+          "text": "在萊比錫寫教會音樂的年間，他寫了《馬太受難曲》。",
+          "sources": [
+            {
+              "title": "Chamber Music Society of Lincoln Center：Johann Sebastian Bach (1685–1750)",
+              "url": "https://www.chambermusicsociety.org/about-the-music/composers/johann-sebastian-bach"
+            }
+          ]
+        },
+        {
+          "id": "point",
+          "label": "可學的一點",
+          "text": "同一冊前奏曲與賦格走遍全部大調與小調，給學習鍵盤的人練習，也給已經會彈的人演奏。",
+          "sources": [
+            {
+              "title": "法國國家圖書館目錄：Das wohltemperierte Klavier, BWV 846-893",
+              "url": "https://catalogue.bnf.fr/ark:/12148/cb139151495"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mozart",
+      "nameZh": "莫扎特",
+      "nameEn": "Wolfgang Amadeus Mozart",
+      "years": "1756–1791",
+      "era": "古典時期",
+      "regionShort": "薩爾茨堡（今奧地利）",
+      "portrait": {
+        "src": "img/musicians/mozart.jpg",
+        "alt": "歷史畫像：沃爾夫岡·阿馬德烏斯·莫扎特。約瑟夫·朗格約1782至1783年的未完成油畫，這張課堂圖是頭部裁切，側面，頸有白色領結。",
+        "kind": "歷史畫像",
+        "caption": "約瑟夫·朗格畫，約1782至1783年。這是莫扎特在世時的未完成油畫，不是身後想像畫。課堂檔是頭部裁切：原畫右側大片空白畫布沒有收入這張圖。臉的左緣仍有一條深色底，髮與衣領的筆觸也未畫完。",
+        "posthumous": false,
+        "reference": {
+          "title": "Joseph Lange, unfinished portrait of Mozart, about 1782–1783",
+          "url": "https://commons.wikimedia.org/wiki/File:Mozart_(unfinished)_by_Lange_1782.jpg",
+          "holder": "薩爾茨堡莫扎特博物館常展此畫；數碼檔來自維基共享",
+          "license": "油畫本身屬公有領域：作者朗格卒於1831年。原作沒有畫完，而且右側有大片空白畫布。課堂用的檔案只保留頭部，那片空白畫布不在圖內，所以不能說這張裁切仍展示整幅未完成的畫布。維基共享把原畫檔標為公有領域。"
+        }
+      },
+      "facts": [
+        {
+          "id": "era",
+          "label": "時期",
+          "text": "古典時期",
+          "sources": [
+            {
+              "title": "Britannica Kids：Wolfgang Amadeus Mozart",
+              "url": "https://kids.britannica.com/students/article/Wolfgang-Amadeus-Mozart/275964"
+            }
+          ]
+        },
+        {
+          "id": "birth",
+          "label": "出生",
+          "text": "1756年1月27日生於薩爾茨堡。當時是總主教區，今在奧地利。",
+          "sources": [
+            {
+              "title": "Britannica Kids：Wolfgang Amadeus Mozart",
+              "url": "https://kids.britannica.com/students/article/Wolfgang-Amadeus-Mozart/275964"
+            }
+          ]
+        },
+        {
+          "id": "death",
+          "label": "去世",
+          "text": "1791年12月5日卒於維也納。",
+          "sources": [
+            {
+              "title": "Britannica Kids：Wolfgang Amadeus Mozart",
+              "url": "https://kids.britannica.com/students/article/Wolfgang-Amadeus-Mozart/275964"
+            }
+          ]
+        },
+        {
+          "id": "cause",
+          "label": "死因",
+          "text": "沒有證據顯示死因是被人故意造成。",
+          "sources": [
+            {
+              "title": "Britannica Kids：Wolfgang Amadeus Mozart",
+              "url": "https://kids.britannica.com/students/article/Wolfgang-Amadeus-Mozart/275964"
+            }
+          ]
+        },
+        {
+          "id": "operas",
+          "label": "代表作品",
+          "text": "晚年重要歌劇包括《費加羅的婚禮》和《魔笛》。",
+          "sources": [
+            {
+              "title": "Britannica Kids：Wolfgang Amadeus Mozart",
+              "url": "https://kids.britannica.com/students/article/Wolfgang-Amadeus-Mozart/275964"
+            }
+          ]
+        },
+        {
+          "id": "point",
+          "label": "可學的一點",
+          "text": "他最後十年寫了多部歌劇，但《安魂曲》因為生病沒有完成。",
+          "sources": [
+            {
+              "title": "Britannica Kids：Wolfgang Amadeus Mozart",
+              "url": "https://kids.britannica.com/students/article/Wolfgang-Amadeus-Mozart/275964"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "beethoven",
+      "nameZh": "貝多芬",
+      "nameEn": "Ludwig van Beethoven",
+      "years": "1770–1827",
+      "era": "古典晚期",
+      "regionShort": "波恩（今德國）",
+      "portrait": {
+        "src": "img/musicians/beethoven.jpg",
+        "alt": "歷史畫像：路德維希·范·貝多芬。施蒂勒1820年油畫，貝多芬灰髮、紅領巾，手持《莊嚴彌撒》樂譜。",
+        "kind": "歷史畫像",
+        "caption": "約瑟夫·卡爾·施蒂勒畫，1820年。波恩貝多芬故居。畫中人在世時的肖像。",
+        "posthumous": false,
+        "reference": {
+          "title": "Joseph Karl Stieler, Ludwig van Beethoven, 1820",
+          "url": "https://commons.wikimedia.org/wiki/File:Beethoven.jpg",
+          "holder": "波恩貝多芬故居",
+          "license": "油畫本身屬公有領域：作者施蒂勒卒於1858年。維基共享把複製品標為公有領域。數碼檔來源頁記載一則檔案館網址的存檔，拍攝該數碼檔的人未另具名。"
+        }
+      },
+      "facts": [
+        {
+          "id": "era",
+          "label": "時期",
+          "text": "古典晚期",
+          "sources": [
+            {
+              "title": "波恩市：Ludwig van Beethoven",
+              "url": "https://international.bonn.de/services/information-for-media/beethoven-and-bonn.php"
+            }
+          ]
+        },
+        {
+          "id": "birth",
+          "label": "出生",
+          "text": "1770年12月17日在波恩受洗。出生日沒有單獨文件，當地習慣是出生後不久受洗，一般把出生日記為12月16日。當時是科隆選侯國，今在德國。",
+          "sources": [
+            {
+              "title": "波恩市：Ludwig van Beethoven",
+              "url": "https://international.bonn.de/services/information-for-media/beethoven-and-bonn.php"
+            }
+          ]
+        },
+        {
+          "id": "death",
+          "label": "去世",
+          "text": "1827年3月26日卒於維也納。",
+          "sources": [
+            {
+              "title": "波恩市：Ludwig van Beethoven",
+              "url": "https://international.bonn.de/services/information-for-media/beethoven-and-bonn.php"
+            }
+          ]
+        },
+        {
+          "id": "moonlight",
+          "label": "代表作品",
+          "text": "鋼琴奏鳴曲《月光》的手稿存於波恩貝多芬故居。",
+          "sources": [
+            {
+              "title": "波恩市：Beethoven. The artist.",
+              "url": "https://www.bonn.de/bonn-erleben/beethoven/beethoven-kuenstler.php?loc=en"
+            }
+          ]
+        },
+        {
+          "id": "point",
+          "label": "可學的一點",
+          "text": "聽力嚴重下降之後，他仍然繼續作曲。他不是天生失聰。",
+          "sources": [
+            {
+              "title": "波恩市：Ludwig van Beethoven",
+              "url": "https://international.bonn.de/services/information-for-media/beethoven-and-bonn.php"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chopin",
+      "nameZh": "蕭邦",
+      "nameEn": "Fryderyk Chopin",
+      "years": "1810–1849",
+      "era": "浪漫時期",
+      "regionShort": "熱拉佐瓦沃拉（今波蘭）",
+      "portrait": {
+        "src": "img/musicians/chopin.jpg",
+        "alt": "歷史畫像：弗里德里克·蕭邦。德拉克羅瓦1838年油畫，深色外衣、側臉。",
+        "kind": "歷史畫像",
+        "caption": "歐仁·德拉克羅瓦畫，1838年。原為與喬治·桑的雙人肖像，後來分開，蕭邦半幅現藏巴黎羅浮宮（RF 1717）。畫中人在世時的肖像。",
+        "posthumous": false,
+        "reference": {
+          "title": "Eugène Delacroix, Frédéric Chopin, 1838, Louvre RF 1717",
+          "url": "https://commons.wikimedia.org/wiki/File:Eug%C3%A8ne_Ferdinand_Victor_Delacroix_043.jpg",
+          "holder": "巴黎羅浮宮；此數碼檔來自 Yorck Project（2002）並標為公有領域",
+          "license": "油畫本身屬公有領域：德拉克羅瓦卒於1863年。採用的數碼檔是 Yorck Project《10.000 Meisterwerke der Malerei》的公有領域發行，不是2024年在館內新拍、權利未明的照片。沒有使用那張標明2024年拍攝者的羅浮宮新照片。"
+        }
+      },
+      "facts": [
+        {
+          "id": "era",
+          "label": "時期",
+          "text": "浪漫時期",
+          "sources": [
+            {
+              "title": "肖邦學院：晚年與1849年10月17日在巴黎去世",
+              "url": "https://chopin.nifc.pl/en/chopin/etap-zycia/9_lata-40"
+            }
+          ]
+        },
+        {
+          "id": "birthplace",
+          "label": "出生地",
+          "text": "生於熱拉佐瓦沃拉。當時屬華沙公國，今在波蘭。",
+          "sources": [
+            {
+              "title": "肖邦學院：出生與洗禮日期",
+              "url": "https://chopin.nifc.pl/en/chopin/kalendarium/117_childhood-years-18101816/46/"
+            },
+            {
+              "title": "肖邦學院人物頁",
+              "url": "https://chopin.nifc.pl/pl/chopin/osoba/1"
+            }
+          ]
+        },
+        {
+          "id": "birthday",
+          "label": "出生日",
+          "text": "洗禮登記寫1810年2月22日；蕭邦和家人以3月1日為生日。兩種日期都有文獻，不宜把其中一天說成唯一事實。",
+          "sources": [
+            {
+              "title": "肖邦學院：出生與洗禮日期",
+              "url": "https://chopin.nifc.pl/en/chopin/kalendarium/117_childhood-years-18101816/46/"
+            },
+            {
+              "title": "肖邦學院：出生日期的文獻",
+              "url": "https://chopin.nifc.pl/en/chopin/etap-zycia/2_fryderyk-franciszek-chopin"
+            }
+          ]
+        },
+        {
+          "id": "death",
+          "label": "去世",
+          "text": "1849年10月17日卒於巴黎。",
+          "sources": [
+            {
+              "title": "肖邦學院：晚年與1849年10月17日在巴黎去世",
+              "url": "https://chopin.nifc.pl/en/chopin/etap-zycia/9_lata-40"
+            }
+          ]
+        },
+        {
+          "id": "paris",
+          "label": "經歷",
+          "text": "1831年去巴黎，其後沒有再回波蘭。民間音樂是他一生的重要靈感。",
+          "sources": [
+            {
+              "title": "肖邦學院人物頁",
+              "url": "https://chopin.nifc.pl/pl/chopin/osoba/1"
+            }
+          ]
+        },
+        {
+          "id": "works",
+          "label": "代表作品",
+          "text": "他寫了兩首鋼琴協奏曲。降B小調奏鳴曲裡的葬禮進行曲，曾在巴黎的葬禮上演奏。",
+          "sources": [
+            {
+              "title": "肖邦學院人物頁",
+              "url": "https://chopin.nifc.pl/pl/chopin/osoba/1"
+            },
+            {
+              "title": "肖邦學院年表：1849年10月葬禮",
+              "url": "https://chopin.nifc.pl/en/chopin/kalendarium/126_the-years-of-solitude-18461849/89"
+            }
+          ]
+        },
+        {
+          "id": "point",
+          "label": "可學的一點",
+          "text": "人在巴黎，創作仍從波蘭民間音樂吸取靈感。",
+          "sources": [
+            {
+              "title": "肖邦學院人物頁",
+              "url": "https://chopin.nifc.pl/pl/chopin/osoba/1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tchaikovsky",
+      "nameZh": "柴可夫斯基",
+      "nameEn": "Pyotr Ilyich Tchaikovsky",
+      "years": "1840–1893",
+      "era": "浪漫時期",
+      "regionShort": "沃特金斯克（俄羅斯帝國）",
+      "portrait": {
+        "src": "img/musicians/tchaikovsky.jpg",
+        "alt": "歷史照片：彼得·伊里奇·柴可夫斯基。費傑茨基1893年3月在哈爾科夫拍攝，坐像，白鬚、深色西裝。",
+        "kind": "歷史照片",
+        "caption": "阿爾弗雷德·費傑茨基攝影，1893年3月26日（舊曆3月14日），哈爾科夫。柴可夫斯基在世時的照片。課堂用圖裁去坐下半身，保留頭部與上身。",
+        "posthumous": false,
+        "reference": {
+          "title": "Alfred Fedetsky, Pyotr Ilyich Tchaikovsky, Kharkov, 26 March 1893",
+          "url": "https://commons.wikimedia.org/wiki/File:Tchaikovsky_2.jpg",
+          "holder": "Tchaikovsky Research 收錄此照片；數碼檔來自維基共享",
+          "license": "照片於1893年拍攝並流傳。維基共享作者頁記攝影者費傑茨基卒於1902年：在作者死後70年的地區，保護期於1970年代屆滿；在中國內地、香港、澳門以作者死後50年計算的規則下更早屆滿。美國亦因1893年出版而屬公有領域。此判斷依賴「卒於1902年」這一作者頁記載；本專案沒有另見一份官方死亡登記。"
+        }
+      },
+      "facts": [
+        {
+          "id": "era",
+          "label": "時期",
+          "text": "浪漫時期",
+          "sources": [
+            {
+              "title": "Tchaikovsky Research：Chronology",
+              "url": "https://en.tchaikovsky-research.net/pages/Chronology"
+            }
+          ]
+        },
+        {
+          "id": "birth",
+          "label": "出生",
+          "text": "1840年5月7日（舊曆4月25日）生於沃特金斯克，當時屬俄羅斯帝國。",
+          "sources": [
+            {
+              "title": "Tchaikovsky Research：Chronology",
+              "url": "https://en.tchaikovsky-research.net/pages/Chronology"
+            }
+          ]
+        },
+        {
+          "id": "death",
+          "label": "去世",
+          "text": "1893年11月6日卒於聖彼得堡。卡片不把後來的死因爭議寫成定論。",
+          "sources": [
+            {
+              "title": "Boston Symphony Orchestra：Tchaikovsky — Swan Lake",
+              "url": "https://www.bso.org/works/tchaikovsky-swan-lake"
+            }
+          ]
+        },
+        {
+          "id": "swan",
+          "label": "代表作品",
+          "text": "《天鵝湖》是他的第一部芭蕾音樂，1875年至1876年寫成。",
+          "sources": [
+            {
+              "title": "Tchaikovsky Research：Swan Lake",
+              "url": "https://en.tchaikovsky-research.net/pages/Swan_Lake"
+            },
+            {
+              "title": "Tchaikovsky Research：Chronology",
+              "url": "https://en.tchaikovsky-research.net/pages/Chronology"
+            }
+          ]
+        },
+        {
+          "id": "concerto",
+          "label": "代表作品",
+          "text": "第一鋼琴協奏曲於1875年在波士頓首演。",
+          "sources": [
+            {
+              "title": "Tchaikovsky Research：Chronology",
+              "url": "https://en.tchaikovsky-research.net/pages/Chronology"
+            }
+          ]
+        },
+        {
+          "id": "point",
+          "label": "可學的一點",
+          "text": "芭蕾可以用整部舞劇講故事。《天鵝湖》是芭蕾音樂，不是一首短歌。",
+          "sources": [
+            {
+              "title": "Tchaikovsky Research：Swan Lake",
+              "url": "https://en.tchaikovsky-research.net/pages/Swan_Lake"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "debussy",
+      "nameZh": "德布西",
+      "nameEn": "Achille-Claude Debussy",
+      "years": "1862–1918",
+      "era": "常被稱作印象派",
+      "regionShort": "聖日耳曼昂萊（法國）",
+      "portrait": {
+        "src": "img/musicians/debussy.jpg",
+        "alt": "歷史照片：阿希爾-克洛德·德布西。奧托·韋格納1908年6月拍攝，深色西裝，一手靠近下頜。",
+        "kind": "歷史照片",
+        "caption": "奧托·韋格納攝影，1908年6月。法國國家圖書館 Gallica 有此底片的數碼本。德布西在世時的照片。",
+        "posthumous": false,
+        "reference": {
+          "title": "Otto Wegener, Claude Debussy, June 1908",
+          "url": "https://commons.wikimedia.org/wiki/File:Claude_Debussy_1900.jpeg",
+          "holder": "Gallica, Bibliothèque nationale de France, ark:/12148/btv1b52000934d",
+          "license": "攝影者韋格納卒於1924年。法國及採用作者死後70年的地區，保護期於1990年代屆滿。中國內地、香港、澳門若按作者死後50年，更早屆滿。照片於1908年發表，在美國亦屬公有領域。數碼掃描來自 Gallica，掃描本身是平面舊照片的複製，本專案不把掃描員寫成新的作者。"
+        }
+      },
+      "facts": [
+        {
+          "id": "label",
+          "label": "時期稱呼",
+          "text": "常被稱作印象派，但本人不喜歡這個稱呼。",
+          "sources": [
+            {
+              "title": "Britannica：Impressionism",
+              "url": "https://kids.britannica.com/scholars/article/Impressionism/472579"
+            }
+          ]
+        },
+        {
+          "id": "birth",
+          "label": "出生",
+          "text": "1862年8月22日生於法國聖日耳曼昂萊。",
+          "sources": [
+            {
+              "title": "Britannica：Claude Debussy",
+              "url": "https://kids.britannica.com/scholars/article/Claude-Debussy/29672"
+            }
+          ]
+        },
+        {
+          "id": "death",
+          "label": "去世",
+          "text": "1918年3月25日卒於巴黎。",
+          "sources": [
+            {
+              "title": "Britannica：Claude Debussy",
+              "url": "https://kids.britannica.com/scholars/article/Claude-Debussy/29672"
+            }
+          ]
+        },
+        {
+          "id": "works",
+          "label": "代表作品",
+          "text": "代表作品包括《牧神午後前奏曲》、《大海》和歌劇《佩利亞斯與梅麗桑德》。",
+          "sources": [
+            {
+              "title": "Britannica：Claude Debussy",
+              "url": "https://kids.britannica.com/scholars/article/Claude-Debussy/29672"
+            }
+          ]
+        },
+        {
+          "id": "point",
+          "label": "可學的一點",
+          "text": "他用音色和和弦色彩營造氣氛。",
+          "sources": [
+            {
+              "title": "Britannica：Impressionism",
+              "url": "https://kids.britannica.com/scholars/article/Impressionism/472579"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nie",
+      "nameZh": "聶耳",
+      "nameEn": "Nie Er",
+      "years": "1912–1935",
+      "era": "二十世紀中國近代",
+      "regionShort": "昆明（祖籍玉溪）",
+      "portrait": {
+        "src": "img/musicians/nie-er.jpg",
+        "alt": "歷史照片：聶耳遺像。1935年12月31日《聯華畫報》第6卷第4期刊出，短髮、西裝、斜紋領帶。",
+        "kind": "歷史照片",
+        "caption": "《聯華畫報》1935年12月31日第6卷第4期第16頁，題為「聶耳先生遺像」。刊物未印攝影者姓名。這是去世當年刊出的遺像，不是後來繪的插畫。原片較小，課堂圖沒有放大造出新的細節。",
+        "posthumous": true,
+        "reference": {
+          "title": "聶耳先生遺像，《聯華畫報》第6卷第4期，1935年12月31日，第16頁",
+          "url": "https://commons.wikimedia.org/wiki/File:%E8%81%82%E8%80%B3%E9%81%97%E5%83%8F_1935-7.jpg",
+          "holder": "《聯華畫報》；維基共享檔案頁記錄題名、卷期與頁碼",
+          "license": "攝影者姓名不見於該期刊物著錄。中國內地對作者不詳或法人作品，保護期一般自發表起50年，1935年的刊物照片按此已屆滿。澳門第43/99/M號法令第23條：作者不詳的作品自發表起50年屆滿；2012年修法廢止了照片僅25年的特別條文，照片改回一般期限，1935年的不具名照片按50年亦已屆滿。香港把照片視為藝術作品，有姓名時為作者死後50年；作者不詳時不能改用一個未證實的卒年。若日後查出署名攝影者，而且卒年晚於當地期限的起算，權利判斷要重做。本專案不把它寫成全世界毫無限制，也不使用只有2006年新華社重刊、出處更弱的那張小提琴照片。"
+        }
+      },
+      "facts": [
+        {
+          "id": "era",
+          "label": "時期",
+          "text": "二十世紀中國近代",
+          "sources": [
+            {
+              "title": "香港教育局：國歌的由來",
+              "url": "https://www.edb.gov.hk/tc/curriculum-development/4-key-tasks/moral-civic/Newwebsite/flagraising.html"
+            }
+          ]
+        },
+        {
+          "id": "birth",
+          "label": "出生",
+          "text": "1912年2月生於雲南昆明。",
+          "sources": [
+            {
+              "title": "香港教育局：國歌的由來",
+              "url": "https://www.edb.gov.hk/tc/curriculum-development/4-key-tasks/moral-civic/Newwebsite/flagraising.html"
+            },
+            {
+              "title": "國防部轉述新華社：聶耳",
+              "url": "http://www.mod.gov.cn/2018gfbztlbmb/2018-09/28/content_4825857.htm"
+            }
+          ]
+        },
+        {
+          "id": "ancestry",
+          "label": "祖籍",
+          "text": "祖籍雲南玉溪。出生日有2月14日和2月15日兩種記載，卡片不考是哪一天。",
+          "sources": [
+            {
+              "title": "國立公共資訊圖書館：聶耳",
+              "url": "https://edata.nlpi.edu.tw/CNH/Personage/personage.aspx?ID=0000957"
+            }
+          ]
+        },
+        {
+          "id": "death",
+          "label": "去世",
+          "text": "1935年7月17日在日本藤澤游泳時溺水去世。",
+          "sources": [
+            {
+              "title": "國立公共資訊圖書館：聶耳",
+              "url": "https://edata.nlpi.edu.tw/CNH/Personage/personage.aspx?ID=0000957"
+            }
+          ]
+        },
+        {
+          "id": "anthem",
+          "label": "代表作品",
+          "text": "《義勇軍進行曲》由田漢作詞、聶耳作曲，原是1935年電影《風雲兒女》的主題曲。",
+          "sources": [
+            {
+              "title": "香港教育局：國歌的由來",
+              "url": "https://www.edb.gov.hk/tc/curriculum-development/4-key-tasks/moral-civic/Newwebsite/flagraising.html"
+            }
+          ]
+        },
+        {
+          "id": "status",
+          "label": "後來的使用",
+          "text": "1949年先被定為代國歌，2004年寫入憲法，成為中華人民共和國國歌。",
+          "sources": [
+            {
+              "title": "香港教育局：國歌的由來",
+              "url": "https://www.edb.gov.hk/tc/curriculum-development/4-key-tasks/moral-civic/Newwebsite/flagraising.html"
+            }
+          ]
+        },
+        {
+          "id": "point",
+          "label": "可學的一點",
+          "text": "詞和曲可以出自不同的人。這首歌是田漢作詞、聶耳作曲。",
+          "sources": [
+            {
+              "title": "香港教育局：國歌的由來",
+              "url": "https://www.edb.gov.hk/tc/curriculum-development/4-key-tasks/moral-civic/Newwebsite/flagraising.html"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xian",
+      "nameZh": "冼星海",
+      "nameEn": "Xian Xinghai",
+      "years": "1905–1945",
+      "era": "二十世紀中國近代",
+      "regionShort": "生於澳門",
+      "portrait": {
+        "src": "img/musicians/xian-xinghai.jpg",
+        "alt": "歷史照片：冼星海。1929年12月上海《良友》畫報第17頁，手持小提琴。",
+        "kind": "歷史照片",
+        "caption": "上海《良友》畫報1929年12月號第17頁。攝影者姓名不見於該頁。冼星海在世時的照片。",
+        "posthumous": false,
+        "reference": {
+          "title": "Liangyou (良友), December 1929, Shanghai, page 17",
+          "url": "https://archive.org/details/liangyou-1929.12/page/16/mode/2up",
+          "holder": "《良友》畫報；Internet Archive 有該期。維基共享檔案頁與此期對應。",
+          "license": "1929年已在刊物發表，但攝影者不詳，所以不能只用「照片很舊」或「美國公有領域」概括全世界。美國：1929年出版的作品現已超過出版年保護期。中國內地：作者不詳作品一般自發表起50年。澳門第43/99/M號法令第23條：作者不詳則自發表起50年；照片25年特別條文已於2012年廢止。香港：照片屬藝術作品，有姓名時為作者死後50年；作者不詳時不能套用一個未證實的卒年。若日後查明攝影者且卒年較晚，個別地區的保護期可能仍在。共享檔案頁：https://commons.wikimedia.org/wiki/File:Xian_Xinghai_(%E6%B4%97%E6%98%9F%E6%B5%B7),_Liangyou,_1929-12-30.jpg 。本專案不把它寫成毫無限制。"
+        }
+      },
+      "facts": [
+        {
+          "id": "era",
+          "label": "時期",
+          "text": "二十世紀中國近代",
+          "sources": [
+            {
+              "title": "澳門特別行政區政府：冼星海於1905年6月13日在澳門出生",
+              "url": "https://www.gov.mo/zh-hant/news/1165538/"
+            }
+          ]
+        },
+        {
+          "id": "birth",
+          "label": "出生",
+          "text": "1905年6月13日生於澳門。",
+          "sources": [
+            {
+              "title": "澳門特別行政區政府：冼星海於1905年6月13日在澳門出生",
+              "url": "https://www.gov.mo/zh-hant/news/1165538/"
+            },
+            {
+              "title": "澳門文化局紀念館介紹：出生在澳門",
+              "url": "https://www.macauculture.gov.mo/cn/XianXingHai"
+            }
+          ]
+        },
+        {
+          "id": "ancestry",
+          "label": "祖籍",
+          "text": "人民網記述祖籍廣州，出生前父親已經去世，家庭是船工。出生地仍然是澳門，不是廣州。",
+          "sources": [
+            {
+              "title": "人民網：冼星海",
+              "url": "http://dangshi.people.com.cn/n1/2021/0524/c436975-32111132.html"
+            }
+          ]
+        },
+        {
+          "id": "paris",
+          "label": "學習",
+          "text": "1929年赴巴黎，1931年考入巴黎音樂學院。",
+          "sources": [
+            {
+              "title": "人民網：冼星海",
+              "url": "http://dangshi.people.com.cn/n1/2021/0524/c436975-32111132.html"
+            }
+          ]
+        },
+        {
+          "id": "yellow",
+          "label": "代表作品",
+          "text": "《黃河大合唱》由光未然作詞、冼星海作曲，1939年4月13日在延安首演。",
+          "sources": [
+            {
+              "title": "中國作家網：《黃河大合唱》誕生記",
+              "url": "http://www.chinawriter.com.cn/n1/2020/0729/c404063-31802250.html"
+            },
+            {
+              "title": "澳門特別行政區政府：代表作包括《黃河大合唱》",
+              "url": "https://www.gov.mo/zh-hant/news/1165538/"
+            }
+          ]
+        },
+        {
+          "id": "death",
+          "label": "去世",
+          "text": "1945年10月30日在莫斯科病逝。",
+          "sources": [
+            {
+              "title": "澳門特別行政區政府：1945年10月30日於莫斯科病逝",
+              "url": "https://www.gov.mo/zh-hant/event/345159/"
+            }
+          ]
+        },
+        {
+          "id": "point",
+          "label": "可學的一點",
+          "text": "出生地、祖籍和後來工作的地方要分開。他生於澳門，祖籍廣州，1939年在延安首演《黃河大合唱》。",
+          "sources": [
+            {
+              "title": "澳門特別行政區政府：1905年6月13日在澳門出生",
+              "url": "https://www.gov.mo/zh-hant/news/1165538/"
+            },
+            {
+              "title": "人民網：冼星海",
+              "url": "http://dangshi.people.com.cn/n1/2021/0524/c436975-32111132.html"
+            },
+            {
+              "title": "中國作家網：《黃河大合唱》誕生記",
+              "url": "http://www.chinawriter.com.cn/n1/2020/0729/c404063-31802250.html"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "bach-era",
+      "musicianId": "bach",
+      "support": [
+        "era"
+      ],
+      "prompt": "巴赫主要活動的音樂時期是？",
+      "choices": [
+        "巴洛克時期",
+        "古典時期",
+        "浪漫時期",
+        "二十世紀中國近代"
+      ],
+      "answer": 0,
+      "explanation": "巴赫生活的年代屬於巴洛克時期。"
+    },
+    {
+      "id": "bach-birth",
+      "musicianId": "bach",
+      "support": [
+        "birth"
+      ],
+      "prompt": "巴赫生於哪裡？",
+      "choices": [
+        "艾森納赫",
+        "薩爾茨堡",
+        "波恩",
+        "澳門"
+      ],
+      "answer": 0,
+      "explanation": "他於1685年3月21日生於艾森納赫。當時是神聖羅馬帝國裡的薩克森-艾森納赫，今在德國，所以不用今天的國名倒推。"
+    },
+    {
+      "id": "bach-wtc",
+      "musicianId": "bach",
+      "support": [
+        "wtc"
+      ],
+      "prompt": "《平均律鍵盤曲集》是怎樣的作品？",
+      "choices": [
+        "前奏曲與賦格，涵蓋全部大調與小調",
+        "一部芭蕾舞劇",
+        "一首電影主題曲",
+        "一部大合唱"
+      ],
+      "answer": 0,
+      "explanation": "它有兩冊，每冊是前奏曲與賦格，涵蓋全部大調與小調。第一冊約1722年在克滕完成。"
+    },
+    {
+      "id": "bach-point",
+      "musicianId": "bach",
+      "support": [
+        "point"
+      ],
+      "prompt": "《平均律鍵盤曲集》可以怎樣用？",
+      "choices": [
+        "給學習鍵盤的人練習，也給已經會彈的人演奏",
+        "證明他被人下毒",
+        "它是中華人民共和國國歌",
+        "它只在澳門首演"
+      ],
+      "answer": 0,
+      "explanation": "同一冊走遍全部大小調，給學習鍵盤的人練習，也給已經會彈的人演奏。"
+    },
+    {
+      "id": "mozart-era",
+      "musicianId": "mozart",
+      "support": [
+        "era"
+      ],
+      "prompt": "莫扎特主要活動的音樂時期是？",
+      "choices": [
+        "古典時期",
+        "巴洛克時期",
+        "浪漫時期",
+        "二十世紀中國近代"
+      ],
+      "answer": 0,
+      "explanation": "莫扎特屬於古典時期。"
+    },
+    {
+      "id": "mozart-birth",
+      "musicianId": "mozart",
+      "support": [
+        "birth"
+      ],
+      "prompt": "莫扎特生於哪裡？",
+      "choices": [
+        "薩爾茨堡",
+        "艾森納赫",
+        "熱拉佐瓦沃拉",
+        "昆明"
+      ],
+      "answer": 0,
+      "explanation": "1756年1月27日生於薩爾茨堡。當時是總主教區，今在奧地利。"
+    },
+    {
+      "id": "mozart-cause",
+      "musicianId": "mozart",
+      "support": [
+        "cause"
+      ],
+      "prompt": "關於莫扎特的死因，哪一項符合可靠記述？",
+      "choices": [
+        "沒有證據顯示死因是被人故意造成",
+        "薩列里下毒已成定論",
+        "他出生時已經失聰",
+        "他卒於澳門"
+      ],
+      "answer": 0,
+      "explanation": "百科學生頁寫明沒有證據顯示死因是被人故意造成。下毒的故事不能當成史實。"
+    },
+    {
+      "id": "mozart-opera",
+      "musicianId": "mozart",
+      "support": [
+        "operas"
+      ],
+      "prompt": "哪一部歌劇和《費加羅的婚禮》同屬他晚年的重要歌劇？",
+      "choices": [
+        "《魔笛》",
+        "《天鵝湖》",
+        "《黃河大合唱》",
+        "《義勇軍進行曲》"
+      ],
+      "answer": 0,
+      "explanation": "晚年重要歌劇包括《費加羅的婚禮》和《魔笛》。"
+    },
+    {
+      "id": "beethoven-birth",
+      "musicianId": "beethoven",
+      "support": [
+        "birth"
+      ],
+      "prompt": "貝多芬在哪裡受洗？",
+      "choices": [
+        "波恩",
+        "維也納",
+        "巴黎",
+        "聖彼得堡"
+      ],
+      "answer": 0,
+      "explanation": "1770年12月17日在波恩受洗。出生日沒有單獨文件，當地習慣把出生日記在受洗前一日，即12月16日。"
+    },
+    {
+      "id": "beethoven-death",
+      "musicianId": "beethoven",
+      "support": [
+        "death"
+      ],
+      "prompt": "貝多芬在哪裡去世？",
+      "choices": [
+        "維也納",
+        "波恩",
+        "艾森納赫",
+        "藤澤"
+      ],
+      "answer": 0,
+      "explanation": "1827年3月26日卒於維也納。受洗地是波恩，不是去世的地方。"
+    },
+    {
+      "id": "beethoven-work",
+      "musicianId": "beethoven",
+      "support": [
+        "moonlight"
+      ],
+      "prompt": "《月光》奏鳴曲的手稿與哪個地方有關？",
+      "choices": [
+        "手稿存於波恩貝多芬故居",
+        "一部芭蕾",
+        "田漢作詞的電影歌",
+        "光未然作詞的大合唱"
+      ],
+      "answer": 0,
+      "explanation": "波恩市頁面寫明這首鋼琴奏鳴曲的手稿存在貝多芬故居。"
+    },
+    {
+      "id": "beethoven-point",
+      "musicianId": "beethoven",
+      "support": [
+        "point"
+      ],
+      "prompt": "貝多芬的聽力，哪一項是準確的？",
+      "choices": [
+        "他不是天生失聰",
+        "他出生時已經完全聽不見",
+        "失聰後就停止作曲",
+        "聽力問題只是傳說"
+      ],
+      "answer": 0,
+      "explanation": "聽力嚴重下降之後，他仍然繼續作曲。他不是天生失聰。"
+    },
+    {
+      "id": "chopin-place",
+      "musicianId": "chopin",
+      "support": [
+        "birthplace"
+      ],
+      "prompt": "蕭邦生於哪裡？",
+      "choices": [
+        "熱拉佐瓦沃拉",
+        "巴黎",
+        "沃特金斯克",
+        "澳門"
+      ],
+      "answer": 0,
+      "explanation": "生於熱拉佐瓦沃拉。當時屬華沙公國，今在波蘭。巴黎是他後來生活和去世的地方。"
+    },
+    {
+      "id": "chopin-day",
+      "musicianId": "chopin",
+      "support": [
+        "birthday"
+      ],
+      "prompt": "蕭邦的出生日，哪一種態度較妥當？",
+      "choices": [
+        "不宜把其中一天說成唯一事實",
+        "只有2月22日是絕對正確",
+        "只有3月1日是絕對正確",
+        "出生日已確定是1849年"
+      ],
+      "answer": 0,
+      "explanation": "洗禮登記是1810年2月22日，家人和蕭邦本人以3月1日為生日。兩種日期都有文獻，不宜把其中一天說成唯一事實。"
+    },
+    {
+      "id": "chopin-death",
+      "musicianId": "chopin",
+      "support": [
+        "death"
+      ],
+      "prompt": "蕭邦在哪裡去世？",
+      "choices": [
+        "巴黎",
+        "華沙",
+        "維也納",
+        "莫斯科"
+      ],
+      "answer": 0,
+      "explanation": "1849年10月17日卒於巴黎。"
+    },
+    {
+      "id": "chopin-point",
+      "musicianId": "chopin",
+      "support": [
+        "point"
+      ],
+      "prompt": "蕭邦人在巴黎時，創作和波蘭的關係是？",
+      "choices": [
+        "人在巴黎，創作仍從波蘭民間音樂吸取靈感",
+        "他的出生地是巴黎",
+        "他主要寫芭蕾",
+        "他作曲的國歌由田漢作詞"
+      ],
+      "answer": 0,
+      "explanation": "人在巴黎，創作仍從波蘭民間音樂吸取靈感。"
+    },
+    {
+      "id": "tchai-birth",
+      "musicianId": "tchaikovsky",
+      "support": [
+        "birth"
+      ],
+      "prompt": "柴可夫斯基生於哪裡？",
+      "choices": [
+        "沃特金斯克",
+        "聖彼得堡",
+        "巴黎",
+        "波恩"
+      ],
+      "answer": 0,
+      "explanation": "1840年5月7日（舊曆4月25日）生於沃特金斯克，當時屬俄羅斯帝國。"
+    },
+    {
+      "id": "tchai-swan",
+      "musicianId": "tchaikovsky",
+      "support": [
+        "swan"
+      ],
+      "prompt": "《天鵝湖》是哪一種作品？",
+      "choices": [
+        "第一部芭蕾音樂",
+        "一首國歌",
+        "一部受難曲",
+        "兩首鋼琴協奏曲"
+      ],
+      "answer": 0,
+      "explanation": "它是他的第一部芭蕾音樂，1875年至1876年寫成。"
+    },
+    {
+      "id": "tchai-death",
+      "musicianId": "tchaikovsky",
+      "support": [
+        "death"
+      ],
+      "prompt": "柴可夫斯基在哪裡去世？",
+      "choices": [
+        "聖彼得堡",
+        "沃特金斯克",
+        "波士頓",
+        "藤澤"
+      ],
+      "answer": 0,
+      "explanation": "1893年11月6日卒於聖彼得堡。死因有過不同說法，學習卡不把爭議寫成定論。"
+    },
+    {
+      "id": "tchai-concerto",
+      "musicianId": "tchaikovsky",
+      "support": [
+        "concerto"
+      ],
+      "prompt": "第一鋼琴協奏曲在哪個城市首演？",
+      "choices": [
+        "波士頓",
+        "莫斯科",
+        "延安",
+        "澳門"
+      ],
+      "answer": 0,
+      "explanation": "1875年由漢斯·馮·彪羅在波士頓首演。"
+    },
+    {
+      "id": "debussy-label",
+      "musicianId": "debussy",
+      "support": [
+        "label"
+      ],
+      "prompt": "德布西和「印象派」這個稱呼的關係是？",
+      "choices": [
+        "常被稱作印象派，但本人不喜歡這個稱呼",
+        "他自己把作品定名為印象派",
+        "這個稱呼只用於中國近代歌曲",
+        "卡片完全沒有提到這個詞"
+      ],
+      "answer": 0,
+      "explanation": "他的音樂常被稱作印象派，但本人不喜歡這個稱呼。"
+    },
+    {
+      "id": "debussy-birth",
+      "musicianId": "debussy",
+      "support": [
+        "birth"
+      ],
+      "prompt": "德布西生於哪裡？",
+      "choices": [
+        "聖日耳曼昂萊",
+        "巴黎",
+        "薩爾茨堡",
+        "昆明"
+      ],
+      "answer": 0,
+      "explanation": "1862年8月22日生於法國聖日耳曼昂萊。巴黎是他後來去世的地方。"
+    },
+    {
+      "id": "debussy-work",
+      "musicianId": "debussy",
+      "support": [
+        "works"
+      ],
+      "prompt": "哪一部是德布西的代表作品？",
+      "choices": [
+        "《牧神午後前奏曲》",
+        "《天鵝湖》",
+        "《平均律鍵盤曲集》",
+        "《義勇軍進行曲》"
+      ],
+      "answer": 0,
+      "explanation": "代表作品包括《牧神午後前奏曲》、《大海》和歌劇《佩利亞斯與梅麗桑德》。"
+    },
+    {
+      "id": "debussy-point",
+      "musicianId": "debussy",
+      "support": [
+        "point"
+      ],
+      "prompt": "聽德布西時，可以特別留意什麼？",
+      "choices": [
+        "用音色和和弦色彩營造氣氛",
+        "只用進行曲速度",
+        "詞必須和曲同一個人",
+        "芭蕾一定要在莫斯科首演"
+      ],
+      "answer": 0,
+      "explanation": "他用音色和和弦色彩營造氣氛。"
+    },
+    {
+      "id": "nie-birth",
+      "musicianId": "nie",
+      "support": [
+        "birth"
+      ],
+      "prompt": "聶耳生於哪裡？",
+      "choices": [
+        "昆明",
+        "玉溪",
+        "藤澤",
+        "上海"
+      ],
+      "answer": 0,
+      "explanation": "1912年2月生於雲南昆明。玉溪是祖籍，不是出生地。"
+    },
+    {
+      "id": "nie-anthem",
+      "musicianId": "nie",
+      "support": [
+        "anthem"
+      ],
+      "prompt": "《義勇軍進行曲》的詞、曲怎樣分工？",
+      "choices": [
+        "田漢作詞、聶耳作曲",
+        "聶耳作詞、田漢作曲",
+        "光未然作詞、冼星海作曲",
+        "聶耳一人寫詞又寫曲"
+      ],
+      "answer": 0,
+      "explanation": "田漢作詞、聶耳作曲，原是1935年電影《風雲兒女》的主題曲。"
+    },
+    {
+      "id": "nie-death",
+      "musicianId": "nie",
+      "support": [
+        "death"
+      ],
+      "prompt": "聶耳怎樣去世？",
+      "choices": [
+        "1935年7月17日在日本藤澤游泳時溺水去世",
+        "1945年在莫斯科病逝",
+        "1791年在維也納去世",
+        "死因是被人下毒"
+      ],
+      "answer": 0,
+      "explanation": "1935年7月17日在日本藤澤游泳時溺水去世。學習卡不採用未經這項名錄證實的其他死因。"
+    },
+    {
+      "id": "nie-point",
+      "musicianId": "nie",
+      "support": [
+        "point"
+      ],
+      "prompt": "《義勇軍進行曲》說明詞和曲可以怎樣分工？",
+      "choices": [
+        "詞和曲可以出自不同的人",
+        "出生地和祖籍一定是同一個縣",
+        "一首歌必須由同一個人寫詞寫曲",
+        "國歌沒有詞作者"
+      ],
+      "answer": 0,
+      "explanation": "詞和曲可以出自不同的人。這首歌是田漢作詞、聶耳作曲。"
+    },
+    {
+      "id": "xian-birth",
+      "musicianId": "xian",
+      "support": [
+        "birth"
+      ],
+      "prompt": "冼星海生於哪裡？",
+      "choices": [
+        "澳門",
+        "廣州",
+        "延安",
+        "巴黎"
+      ],
+      "answer": 0,
+      "explanation": "1905年6月13日生於澳門。廣州是祖籍記述，延安和巴黎是後來的地方。"
+    },
+    {
+      "id": "xian-yellow",
+      "musicianId": "xian",
+      "support": [
+        "yellow"
+      ],
+      "prompt": "《黃河大合唱》的詞作者是誰？",
+      "choices": [
+        "光未然",
+        "田漢",
+        "冼星海本人",
+        "聶耳"
+      ],
+      "answer": 0,
+      "explanation": "光未然作詞、冼星海作曲，1939年4月13日在延安首演。"
+    },
+    {
+      "id": "xian-death",
+      "musicianId": "xian",
+      "support": [
+        "death"
+      ],
+      "prompt": "冼星海在哪裡去世？",
+      "choices": [
+        "莫斯科",
+        "澳門",
+        "巴黎",
+        "藤澤"
+      ],
+      "answer": 0,
+      "explanation": "1945年10月30日在莫斯科病逝。"
+    },
+    {
+      "id": "xian-point",
+      "musicianId": "xian",
+      "support": [
+        "point"
+      ],
+      "prompt": "出生地、祖籍和《黃河大合唱》的首演地，哪一項對？",
+      "choices": [
+        "生於澳門，祖籍廣州，1939年在延安首演",
+        "生於廣州，祖籍澳門，在藤澤首演",
+        "生於延安，祖籍巴黎，在波恩首演",
+        "三個地方都是澳門"
+      ],
+      "answer": 0,
+      "explanation": "他生於澳門，祖籍廣州，1939年在延安首演《黃河大合唱》。三個地方不要併成同一個。"
+    }
+  ],
+  "hubComposite": {
+    "src": "img/musicians/hub-portraits.jpg",
+    "alt": "入口合成圖，不是新的歷史照片。上排由左至右：巴赫、莫扎特、貝多芬、蕭邦。下排由左至右：柴可夫斯基、德布西、聶耳、冼星海。每格取自該人已收錄的肖像檔，權利仍以各人說明為準。",
+    "order": [
+      "bach",
+      "mozart",
+      "beethoven",
+      "chopin",
+      "tchaikovsky",
+      "debussy",
+      "nie",
+      "xian"
+    ],
+    "caption": "大廳入口圖是由八張已收錄肖像裁成的合成縮圖，方便一次看見八個人。它不是另一張歷史照片，也不產生新的作者權利。聶耳與冼星海照片的攝影者不詳，合成沒有放寬那些限制。",
+    "derivedFrom": [
+      {
+        "id": "bach",
+        "file": "img/musicians/bach.jpg",
+        "title": "Elias Gottlob Haussmann, Johann Sebastian Bach, 1746",
+        "url": "https://commons.wikimedia.org/wiki/File:Johann_Sebastian_Bach_1746.jpg",
+        "license": "油畫本身屬公有領域：作者豪斯曼卒於1774年，在採用作者死後70年或100年的地區均已屆滿。維基共享把這張平面作品的忠實複製品標為公有領域。複製品的攝影者未具名，本專案不把「數碼檔的拍攝者」另寫成已查明。"
+      },
+      {
+        "id": "mozart",
+        "file": "img/musicians/mozart.jpg",
+        "title": "Joseph Lange, unfinished portrait of Mozart, about 1782–1783",
+        "url": "https://commons.wikimedia.org/wiki/File:Mozart_(unfinished)_by_Lange_1782.jpg",
+        "license": "油畫本身屬公有領域：作者朗格卒於1831年。這是生前肖像，而且沒有畫完。維基共享標為公有領域。課堂圖裁去部分空白畫布，以便看見已畫的頭部；沒有把未完成的原作說成完成的肖像。"
+      },
+      {
+        "id": "beethoven",
+        "file": "img/musicians/beethoven.jpg",
+        "title": "Joseph Karl Stieler, Ludwig van Beethoven, 1820",
+        "url": "https://commons.wikimedia.org/wiki/File:Beethoven.jpg",
+        "license": "油畫本身屬公有領域：作者施蒂勒卒於1858年。維基共享把複製品標為公有領域。數碼檔來源頁記載一則檔案館網址的存檔，拍攝該數碼檔的人未另具名。"
+      },
+      {
+        "id": "chopin",
+        "file": "img/musicians/chopin.jpg",
+        "title": "Eugène Delacroix, Frédéric Chopin, 1838, Louvre RF 1717",
+        "url": "https://commons.wikimedia.org/wiki/File:Eug%C3%A8ne_Ferdinand_Victor_Delacroix_043.jpg",
+        "license": "油畫本身屬公有領域：德拉克羅瓦卒於1863年。採用的數碼檔是 Yorck Project《10.000 Meisterwerke der Malerei》的公有領域發行，不是2024年在館內新拍、權利未明的照片。沒有使用那張標明2024年拍攝者的羅浮宮新照片。"
+      },
+      {
+        "id": "tchaikovsky",
+        "file": "img/musicians/tchaikovsky.jpg",
+        "title": "Alfred Fedetsky, Pyotr Ilyich Tchaikovsky, Kharkov, 26 March 1893",
+        "url": "https://commons.wikimedia.org/wiki/File:Tchaikovsky_2.jpg",
+        "license": "照片於1893年拍攝並流傳。維基共享作者頁記攝影者費傑茨基卒於1902年：在作者死後70年的地區，保護期於1970年代屆滿；在中國內地、香港、澳門以作者死後50年計算的規則下更早屆滿。美國亦因1893年出版而屬公有領域。此判斷依賴「卒於1902年」這一作者頁記載；本專案沒有另見一份官方死亡登記。"
+      },
+      {
+        "id": "debussy",
+        "file": "img/musicians/debussy.jpg",
+        "title": "Otto Wegener, Claude Debussy, June 1908",
+        "url": "https://commons.wikimedia.org/wiki/File:Claude_Debussy_1900.jpeg",
+        "license": "攝影者韋格納卒於1924年。法國及採用作者死後70年的地區，保護期於1990年代屆滿。中國內地、香港、澳門若按作者死後50年，更早屆滿。照片於1908年發表，在美國亦屬公有領域。數碼掃描來自 Gallica，掃描本身是平面舊照片的複製，本專案不把掃描員寫成新的作者。"
+      },
+      {
+        "id": "nie",
+        "file": "img/musicians/nie-er.jpg",
+        "title": "聶耳先生遺像，《聯華畫報》第6卷第4期，1935年12月31日，第16頁",
+        "url": "https://commons.wikimedia.org/wiki/File:%E8%81%82%E8%80%B3%E9%81%97%E5%83%8F_1935-7.jpg",
+        "license": "攝影者姓名不見於該期刊物著錄。中國內地對作者不詳或法人作品，保護期一般自發表起50年，1935年的刊物照片按此已屆滿。澳門第43/99/M號法令第23條：作者不詳的作品自發表起50年屆滿；2012年修法廢止了照片僅25年的特別條文，照片改回一般期限，1935年的不具名照片按50年亦已屆滿。香港把照片視為藝術作品，有姓名時為作者死後50年；作者不詳時不能改用一個未證實的卒年。若日後查出署名攝影者，而且卒年晚於當地期限的起算，權利判斷要重做。本專案不把它寫成全世界毫無限制，也不使用只有2006年新華社重刊、出處更弱的那張小提琴照片。"
+      },
+      {
+        "id": "xian",
+        "file": "img/musicians/xian-xinghai.jpg",
+        "title": "Liangyou (良友), December 1929, Shanghai, page 17",
+        "url": "https://archive.org/details/liangyou-1929.12/page/16/mode/2up",
+        "license": "1929年已在刊物發表，但攝影者不詳，所以不能只用「照片很舊」或「美國公有領域」概括全世界。美國：1929年出版的作品現已超過出版年保護期。中國內地：作者不詳作品一般自發表起50年。澳門第43/99/M號法令第23條：作者不詳則自發表起50年；照片25年特別條文已於2012年廢止。香港：照片屬藝術作品，有姓名時為作者死後50年；作者不詳時不能套用一個未證實的卒年。若日後查明攝影者且卒年較晚，個別地區的保護期可能仍在。共享檔案頁：https://commons.wikimedia.org/wiki/File:Xian_Xinghai_(%E6%B4%97%E6%98%9F%E6%B5%B7),_Liangyou,_1929-12-30.jpg 。本專案不把它寫成毫無限制。"
+      }
+    ]
+  }
+}
