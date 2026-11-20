@@ -456,7 +456,37 @@
                     </svg>
                 </div>
                 <div class="hub-game-name" aria-hidden="true">樂理專練室</div>
-                <div class="hub-game-desc" aria-hidden="true">極簡認音 · 五線譜寫音 · 看譜音程 · 派功課</div>
+                <div class="hub-game-desc" aria-hidden="true">極簡認音 · 老師自訂連結 · 驗碼器</div>
+                <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
+            </div>
+            <div class="hub-game-card hub-topic-pitch hub-topic-construct" id="enterNoteConstruct" role="button" tabindex="0" aria-label="五線譜寫音：看音名直接在五線譜點選正確位置與升降號。基本學力 C-1。按一下開始。">
+                <div class="hub-game-tag" aria-hidden="true">寫音</div>
+                <div class="hub-domain-tags"><span class="hub-domain-chip">C-1</span></div>
+                <div class="hub-game-illust illust-theory-drill" aria-hidden="true">
+                    <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="18" y="24" width="164" height="72" rx="14" fill="#FFF8EE" stroke="#0F766E" stroke-width="3"/>
+                        <g stroke="#374151" stroke-width="1.4"><line x1="32" y1="42" x2="168" y2="42"/><line x1="32" y1="52" x2="168" y2="52"/><line x1="32" y1="62" x2="168" y2="62"/><line x1="32" y1="72" x2="168" y2="72"/><line x1="32" y1="82" x2="168" y2="82"/></g>
+                        <ellipse cx="104" cy="52" rx="9" ry="6.5" fill="#fff" stroke="#0F766E" stroke-width="3" transform="rotate(-12 104 52)"/>
+                        <text x="76" y="59" font-size="22" font-weight="800" fill="#0F766E">♯</text>
+                    </svg>
+                </div>
+                <div class="hub-game-name" aria-hidden="true">五線譜寫音</div>
+                <div class="hub-game-desc" aria-hidden="true">反向記譜 · 點五線譜寫出指定音</div>
+                <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
+            </div>
+            <div class="hub-game-card hub-topic-pitch hub-topic-staff-interval" id="enterStaffInterval" role="button" tabindex="0" aria-label="看譜音程：看五線譜兩個音，辨別度數與大、小、純音程。基本學力 C-1。按一下開始。">
+                <div class="hub-game-tag" aria-hidden="true">看譜音程</div>
+                <div class="hub-domain-tags"><span class="hub-domain-chip">C-1</span></div>
+                <div class="hub-game-illust illust-theory-drill" aria-hidden="true">
+                    <svg class="illust-svg" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="18" y="24" width="164" height="72" rx="14" fill="#FFF8EE" stroke="#7C3AED" stroke-width="3"/>
+                        <g stroke="#374151" stroke-width="1.4"><line x1="32" y1="42" x2="168" y2="42"/><line x1="32" y1="52" x2="168" y2="52"/><line x1="32" y1="62" x2="168" y2="62"/><line x1="32" y1="72" x2="168" y2="72"/><line x1="32" y1="82" x2="168" y2="82"/></g>
+                        <ellipse cx="100" cy="72" rx="8.5" ry="6" fill="#fff" stroke="#7C3AED" stroke-width="3" transform="rotate(-12 100 72)"/>
+                        <ellipse cx="100" cy="52" rx="8.5" ry="6" fill="#fff" stroke="#7C3AED" stroke-width="3" transform="rotate(-12 100 52)"/>
+                    </svg>
+                </div>
+                <div class="hub-game-name" aria-hidden="true">看譜音程</div>
+                <div class="hub-game-desc" aria-hidden="true">五線譜雙音 · 度數與大小純性質</div>
                 <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
             </div>
             <div class="hub-game-card hub-game-studio" id="enterCompositionStudio" role="button" tabindex="0" aria-label="創作工作室：節奏與旋律創作。不計入能力圖，亦不是達標評級。基本學力 D-1–D-6。按一下開始創作。">
@@ -895,6 +925,7 @@
         <div class="chord-mode-row" role="tablist" aria-label="和弦練習方式">
             <button type="button" class="chord-mode-btn active" id="chordModeLearn" role="tab" aria-selected="true"><img class="ui-mini" src="img/ui/icon-mode-study.webp" alt="" width="22" height="22"> 看圖溫習</button>
             <button type="button" class="chord-mode-btn" id="chordModeChallenge" role="tab" aria-selected="false"><img class="ui-mini" src="img/ui/icon-stat-accuracy.webp" alt="" width="22" height="22"> 和弦挑戰</button>
+            <button type="button" class="ec-gear-btn" id="chordCustomBtn" title="自訂和弦範圍">⚙ 自訂</button>
         </div>
         <div id="chordLearnPanel">
             <div class="chord-card-panel">
@@ -979,6 +1010,7 @@
                     <div class="stat-badge score-badge">💯 <span id="scoreDisplay">0</span></div>
                     <div class="stat-badge combo-badge">🔥 <span id="comboDisplay">0</span></div>
                     <div class="stat-badge practice-badge" id="practiceBadge" style="display:none;">📝 <span id="practiceCount">0/0</span></div>
+                    <button type="button" class="ec-gear-btn" id="game1CustomBtn" title="自訂練習設定">⚙ 自訂</button>
                 </div>
             </div>
         </div>
@@ -1756,7 +1788,10 @@
                 <button type="button" class="aural-choice is-on" data-harmonic="0">旋律（先後）</button>
                 <button type="button" class="aural-choice" data-harmonic="1">和聲（同時）</button>
             </div>
-            <button type="button" class="btn-start aural-start" id="auralIntervalStart">開始</button>
+            <div class="ec-start-row">
+                <button type="button" class="btn-start aural-start" id="auralIntervalStart">開始</button>
+                <button type="button" class="ec-gear-btn" id="auralIntervalCustomBtn">⚙ 自訂音程</button>
+            </div>
         </div>
         <div id="auralIntervalPlay" hidden>
             <div class="aural-hud">
@@ -1796,7 +1831,10 @@
                 <button type="button" class="aural-choice" data-level="3" data-hint="加上附點四分音符和切分。">第 3 級 · 附點／切分</button>
             </div>
             <p class="aural-hint" id="auralRhythmLevelHint">四分音符和八分音符。ta 與 ti-ti。</p>
-            <button type="button" class="btn-start aural-start" id="auralRhythmStart">開始</button>
+            <div class="ec-start-row">
+                <button type="button" class="btn-start aural-start" id="auralRhythmStart">開始</button>
+                <button type="button" class="ec-gear-btn" id="auralRhythmCustomBtn">⚙ 自訂節奏</button>
+            </div>
         </div>
         <div id="auralRhythmPlay" hidden>
             <div class="aural-hud">
@@ -1841,7 +1879,10 @@
                 <button type="button" class="aural-choice is-on" data-phrase="0">和弦</button>
                 <button type="button" class="aural-choice" data-phrase="1">短句</button>
             </div>
-            <button type="button" class="btn-start aural-start" id="auralQualityStart">開始</button>
+            <div class="ec-start-row">
+                <button type="button" class="btn-start aural-start" id="auralQualityStart">開始</button>
+                <button type="button" class="ec-gear-btn" id="auralQualityCustomBtn">⚙ 自訂色彩</button>
+            </div>
         </div>
         <div id="auralQualityPlay" hidden>
             <div class="aural-hud">
@@ -1991,6 +2032,7 @@
     <script src="aural-quality.js?v=2" defer></script>
     <script src="appreciate-listen.js?v=1" defer></script>
     <script src="composer-game.js?v=1" defer></script>
+    <script src="exercise-customizer.js?v=1" defer></script>
     <script src="theory-drill.js?v=1" defer></script>
     <script src="classroom.js?v=2" defer></script>
     <script src="bootstrap-instruments.js?v=22" data-app-bootstrap defer></script>

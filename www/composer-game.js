@@ -456,12 +456,17 @@
           list.map(function (c) {
             var era = ERA_MAP[c.era];
             return '<article class="composer-card">' +
-              '<div class="composer-card-top">' +
-                '<span class="composer-era-badge" style="background:' + era.color + '">' + esc(era.label) + '</span>' +
-                '<span class="composer-years">' + c.born + '–' + c.died + ' · ' + esc(c.country) + '</span>' +
+              '<div class="composer-card-head">' +
+                '<img class="composer-portrait" src="img/composers/' + c.id + '.jpg" alt="' + esc(c.name) + '肖像" loading="lazy" decoding="async">' +
+                '<div class="composer-card-meta">' +
+                  '<div class="composer-card-top">' +
+                    '<span class="composer-era-badge" style="background:' + era.color + '">' + esc(era.label) + '</span>' +
+                    '<span class="composer-years">' + c.born + '–' + c.died + ' · ' + esc(c.country) + '</span>' +
+                  '</div>' +
+                  '<h3 class="composer-name">' + esc(c.name) + ' <span class="composer-en">' + esc(c.en) + '</span></h3>' +
+                  '<div class="composer-title-tag">🏅 ' + esc(c.title) + ' · ' + esc(c.work) + '</div>' +
+                '</div>' +
               '</div>' +
-              '<h3 class="composer-name">' + esc(c.name) + ' <span class="composer-en">' + esc(c.en) + '</span></h3>' +
-              '<div class="composer-title-tag">🏅 ' + esc(c.title) + ' · ' + esc(c.work) + '</div>' +
               '<p class="composer-tip">' + esc(c.tip) + '</p>' +
               '<button type="button" class="composer-listen-btn" data-play-composer="' + c.id + '">🔊 試聽代表主題</button>' +
             '</article>';
@@ -521,7 +526,10 @@
           '<p class="composer-feedback" id="composerDetFeedback" aria-live="polite"></p>' +
           '<div class="composer-options">' +
             cur.choices.map(function (c) {
-              return '<button type="button" class="aural-opt" data-det-pick="' + c.id + '">' + esc(c.name) + '<br><small>' + esc(c.en) + '</small></button>';
+              return '<button type="button" class="aural-opt composer-opt-with-img" data-det-pick="' + c.id + '">' +
+                '<img class="composer-thumb" src="img/composers/' + c.id + '.jpg" alt="" loading="lazy" decoding="async">' +
+                '<span><strong>' + esc(c.name) + '</strong><br><small>' + esc(c.en) + '</small></span>' +
+              '</button>';
             }).join('') +
           '</div>' +
         '</div>';
@@ -617,7 +625,8 @@
             q.cards.map(function (c) {
               var used = tlState.picked.indexOf(c.id) !== -1;
               return '<button type="button" class="composer-tl-card' + (used ? ' is-used' : '') + '" data-tl-pick="' + c.id + '"' + (used || tlState.locked ? ' disabled' : '') + '>' +
-                '<strong>' + esc(c.name) + '</strong><span>' + esc(c.title) + ' · ' + esc(c.work) + '</span>' +
+                '<img class="composer-thumb" src="img/composers/' + c.id + '.jpg" alt="" loading="lazy" decoding="async">' +
+                '<div class="composer-tl-copy"><strong>' + esc(c.name) + '</strong><span>' + esc(c.title) + ' · ' + esc(c.work) + '</span></div>' +
               '</button>';
             }).join('') +
           '</div>' +
@@ -687,6 +696,7 @@
         '</div>' +
         '<div class="composer-stage">' +
           '<div class="composer-sort-card">' +
+            '<img class="composer-portrait composer-portrait--lg" src="img/composers/' + eraState.card.id + '.jpg" alt="' + esc(eraState.card.composer.name) + '肖像" loading="lazy" decoding="async">' +
             '<div class="composer-sort-headline">' + esc(eraState.card.headline) + '</div>' +
             '<div class="composer-sort-sub">' + esc(eraState.card.sub) + '</div>' +
           '</div>' +

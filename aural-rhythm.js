@@ -263,18 +263,35 @@
                 meta.textContent = '練習 · 答對 ' + run.correct + ' · 答錯 ' + run.wrong;
             }
         }
+        function activeBeatStep() {
+            var custom = root.ExerciseCustomizer && root.ExerciseCustomizer.get('aural-rhythm');
+            return custom && custom.bpm ? (60 / custom.bpm) : BEAT;
+        }
+        function customPool(custom) {
+            var filtered = BARS.filter(function (item) {
+                var hasHalf = item.bar.cells.some(function (c) { return c.beats >= 2; });
+                var hasRest = item.bar.cells.some(function (c) { return c.rest; });
+                var hasSync = item.level === 3;
+                if (hasHalf && !custom.includeHalf) return false;
+                if (hasRest && !custom.includeRest) return false;
+                if (hasSync && !custom.includeSync) return false;
+                return true;
+            });
+            return filtered.length >= 4 ? filtered : poolForLevel(1);
+        }
         function playCurrent() {
             if (!question) return;
             clearCues();
-            var plan = rhythmPlan({ cells: question.cells }, BEAT);
+            var step = activeBeatStep();
+            var plan = rhythmPlan({ cells: question.cells }, step);
             var cue = doc.getElementById('auralRhythmCue');
             cue.textContent = '預備 1';
             plan.forEach(function (event) {
                 if (!event.countIn) return;
-                var n = Math.round(event.at / BEAT) + 1;
+                var n = Math.round(event.at / step) + 1;
                 cues.push(setTimeout(function () { if (running) cue.textContent = '預備 ' + n; }, event.at * 1000));
             });
-            cues.push(setTimeout(function () { if (running) cue.textContent = '聽節奏'; }, (4 * BEAT + 0.2) * 1000));
+            cues.push(setTimeout(function () { if (running) cue.textContent = '聽節奏'; }, (4 * step + 0.2) * 1000));
             try {
                 if (root.AuralAudio) {
                     root.AuralAudio.unlock();
@@ -285,13 +302,21 @@
         function ask() {
             if (!running) return;
             if (run.mode === 'challenge' && Date.now() >= endsAt) { finish(); return; }
+            var custom = root.ExerciseCustomizer && root.ExerciseCustomizer.get('aural-rhythm');
             var lastId = question ? question.id : '';
-            var next = buildQuestion(level, Math.random);
-            if (poolForLevel(level).length > 1) {
-                for (var tries = 0; tries < 10 && next.id === lastId; tries++) {
-                    next = buildQuestion(level, Math.random);
-                }
+            function makeQ() {
+                if (!custom) return buildQuestion(level, Math.random);
+                var pool = customPool(custom);
+                var correct = pool[pickInt(Math.random, pool.length)];
+                var bag = pool.filter(function (item) { return item.id !== correct.id; });
+                var choices = shuffle([correct].concat(shuffle(bag, Math.random).slice(0, 3)), Math.random);
+                return {
+                    level: 3, id: correct.id, cells: correct.bar.cells, syllable: syllable(correct.bar.cells),
+                    choices: choices.map(function (item) { return { id: item.id, cells: item.bar.cells, syllable: syllable(item.bar.cells) }; })
+                };
             }
+            var next = makeQ();
+            for (var tries = 0; tries < 10 && next.id === lastId; tries++) next = makeQ();
             question = next;
             lockAnswer = false;
             var host = doc.getElementById('auralRhythmOptions');
@@ -432,6 +457,12 @@
             doc.getElementById('auralRhythmLevelHint').textContent = button.getAttribute('data-hint') || '';
         });
         doc.getElementById('auralRhythmStart').addEventListener('click', start);
+        var rhCustomBtn = doc.getElementById('auralRhythmCustomBtn');
+        if (rhCustomBtn) {
+            rhCustomBtn.addEventListener('click', function () {
+                if (root.ExerciseCustomizer) root.ExerciseCustomizer.openModal('aural-rhythm', function () { if (running) ask(); });
+            });
+        }
         doc.getElementById('auralRhythmReplay').addEventListener('click', function () {
             if (root.AuralAudio) root.AuralAudio.unlock();
             playCurrent();

@@ -211,13 +211,26 @@
                 root.AuralAudio.play(eventsFor(question));
             } catch (err) {}
         }
+        function buildCustomQ(custom) {
+            if (custom.cadences) return buildQuestion(3, true, Math.random);
+            var qs = (custom.qualities && custom.qualities.length >= 2) ? custom.qualities : ['major', 'minor'];
+            var rootMidi = 60 + [0, 2, 4, 5, 7, 9][pickInt(Math.random, 6)];
+            var q = qs[pickInt(Math.random, qs.length)];
+            var midis = triad(rootMidi, q);
+            return {
+                level: 2, kind: custom.phrase ? 'arpeggio' : 'block', id: q, label: QUALITY[q].label,
+                midis: custom.phrase ? [midis[0], midis[1], midis[2], midis[1]] : midis,
+                choices: qs.map(function (key) { return choice(key, QUALITY[key].label); })
+            };
+        }
         function ask() {
             if (!running) return;
             if (run.mode === 'challenge' && Date.now() >= endsAt) { finish(); return; }
+            var custom = root.ExerciseCustomizer && root.ExerciseCustomizer.get('aural-quality');
             var lastKey = question ? (question.kind + ':' + question.id) : '';
-            var next = buildQuestion(level, phrase, Math.random);
+            var next = custom ? buildCustomQ(custom) : buildQuestion(level, phrase, Math.random);
             for (var tries = 0; tries < 10 && (next.kind + ':' + next.id) === lastKey; tries++) {
-                next = buildQuestion(level, phrase, Math.random);
+                next = custom ? buildCustomQ(custom) : buildQuestion(level, phrase, Math.random);
             }
             question = next;
             lockAnswer = false;
@@ -362,6 +375,12 @@
             });
         });
         doc.getElementById('auralQualityStart').addEventListener('click', start);
+        var qCustomBtn = doc.getElementById('auralQualityCustomBtn');
+        if (qCustomBtn) {
+            qCustomBtn.addEventListener('click', function () {
+                if (root.ExerciseCustomizer) root.ExerciseCustomizer.openModal('aural-quality', function () { if (running) ask(); });
+            });
+        }
         doc.getElementById('auralQualityReplay').addEventListener('click', function () {
             if (root.AuralAudio) root.AuralAudio.unlock();
             playCurrent();

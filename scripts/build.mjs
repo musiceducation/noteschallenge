@@ -71,6 +71,8 @@ for (const f of [
   "www/appreciate-listen.js",
   "composer-game.js",
   "www/composer-game.js",
+  "exercise-customizer.js",
+  "www/exercise-customizer.js",
   "theory-drill.js",
   "www/theory-drill.js",
   "classroom.js",
@@ -113,6 +115,7 @@ for (const f of [
   "aural-rhythm.js",
   "aural-quality.js",
   "composer-game.js",
+  "exercise-customizer.js",
   "theory-drill.js",
   "rhythm-levels.js"
 ]) {

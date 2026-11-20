@@ -847,6 +847,12 @@
       if (e.key === 'ArrowUp' || e.key === 'ArrowDown') heldAcc = '';
     });
 
+    root.TheoryDrill.openMode = function (modeName) {
+      cfg = normalizeConfig(Object.assign({}, cfg, { mode: modeName }));
+      showSettings = false; showReport = false; showChecker = false;
+      resetSession();
+    };
+
     nextQuestion();
   }
 

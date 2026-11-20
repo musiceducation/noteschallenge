@@ -234,17 +234,42 @@
             } catch (err) {}
         }
 
+        function buildCustomQuestion(custom) {
+            var pool = INTERVALS.filter(function (iv) { return custom.intervals.indexOf(iv.id) !== -1; });
+            if (pool.length < 2) pool = poolForLevel(2);
+            var safeLevel = custom.qualityMode ? 3 : 1;
+            var iv = pool[pickInt(Math.random, pool.length)];
+            var low = 60 + pickInt(Math.random, 8);
+            var correct = tokenOf(iv, safeLevel);
+            var bag = [];
+            pool.forEach(function (item) {
+                var tok = tokenOf(item, safeLevel);
+                if (tok !== correct && bag.indexOf(tok) < 0) bag.push(tok);
+            });
+            var choices = shuffle([correct].concat(shuffle(bag, Math.random).slice(0, 3)), Math.random).map(function (tok) {
+                return { id: tok, label: labelOf(tok) };
+            });
+            return {
+                level: safeLevel, intervalId: iv.id, semitones: iv.semitones,
+                label: safeLevel <= 1 ? iv.sizeLabel : iv.label,
+                low: low, high: low + iv.semitones, midis: [low, low + iv.semitones],
+                harmonic: !!custom.harmonic, correct: correct, choices: choices
+            };
+        }
+
         function ask() {
             if (!running) return;
             if (run.mode === 'challenge' && Date.now() >= endsAt) {
                 finish(false);
                 return;
             }
+            var custom = root.ExerciseCustomizer && root.ExerciseCustomizer.get('aural-interval');
             var lastCorrect = question ? question.correct : '';
-            var next = buildQuestion(level, Math.random, harmonic);
-            if (poolForLevel(level).length > 1) {
+            var next = custom ? buildCustomQuestion(custom) : buildQuestion(level, Math.random, harmonic);
+            var poolLen = custom ? custom.intervals.length : poolForLevel(level).length;
+            if (poolLen > 1) {
                 for (var tries = 0; tries < 10 && next.correct === lastCorrect; tries++) {
-                    next = buildQuestion(level, Math.random, harmonic);
+                    next = custom ? buildCustomQuestion(custom) : buildQuestion(level, Math.random, harmonic);
                 }
             }
             question = next;
@@ -415,6 +440,12 @@
             });
         });
         doc.getElementById('auralIntervalStart').addEventListener('click', start);
+        var ivCustomBtn = doc.getElementById('auralIntervalCustomBtn');
+        if (ivCustomBtn) {
+            ivCustomBtn.addEventListener('click', function () {
+                if (root.ExerciseCustomizer) root.ExerciseCustomizer.openModal('aural-interval', function () { if (running) ask(); });
+            });
+        }
         doc.getElementById('auralIntervalReplay').addEventListener('click', function () {
             if (root.AuralAudio) root.AuralAudio.unlock();
             playCurrent();

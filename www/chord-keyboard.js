@@ -512,9 +512,30 @@
             }
         }
 
+        function buildCustomRound(custom) {
+            var rootsPool = custom.roots === 'white' ? ['C', 'D', 'E', 'F', 'G', 'A', 'B'] : ROOTS;
+            var typesPool = (custom.types && custom.types.length) ? custom.types : QUALITY_ORDER;
+            var bag = [];
+            rootsPool.forEach(function (r) {
+                typesPool.forEach(function (t) { bag.push({ root: r, type: t }); });
+            });
+            var need = custom.count || ROUND_LENGTH;
+            var out = [];
+            while (out.length < need && bag.length) {
+                var chunk = shuffle(bag);
+                for (var i = 0; i < chunk.length && out.length < need; i++) {
+                    out.push(buildQuestion(chunk[i].root, chunk[i].type));
+                }
+            }
+            return out;
+        }
+
         function startRound() {
             clearAdvance();
-            round = { questions: buildRound(ROUND_LENGTH), index: 0, stats: freshStats(), locked: false, selected: [] };
+            var host = typeof globalThis !== 'undefined' ? globalThis : window;
+            var custom = host.ExerciseCustomizer && host.ExerciseCustomizer.get('chord');
+            var qs = custom ? buildCustomRound(custom) : buildRound(ROUND_LENGTH);
+            round = { questions: qs, index: 0, stats: freshStats(), locked: false, selected: [] };
             if (playEl) playEl.hidden = false;
             if (resultEl) resultEl.hidden = true;
             showMode('challenge');
@@ -585,6 +606,13 @@
         }
         var retryBtn = document.getElementById('chordChallengeRetry');
         if (retryBtn) retryBtn.addEventListener('click', startRound);
+        var customBtn = document.getElementById('chordCustomBtn');
+        if (customBtn) {
+            customBtn.addEventListener('click', function () {
+                var host = typeof globalThis !== 'undefined' ? globalThis : window;
+                if (host.ExerciseCustomizer) host.ExerciseCustomizer.openModal('chord', function () { startRound(); });
+            });
+        }
         var toLearnBtn = document.getElementById('chordChallengeToLearn');
         if (toLearnBtn) {
             toLearnBtn.addEventListener('click', function () {

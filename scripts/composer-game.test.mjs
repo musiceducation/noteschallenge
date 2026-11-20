@@ -16,6 +16,8 @@ for (const c of CG.COMPOSERS) {
   assert.ok(c.id && c.name && c.en && c.work && c.title);
   assert.ok(c.born > 1600 && c.died > c.born);
   assert.ok(Array.isArray(c.theme) && c.theme.length >= 6, `${c.id} has playable theme`);
+  assert.ok(fs.existsSync(new URL(`../img/composers/${c.id}.jpg`, import.meta.url)), `${c.id} portrait exists`);
+  assert.ok(fs.existsSync(new URL(`../www/img/composers/${c.id}.jpg`, import.meta.url)), `${c.id} www portrait exists`);
 }
 
 assert.equal(CG.detectivePoints(0), 30);

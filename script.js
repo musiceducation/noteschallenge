@@ -2864,6 +2864,37 @@
     }
 
     function generateNote() {
+        const customNotes = state.currentMode === 'practice' && window.ExerciseCustomizer && window.ExerciseCustomizer.get('notes');
+        if (customNotes) {
+            const clefPool = customNotes.clef === 'mixed' ? ['treble', 'bass'] : [MAPS[customNotes.clef] ? customNotes.clef : 'treble'];
+            const clef = clefPool[Math.floor(Math.random() * clefPool.length)];
+            const map = MAPS[clef] || MAPS.treble;
+            // Filter by ledger range and line/space positions (step%2 === 0 -> lines on standard staff)
+            let candidates = map.filter((n, idx) => {
+                if (customNotes.ledgers === 0 && (idx < 2 || idx > 10)) return false;
+                if (customNotes.ledgers === 1 && (idx < 1 || idx > 11)) return false;
+                if (customNotes.positions === 'lines' && idx % 2 !== 0) return false;
+                if (customNotes.positions === 'spaces' && idx % 2 === 0) return false;
+                return true;
+            });
+            if (!candidates.length) candidates = map;
+            let base = candidates[Math.floor(Math.random() * candidates.length)];
+            if (candidates.length > 1) {
+                let tries = 0;
+                while (base.letter === state.lastNoteLetter && tries < 20) {
+                    base = candidates[Math.floor(Math.random() * candidates.length)];
+                    tries++;
+                }
+            }
+            let finalName = base.letter, accidental = null;
+            if (customNotes.accidentals && Math.random() < 0.42) {
+                const isSharp = Math.random() < 0.5;
+                if (isSharp && base.letter !== 'E' && base.letter !== 'B') { finalName += '#'; accidental = '#'; }
+                else if (!isSharp && base.letter !== 'F' && base.letter !== 'C') { finalName += '♭'; accidental = '♭'; }
+            }
+            state.lastNoteLetter = base.letter;
+            return { ...base, clef, accidental, correctName: finalName, freqKey: finalName + base.octave };
+        }
         if (usingAbrsmNotes()) return generateAbrsmNote();
         let clefOptions = [], accidentalChance = 0, noteRange = [0, 10], allowAbove = true, allowBelow = true;
         
@@ -3194,7 +3225,17 @@
     }
 
     function generateKeysigQuestion(maxAcc) {
-        const pool = getKeysigPool(maxAcc);
+        const customKs = state.modeConfig && state.modeConfig.type === 'practice' && window.ExerciseCustomizer && window.ExerciseCustomizer.get('keysig');
+        let pool = getKeysigPool(customKs ? customKs.maxAcc : maxAcc);
+        if (customKs) {
+            pool = pool.filter(k => {
+                if (k.sharps === 0 && k.flats === 0) return customKs.includeC;
+                if (customKs.direction === 'sharps') return k.sharps > 0 && k.sharps <= customKs.maxAcc;
+                if (customKs.direction === 'flats') return k.flats > 0 && k.flats <= customKs.maxAcc;
+                return Math.max(k.sharps, k.flats) <= customKs.maxAcc;
+            });
+            if (pool.length < 2) pool = getKeysigPool(customKs.maxAcc);
+        }
         if (pool.length < 2) return null;
         const correct = pool[Math.floor(Math.random() * pool.length)];
         // Pick 3 distractors
@@ -5536,6 +5577,26 @@
             const id = ev && ev.detail && ev.detail.screen;
             if (id) switchScreen(id);
         });
+        window.addEventListener('exercise-custom-launch', (ev) => {
+            const target = ev && ev.detail && ev.detail.target;
+            if (!target) return;
+            if (target === 'notes') { openSetupTopic('notes'); }
+            else if (target === 'keysig') { openSetupTopic('keysig'); }
+            else if (target === 'chord' && window.ChordKeyboard && window.ChordKeyboard.openFromLobby) { window.ChordKeyboard.openFromLobby(); }
+            else if (target === 'aural-interval') { switchScreen('screen-aural-interval'); }
+            else if (target === 'aural-rhythm') { switchScreen('screen-aural-rhythm'); }
+            else if (target === 'aural-quality') { switchScreen('screen-aural-quality'); }
+        });
+        document.getElementById('game1CustomBtn')?.addEventListener('click', () => {
+            if (!window.ExerciseCustomizer) return;
+            const gt = state.modeConfig && state.modeConfig.gameType;
+            const target = gt === 'keysig' ? 'keysig' : 'notes';
+            window.ExerciseCustomizer.openModal(target, () => {
+                if (!state.gameActive) return;
+                if (target === 'keysig') nextKeysigQuestion();
+                else nextQuestion();
+            });
+        });
 
         window.addEventListener('chord-local-best', (ev) => {
             const score = parseInt(ev && ev.detail && ev.detail.score, 10) || 0;
@@ -5837,6 +5898,7 @@
         enterTheoryDrillEl?.addEventListener('click', () => {
             if (!requireHubLogin(hubNameField)) return;
             syncFromHub();
+            if (window.TheoryDrill && window.TheoryDrill.openMode) window.TheoryDrill.openMode('note-id');
             switchScreen('screen-theory-drill');
         });
         enterTheoryDrillEl?.addEventListener('keydown', (e) => {
@@ -5844,6 +5906,28 @@
                 e.preventDefault();
                 enterTheoryDrillEl.click();
             }
+        });
+
+        const enterNoteConstructEl = document.getElementById('enterNoteConstruct');
+        enterNoteConstructEl?.addEventListener('click', () => {
+            if (!requireHubLogin(hubNameField)) return;
+            syncFromHub();
+            if (window.TheoryDrill && window.TheoryDrill.openMode) window.TheoryDrill.openMode('note-construct');
+            switchScreen('screen-theory-drill');
+        });
+        enterNoteConstructEl?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); enterNoteConstructEl.click(); }
+        });
+
+        const enterStaffIntervalEl = document.getElementById('enterStaffInterval');
+        enterStaffIntervalEl?.addEventListener('click', () => {
+            if (!requireHubLogin(hubNameField)) return;
+            syncFromHub();
+            if (window.TheoryDrill && window.TheoryDrill.openMode) window.TheoryDrill.openMode('staff-interval');
+            switchScreen('screen-theory-drill');
+        });
+        enterStaffIntervalEl?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); enterStaffIntervalEl.click(); }
         });
 
         const enterGame1El = document.getElementById('enterGame1');
