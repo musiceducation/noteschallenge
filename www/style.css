@@ -8909,6 +8909,73 @@ body:has(#screen-chord-card.screen.active) {
     .composer-options, .composer-era-bins { grid-template-columns: 1fr; }
 }
 
+/* ===== 樂理專練室（musictheory.net 極簡專注風格） ===== */
+.td-screen { padding: 0 0 24px; }
+.td-root { width: 100%; max-width: 780px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+.td-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #3b3b3b; color: #fff;
+    padding: 8px 14px; border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+}
+.td-score-pill { display: flex; gap: 18px; font-weight: 800; font-size: 1.05rem; letter-spacing: 0.02em; }
+.td-top-right { display: flex; gap: 8px; }
+.td-icon-btn {
+    min-width: 44px; min-height: 44px; border-radius: 10px; border: none;
+    background: rgba(255, 255, 255, 0.12); color: #fff;
+    font-size: 1.2rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+}
+.td-icon-btn:hover { background: rgba(255, 255, 255, 0.24); }
+.td-staff-card {
+    background: #ffffff; border-radius: 18px; padding: 14px 12px;
+    border: 1.5px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+.td-staff-svg { width: 100%; max-width: 520px; height: auto; display: block; margin: 0 auto; }
+.td-helper-bar {
+    background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe;
+    border-radius: 12px; padding: 8px 14px; font-size: 0.85rem; font-weight: 700;
+}
+.td-feedback { min-height: 1.5em; font-weight: 800; margin: 0; font-size: 0.98rem; }
+.td-feedback.is-ok { color: #059669; }
+.td-feedback.is-err { color: #dc2626; }
+.td-note-rows { display: flex; flex-direction: column; gap: 8px; }
+.td-note-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.td-key-btn {
+    min-height: 52px; border-radius: 10px;
+    border: 1.5px solid #d1d5db; background: #ffffff; color: #111827;
+    font-size: 1rem; font-weight: 800; cursor: pointer;
+    box-shadow: 0 2px 0 #d1d5db; transition: transform 0.08s ease, background 0.12s ease;
+}
+.td-key-btn:hover:not(:disabled) { background: #f3f4f6; }
+.td-key-btn:active:not(:disabled) { transform: translateY(1px); }
+.td-key-btn.is-on { background: #1d4ed8; color: #fff; border-color: #1d4ed8; box-shadow: 0 2px 0 #1e3a8a; }
+.td-util-row, .td-construct-controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; }
+.td-construct-prompt { font-size: 1.15rem; font-weight: 800; color: var(--ds-on-surface); }
+.td-construct-prompt strong { font-size: 1.45rem; color: #1d4ed8; margin-left: 6px; }
+.td-panel {
+    background: var(--ds-surface-container-lowest); border-radius: 18px; padding: 18px;
+    border: 1.5px solid rgba(0, 0, 0, 0.1); text-align: left;
+    display: flex; flex-direction: column; gap: 14px;
+}
+.td-panel h3 { margin: 0; font-size: 1.1rem; }
+.td-setting-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.td-setting-grid label { display: flex; flex-direction: column; gap: 4px; font-weight: 700; font-size: 0.88rem; }
+.td-setting-grid select { padding: 8px 10px; border-radius: 10px; border: 1.5px solid #d1d5db; font: inherit; background: #fff; }
+.td-setting-grid label.td-check { flex-direction: row; align-items: center; gap: 8px; padding-top: 8px; }
+.td-share-box { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.td-share-msg { font-size: 0.82rem; word-break: break-all; color: #059669; font-weight: 700; margin: 0; }
+.td-sign-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.td-sign-row input { flex: 1 1 200px; padding: 10px 12px; border-radius: 10px; border: 1.5px solid #d1d5db; font: inherit; }
+.td-code-out { padding: 10px 12px; border-radius: 10px; background: #f8fafc; border: 1px solid #e2e8f0; word-break: break-all; font-size: 0.88rem; }
+.td-code-out:empty { display: none; }
+.td-report-summary { font-size: 1.05rem; margin: 0; }
+@media (max-width: 480px) {
+    .td-note-row { gap: 4px; }
+    .td-key-btn { min-height: 46px; font-size: 0.88rem; padding: 0 2px; }
+}
+
+
 
 
 

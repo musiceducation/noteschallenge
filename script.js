@@ -5532,6 +5532,10 @@
             const id = ev && ev.detail && ev.detail.screen;
             if (id) switchScreen(id);
         });
+        window.addEventListener('theory-drill-navigate', (ev) => {
+            const id = ev && ev.detail && ev.detail.screen;
+            if (id) switchScreen(id);
+        });
 
         window.addEventListener('chord-local-best', (ev) => {
             const score = parseInt(ev && ev.detail && ev.detail.score, 10) || 0;
@@ -5826,6 +5830,19 @@
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 enterComposersEl.click();
+            }
+        });
+
+        const enterTheoryDrillEl = document.getElementById('enterTheoryDrill');
+        enterTheoryDrillEl?.addEventListener('click', () => {
+            if (!requireHubLogin(hubNameField)) return;
+            syncFromHub();
+            switchScreen('screen-theory-drill');
+        });
+        enterTheoryDrillEl?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                enterTheoryDrillEl.click();
             }
         });
 
