@@ -5176,6 +5176,29 @@
             });
         } catch (e) { console.error('chord card error:', e); }
         try {
+            const hubFilterBar = document.getElementById('hubTopicFilter');
+            if (hubFilterBar) {
+                hubFilterBar.addEventListener('click', (e) => {
+                    const pill = e.target.closest('[data-hub-filter]');
+                    if (!pill) return;
+                    const key = pill.dataset.hubFilter || 'all';
+                    hubFilterBar.querySelectorAll('[data-hub-filter]').forEach(btn => {
+                        const on = btn === pill;
+                        btn.classList.toggle('is-active', on);
+                        btn.setAttribute('aria-selected', on ? 'true' : 'false');
+                    });
+                    document.querySelectorAll('#screen-hub .hub-games-grid .hub-game-card').forEach(card => {
+                        let show = key === 'all';
+                        if (key === 'pitch') show = card.classList.contains('hub-topic-pitch');
+                        else if (key === 'skill') show = card.classList.contains('hub-topic-skill');
+                        else if (key === 'listen') show = card.classList.contains('hub-topic-listen') || card.classList.contains('hub-topic-appreciate');
+                        else if (key === 'studio') show = card.classList.contains('hub-game-studio');
+                        card.classList.toggle('is-filtered-out', !show);
+                    });
+                });
+            }
+        } catch (e) { console.error('hub filter error:', e); }
+        try {
             if (window.NoteNameTeach) window.NoteNameTeach.mount({
                 switchScreen: switchScreen,
                 playNote: function (key) {

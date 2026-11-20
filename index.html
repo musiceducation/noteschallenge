@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#7d525e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=24">
+    <link rel="stylesheet" href="style.css?v=25">
     <script>
     (function () {
         try {
@@ -280,8 +280,8 @@
                 <div class="hub-aside-stat"><span class="hub-aside-stat-label">節奏</span><span id="hubAsideBest2">0</span></div>
             </div>
             <div class="lobby-actions">
-                <button class="hub-social-corner-btn" id="hubClassmatesBtn" title="同學名冊" type="button">👥</button>
-                <button class="hub-social-corner-btn hub-fullscreen-btn" id="hubFullscreenBtn" type="button" title="全螢幕" aria-label="全螢幕" aria-pressed="false">⛶</button>
+                <button class="hub-social-corner-btn" id="hubClassmatesBtn" title="同學名冊" aria-label="同學名冊" type="button"><i data-lucide="users"></i></button>
+                <button class="hub-social-corner-btn hub-fullscreen-btn" id="hubFullscreenBtn" type="button" title="全螢幕" aria-label="全螢幕" aria-pressed="false"><i data-lucide="maximize-2"></i></button>
                 <button class="hub-profile-corner-btn" id="hubPresenceBtn" title="在線同紀錄" type="button">在線</button>
                 <button class="hub-profile-corner-btn" id="hubClassroomBtn" title="課堂任務" type="button">任務</button>
                 <button class="hub-profile-corner-btn" id="hubProfileBtn" title="個人檔案" type="button"><img class="lobby-ico" src="img/ui/ui-profile.webp" alt="">檔案</button>
@@ -325,6 +325,13 @@
             <div class="hub-account-row" id="hubAccountRow" hidden></div>
         </div>
 
+        <div class="hub-topic-filter" id="hubTopicFilter" role="tablist" aria-label="學習領域篩選">
+            <button type="button" class="hub-filter-pill is-active" role="tab" aria-selected="true" data-hub-filter="all">全部</button>
+            <button type="button" class="hub-filter-pill" role="tab" aria-selected="false" data-hub-filter="pitch">音高讀譜</button>
+            <button type="button" class="hub-filter-pill" role="tab" aria-selected="false" data-hub-filter="skill">節奏・術語・樂器</button>
+            <button type="button" class="hub-filter-pill" role="tab" aria-selected="false" data-hub-filter="listen">聽力・鑑賞</button>
+            <button type="button" class="hub-filter-pill" role="tab" aria-selected="false" data-hub-filter="studio">創作</button>
+        </div>
         <div class="hub-games-grid">
             <div class="hub-game-card hub-game1 hub-topic-pitch" id="enterGame1" role="button" tabindex="0" aria-label="音名識辨：練習模式、1分鐘挑戰、零失誤挑戰、看圖學習。基本學力 C-1。按一下開始。">
                 <div class="hub-game-tag" aria-hidden="true">音名</div>

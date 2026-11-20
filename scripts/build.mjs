@@ -99,6 +99,7 @@ console.log("ok", "rhythm/index.html");
 
 for (const f of [
   "index.html",
+  "style.css",
   "script.js",
   "bootstrap-instruments.js",
   "chord-keyboard.js",

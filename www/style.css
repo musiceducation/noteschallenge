@@ -22,6 +22,10 @@ button, select, input, a, label { touch-action: manipulation; }
 .app-toast.info { background: var(--ds-primary); color: var(--ds-on-primary); }
 
 :root {
+    --z-base: 1;
+    --z-sticky: 20;
+    --z-modal: 1000;
+    --z-toast: 99999;
     --app-safe-top: env(safe-area-inset-top, 0px);
     --app-safe-right: env(safe-area-inset-right, 0px);
     --app-safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -991,7 +995,7 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
 .rank-name { font-size: 0.85rem; font-weight: 900; display: flex; flex-direction: column; gap: 3px; }
 .rank-student-name { font-size: 1rem; font-weight: 900; color: var(--text-dark); letter-spacing: 0.02em; }
 .rank-badges { display: flex; gap: 4px; flex-wrap: nowrap; align-items: center; }
-.rank-tag { font-size: 0.65rem; background: var(--text-light); color: white; padding: 2px 7px; border-radius: 5px; display: inline-block; width: fit-content; font-weight: 700; line-height: 1.5; letter-spacing: 0.01em; }
+.rank-tag { font-size: 0.75rem; background: var(--text-light); color: white; padding: 2px 7px; border-radius: 5px; display: inline-block; width: fit-content; font-weight: 700; line-height: 1.5; letter-spacing: 0.01em; }
 .rank-class-tag { background: var(--primary-blue) !important; }
 .rank-grade-tag { background: #7C3AED !important; }
 .rank-seat-tag { background: #888 !important; }
@@ -1215,8 +1219,9 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     .stat-badge { padding: 5px 8px; font-size: 0.85rem; min-width: 60px; }
     .staff-container { padding: 10px 12px; min-height: 195px; margin: 2px 0; flex: 1; position: relative; }
     .note-btn { width: 38px; height: 64px; font-size: 0.95rem; border-radius: 0 0 8px 8px; padding: 4px 1px 8px; }
-    .note-btn.sharp, .note-btn.flat { width: 34px; height: 48px; font-size: 0.72rem; border-radius: 0 0 6px 6px; }
-    .note-btn .note-solfege { font-size: 0.52rem; }
+    .note-btn.sharp, .note-btn.flat { width: 36px; height: 48px; font-size: 0.75rem; border-radius: 0 0 6px 6px; position: relative; }
+    .note-btn.sharp::after, .note-btn.flat::after { content: ''; position: absolute; inset: -4px -5px; }
+    .note-btn .note-solfege { font-size: 0.68rem; }
     .notes-grid { gap: 6px; }
     .note-row { gap: 4px; }
     .message-box { font-size: 0.92rem; padding: 8px 10px; min-height: 38px; margin: 2px 0; }
@@ -1268,7 +1273,8 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
         grid-column: 1 / -1;
     }
     .note-btn { width: 40px; height: 62px; font-size: 0.95rem; padding: 4px 1px 10px; border-radius: 0 0 8px 8px; }
-    .note-btn.sharp, .note-btn.flat { width: 34px; height: 46px; border-radius: 0 0 6px 6px; }
+    .note-btn.sharp, .note-btn.flat { width: 36px; height: 48px; border-radius: 0 0 6px 6px; position: relative; }
+    .note-btn.sharp::after, .note-btn.flat::after { content: ''; position: absolute; inset: -4px -5px; }
     .note-row { gap: 5px; }
     .stat-badge { padding: 4px 8px; font-size: 0.8rem; min-width: 56px; }
     .progress-bar { height: 12px; }
@@ -5081,6 +5087,7 @@ body.is-fullscreen .hub-fullscreen-btn { display: flex; }
     display: flex;
     width: 100%; max-width: 960px;
     max-height: calc(100vh - 60px);
+    max-height: calc(100dvh - 60px);
     background: #fff; border-radius: 22px;
     overflow: hidden;
     box-shadow: 0 24px 72px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08);
@@ -5116,7 +5123,7 @@ body.is-fullscreen .hub-fullscreen-btn { display: flex; }
 .g4-struct-lb-close:hover { background: #ffe4e4; color: #e33; transform: scale(1.08); }
 .g4-struct-lb-close:active { transform: scale(0.95); }
 .g4-struct-lb-img {
-    display: block; max-width: 100%; max-height: calc(100vh - 140px);
+    display: block; max-width: 100%; max-height: calc(100vh - 140px); max-height: calc(100dvh - 140px);
     object-fit: contain; border-radius: 14px;
     user-select: none; -webkit-user-drag: none;
     filter: drop-shadow(0 4px 16px rgba(0,0,0,0.08));
@@ -5288,7 +5295,7 @@ body.is-fullscreen .hub-fullscreen-btn { display: flex; }
 @media (max-width: 640px) {
     .g4-struct-lb { padding: 8px; }
     .g4-struct-wrap {
-        flex-direction: column; max-height: calc(100vh - 32px);
+        flex-direction: column; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px);
         border-radius: 18px;
     }
     .g4-struct-panel-left { padding: 16px 12px; }
@@ -7927,7 +7934,7 @@ body.app-shell.app-on-root .sound-toggle {
 }
 .lobby-actions #hubAsideProfileBtn { display: none !important; }
 .lobby-email { display: none; }
-.lobby-head .hub-aside-stat-label { display: block; font-size: 0.68rem; font-weight: 800; color: var(--text-light); }
+.lobby-head .hub-aside-stat-label { display: block; font-size: 0.75rem; font-weight: 800; color: var(--text-light); }
 .lobby-head .hub-aside-stat span:last-child { display: block; font-size: 1.05rem; font-weight: 900; color: var(--text-dark); }
 .lobby-fields[hidden] { display: none !important; }
 #screen-hub .hub-game-card {
@@ -8747,5 +8754,50 @@ body:has(#screen-chord-card.screen.active) {
 .privacy-page { max-width: 760px; margin: 24px auto; padding: 20px; }
 .privacy-page h1 { margin-top: 0; }
 .privacy-page a { color: #7d525e; font-weight: 800; }
+
+/* ===== Hub Topic Filter & Lobby Ergonomics ===== */
+.hub-topic-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin: 2px 0 12px;
+}
+.hub-filter-pill {
+    min-height: 40px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1.5px solid rgba(125, 82, 94, 0.22);
+    background: rgba(255, 253, 248, 0.88);
+    color: var(--ds-on-surface-variant);
+    font-size: 0.85rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.12s ease;
+}
+.hub-filter-pill:hover { border-color: var(--ds-primary); color: var(--ds-primary); }
+.hub-filter-pill.is-active {
+    background: var(--ds-primary);
+    border-color: var(--ds-primary);
+    color: var(--ds-on-primary);
+}
+.hub-game-card.is-filtered-out { display: none !important; }
+.lobby-actions .hub-social-corner-btn svg { width: 18px; height: 18px; }
+@media (max-width: 768px) {
+    .lobby-actions .hub-profile-corner-btn,
+    .lobby-actions .hub-social-corner-btn,
+    .lobby-actions #hubSignOutBtn { min-height: 44px; min-width: 44px; }
+}
+@media (orientation: landscape) and (min-width: 1024px) and (max-height: 1024px) {
+    #screen-hub .hub-topic-filter { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .bg-note, .screen-exit, .rchal-tap-ripple, .om-countdown {
+        animation: none !important;
+        transition: none !important;
+    }
+    .bg-note { opacity: 0.14; }
+}
+
 
 
