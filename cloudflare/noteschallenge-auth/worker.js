@@ -1392,6 +1392,531 @@ async function handleClassroom(request, env, path, cors) {
   }
 }
 
+const LIVE_GAMES = {
+  'staff-interval': 1,
+  'aural-interval': 1,
+  'note-name': 1,
+  'rhythm': 1,
+  'terms': 1,
+  'instrument': 1
+};
+
+function liveNameBlocked(name) {
+  const n = text(name);
+  if (!n || n === '訪客' || n === '測試人員' || n === '__guest__' || n === '__other__') return true;
+  if (n.indexOf('訪客') === 0 || n.indexOf('測試') === 0) return true;
+  return false;
+}
+
+/**
+ * Kahoot-style points for one live answer.
+ * A correct answer scores 1000 at the first instant and 500 when it lands
+ * on the deadline. The drop is linear:
+ *   points = 500 + round(500 * (1 - elapsed / limit))
+ * Wrong, blank, and late answers score 0.
+ * elapsedMs and limitMs are milliseconds. The result is a deterministic integer.
+ */
+export function scoreLivePoints(correct, elapsedMs, limitMs) {
+  if (!correct) return 0;
+  const limit = Math.max(1, Number(limitMs) || 1);
+  const elapsed = Math.min(limit, Math.max(0, Number(elapsedMs) || 0));
+  return 500 + Math.round(500 * (1 - elapsed / limit));
+}
+
+function cleanLiveText(value, max) {
+  const out = text(value).replace(/[\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim();
+  if (!out || out.indexOf('@') !== -1 || /[|%]/.test(out)) return '';
+  return out.slice(0, max);
+}
+
+function cleanLiveRender(game, raw) {
+  const src = plainObject(raw);
+  if (game === 'staff-interval' || game === 'note-name') {
+    const clef = src.clef === 'bass' || src.clef === 'alto' ? src.clef : (src.clef === 'treble' ? 'treble' : '');
+    const notes = Array.isArray(src.notes) ? src.notes.slice(0, 4).map((note) => {
+      const row = plainObject(note);
+      const pos = Math.round(Number(row.pos));
+      if (!Number.isFinite(pos) || pos < -8 || pos > 16) return null;
+      const acc = row.acc === '#' || row.acc === 'b' ? row.acc : '';
+      const x = Math.round(Number(row.x));
+      return { pos: pos, acc: acc, x: Number.isFinite(x) ? Math.max(80, Math.min(340, x)) : 220 };
+    }).filter(Boolean) : [];
+    if (!clef || !notes.length) return null;
+    return { kind: 'staff', clef: clef, notes: notes };
+  }
+  if (game === 'aural-interval') {
+    const midis = Array.isArray(src.midis) ? src.midis.slice(0, 4).map((midi) => Math.round(Number(midi))).filter((midi) => midi >= 36 && midi <= 96) : [];
+    if (midis.length < 2) return null;
+    return { kind: 'aural', midis: midis, harmonic: src.harmonic === true };
+  }
+  if (game === 'rhythm') {
+    const shown = text(src.shown).slice(0, 80);
+    if (!/^[a-z\- ]*$/.test(shown)) return null;
+    const blank = Number(src.blankQuarters);
+    if (blank !== 0.25 && blank !== 0.5 && blank !== 1 && blank !== 2 && blank !== 4) return null;
+    return { kind: 'rhythm', meter: '4/4', shown: shown, blankQuarters: blank };
+  }
+  if (game === 'instrument') {
+    const image = text(src.image);
+    if (!/^img\/instruments\/[A-Za-z0-9._-]+$/.test(image)) return null;
+    return { kind: 'instrument', image: image };
+  }
+  if (game === 'terms') return { kind: 'text' };
+  return null;
+}
+
+function cleanLiveChoices(raw) {
+  if (!Array.isArray(raw) || raw.length < 2 || raw.length > 4) return null;
+  const choices = [];
+  const seen = {};
+  for (let i = 0; i < raw.length; i++) {
+    const row = plainObject(raw[i]);
+    const label = cleanLiveText(row.label, 40);
+    const id = cleanLiveText(row.id, 48);
+    if (!label || !id || seen[id]) return null;
+    seen[id] = 1;
+    choices.push({ id: id, label: label });
+  }
+  return choices;
+}
+
+export function normalizeLiveQuiz(body) {
+  const src = plainObject(body);
+  const title = cleanLiveText(src.title, 30);
+  const limitMs = Number(src.limitMs) === 10000 || Number(src.limitMs) === 30000 ? Number(src.limitMs) : 20000;
+  const rawItems = Array.isArray(src.items) ? src.items.slice(0, 30) : [];
+  if (!title || !rawItems.length) return { ok: false, error: 'bad_quiz' };
+  const items = [];
+  for (let i = 0; i < rawItems.length; i++) {
+    const row = plainObject(rawItems[i]);
+    const type = row.type === 'bank' ? 'bank' : (row.type === 'custom' ? 'custom' : '');
+    const prompt = cleanLiveText(row.prompt, 80);
+    const choices = cleanLiveChoices(row.choices);
+    const correctId = cleanLiveText(row.correctId, 48);
+    if (!type || !prompt || !choices || !choices.some((choice) => choice.id === correctId)) {
+      return { ok: false, error: 'bad_quiz' };
+    }
+    const item = { type: type, prompt: prompt, choices: choices, correctId: correctId };
+    if (type === 'bank') {
+      const game = text(row.game);
+      if (!LIVE_GAMES[game]) return { ok: false, error: 'bad_quiz' };
+      const render = cleanLiveRender(game, row.render);
+      if (!render) return { ok: false, error: 'bad_quiz' };
+      item.game = game;
+      item.render = render;
+    }
+    items.push(item);
+  }
+  return { ok: true, quiz: { title: title, limitMs: limitMs, items: items } };
+}
+
+export function blankLiveState(quiz, code, teacherSub, schoolId) {
+  return {
+    v: 1,
+    code: code,
+    schoolId: schoolId,
+    teacherSub: teacherSub,
+    quizId: quiz.id,
+    title: quiz.title,
+    limitMs: quiz.limitMs,
+    phase: 'lobby',
+    index: -1,
+    questionStartedAt: 0,
+    questionEndsAt: 0,
+    items: quiz.items,
+    players: [],
+    answers: {}
+  };
+}
+
+export function joinLiveState(state, player) {
+  if (!state || state.phase === 'done') return { ok: false, error: 'closed' };
+  if (!state || state.phase !== 'lobby') return { ok: false, error: 'started' };
+  const role = player && player.role === 'code' ? 'code' : (player && player.role === 'student' ? 'student' : '');
+  const name = cleanLiveText(player && player.name, 20);
+  if (!player || !text(player.id) || !role || !name) return { ok: false, error: 'bad_student' };
+  if (name === '測試人員' || name.indexOf('訪客') === 0) return { ok: false, error: 'bad_student' };
+  const id = text(player.id).slice(0, 80);
+  const existing = state.players.find((row) => row.id === id);
+  if (existing) {
+    existing.avatar = cleanLiveText(player.avatar, 16) || existing.avatar || '🎵';
+    existing.signature = cleanLiveText(player.signature, 30);
+    return { ok: true };
+  }
+  if (state.players.length >= 40) return { ok: false, error: 'full' };
+  state.players.push({
+    id: id,
+    name: name,
+    grade: cleanLiveText(player.grade, 8),
+    class: cleanLiveText(player.class, 8),
+    seat: cleanLiveText(player.seat, 8),
+    avatar: cleanLiveText(player.avatar, 16) || '🎵',
+    signature: cleanLiveText(player.signature, 30),
+    role: role,
+    official: role === 'student' && !liveNameBlocked(name),
+    score: 0
+  });
+  return { ok: true };
+}
+
+function closeLiveQuestion(state, nowMs) {
+  const bag = state.answers[String(state.index)] || {};
+  state.players.forEach((player) => {
+    const row = bag[player.id];
+    if (row && row.applied !== true) {
+      player.score += num(row.points);
+      row.applied = true;
+    }
+  });
+  state.phase = 'reveal';
+  state.closedAt = nowMs;
+}
+
+function openLiveQuestion(state, index, nowMs) {
+  state.phase = 'question';
+  state.index = index;
+  state.questionStartedAt = nowMs;
+  state.questionEndsAt = nowMs + state.limitMs;
+  if (!state.answers[String(index)]) state.answers[String(index)] = {};
+}
+
+export function settleLiveState(state, nowMs) {
+  if (!state || state.phase !== 'question') return false;
+  if (nowMs < state.questionEndsAt) return false;
+  closeLiveQuestion(state, nowMs);
+  return true;
+}
+
+export function answerLiveState(state, playerId, choiceId, nowMs) {
+  settleLiveState(state, nowMs);
+  if (!state || state.phase !== 'question') return { ok: false, error: 'closed' };
+  const player = state.players.find((row) => row.id === playerId);
+  if (!player) return { ok: false, error: 'not_joined' };
+  const item = state.items[state.index];
+  if (!item) return { ok: false, error: 'closed' };
+  const key = String(state.index);
+  const bag = state.answers[key] || (state.answers[key] = {});
+  if (bag[playerId]) return { ok: true, locked: true };
+  const choice = item.choices.find((row) => row.id === choiceId);
+  if (!choice) return { ok: false, error: 'bad_choice' };
+  const elapsed = Math.max(0, nowMs - state.questionStartedAt);
+  if (elapsed > state.limitMs) return { ok: false, error: 'closed' };
+  const correct = choice.id === item.correctId;
+  bag[playerId] = {
+    choiceId: choice.id,
+    elapsedMs: elapsed,
+    correct: correct,
+    points: scoreLivePoints(correct, elapsed, state.limitMs),
+    applied: false
+  };
+  return { ok: true, locked: true };
+}
+
+export function advanceLiveState(state, nowMs) {
+  if (!state) return { ok: false, error: 'closed' };
+  const was = state.phase;
+  const settled = settleLiveState(state, nowMs);
+  if (was === 'lobby') {
+    if (!state.items.length) return { ok: false, error: 'empty' };
+    openLiveQuestion(state, 0, nowMs);
+    return { ok: true };
+  }
+  if (was === 'question') {
+    if (!settled) closeLiveQuestion(state, nowMs);
+    return { ok: true };
+  }
+  if (was === 'reveal') {
+    if (state.index + 1 >= state.items.length) {
+      state.phase = 'done';
+      state.finishedAt = nowMs;
+      return { ok: true, finished: true };
+    }
+    openLiveQuestion(state, state.index + 1, nowMs);
+    return { ok: true };
+  }
+  return { ok: false, error: 'done' };
+}
+
+function publicLivePlayer(player, viewerId) {
+  return {
+    name: text(player.name).slice(0, 20),
+    grade: text(player.grade).slice(0, 8),
+    class: text(player.class).slice(0, 8),
+    seat: text(player.seat).slice(0, 8),
+    avatar: text(player.avatar).slice(0, 16) || '🎵',
+    signature: text(player.signature).slice(0, 30),
+    score: num(player.score),
+    you: player.id === viewerId
+  };
+}
+
+export function officialLiveBoard(state) {
+  return (state && state.players || []).filter((player) => player.official === true && player.role === 'student' && !liveNameBlocked(player.name)).map((player) => ({
+    name: text(player.name).slice(0, 20),
+    grade: text(player.grade).slice(0, 8),
+    class: text(player.class).slice(0, 8),
+    seat: text(player.seat).slice(0, 8),
+    avatar: text(player.avatar).slice(0, 16) || '🎵',
+    signature: text(player.signature).slice(0, 30),
+    score: num(player.score)
+  })).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'zh-Hant'));
+}
+
+export function publicLiveState(state, viewerId, nowMs) {
+  const showAnswer = state.phase === 'reveal' || state.phase === 'done';
+  const item = state.index >= 0 ? state.items[state.index] : null;
+  const bag = state.answers[String(state.index)] || {};
+  const mine = viewerId ? bag[viewerId] : null;
+  const players = state.players.slice().sort((a, b) => num(b.score) - num(a.score) || text(a.name).localeCompare(text(b.name), 'zh-Hant'));
+  return {
+    code: state.code,
+    title: state.title,
+    phase: state.phase,
+    serverNow: nowMs,
+    limitMs: state.limitMs,
+    index: state.index,
+    total: state.items.length,
+    questionStartedAt: state.phase === 'question' ? state.questionStartedAt : 0,
+    questionEndsAt: state.phase === 'question' ? state.questionEndsAt : 0,
+    question: item && state.phase !== 'lobby' ? {
+      prompt: item.prompt,
+      game: item.game || '',
+      type: item.type,
+      render: item.render || null,
+      choices: item.choices.map((choice) => {
+        const row = { id: choice.id, label: choice.label };
+        if (showAnswer) row.correct = choice.id === item.correctId;
+        return row;
+      })
+    } : null,
+    players: players.map((player) => publicLivePlayer(player, viewerId)),
+    answered: Object.keys(bag).length,
+    yourChoice: mine ? mine.choiceId : '',
+    yourPoints: showAnswer && mine ? num(mine.points) : 0,
+    locked: !!(mine)
+  };
+}
+
+function liveJoinCode() {
+  return randomCode(6);
+}
+
+async function liveActor(request, env) {
+  const gate = await requireSession(request, env);
+  if (gate.error) return gate;
+  if (gate.session.kind === 'code') {
+    const id = classIdentity({
+      name: gate.session.name, grade: gate.session.grade, class: gate.session.class, seat: gate.session.seat
+    });
+    if (!id || !gate.session.schoolId) return { error: jsonResponse({ ok: false, error: 'bad_student' }, 403, corsHeaders(request)) };
+    return {
+      schoolId: gate.session.schoolId,
+      teacher: false,
+      sub: gate.session.sub,
+      player: {
+        id: 'code:' + gate.session.sub,
+        name: id.name,
+        grade: id.grade,
+        class: id.class,
+        seat: id.seat,
+        role: 'code',
+        official: false
+      }
+    };
+  }
+  const domains = await loadSchoolDomains(env.DB);
+  const schoolId = schoolForAccount(gate.row.email, domains, env);
+  const account = await resolveAccount(env, gate.row, schoolId);
+  if (!account) return { error: jsonResponse({ ok: false, error: 'not_on_roster' }, 403, corsHeaders(request)) };
+  if (account.teacher) return { schoolId: schoolId, teacher: true, sub: gate.row.sub, player: null };
+  const id = classIdentity(account.binding);
+  if (!id) return { error: jsonResponse({ ok: false, error: 'bad_student' }, 403, corsHeaders(request)) };
+  return {
+    schoolId: schoolId,
+    teacher: false,
+    sub: gate.row.sub,
+    player: {
+      id: 'user:' + gate.row.sub,
+      name: id.name,
+      grade: id.grade,
+      class: id.class,
+      seat: id.seat,
+      role: 'student',
+      official: !liveNameBlocked(id.name)
+    }
+  };
+}
+
+async function readLiveRoom(db, code) {
+  const row = await db.prepare('SELECT code, school_id, teacher_sub, quiz_id, state, updated_at FROM live_rooms WHERE code = ?').bind(code).first();
+  if (!row) return null;
+  let state = null;
+  try { state = JSON.parse(row.state); } catch (e) { state = null; }
+  if (!state || !Array.isArray(state.items) || !Array.isArray(state.players)) return null;
+  return state;
+}
+
+async function writeLiveRoom(db, state, nowIso) {
+  await db.prepare('UPDATE live_rooms SET state = ?, updated_at = ? WHERE code = ?').bind(JSON.stringify(state), nowIso, state.code).run();
+}
+
+async function saveLiveResult(db, state, nowIso) {
+  const existing = await db.prepare('SELECT id FROM live_results WHERE room_code = ? AND school_id = ?').bind(state.code, state.schoolId).first();
+  if (existing) return;
+  const board = officialLiveBoard(state);
+  await db.prepare(
+    'INSERT INTO live_results (id, school_id, room_code, quiz_title, recorded_at, board) VALUES (?, ?, ?, ?, ?, ?)'
+  ).bind(newId('res'), state.schoolId, state.code, state.title, nowIso, JSON.stringify(board)).run();
+}
+
+function liveViewResponse(state, actor, nowMs) {
+  const viewerId = actor.player ? actor.player.id : '';
+  const body = publicLiveState(state, viewerId, nowMs);
+  body.ok = true;
+  body.host = actor.teacher === true && actor.sub === state.teacherSub;
+  if (body.host && state.phase === 'done') body.officialBoard = officialLiveBoard(state);
+  return body;
+}
+
+async function handleLiveQuiz(request, env, path, cors) {
+  const quizPath = path === '/live/quizzes' || path.startsWith('/live/quizzes/');
+  const roomPath = path === '/live/rooms' || path.startsWith('/live/rooms/');
+  if (!quizPath && !roomPath) return null;
+  const nowMs = clockMs(env);
+  const nowIso = new Date(nowMs).toISOString();
+  try {
+    const actor = await liveActor(request, env);
+    if (actor.error) return actor.error;
+    if (path === '/live/quizzes' && request.method === 'GET') {
+      if (!actor.teacher) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
+      const loaded = await env.DB.prepare('SELECT id, school_id, teacher_sub, title, limit_ms, items, updated_at FROM live_quizzes WHERE school_id = ? AND teacher_sub = ?').bind(actor.schoolId, actor.sub).all();
+      const rows = ((loaded && loaded.results) || []).filter((row) => text(row.school_id) === actor.schoolId && text(row.teacher_sub) === actor.sub);
+      return jsonResponse({
+        ok: true,
+        quizzes: rows.map((row) => {
+          let count = 0;
+          try { count = JSON.parse(row.items).length; } catch (e) { count = 0; }
+          return { id: row.id, title: row.title, limitMs: Number(row.limit_ms) || 20000, count: count, updatedAt: row.updated_at };
+        })
+      }, 200, cors);
+    }
+    if (path === '/live/quizzes' && request.method === 'POST') {
+      if (!actor.teacher) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
+      let body = {};
+      try { body = await readJson(request); } catch (e) {
+        return jsonResponse({ ok: false, error: 'invalid json' }, 400, cors);
+      }
+      const quiz = normalizeLiveQuiz(body);
+      if (!quiz.ok) return jsonResponse({ ok: false, error: quiz.error }, 400, cors);
+      const packed = JSON.stringify(quiz.quiz.items);
+      if (packed.length > 100000) return jsonResponse({ ok: false, error: 'bad_quiz' }, 413, cors);
+      const id = newId('q');
+      await env.DB.prepare(
+        'INSERT INTO live_quizzes (id, school_id, teacher_sub, title, limit_ms, items, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).bind(id, actor.schoolId, actor.sub, quiz.quiz.title, quiz.quiz.limitMs, packed, nowIso).run();
+      return jsonResponse({ ok: true, quiz: { id: id, title: quiz.quiz.title, limitMs: quiz.quiz.limitMs, items: quiz.quiz.items } }, 200, cors);
+    }
+    if (path === '/live/rooms' && request.method === 'POST') {
+      if (!actor.teacher) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
+      let body = {};
+      try { body = await readJson(request); } catch (e) {
+        return jsonResponse({ ok: false, error: 'invalid json' }, 400, cors);
+      }
+      const quizId = text(body.quizId);
+      const row = await env.DB.prepare('SELECT id, school_id, teacher_sub, title, limit_ms, items FROM live_quizzes WHERE id = ?').bind(quizId).first();
+      if (!row || text(row.school_id) !== actor.schoolId || text(row.teacher_sub) !== actor.sub) {
+        return jsonResponse({ ok: false, error: 'not_found' }, 404, cors);
+      }
+      let items = [];
+      try { items = JSON.parse(row.items); } catch (e) { items = []; }
+      if (!Array.isArray(items) || !items.length) return jsonResponse({ ok: false, error: 'bad_quiz' }, 400, cors);
+      let code = '';
+      for (let i = 0; i < 5; i++) {
+        const candidate = liveJoinCode();
+        const existing = await env.DB.prepare('SELECT code FROM live_rooms WHERE code = ?').bind(candidate).first();
+        if (!existing) { code = candidate; break; }
+      }
+      if (!code) return jsonResponse({ ok: false, error: 'bad_code' }, 500, cors);
+      const state = blankLiveState({
+        id: row.id,
+        title: text(row.title),
+        limitMs: Number(row.limit_ms) || 20000,
+        items: items
+      }, code, actor.sub, actor.schoolId);
+      await env.DB.prepare(
+        'INSERT INTO live_rooms (code, school_id, teacher_sub, quiz_id, state, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+      ).bind(code, actor.schoolId, actor.sub, row.id, JSON.stringify(state), nowIso).run();
+      return jsonResponse(liveViewResponse(state, actor, nowMs), 200, cors);
+    }
+
+    const roomMatch = /^\/live\/rooms\/([A-HJ-NP-Z2-9]{6})(?:\/(join|answer|advance))?$/.exec(path);
+    if (!roomMatch) return jsonResponse({ ok: false, error: 'not found' }, 404, cors);
+    const code = roomMatch[1];
+    const action = roomMatch[2] || '';
+    const state = await readLiveRoom(env.DB, code);
+    if (!state || text(state.schoolId) !== actor.schoolId) return jsonResponse({ ok: false, error: 'not_found' }, 404, cors);
+    const isHost = actor.teacher === true && actor.sub === state.teacherSub;
+
+    if (request.method === 'GET' && !action) {
+      if (!isHost && !state.players.some((player) => actor.player && player.id === actor.player.id)) {
+        return jsonResponse({ ok: false, error: 'not_joined' }, 403, cors);
+      }
+      if (settleLiveState(state, nowMs)) await writeLiveRoom(env.DB, state, nowIso);
+      return jsonResponse(liveViewResponse(state, actor, nowMs), 200, cors);
+    }
+    if (request.method === 'POST' && action === 'join') {
+      if (!actor.player) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
+      let body = {};
+      try { body = await readJson(request); } catch (e) { body = {}; }
+      const pickedAvatar = classAvatar(plainObject(body).avatar);
+      const joined = joinLiveState(state, {
+        id: actor.player.id,
+        name: actor.player.name,
+        grade: actor.player.grade,
+        class: actor.player.class,
+        seat: actor.player.seat,
+        role: actor.player.role,
+        avatar: pickedAvatar && pickedAvatar.indexOf('data:') !== 0 ? pickedAvatar : '🎵',
+        signature: plainObject(body).signature
+      });
+      if (!joined.ok) return jsonResponse({ ok: false, error: joined.error }, joined.error === 'bad_student' ? 403 : 409, cors);
+      await writeLiveRoom(env.DB, state, nowIso);
+      return jsonResponse(liveViewResponse(state, actor, nowMs), 200, cors);
+    }
+    if (request.method === 'POST' && action === 'answer') {
+      if (!actor.player) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
+      let body = {};
+      try { body = await readJson(request); } catch (e) {
+        return jsonResponse({ ok: false, error: 'invalid json' }, 400, cors);
+      }
+      const result = answerLiveState(state, actor.player.id, cleanLiveText(body.choiceId, 48), nowMs);
+      if (!result.ok && result.error !== 'closed') return jsonResponse({ ok: false, error: result.error }, result.error === 'not_joined' ? 403 : 400, cors);
+      await writeLiveRoom(env.DB, state, nowIso);
+      if (!result.ok) {
+        const closedView = liveViewResponse(state, actor, nowMs);
+        closedView.ok = false;
+        closedView.error = 'closed';
+        return jsonResponse(closedView, 409, cors);
+      }
+      return jsonResponse(liveViewResponse(state, actor, nowMs), 200, cors);
+    }
+    if (request.method === 'POST' && action === 'advance') {
+      if (!isHost) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
+      const result = advanceLiveState(state, nowMs);
+      if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 409, cors);
+      await writeLiveRoom(env.DB, state, nowIso);
+      if (result.finished) await saveLiveResult(env.DB, state, nowIso);
+      return jsonResponse(liveViewResponse(state, actor, nowMs), 200, cors);
+    }
+    return jsonResponse({ ok: false, error: 'not found' }, 404, cors);
+  } catch (err) {
+    console.error('[noteschallenge-auth]', err && err.message ? err.message : err);
+    const message = String(err && err.message ? err.message : err);
+    if (/no such table/i.test(message)) return migration(cors);
+    return jsonResponse({ ok: false, error: 'server error' }, 500, cors);
+  }
+}
+
 export default {
   async fetch(request, env) {
     const cors = corsHeaders(request);
@@ -1603,6 +2128,9 @@ export default {
 
       const classroom = await handleClassroom(request, env, path, cors);
       if (classroom) return classroom;
+
+      const live = await handleLiveQuiz(request, env, path, cors);
+      if (live) return live;
 
       return jsonResponse({ ok: false, error: 'not found' }, 404, cors);
     } catch (err) {

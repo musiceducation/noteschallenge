@@ -14,6 +14,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=25">
+    <link rel="stylesheet" href="live-quiz.css?v=1">
     <script>
     (function () {
         try {
@@ -519,6 +520,15 @@
                 <div class="hub-game-name" aria-hidden="true">創作工作室</div>
                 <div class="hub-game-desc" aria-hidden="true">伴奏與配音創作<br>播放, 匯出, 分享</div>
                 <div class="hub-game-btn" aria-hidden="true">開始創作 ▶</div>
+            </div>
+            <div class="hub-game-card hub-live-quiz" id="enterLiveQuiz" role="button" tabindex="0" aria-label="課堂搶答：老師出題，全班同時作答。成績只留在課室。">
+                <div class="hub-game-tag" aria-hidden="true">搶答</div>
+                <div class="hub-game-illust illust-live" aria-hidden="true">
+                    <img class="illust-img" src="img/ui/hub-scene-live.webp" alt="" loading="lazy" decoding="async">
+                </div>
+                <div class="hub-game-name" aria-hidden="true">課堂搶答</div>
+                <div class="hub-game-desc" aria-hidden="true">老師主持 · 全班同時作答</div>
+                <div class="hub-game-btn" aria-hidden="true">開始 ▶</div>
             </div>
         </div>
 
@@ -1988,6 +1998,10 @@
     <!-- ===================================== -->
     <!-- 課堂任務、紀錄與評估報告              -->
     <!-- ===================================== -->
+    <div id="screen-live" class="screen">
+        <div id="liveQuizRoot"></div>
+    </div>
+
     <div id="screen-classroom" class="screen">
         <button class="btn-back-hub" id="classroomBackBtn" type="button">← 返回主頁</button>
         <h1 class="game-title">課堂任務</h1>
@@ -2035,6 +2049,7 @@
     <script src="exercise-customizer.js?v=1" defer></script>
     <script src="theory-drill.js?v=1" defer></script>
     <script src="classroom.js?v=2" defer></script>
+    <script src="live-quiz.js?v=1" defer></script>
     <script src="bootstrap-instruments.js?v=22" data-app-bootstrap defer></script>
     <audio id="bgMusic" src="tastic-groove.mp3" loop preload="none"></audio>
 </body>

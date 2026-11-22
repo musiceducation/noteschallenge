@@ -1,0 +1,157 @@
+/* 課堂搶答。Painted glass on the existing lobby palette. */
+.hub-live-quiz { border-color: rgba(240, 180, 41, 0.55); background: linear-gradient(160deg, #fff 46%, #fff6e8 100%); }
+.hub-live-quiz::after { background: #F0B429; }
+.hub-live-quiz .hub-game-btn { background: #FF9F1C; color: #3A2208; box-shadow: none; }
+.hub-live-quiz .hub-game-tag { background: #F0B429; color: #3A2208; }
+
+#screen-live.screen.active {
+  max-width: 980px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 8px 12px 28px;
+  gap: 14px;
+}
+
+.lq-wrap { display: flex; flex-direction: column; gap: 14px; color: #2C1810; }
+#screen-live .lq-title { color: #FFF8EE; text-shadow: 0 2px 0 rgba(18, 36, 79, 0.35); }
+#screen-live .lq-top .lq-sub { color: #F6E7D4; }
+.lq-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.lq-back, .lq-btn, .lq-choice, .lq-mini {
+  font: inherit;
+  cursor: pointer;
+  border: 0;
+}
+.lq-back {
+  background: rgba(255, 248, 238, 0.82);
+  color: #2C1810;
+  border-radius: 999px;
+  padding: 8px 14px;
+  box-shadow: 0 8px 18px rgba(18, 36, 79, 0.08);
+}
+.lq-title { margin: 0; font-size: clamp(28px, 4vw, 40px); letter-spacing: 0.02em; }
+.lq-sub { margin: 0; color: #5C4636; line-height: 1.5; }
+.lq-card {
+  background: rgba(255, 248, 238, 0.84);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 28px;
+  box-shadow: 0 18px 40px rgba(18, 36, 79, 0.12);
+  backdrop-filter: blur(16px);
+  padding: 18px;
+}
+.lq-card h2 { margin: 0 0 8px; font-size: 22px; }
+.lq-note { margin: 0; color: #5C4636; font-size: 14px; }
+.lq-grid { display: grid; gap: 12px; }
+.lq-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.lq-field { display: flex; flex-direction: column; gap: 6px; font-weight: 700; }
+.lq-field input, .lq-field select, .lq-field textarea {
+  font: inherit;
+  border-radius: 14px;
+  border: 2px solid rgba(44, 24, 16, 0.12);
+  background: #fff;
+  padding: 10px 12px;
+  color: #2C1810;
+}
+.lq-btn {
+  background: #FF9F1C;
+  color: #3A2208;
+  border-radius: 16px;
+  padding: 12px 16px;
+  font-weight: 800;
+  box-shadow: 0 8px 0 #C2410C;
+  transition: transform 0.12s ease;
+}
+.lq-btn:active { transform: translateY(2px); box-shadow: 0 4px 0 #C2410C; }
+.lq-btn.soft { background: #fff; box-shadow: 0 6px 0 rgba(18, 36, 79, 0.12); }
+.lq-btn:disabled { opacity: 0.55; cursor: default; transform: none; }
+.lq-code {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(64px, 12vw, 128px);
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  line-height: 0.95;
+  color: #12244F;
+}
+.lq-people, .lq-board { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.lq-people { flex-direction: row; flex-wrap: wrap; }
+.lq-person, .lq-rank {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 18px;
+  padding: 8px 12px;
+  animation: lq-pop 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.lq-avatar {
+  width: 36px; height: 36px; display: grid; place-items: center;
+  border-radius: 50%; background: #fff3d6; font-size: 20px;
+}
+.lq-count {
+  width: 112px; height: 112px; margin: 0 auto;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: conic-gradient(#FF9F1C calc(var(--lq-p) * 1%), rgba(18, 36, 79, 0.12) 0);
+  font-size: 40px; font-weight: 900; color: #12244F;
+  animation: lq-pulse 1s ease-in-out infinite;
+}
+.lq-count span {
+  width: 88px; height: 88px; border-radius: 50%;
+  display: grid; place-items: center; background: #FFF8EE;
+}
+.lq-prompt { margin: 8px 0 0; font-size: clamp(22px, 3vw, 32px); text-align: center; }
+.lq-media { display: flex; justify-content: center; margin: 8px 0; }
+.lq-media .td-staff-svg { width: min(100%, 520px); height: auto; }
+.lq-media img { width: min(100%, 280px); border-radius: 20px; background: #fff; }
+.lq-rhythm { width: min(100%, 640px); min-height: 120px; }
+.lq-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.lq-choice {
+  min-height: 74px;
+  border-radius: 20px;
+  color: white;
+  font-weight: 800;
+  font-size: 18px;
+  text-align: left;
+  padding: 12px 14px;
+  display: flex; gap: 10px; align-items: center;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.lq-choice:active { transform: scale(0.98); }
+.lq-choice:disabled { cursor: default; }
+.lq-c0 { background: #E85D4C; }
+.lq-c1 { background: #3B82F6; }
+.lq-c2 { background: #C2410C; }
+.lq-c3 { background: #0F766E; }
+.lq-choice.is-correct { outline: 4px solid #15803d; }
+.lq-choice.is-yours:not(.is-correct) { outline: 4px solid #12244F; }
+.lq-mark { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: rgba(255,255,255,0.2); }
+.lq-board { counter-reset: lq; }
+.lq-rank { counter-increment: lq; }
+.lq-rank::before {
+  content: counter(lq);
+  width: 28px; font-weight: 900; color: #C2410C;
+}
+.lq-you { margin-left: auto; font-size: 13px; color: #0F766E; font-weight: 800; }
+.lq-score { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 900; }
+.lq-podium { display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: 10px; align-items: end; }
+.lq-pod {
+  background: rgba(255, 248, 238, 0.9);
+  border-radius: 22px 22px 12px 12px;
+  text-align: center;
+  padding: 12px 8px;
+  box-shadow: 0 12px 24px rgba(18, 36, 79, 0.1);
+}
+.lq-pod b { display: block; font-size: 28px; }
+.lq-pod-1 { min-height: 150px; background: #FFE08A; }
+.lq-pod-2 { min-height: 120px; }
+.lq-pod-3 { min-height: 100px; }
+.lq-items { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.lq-items li { display: flex; justify-content: space-between; gap: 8px; align-items: center; background: rgba(255,255,255,0.7); border-radius: 14px; padding: 8px 10px; }
+.lq-warn { color: #9f1239; margin: 0; font-weight: 700; }
+.lq-tag { font-size: 13px; font-weight: 800; color: #7c4a12; }
+@keyframes lq-pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes lq-pulse { 50% { transform: scale(1.03); } }
+@media (max-width: 640px) {
+  .lq-choices { grid-template-columns: 1fr; }
+  .lq-podium { grid-template-columns: 1fr; }
+}
