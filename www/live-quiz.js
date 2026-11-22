@@ -293,11 +293,61 @@
     return true;
   }
 
+  var ART = {
+    join: 'img/ui/lq-join.webp',
+    quiz: 'img/ui/lq-quiz.webp',
+    custom: 'img/ui/lq-custom.webp',
+    listen: 'img/ui/lq-listen.webp',
+    notes: 'img/ui/lq-notes.webp',
+    rhythm: 'img/ui/lq-rhythm.webp',
+    terms: 'img/ui/lq-terms.webp',
+    instrument: 'img/ui/lq-instrument.webp',
+    interval: 'img/ui/lq-interval.webp',
+    question: 'img/ui/lq-question.webp',
+    reveal: 'img/ui/lq-reveal.webp',
+    podium: 'img/ui/hub-scene-live.webp'
+  };
+  var BANK_ART = {
+    'staff-interval': 'interval',
+    'aural-interval': 'listen',
+    'note-name': 'notes',
+    rhythm: 'rhythm',
+    terms: 'terms',
+    instrument: 'instrument'
+  };
+  var STEP_LETTERS = ['c', 'd', 'e', 'f', 'g', 'a', 'b'];
+  var CLEF_BOTTOM = {
+    treble: 4 * 7 + 2,
+    bass: 2 * 7 + 4,
+    alto: 3 * 7 + 3
+  };
+
+  function artTag(id, mark) {
+    var src = ART[id];
+    if (!src) return '';
+    return '<img class="lq-art' + (mark ? ' lq-art-mark' : '') + '" src="' + esc(src) + '" alt="">';
+  }
+
+  function vexSpec(render) {
+    var clef = render && (render.clef === 'bass' || render.clef === 'alto') ? render.clef : 'treble';
+    var bottom = CLEF_BOTTOM[clef];
+    return {
+      clef: clef,
+      notes: ((render && render.notes) || []).map(function (note) {
+        var step = bottom + Number(note.pos);
+        var octave = Math.floor(step / 7);
+        var index = ((step % 7) + 7) % 7;
+        var accidental = note.acc === '#' || note.acc === 'b' ? note.acc : '';
+        return { key: STEP_LETTERS[index] + '/' + octave, accidental: accidental };
+      })
+    };
+  }
+
   function mediaHtml(question) {
     var render = question && question.render;
     if (!render) return '';
     if (render.kind === 'staff') {
-      return '<div class="lq-media"><div data-live-staff="' + esc(JSON.stringify({ clef: render.clef, notes: render.notes })) + '"></div></div>';
+      return '<div class="lq-media"><div class="lq-vex" data-live-staff="' + esc(JSON.stringify({ clef: render.clef, notes: render.notes })) + '"></div></div>';
     }
     if (render.kind === 'aural' && Array.isArray(render.midis)) {
       return '<div class="lq-media"><button type="button" class="lq-btn" data-act="play" data-midis="' + esc(render.midis.join(',')) + '" data-harmonic="' + (render.harmonic ? '1' : '0') + '">再聽一次</button></div>';
@@ -344,14 +394,14 @@
     var question = view.question;
     var body = '';
     if (phase === 'lobby') {
-      body = '<section class="lq-card"><p class="lq-sub">同學輸入代碼加入。老師按開始之後，全員同時作答。</p><p class="lq-code">' + esc(view.code) + '</p>' +
+      body = '<section class="lq-card">' + artTag('join') + '<p class="lq-sub">同學輸入代碼加入。老師按開始之後，全員同時作答。</p><p class="lq-code">' + esc(view.code) + '</p>' +
         '<p class="lq-note">已加入 ' + players.length + ' 人</p>' + peopleHtml(players) +
         (host ? '<div class="lq-row"><button type="button" class="lq-btn" data-act="advance">開始第一題</button></div>' : '<p class="lq-note">等待老師開始。</p>') +
         '</section>';
     } else if (phase === 'question' && question) {
       var remain = Math.max(0, Number(view.questionEndsAt) - (Date.now() + Number(opts && opts.offset || 0)));
       var ratio = view.limitMs ? Math.max(0, Math.min(1, remain / Number(view.limitMs))) : 0;
-      body = '<section class="lq-card"><p class="lq-tag">' + esc(gameLabel(question.game || question.type)) + ' · 第 ' + (Number(view.index) + 1) + ' / ' + esc(view.total) + ' 題</p>' +
+      body = '<section class="lq-card">' + artTag('question') + '<p class="lq-tag">' + esc(gameLabel(question.game || question.type)) + ' · 第 ' + (Number(view.index) + 1) + ' / ' + esc(view.total) + ' 題</p>' +
         '<div class="lq-count" id="lqCount" style="--lq-p:' + Math.round(ratio * 100) + '"><span id="lqCountNum">' + Math.ceil(remain / 1000) + '</span></div>' +
         '<h2 class="lq-prompt">' + esc(question.prompt) + '</h2>' + mediaHtml(question) +
         '<div class="lq-choices">' + question.choices.map(function (choice, index) {
@@ -361,13 +411,13 @@
         '</section>';
     } else if ((phase === 'reveal' || phase === 'done') && question) {
       var correct = (question.choices || []).filter(function (choice) { return choice.correct; })[0];
-      body = '<section class="lq-card"><p class="lq-tag">正確答案</p><h2 class="lq-prompt">' + esc(question.prompt) + '</h2>' + mediaHtml(question) +
+      body = '<section class="lq-card">' + artTag('reveal') + '<p class="lq-tag">正確答案</p><h2 class="lq-prompt">' + esc(question.prompt) + '</h2>' + mediaHtml(question) +
         '<div class="lq-choices">' + (question.choices || []).map(function (choice, index) {
           var cls = 'lq-choice lq-c' + (index % 4) + (choice.correct ? ' is-correct' : '') + (view.yourChoice === choice.id ? ' is-yours' : '');
           return '<button type="button" class="' + cls + '" disabled><span class="lq-mark">' + LETTERS[index] + '</span><span>' + esc(choice.label) + '</span></button>';
         }).join('') + '</div><p class="lq-note">' + (correct ? '答案是「' + esc(correct.label) + '」。' : '') +
         (view.yourChoice ? ' 你這一題 ' + esc(view.yourPoints || 0) + ' 分。' : '') + '</p></section>' +
-        '<section class="lq-card"><h2>' + (phase === 'done' ? '最後名次' : '目前排名') + '</h2>' +
+        '<section class="lq-card">' + artTag(phase === 'done' ? 'podium' : 'quiz') + '<h2>' + (phase === 'done' ? '最後名次' : '目前排名') + '</h2>' +
         (phase === 'done' ? podiumHtml(players) : '') + boardHtml(players) +
         (host ? '<div class="lq-row"><button type="button" class="lq-btn" data-act="advance">' + (phase === 'done' ? '返回' : (Number(view.index) + 1 >= Number(view.total) ? '公布名次' : '下一題')) + '</button></div>' : '<p class="lq-note">等待老師繼續。</p>') +
         '<p class="lq-note">成績只留在這一場，不會寫入排行榜，也不會計入能力圖。</p></section>';
@@ -396,6 +446,7 @@
       var Formatter = VF.Formatter;
       var Beam = VF.Beam;
       var Stem = VF.Stem;
+      hostEl.classList.add('lq-vex');
       var renderer = new Renderer(hostEl, Renderer.Backends.SVG);
       renderer.resize(width, height);
       var context = renderer.getContext();
@@ -446,16 +497,57 @@
     }
   }
 
-  function hydrate(doc) {
-    var staff = doc.querySelector('[data-live-staff]');
-    if (staff && root.TheoryDrill && typeof root.TheoryDrill.renderStaffSvg === 'function') {
-      try {
-        var payload = JSON.parse(staff.getAttribute('data-live-staff') || '{}');
-        staff.innerHTML = root.TheoryDrill.renderStaffSvg(payload.clef, payload.notes || []);
-      } catch (err) {}
+  function renderLiveStaff(hostEl) {
+    if (!hostEl) return;
+    var VF = root.VexFlow;
+    hostEl.innerHTML = '';
+    hostEl.classList.add('lq-vex');
+    if (!VF || !VF.Renderer || !VF.Stave || !VF.StaveNote) {
+      hostEl.textContent = '譜面未能繪出';
+      return;
     }
-    var rhythm = doc.querySelector('[data-live-rhythm]');
-    if (rhythm) renderRhythm(rhythm);
+    var payload = {};
+    try { payload = JSON.parse(hostEl.getAttribute('data-live-staff') || '{}'); } catch (err) { payload = {}; }
+    var spec = vexSpec(payload);
+    if (!spec.notes.length) {
+      hostEl.textContent = '譜面未能繪出';
+      return;
+    }
+    try {
+      var width = Math.max(360, Math.min(560, hostEl.clientWidth || 480));
+      var height = 240;
+      var renderer = new VF.Renderer(hostEl, VF.Renderer.Backends.SVG);
+      renderer.resize(width, height);
+      var context = renderer.getContext();
+      var stave = new VF.Stave(12, 64, Math.max(220, width - 28));
+      stave.addClef(spec.clef);
+      stave.setContext(context).draw();
+      // VexFlow's note start sits inside the treble and bass clefs. Step the notes clear of the glyph.
+      if (typeof stave.setNoteStartX === 'function') stave.setNoteStartX(stave.getNoteStartX() + 40);
+      var notes = spec.notes.map(function (note) {
+        var staveNote = new VF.StaveNote({ clef: spec.clef, keys: [note.key], duration: 'w' });
+        if (note.accidental && VF.Accidental) staveNote.addModifier(new VF.Accidental(note.accidental), 0);
+        return staveNote;
+      });
+      var voice = new VF.Voice({ numBeats: Math.max(4, notes.length * 4), beatValue: 4 });
+      if (typeof voice.setMode === 'function') voice.setMode(2);
+      voice.addTickables(notes);
+      new VF.Formatter().joinVoices([voice]).format([voice], Math.max(80, width - stave.getNoteStartX() - 24));
+      voice.draw(context, stave);
+      var svg = hostEl.querySelector('svg');
+      if (svg) {
+        svg.setAttribute('role', 'img');
+        svg.setAttribute('aria-label', '五線譜');
+        svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+      }
+    } catch (err) {
+      hostEl.textContent = '譜面未能繪出';
+    }
+  }
+
+  function hydrate(doc) {
+    doc.querySelectorAll('[data-live-staff]').forEach(function (staff) { renderLiveStaff(staff); });
+    doc.querySelectorAll('[data-live-rhythm]').forEach(function (rhythm) { renderRhythm(rhythm); });
   }
 
   function mount(doc) {
@@ -496,20 +588,20 @@
     }
 
     function homeHtml(auth) {
-      var join = '<section class="lq-card"><h2>加入搶答</h2><p class="lq-sub">用課堂短碼或名冊姓名加入。代碼在老師的畫面上。</p>' +
+      var join = '<section class="lq-card">' + artTag('join') + '<h2>加入搶答</h2><p class="lq-sub">用課堂短碼或名冊姓名加入。代碼在老師的畫面上。</p>' +
         '<div class="lq-field"><label for="lqJoinCode">加入代碼</label><input id="lqJoinCode" maxlength="6" autocomplete="off" placeholder="例如 K7M4QP"></div>' +
         '<div class="lq-row"><button type="button" class="lq-btn" data-act="join">加入</button></div></section>';
       if (!auth.signedIn) {
-        return '<section class="lq-card"><h2>請先登入</h2><p class="lq-sub">老師用教師帳號。同學用名冊或課堂短碼。訪客和測試人員不能存正式成績。</p></section>';
+        return '<section class="lq-card">' + artTag('join') + '<h2>請先登入</h2><p class="lq-sub">老師用教師帳號。同學用名冊或課堂短碼。訪客和測試人員不能存正式成績。</p></section>';
       }
       if (auth.tester) {
-        return '<section class="lq-card"><h2>測試人員</h2><p class="lq-sub">測試人員可以看畫面，但不能加入，也不會存成正式成績。</p></section>';
+        return '<section class="lq-card">' + artTag('quiz') + '<h2>測試人員</h2><p class="lq-sub">測試人員可以看畫面，但不能加入，也不會存成正式成績。</p></section>';
       }
       if (!auth.teacher) return join;
       var list = ui.quizzes.map(function (quiz) {
         return '<li><span><b>' + esc(quiz.title) + '</b><small> · ' + esc(quiz.count) + ' 題</small></span><button type="button" class="lq-btn soft" data-act="host" data-id="' + esc(quiz.id) + '">主持</button></li>';
       }).join('');
-      return '<section class="lq-card"><h2>我的測驗</h2>' + (list ? '<ul class="lq-items">' + list + '</ul>' : '<p class="lq-note">還沒有已儲存的測驗。</p>') +
+      return '<section class="lq-card">' + artTag('quiz') + '<h2>我的測驗</h2>' + (list ? '<ul class="lq-items">' + list + '</ul>' : '<p class="lq-note">還沒有已儲存的測驗。</p>') +
         '<div class="lq-row"><button type="button" class="lq-btn" data-act="editor">新測驗</button></div></section>' + join;
     }
 
@@ -519,23 +611,23 @@
         return '<li><span><b>' + esc(gameLabel(item.game || item.type)) + '</b> ' + esc(item.prompt) + '</span><button type="button" class="lq-mini lq-btn soft" data-act="remove" data-index="' + index + '">刪除</button></li>';
       }).join('');
       var banks = GAMES.map(function (game) {
-        return '<button type="button" class="lq-btn soft" data-act="bank" data-game="' + game.id + '">' + esc(game.label) + '</button>';
+        return '<button type="button" class="lq-bank" data-act="bank" data-game="' + game.id + '">' + artTag(BANK_ART[game.id]) + '<span>' + esc(game.label) + '</span></button>';
       }).join('');
-      return '<section class="lq-card"><h2>新測驗</h2><div class="lq-grid"><label class="lq-field">測驗名稱<input id="lqTitle" maxlength="30" value="' + esc(draft.title) + '"></label>' +
+      return '<section class="lq-card">' + artTag('quiz') + '<h2>新測驗</h2><div class="lq-grid"><label class="lq-field">測驗名稱<input id="lqTitle" maxlength="30" value="' + esc(draft.title) + '"></label>' +
         '<label class="lq-field">每題秒數<select id="lqLimit"><option value="10000"' + (draft.limitMs === 10000 ? ' selected' : '') + '>10 秒</option><option value="20000"' + (draft.limitMs === 20000 ? ' selected' : '') + '>20 秒</option><option value="30000"' + (draft.limitMs === 30000 ? ' selected' : '') + '>30 秒</option></select></label></div>' +
         (items ? '<ul class="lq-items">' + items + '</ul>' : '<p class="lq-note">還沒有題目。</p>') +
-        '</section><section class="lq-card"><h2>自訂選擇題</h2><div class="lq-grid"><label class="lq-field">題目<input id="lqPrompt" maxlength="80"></label>' +
+        '</section><section class="lq-card">' + artTag('custom') + '<h2>自訂選擇題</h2><div class="lq-grid"><label class="lq-field">題目<input id="lqPrompt" maxlength="80"></label>' +
         [0, 1, 2, 3].map(function (index) {
           return '<label class="lq-field">選項 ' + LETTERS[index] + '<input id="lqC' + index + '" maxlength="40"><span><input type="radio" name="lqCorrect" value="' + index + '"' + (index === 0 ? ' checked' : '') + '> 正確</span></label>';
         }).join('') + '</div><div class="lq-row"><button type="button" class="lq-btn soft" data-act="add-custom">加入自訂題</button></div></section>' +
-        '<section class="lq-card"><h2>從現有遊戲抽一題</h2><p class="lq-sub">看譜、聽辨、音名、節奏、術語和樂器。抽出來的題目會固定在這一張測驗裡。</p><div class="lq-row">' + banks + '</div></section>' +
+        '<section class="lq-card">' + artTag('interval') + '<h2>從現有遊戲抽一題</h2><p class="lq-sub">看譜、聽辨、音名、節奏、術語和樂器。抽出來的題目會固定在這一張測驗裡。</p><div class="lq-banks">' + banks + '</div></section>' +
         '<div class="lq-row"><button type="button" class="lq-btn" data-act="save">儲存並開始</button></div>';
     }
 
     function render() {
       if (!host) return;
       var auth = authState();
-      var top = '<div class="lq-top"><button type="button" class="lq-back" data-act="back">← 返回</button><div><h1 class="lq-title">課堂搶答</h1><p class="lq-sub">老師主持，全班同一題。</p></div></div>';
+      var top = '<div class="lq-top"><button type="button" class="lq-back" data-act="back">← 返回</button>' + artTag('podium', true) + '<div><h1 class="lq-title">課堂搶答</h1><p class="lq-sub">老師主持，全班同一題。</p></div></div>';
       var main = '';
       if (ui.screen === 'room' && ui.view) main = renderRoom(ui.view, { host: ui.view.host, offset: ui.offset });
       else if (ui.screen === 'editor' && auth.teacher) main = editorHtml();
@@ -821,7 +913,7 @@
       show('screen-live');
       var hostFlag = options && options.host;
       var painted = Object.assign({}, view, { host: hostFlag || view.host });
-      box.innerHTML = '<div class="lq-wrap"><div class="lq-top"><button type="button" class="lq-back" data-act="back">← 返回</button><div><h1 class="lq-title">課堂搶答</h1><p class="lq-sub">' + esc(view.title || '') + '</p></div></div>' + renderRoom(painted, { host: !!hostFlag, offset: 0 }) + '</div>';
+      box.innerHTML = '<div class="lq-wrap"><div class="lq-top"><button type="button" class="lq-back" data-act="back">← 返回</button>' + artTag('podium', true) + '<div><h1 class="lq-title">課堂搶答</h1><p class="lq-sub">' + esc(view.title || '') + '</p></div></div>' + renderRoom(painted, { host: !!hostFlag, offset: 0 }) + '</div>';
       hydrate(target || doc);
     };
   }
@@ -832,6 +924,8 @@
     buildBankItem: buildBankItem,
     customItem: customItem,
     rememberOfficial: rememberOfficial,
+    ART: ART,
+    vexSpec: vexSpec,
     renderRoom: renderRoom,
     mount: mount
   };

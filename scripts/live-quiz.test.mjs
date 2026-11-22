@@ -294,8 +294,8 @@ test('the live mode has no Google Sheet upload and does not touch the radar', ()
   assert.equal(workerSrc.includes('submitScoreToGAS'), false);
   assert.equal(workerSrc.includes('script.google.com'), false);
   const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  assert.match(html, /live-quiz\.js\?v=1/);
-  assert.match(html, /live-quiz\.css\?v=1/);
+  assert.match(html, /live-quiz\.js\?v=2/);
+  assert.match(html, /live-quiz\.css\?v=2/);
   assert.match(html, /id="enterLiveQuiz"/);
   assert.match(html, /id="screen-live"/);
 });
@@ -345,6 +345,55 @@ test('bank builders cover the classroom games and the device record drops test n
     locked: false
   }, { host: true, offset: 0 });
   assert.match(staffHtml, /data-live-staff/);
+  assert.match(staffHtml, /class="lq-vex"/);
+  assert.match(staffHtml, /lq-question\.webp/);
+  assert.equal(staffHtml.includes('renderStaffSvg'), false);
+  assert.equal(staffHtml.includes('td-staff-svg'), false);
+  const lobbyHtml = LiveQuiz.renderRoom({
+    phase: 'lobby', code: 'K7M4QP', title: '混合', players: []
+  }, { host: true });
+  assert.match(lobbyHtml, /lq-join\.webp/);
+  const revealHtml = LiveQuiz.renderRoom({
+    phase: 'reveal',
+    code: 'K7M4QP',
+    title: '混合',
+    index: 0,
+    total: 2,
+    question: {
+      prompt: '四分音符通常唱什麼？',
+      type: 'custom',
+      choices: [{ id: 'c1', label: 'ta', correct: true }, { id: 'c2', label: 'ti-ti' }]
+    },
+    players: [{ name: '陳同學', avatar: '🎵', score: 1000 }],
+    yourChoice: '',
+    yourPoints: 0
+  }, { host: true });
+  assert.match(revealHtml, /lq-reveal\.webp/);
+  assert.match(revealHtml, /lq-quiz\.webp/);
+  const fifth = LiveQuiz.vexSpec({
+    clef: 'treble',
+    notes: [{ pos: -2, acc: '' }, { pos: 2, acc: '' }]
+  });
+  assert.equal(JSON.stringify(fifth.notes), JSON.stringify([
+    { key: 'c/4', accidental: '' },
+    { key: 'g/4', accidental: '' }
+  ]));
+  const minorThird = LiveQuiz.vexSpec({
+    clef: 'treble',
+    notes: [{ pos: 1, acc: '' }, { pos: 3, acc: 'b' }]
+  });
+  assert.equal(minorThird.notes[0].key, 'f/4');
+  assert.equal(minorThird.notes[1].key, 'a/4');
+  assert.equal(minorThird.notes[1].accidental, 'b');
+  assert.equal(LiveQuiz.vexSpec({ clef: 'bass', notes: [{ pos: 0, acc: '' }] }).notes[0].key, 'g/2');
+  assert.equal(LiveQuiz.vexSpec({ clef: 'alto', notes: [{ pos: 0, acc: '' }] }).notes[0].key, 'f/3');
+  const liveSrc = fs.readFileSync(new URL('../live-quiz.js', import.meta.url), 'utf8');
+  assert.equal(liveSrc.includes('renderStaffSvg'), false);
+  assert.match(liveSrc, /new VF\.Renderer/);
+  assert.match(liveSrc, /VF\.StaveNote/);
+  assert.match(liveSrc, /VF\.Accidental/);
+  assert.match(liveSrc, /addClef/);
+  Object.keys(LiveQuiz.ART).forEach((id) => assert.match(liveSrc, new RegExp(LiveQuiz.ART[id].replace(/[.]/g, '\\.'))));
   assert.equal(staffHtml.includes('submitScoreToGAS'), false);
   assert.equal(staffHtml.includes('@'), false);
   const storage = {
