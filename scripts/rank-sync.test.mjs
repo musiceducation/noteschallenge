@@ -363,7 +363,19 @@ function gasGet(gas, parameter) {
 }
 
 const repo = fileURLToPath(new URL('..', import.meta.url));
-const appendOnlySrc = execFileSync('git', ['show', '68762b3:Code.gs'], { cwd: repo, encoding: 'utf8' });
+
+function gitShow(rev, path) {
+  const spec = rev + ':' + path;
+  try {
+    return execFileSync('git', ['show', spec], { cwd: repo, encoding: 'utf8' });
+  } catch (err) {
+    // CI checks out the pull request with depth 1, so this older Code.gs is not in the clone.
+    execFileSync('git', ['fetch', '--depth', '1', 'origin', rev], { cwd: repo, stdio: 'ignore' });
+    return execFileSync('git', ['show', spec], { cwd: repo, encoding: 'utf8' });
+  }
+}
+
+const appendOnlySrc = gitShow('68762b3907dce219bbcbc6599999c09c44533793', 'Code.gs');
 assert.equal(appendOnlySrc.includes("action === 'saveRank'"), false);
 assert.equal(appendOnlySrc.includes("action === 'saveProfileResult'"), true);
 const appendOnly = loadGas(appendOnlySrc);
