@@ -87,6 +87,8 @@ for (const f of [
   "www/aural-rhythm.js",
   "aural-quality.js",
   "www/aural-quality.js",
+  "live-quiz.js",
+  "www/live-quiz.js",
   "cloudflare/noteschallenge-auth/worker.js"
 ]) checkJs(f);
 for (const f of ["data/instrument-bank.json", "data/instrument-structure.json"]) checkJson(f);
@@ -117,7 +119,9 @@ for (const f of [
   "composer-game.js",
   "exercise-customizer.js",
   "theory-drill.js",
-  "rhythm-levels.js"
+  "rhythm-levels.js",
+  "live-quiz.js",
+  "live-quiz.css"
 ]) {
   const rootPath = path.join(root, f);
   const wwwPath = path.join(root, "www", f);

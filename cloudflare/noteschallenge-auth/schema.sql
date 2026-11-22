@@ -114,6 +114,37 @@ CREATE TABLE IF NOT EXISTS join_limits (
   window_start TEXT NOT NULL
 );
 
+-- Teacher-paced live quizzes. Not the Google Sheet and not the ability radar.
+-- Existing databases: wrangler d1 execute noteschallenge-auth --remote --file=migrate-live-quiz.sql
+-- Do that before deploying the worker. Do not set NOW. Do not change secrets.
+CREATE TABLE IF NOT EXISTS live_quizzes (
+  id TEXT PRIMARY KEY,
+  school_id TEXT NOT NULL,
+  teacher_sub TEXT NOT NULL,
+  title TEXT NOT NULL,
+  limit_ms INTEGER NOT NULL,
+  items TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS live_rooms (
+  code TEXT PRIMARY KEY,
+  school_id TEXT NOT NULL,
+  teacher_sub TEXT NOT NULL,
+  quiz_id TEXT NOT NULL,
+  state TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS live_results (
+  id TEXT PRIMARY KEY,
+  school_id TEXT NOT NULL,
+  room_code TEXT NOT NULL,
+  quiz_title TEXT NOT NULL,
+  recorded_at TEXT NOT NULL,
+  board TEXT NOT NULL
+);
+
 -- Sign-in and screen record. Not the leaderboard.
 CREATE TABLE IF NOT EXISTS presence_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
