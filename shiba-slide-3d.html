@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>柴犬雪地音符滑行 3D — 互動音樂學習站</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;900&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+    html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Inter', 'Noto Sans TC', sans-serif; background: #cfeaff; color: #1e293b; }
+    #gameStage { position: relative; width: 100vw; height: 100vh; overflow: hidden; touch-action: none; }
+    #glCanvas { display: block; width: 100%; height: 100%; }
+
+    /* Top HUD */
+    .hud-top {
+      position: absolute; top: 12px; left: 12px; right: 12px; z-index: 10;
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+      pointer-events: none;
+    }
+    .hud-pill {
+      pointer-events: auto;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255, 255, 255, 0.95);
+      border-radius: 16px;
+      padding: 8px 14px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+      display: flex; align-items: center; gap: 12px;
+      font-weight: 800; font-size: 0.92rem;
+    }
+    .hud-stat { display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
+    .hud-stat small { font-size: 0.66rem; color: #64748b; font-weight: 700; }
+    .hud-stat span { font-size: 1.08rem; color: #0f172a; font-weight: 900; }
+    .hud-hearts { font-size: 1.05rem; letter-spacing: 2px; }
+    .fever-pill {
+      display: none; padding: 4px 10px; border-radius: 999px;
+      background: linear-gradient(135deg, #f59e0b, #ec4899); color: #fff;
+      font-size: 0.74rem; font-weight: 900; letter-spacing: 0.04em;
+      animation: feverPulse 0.7s ease-in-out infinite alternate;
+    }
+    .fever-pill.active { display: inline-flex; align-items: center; gap: 4px; }
+    @keyframes feverPulse { from { transform: scale(1); } to { transform: scale(1.08); } }
+
+    .hud-actions { display: flex; gap: 8px; pointer-events: auto; align-items: center; }
+    .icon-btn {
+      height: 42px; min-width: 42px; padding: 0 10px; border-radius: 14px; border: 2px solid rgba(255,255,255,0.95);
+      background: rgba(255,255,255,0.9); backdrop-filter: blur(8px);
+      box-shadow: 0 6px 16px rgba(15,23,42,0.12); color: #0f172a; text-decoration: none;
+      font-size: 1.05rem; font-weight: 900; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+      transition: transform 0.12s ease, background 0.15s ease;
+    }
+    .icon-btn:active { transform: scale(0.92); }
+    .back-home-btn { font-size: 0.84rem; padding: 0 12px; }
+
+    /* Compact Floating Question Card */
+    .prompt-wrap {
+      position: absolute; top: 66px; left: 50%; transform: translateX(-50%);
+      z-index: 10; pointer-events: none; width: min(92vw, 390px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .prompt-wrap.is-hidden { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+    .prompt-card {
+      pointer-events: auto;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(12px);
+      border: 3px solid #38bdf8;
+      border-radius: 20px;
+      padding: 8px 14px 10px;
+      box-shadow: 0 12px 28px rgba(14, 116, 144, 0.22);
+      text-align: center;
+      position: relative;
+    }
+    .prompt-head {
+      display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 2px;
+    }
+    .prompt-badge {
+      display: inline-block; font-size: 0.72rem; font-weight: 900;
+      padding: 2px 10px; border-radius: 999px;
+      background: #e0f2fe; color: #0369a1;
+    }
+    .hear-btn {
+      border: none; border-radius: 999px; padding: 2px 10px;
+      background: #fef3c7; color: #b45309; font: inherit; font-size: 0.72rem; font-weight: 900;
+      cursor: pointer; transition: transform 0.1s ease;
+    }
+    .hear-btn:active { transform: scale(0.94); }
+    .prompt-title { font-size: 1.18rem; font-weight: 900; color: #0f172a; line-height: 1.28; }
+    .prompt-sub { font-size: 0.78rem; color: #475569; margin-top: 2px; font-weight: 700; }
+    .staff-svg { width: 210px; height: 76px; display: block; margin: 2px auto 0; }
+
+    /* Feedback Banner */
+    .fx-banner {
+      position: absolute; top: 46%; left: 50%; transform: translate(-50%, -50%) scale(0.8);
+      z-index: 15; pointer-events: none; opacity: 0;
+      padding: 10px 24px; border-radius: 999px;
+      font-size: 1.3rem; font-weight: 900; color: #fff;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.22);
+      transition: opacity 0.16s ease, transform 0.16s ease;
+      white-space: nowrap;
+    }
+    .fx-banner.show { opacity: 1; transform: translate(-50%, -64%) scale(1); }
+    .fx-banner.ok { background: linear-gradient(135deg, #10b981, #059669); }
+    .fx-banner.err { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+    /* Bottom Touch Controls */
+    .touch-controls {
+      position: absolute; bottom: 16px; left: 16px; right: 16px; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      pointer-events: none;
+    }
+    .touch-group { display: flex; gap: 10px; pointer-events: auto; }
+    .ctrl-btn {
+      min-width: 66px; height: 58px; padding: 0 16px;
+      border-radius: 18px; border: 2.5px solid rgba(255,255,255,0.92);
+      background: rgba(255,255,255,0.85); backdrop-filter: blur(8px);
+      color: #0f172a; font-size: 1.25rem; font-weight: 900;
+      box-shadow: 0 6px 18px rgba(15,23,42,0.16);
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: transform 0.08s ease, background 0.12s ease;
+    }
+    .ctrl-btn:active, .ctrl-btn.is-down { transform: scale(0.92); background: #bae6fd; }
+    .ctrl-hint {
+      pointer-events: none; background: rgba(15, 23, 42, 0.56); color: #fff;
+      padding: 6px 14px; border-radius: 999px; font-size: 0.76rem; font-weight: 700;
+    }
+
+    /* Overlay Modals */
+    .overlay {
+      position: absolute; inset: 0; z-index: 20;
+      display: flex; align-items: center; justify-content: center; padding: 14px;
+      background: rgba(15, 23, 42, 0.34); backdrop-filter: blur(6px);
+    }
+    .overlay.hidden { display: none; }
+    .modal {
+      width: min(94vw, 490px);
+      background: rgba(255, 255, 255, 0.96);
+      border-radius: 26px; padding: 22px 20px;
+      border: 3px solid #fff;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+      text-align: center;
+      max-height: 92vh; overflow-y: auto;
+    }
+    .modal-tag {
+      display: inline-block; padding: 4px 12px; border-radius: 999px;
+      background: linear-gradient(135deg, #f97316, #ea580c); color: #fff;
+      font-size: 0.74rem; font-weight: 900; letter-spacing: 0.04em; margin-bottom: 6px;
+    }
+    .modal h1 { font-size: 1.55rem; font-weight: 900; color: #0f172a; margin-bottom: 4px; }
+    .modal p.lead { font-size: 0.86rem; color: #475569; line-height: 1.48; margin-bottom: 12px; }
+    .best-bar {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 12px; border-radius: 999px;
+      background: #fef3c7; color: #92400e; font-size: 0.78rem; font-weight: 800;
+      margin-bottom: 10px;
+    }
+    .picker-label { text-align: left; font-size: 0.76rem; font-weight: 800; color: #64748b; margin: 10px 0 6px; }
+    .seg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .seg-grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .seg-grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .seg-btn {
+      padding: 9px 8px; border-radius: 13px; border: 2px solid #e2e8f0;
+      background: #f8fafc; color: #334155; font: inherit; font-size: 0.84rem; font-weight: 800;
+      cursor: pointer; transition: all 0.14s ease;
+    }
+    .seg-btn:hover { border-color: #38bdf8; }
+    .seg-btn.active {
+      background: #0284c7; border-color: #0284c7; color: #fff;
+      box-shadow: 0 5px 12px rgba(2, 132, 199, 0.28);
+    }
+    .primary-btn {
+      width: 100%; margin-top: 16px; padding: 13px 20px;
+      border-radius: 16px; border: none;
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      color: #fff; font: inherit; font-size: 1.05rem; font-weight: 900;
+      box-shadow: 0 6px 0 #c2410c, 0 14px 24px rgba(234, 88, 12, 0.3);
+      cursor: pointer; transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+    .primary-btn:active { transform: translateY(3px); box-shadow: 0 3px 0 #c2410c; }
+    .result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
+    .result-box { background: #f1f5f9; border-radius: 14px; padding: 10px 6px; }
+    .result-box small { display: block; font-size: 0.7rem; color: #64748b; font-weight: 700; }
+    .result-box b { font-size: 1.2rem; color: #0f172a; font-weight: 900; }
+    .review-list { text-align: left; margin-top: 10px; background: #fff7ed; border: 1.5px solid #fed7aa; border-radius: 14px; padding: 10px 12px; font-size: 0.82rem; color: #7c2d12; }
+    .review-list ul { margin: 6px 0 0 18px; }
+    @media (max-width: 640px) {
+      .ctrl-hint { display: none; }
+      .hud-pill { padding: 6px 10px; gap: 8px; }
+      .prompt-wrap { top: 60px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="gameStage">
+    <canvas id="glCanvas"></canvas>
+
+    <!-- Top HUD -->
+    <div class="hud-top">
+      <div class="hud-pill">
+        <div class="hud-stat"><small>得分</small><span id="hudScore">0</span></div>
+        <div class="hud-stat"><small>連擊</small><span id="hudCombo">0</span></div>
+        <div class="hud-stat"><small>星星</small><span id="hudStars">0</span></div>
+        <div class="hud-hearts" id="hudHearts" aria-label="生命值">❤️❤️❤️</div>
+        <span class="fever-pill" id="feverBadge">✨ FEVER 2×</span>
+      </div>
+      <div class="hud-actions">
+        <a href="index.html" class="icon-btn back-home-btn" title="返回大廳" aria-label="返回大廳">← 返回</a>
+        <button type="button" class="icon-btn" id="btnMute" title="音效開關" aria-label="音效開關">🔊</button>
+        <button type="button" class="icon-btn" id="btnPause" title="暫停" aria-label="暫停">⏸</button>
+      </div>
+    </div>
+
+    <!-- Floating Question Prompt -->
+    <div class="prompt-wrap is-hidden" id="promptWrap">
+      <div class="prompt-card">
+        <div class="prompt-head">
+          <span class="prompt-badge" id="promptBadge">音名識辨 · 第 1 題</span>
+          <button type="button" class="hear-btn" id="btnHearNote" style="display:none;">🔊 聽音提示</button>
+        </div>
+        <div class="prompt-title" id="promptTitle">滑進正確的音名閘門！</div>
+        <div id="promptVisual"></div>
+        <div class="prompt-sub" id="promptSub"></div>
+      </div>
+    </div>
+
+    <!-- Instant Feedback -->
+    <div class="fx-banner" id="fxBanner"></div>
+
+    <!-- Bottom Controls -->
+    <div class="touch-controls">
+      <div class="touch-group">
+        <button type="button" class="ctrl-btn" id="btnLeft" aria-label="向左滑">◀</button>
+        <button type="button" class="ctrl-btn" id="btnRight" aria-label="向右滑">▶</button>
+      </div>
+      <div class="ctrl-hint">左右方向鍵 / A D / 手指拖曳對準發光雪道 · 空白鍵跳過雪人</div>
+      <div class="touch-group">
+        <button type="button" class="ctrl-btn" id="btnJump" aria-label="跳躍">⚡ 跳</button>
+      </div>
+    </div>
+
+    <!-- Start / Pause Modal -->
+    <div class="overlay" id="startOverlay">
+      <div class="modal">
+        <span class="modal-tag">3D 旗艦模式</span>
+        <h1>🐕 柴犬雪地音符滑行 3D</h1>
+        <p class="lead">支援 4 大音樂題庫、發光跑道對準輔助與 3 段動態天氣（晴雪 → 晚霞 → 極光 FEVER 2×）！</p>
+        <div class="best-bar" id="bestBar">🏆 本機最高分：0</div>
+
+        <div class="picker-label">1. 選擇題庫模式</div>
+        <div class="seg-grid seg-grid-4" id="topicPicker">
+          <button type="button" class="seg-btn active" data-topic="notes">🎼 音名識辨</button>
+          <button type="button" class="seg-btn" data-topic="keysig">🔑 調號辨別</button>
+          <button type="button" class="seg-btn" data-topic="terms">📖 音樂術語</button>
+          <button type="button" class="seg-btn" data-topic="composers">🎻 西方音樂家</button>
+        </div>
+
+        <div class="picker-label">2. 挑戰玩法</div>
+        <div class="seg-grid seg-grid-2" id="modePicker">
+          <button type="button" class="seg-btn active" data-mode="sprint10">🎯 10 題衝刺（課堂推薦）</button>
+          <button type="button" class="seg-btn" data-mode="endless">♾️ 無盡雪道（3 條命）</button>
+        </div>
+
+        <div class="picker-label">3. 滑行速度</div>
+        <div class="seg-grid" id="speedPicker">
+          <button type="button" class="seg-btn" data-speed="easy">🐢 輕鬆</button>
+          <button type="button" class="seg-btn active" data-speed="normal">🐕 標準</button>
+          <button type="button" class="seg-btn" data-speed="fast">⚡ 極速</button>
+        </div>
+
+        <button type="button" class="primary-btn" id="btnStart">▶ 開始 3D 滑行！</button>
+      </div>
+    </div>
+
+    <!-- Result Modal -->
+    <div class="overlay hidden" id="resultOverlay">
+      <div class="modal">
+        <span class="modal-tag" id="resultTag">滑行完成</span>
+        <h1 id="resultTitle">太厲害了！🎉</h1>
+        <p class="lead" id="resultSub">柴犬成功完成雪地音樂挑戰！</p>
+        <div class="result-grid">
+          <div class="result-box"><small>總分</small><b id="resScore">0</b></div>
+          <div class="result-box"><small>答對題數</small><b id="resCorrect">0</b></div>
+          <div class="result-box"><small>最高連擊</small><b id="resCombo">0</b></div>
+        </div>
+        <div class="review-list" id="resReview" style="display:none;"></div>
+        <button type="button" class="primary-btn" id="btnRestart">🔄 再滑一次</button>
+        <button type="button" class="seg-btn" id="btnBackMenu" style="width:100%;margin-top:8px;">⚙️ 切換題庫／模式</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    const NOTE_BANK = [
+      { label: 'C', name: 'C4 (中央 Do)', y: 58, ledger: [58], freq: 261.63 },
+      { label: 'D', name: 'D4 (Re)', y: 53, ledger: [], freq: 293.66 },
+      { label: 'E', name: 'E4 (Mi)', y: 48, ledger: [], freq: 329.63 },
+      { label: 'F', name: 'F4 (Fa)', y: 43, ledger: [], freq: 349.23 },
+      { label: 'G', name: 'G4 (Sol)', y: 38, ledger: [], freq: 392.00 },
+      { label: 'A', name: 'A4 (La)', y: 33, ledger: [], freq: 440.00 },
+      { label: 'B', name: 'B4 (Si)', y: 28, ledger: [], freq: 493.88 },
+      { label: 'C', name: 'C5 (高音 Do)', y: 23, ledger: [], freq: 523.25 },
+      { label: 'D', name: 'D5 (Re)', y: 18, ledger: [], freq: 587.33 },
+      { label: 'E', name: 'E5 (Mi)', y: 13, ledger: [], freq: 659.25 },
+      { label: 'F', name: 'F5 (Fa)', y: 8, ledger: [], freq: 698.46 }
+    ];
+
+    const KEYSIG_BANK = [
+      { name: 'C 大調', type: 'none', count: 0, freq: 261.63, desc: '沒有升降記號' },
+      { name: 'G 大調', type: 'sharp', count: 1, freq: 392.00, desc: '1 個升記號（F♯）' },
+      { name: 'F 大調', type: 'flat', count: 1, freq: 349.23, desc: '1 個降記號（B♭）' },
+      { name: 'D 大調', type: 'sharp', count: 2, freq: 293.66, desc: '2 個升記號（F♯ C♯）' },
+      { name: 'B♭ 大調', type: 'flat', count: 2, freq: 466.16, desc: '2 個降記號（B♭ E♭）' },
+      { name: 'A 大調', type: 'sharp', count: 3, freq: 440.00, desc: '3 個升記號（F♯ C♯ G♯）' },
+      { name: 'E♭ 大調', type: 'flat', count: 3, freq: 311.13, desc: '3 個降記號（B♭ E♭ A♭）' },
+      { name: 'E 大調', type: 'sharp', count: 4, freq: 329.63, desc: '4 個升記號（F♯ C♯ G♯ D♯）' },
+      { name: 'A♭ 大調', type: 'flat', count: 4, freq: 415.30, desc: '4 個降記號（B♭ E♭ A♭ D♭）' }
+    ];
+
+    const TERM_BANK = [
+      { prompt: 'Allegro', ans: '快板', pool: ['快板', '慢板', '漸強', '強音', '斷奏', '漸慢'] },
+      { prompt: 'Adagio', ans: '柔板／慢板', pool: ['柔板／慢板', '急板', '弱音', '連奏', '中速', '漸弱'] },
+      { prompt: 'Forte (f)', ans: '強音', pool: ['強音', '弱音', '中強', '漸弱', '行板', '突強'] },
+      { prompt: 'Piano (p)', ans: '弱音', pool: ['弱音', '強音', '漸強', '快板', '連奏', '休止'] },
+      { prompt: 'Crescendo', ans: '漸強', pool: ['漸強', '漸弱', '漸慢', '斷奏', '反覆', '中板'] },
+      { prompt: 'Diminuendo', ans: '漸弱', pool: ['漸弱', '漸強', '急板', '強音', '連音', '延長'] },
+      { prompt: 'Staccato', ans: '斷奏／跳音', pool: ['斷奏／跳音', '連奏', '慢板', '弱音', '漸強', '回旋'] },
+      { prompt: 'Legato', ans: '圓滑連奏', pool: ['圓滑連奏', '斷奏', '突強', '急板', '休止', '漸慢'] },
+      { prompt: 'Andante', ans: '行板', pool: ['行板', '極快板', '極弱', '漸強', '斷奏', '終止'] },
+      { prompt: 'Ritardando', ans: '漸慢', pool: ['漸慢', '漸快', '漸強', '連奏', '強音', '反覆'] },
+      { prompt: 'Presto', ans: '急板', pool: ['急板', '慢板', '中板', '弱音', '漸慢', '連奏'] },
+      { prompt: 'Moderato', ans: '中板', pool: ['中板', '極快板', '突強', '漸弱', '斷奏', '莊嚴'] }
+    ];
+
+    const COMPOSER_BANK = [
+      { prompt: '《四季》小提琴協奏曲', sub: '巴洛克時期名曲', ans: '韋瓦第' },
+      { prompt: '《G弦之歌》／《布蘭登堡協奏曲》', sub: '音樂之父', ans: '巴赫' },
+      { prompt: '《彌賽亞》〈哈利路亞〉', sub: '巴洛克神劇', ans: '韓德爾' },
+      { prompt: '《驚愕交響曲》', sub: '交響曲之父', ans: '海頓' },
+      { prompt: '《小夜曲》／《魔笛》', sub: '音樂神童', ans: '莫札特' },
+      { prompt: '《命運交響曲》／《給愛麗絲》', sub: '樂聖', ans: '貝多芬' },
+      { prompt: '《鱒魚》／《魔王》', sub: '藝術歌曲之王', ans: '舒伯特' },
+      { prompt: '《夜曲》／《革命練習曲》', sub: '鋼琴詩人', ans: '蕭邦' },
+      { prompt: '《天鵝湖》／《胡桃鉗》', sub: '浪漫芭蕾大師', ans: '柴可夫斯基' },
+      { prompt: '《月光》／《大海》', sub: '印象樂派先驅', ans: '德布西' }
+    ];
+
+    const ALL_COMPOSERS = COMPOSER_BANK.map(c => c.ans);
+    const ALL_KEYSIGS = KEYSIG_BANK.map(k => k.name);
+    const ALL_LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+
+    function shuffle(arr) {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function buildQuestion(topic) {
+      if (topic === 'notes') {
+        const item = NOTE_BANK[Math.floor(Math.random() * NOTE_BANK.length)];
+        const wrong = shuffle(ALL_LETTERS.filter(l => l !== item.label)).slice(0, 2);
+        return {
+          topic: 'notes', badge: '🎼 音名識辨', title: '滑進這個音的音名閘門！', sub: '高音譜號',
+          note: item, answer: item.label, explain: item.name, freq: item.freq,
+          choices: shuffle([item.label, wrong[0], wrong[1]])
+        };
+      }
+      if (topic === 'keysig') {
+        const item = KEYSIG_BANK[Math.floor(Math.random() * KEYSIG_BANK.length)];
+        const wrong = shuffle(ALL_KEYSIGS.filter(k => k !== item.name)).slice(0, 2);
+        return {
+          topic: 'keysig', badge: '🔑 調號辨別', title: '這是哪一個大調？', sub: '觀察高音譜號旁的升降記號',
+          keysig: item, answer: item.name, explain: `${item.name}（${item.desc}）`, freq: item.freq,
+          choices: shuffle([item.name, wrong[0], wrong[1]])
+        };
+      }
+      if (topic === 'terms') {
+        const item = TERM_BANK[Math.floor(Math.random() * TERM_BANK.length)];
+        const wrong = shuffle(item.pool.filter(x => x !== item.ans)).slice(0, 2);
+        return {
+          topic: 'terms', badge: '📖 音樂術語', title: item.prompt, sub: '滑進正確中文意思閘門',
+          answer: item.ans, explain: `${item.prompt} ＝ ${item.ans}`, freq: 523.25,
+          choices: shuffle([item.ans, wrong[0], wrong[1]])
+        };
+      }
+      const item = COMPOSER_BANK[Math.floor(Math.random() * COMPOSER_BANK.length)];
+      const wrong = shuffle(ALL_COMPOSERS.filter(x => x !== item.ans)).slice(0, 2);
+      return {
+        topic: 'composers', badge: '🎻 西方音樂家', title: item.prompt, sub: item.sub,
+        answer: item.ans, explain: `${item.prompt} — ${item.ans}`, freq: 587.33,
+        choices: shuffle([item.ans, wrong[0], wrong[1]])
+      };
+    }
+
+    function renderStaffSvg(note) {
+      const lines = [8, 18, 28, 38, 48].map(y =>
+        `<line x1="20" y1="${y}" x2="196" y2="${y}" stroke="#1e293b" stroke-width="1.8"/>`
+      ).join('');
+      const ledgers = (note.ledger || []).map(y =>
+        `<line x1="112" y1="${y}" x2="146" y2="${y}" stroke="#1e293b" stroke-width="2"/>`
+      ).join('');
+      const stemUp = note.y >= 28;
+      const stemX = stemUp ? 137 : 121;
+      const stemY2 = stemUp ? note.y - 25 : note.y + 25;
+      return `<svg class="staff-svg" viewBox="0 0 216 70" aria-label="五線譜音名題目">
+        ${lines}
+        <text x="30" y="45" font-size="44" fill="#0f172a" font-family="serif">𝄞</text>
+        ${ledgers}
+        <ellipse cx="129" cy="${note.y}" rx="8.2" ry="5.8" transform="rotate(-18 129 ${note.y})" fill="#0284c7" stroke="#0f172a" stroke-width="1.5"/>
+        <line x1="${stemX}" y1="${note.y}" x2="${stemX}" y2="${stemY2}" stroke="#0f172a" stroke-width="2.2"/>
+      </svg>`;
+    }
+
+    function renderKeysigSvg(ks) {
+      const lines = [12, 22, 32, 42, 52].map(y =>
+        `<line x1="20" y1="${y}" x2="196" y2="${y}" stroke="#1e293b" stroke-width="1.8"/>`
+      ).join('');
+      const sharpYs = [12, 27, 7, 22];
+      const flatYs = [32, 17, 37, 22];
+      let marks = '';
+      if (ks.type === 'sharp') {
+        for (let i = 0; i < ks.count; i++) {
+          marks += `<text x="${78 + i * 20}" y="${sharpYs[i] + 7}" font-size="22" font-weight="900" fill="#0284c7" font-family="serif">♯</text>`;
+        }
+      } else if (ks.type === 'flat') {
+        for (let i = 0; i < ks.count; i++) {
+          marks += `<text x="${78 + i * 19}" y="${flatYs[i] + 5}" font-size="24" font-weight="900" fill="#7c3aed" font-family="serif">♭</text>`;
+        }
+      } else {
+        marks = `<text x="115" y="37" font-size="13" font-weight="800" fill="#64748b" text-anchor="middle">（無升降號）</text>`;
+      }
+      return `<svg class="staff-svg" viewBox="0 0 216 68" aria-label="五線譜調號題目">
+        ${lines}
+        <text x="30" y="49" font-size="44" fill="#0f172a" font-family="serif">𝄞</text>
+        ${marks}
+      </svg>`;
+    }
+
+    let audioCtx = null;
+    let muted = false;
+    function unlockAudio() {
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!audioCtx) audioCtx = new AC();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+      } catch (e) {}
+    }
+    function playTone(freq, dur, type, vol, delay) {
+      if (muted || !audioCtx) return;
+      try {
+        const now = audioCtx.currentTime + (delay || 0);
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type || 'triangle';
+        osc.frequency.setValueAtTime(freq, now);
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(vol || 0.14, now + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + (dur || 0.2));
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(now); osc.stop(now + (dur || 0.2) + 0.02);
+      } catch (e) {}
+    }
+    function sfxCorrect(noteFreq, fever) {
+      const base = noteFreq || 523.25;
+      playTone(base, 0.22, 'triangle', 0.18, 0);
+      playTone(base * 1.25, 0.2, 'sine', 0.14, 0.07);
+      playTone(base * 1.5, 0.26, 'sine', 0.14, 0.14);
+      if (fever) playTone(base * 2, 0.3, 'sine', 0.12, 0.21);
+    }
+    function sfxWrong() {
+      playTone(220, 0.18, 'sawtooth', 0.11, 0);
+      playTone(165, 0.24, 'sawtooth', 0.11, 0.12);
+    }
+    function sfxCoin() {
+      playTone(880, 0.09, 'sine', 0.11, 0);
+      playTone(1318.5, 0.14, 'sine', 0.11, 0.06);
+    }
+    function sfxJump() {
+      if (muted || !audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(680, now + 0.14);
+        g.gain.setValueAtTime(0.11, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+        osc.connect(g); g.connect(audioCtx.destination);
+        osc.start(now); osc.stop(now + 0.17);
+      } catch (e) {}
+    }
+
+    const stage = document.getElementById('gameStage');
+    const canvas = document.getElementById('glCanvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const SKY_THEMES = [
+      new THREE.Color(0xcdeaff),
+      new THREE.Color(0xfed7aa),
+      new THREE.Color(0x1e1b4b)
+    ];
+    const currentSky = SKY_THEMES[0].clone();
+
+    const scene = new THREE.Scene();
+    scene.background = currentSky;
+    scene.fog = new THREE.Fog(currentSky.getHex(), 30, 96);
+
+    const camera = new THREE.PerspectiveCamera(56, 1, 0.1, 140);
+    camera.position.set(0, 5.4, 9.6);
+    camera.lookAt(0, 1.2, -10);
+
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x93c5fd, 0.94);
+    scene.add(hemi);
+    const sun = new THREE.DirectionalLight(0xfffbeb, 0.95);
+    sun.position.set(12, 24, 14);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.camera.near = 2; sun.shadow.camera.far = 70;
+    sun.shadow.camera.left = -20; sun.shadow.camera.right = 20;
+    sun.shadow.camera.top = 20; sun.shadow.camera.bottom = -20;
+    scene.add(sun);
+
+    function makeSnowTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 512;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#f2f9ff';
+      ctx.fillRect(0, 0, 512, 512);
+      for (let i = 0; i < 24; i++) {
+        ctx.fillStyle = 'rgba(186, 230, 253, 0.42)';
+        ctx.beginPath();
+        ctx.ellipse(Math.random() * 512, Math.random() * 512, 20 + Math.random() * 44, 14 + Math.random() * 26, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(125, 211, 252, 0.5)';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([18, 18]);
+      [170, 342].forEach(lx => { ctx.beginPath(); ctx.moveTo(lx, 0); ctx.lineTo(lx, 512); ctx.stroke(); });
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(3, 14);
+      return tex;
+    }
+
+    const snowTex = makeSnowTexture();
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(54, 160),
+      new THREE.MeshLambertMaterial({ map: snowTex })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.z = -50;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    const LANE_X = [-4.6, 0, 4.6];
+    const laneGlowMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.22 });
+    const laneGlow = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 58), laneGlowMat);
+    laneGlow.rotation.x = -Math.PI / 2;
+    laneGlow.position.set(0, 0.02, -24);
+    scene.add(laneGlow);
+
+    function createShiba() {
+      const g = new THREE.Group();
+      const orange = new THREE.MeshLambertMaterial({ color: 0xf59e0b });
+      const darkOrange = new THREE.MeshLambertMaterial({ color: 0xd97706 });
+      const cream = new THREE.MeshLambertMaterial({ color: 0xfffbeb });
+      const black = new THREE.MeshLambertMaterial({ color: 0x1e293b });
+      const red = new THREE.MeshLambertMaterial({ color: 0xef4444 });
+      const pink = new THREE.MeshLambertMaterial({ color: 0xfb7185 });
+
+      function box(w, h, d, mat, x, y, z) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+        m.position.set(x, y, z); m.castShadow = true;
+        return m;
+      }
+
+      g.add(box(1.15, 0.58, 1.55, orange, 0, 0.42, 0));
+      g.add(box(0.95, 0.22, 1.38, cream, 0, 0.16, 0.02));
+      const head = new THREE.Group();
+      head.position.set(0, 0.85, -0.78);
+      head.add(box(1.06, 0.88, 0.96, orange, 0, 0, 0));
+      head.add(box(0.92, 0.36, 0.28, cream, 0, -0.18, -0.44));
+      head.add(box(0.36, 0.26, 0.28, cream, 0, -0.12, -0.56));
+      head.add(box(0.16, 0.12, 0.1, black, 0, -0.05, -0.71));
+      head.add(box(0.12, 0.12, 0.08, black, -0.26, 0.08, -0.49));
+      head.add(box(0.12, 0.12, 0.08, black, 0.26, 0.08, -0.49));
+      head.add(box(0.14, 0.07, 0.06, cream, -0.26, 0.22, -0.49));
+      head.add(box(0.14, 0.07, 0.06, cream, 0.26, 0.22, -0.49));
+      head.add(box(0.28, 0.36, 0.2, darkOrange, -0.36, 0.56, -0.05));
+      head.add(box(0.16, 0.22, 0.08, pink, -0.36, 0.54, -0.14));
+      head.add(box(0.28, 0.36, 0.2, darkOrange, 0.36, 0.56, -0.05));
+      head.add(box(0.16, 0.22, 0.08, pink, 0.36, 0.54, -0.14));
+      g.add(head);
+
+      g.add(box(1.18, 0.2, 0.32, red, 0, 0.58, -0.52));
+      const scarfTail = box(0.26, 0.14, 0.72, red, 0.42, 0.66, 0.05);
+      scarfTail.rotation.y = 0.22;
+      g.add(scarfTail);
+
+      g.add(box(0.26, 0.22, 0.62, cream, -0.52, 0.2, -0.88));
+      g.add(box(0.26, 0.22, 0.62, cream, 0.52, 0.2, -0.88));
+      g.add(box(0.28, 0.22, 0.62, cream, -0.46, 0.22, 0.88));
+      g.add(box(0.28, 0.22, 0.62, cream, 0.46, 0.22, 0.88));
+
+      const tail = new THREE.Group();
+      tail.position.set(0, 0.68, 0.78);
+      tail.add(box(0.26, 0.44, 0.26, orange, 0, 0.18, 0.06));
+      tail.add(box(0.24, 0.24, 0.28, cream, 0, 0.38, -0.06));
+      g.add(tail);
+
+      const aura = new THREE.Mesh(
+        new THREE.TorusGeometry(1.15, 0.07, 8, 24),
+        new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: 0.75 })
+      );
+      aura.rotation.x = Math.PI / 2;
+      aura.position.y = 0.45;
+      aura.visible = false;
+      g.add(aura);
+
+      g.userData = { head, tail, scarfTail, aura };
+      return g;
+    }
+
+    const shiba = createShiba();
+    shiba.position.set(0, 0, 2.2);
+    scene.add(shiba);
+
+    const shibaShadow = new THREE.Mesh(
+      new THREE.CircleGeometry(0.85, 16),
+      new THREE.MeshBasicMaterial({ color: 0x0f172a, transparent: true, opacity: 0.22 })
+    );
+    shibaShadow.rotation.x = -Math.PI / 2;
+    shibaShadow.position.set(0, 0.04, 2.2);
+    scene.add(shibaShadow);
+
+    const trailMax = 36;
+    const trailDots = [];
+    const trailGeo = new THREE.CircleGeometry(0.45, 10);
+    for (let i = 0; i < trailMax; i++) {
+      const m = new THREE.Mesh(
+        trailGeo,
+        new THREE.MeshBasicMaterial({ color: 0xbae6fd, transparent: true, opacity: 0.55 * (1 - i / trailMax) })
+      );
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(0, 0.03, 2.2 + i * 0.26);
+      m.visible = false;
+      scene.add(m);
+      trailDots.push(m);
+    }
+
+    const treeMat1 = new THREE.MeshLambertMaterial({ color: 0x15803d });
+    const treeMat2 = new THREE.MeshLambertMaterial({ color: 0x16a34a });
+    const snowCapMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    const trunkMat = new THREE.MeshLambertMaterial({ color: 0x78350f });
+
+    function createPineTree() {
+      const g = new THREE.Group();
+      const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.9, 0.45), trunkMat);
+      trunk.position.y = 0.45; trunk.castShadow = true; g.add(trunk);
+      [[2.2, 0.85, 1.25, treeMat1], [1.7, 0.85, 2.0, treeMat2], [1.15, 0.8, 2.7, treeMat1], [0.65, 0.55, 3.28, snowCapMat]]
+        .forEach(([w, h, y, mat]) => {
+          const tier = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), mat);
+          tier.position.y = y; tier.castShadow = true; g.add(tier);
+        });
+      return g;
+    }
+
+    const whiteMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    const hatMat = new THREE.MeshLambertMaterial({ color: 0x1e293b });
+    const carrotMat = new THREE.MeshLambertMaterial({ color: 0xf97316 });
+    const scarfMat = new THREE.MeshLambertMaterial({ color: 0xe11d48 });
+
+    function createSnowman() {
+      const g = new THREE.Group();
+      const b1 = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.15, 1.3), whiteMat);
+      b1.position.y = 0.58; b1.castShadow = true; g.add(b1);
+      const b2 = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.88, 0.95), whiteMat);
+      b2.position.y = 1.56; b2.castShadow = true; g.add(b2);
+      const scarf = new THREE.Mesh(new THREE.BoxGeometry(1.04, 0.18, 1.04), scarfMat);
+      scarf.position.y = 1.14; g.add(scarf);
+      const brim = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.12, 1.1), hatMat);
+      brim.position.y = 2.04; g.add(brim);
+      const top = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.55, 0.68), hatMat);
+      top.position.y = 2.34; g.add(top);
+      const nose = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, 0.42), carrotMat);
+      nose.position.set(0, 1.56, 0.56); g.add(nose);
+      return g;
+    }
+
+    const sceneryProps = [];
+    for (let i = 0; i < 34; i++) {
+      const side = i % 2 === 0 ? -1 : 1;
+      const obj = i % 5 === 0 ? createSnowman() : createPineTree();
+      obj.position.set(side * (9.2 + Math.random() * 11), 0, -i * 3.4 + 6);
+      obj.scale.setScalar(0.85 + Math.random() * 0.45);
+      scene.add(obj);
+      sceneryProps.push(obj);
+    }
+
+    const snowCount = 260;
+    const snowPositions = new Float32Array(snowCount * 3);
+    for (let i = 0; i < snowCount; i++) {
+      snowPositions[i * 3] = (Math.random() - 0.5) * 38;
+      snowPositions[i * 3 + 1] = Math.random() * 16;
+      snowPositions[i * 3 + 2] = -Math.random() * 65 + 12;
+    }
+    const snowGeo = new THREE.BufferGeometry();
+    snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPositions, 3));
+    scene.add(new THREE.Points(
+      snowGeo,
+      new THREE.PointsMaterial({ color: 0xffffff, size: 0.24, transparent: true, opacity: 0.85 })
+    ));
+
+    const burstParticles = [];
+    const burstGeo = new THREE.BoxGeometry(0.24, 0.24, 0.24);
+    function spawnBurst(x, y, z, colorHex, count) {
+      const mat = new THREE.MeshBasicMaterial({ color: colorHex });
+      for (let i = 0; i < (count || 14); i++) {
+        const m = new THREE.Mesh(burstGeo, mat);
+        m.position.set(x, y, z);
+        scene.add(m);
+        burstParticles.push({
+          mesh: m,
+          vx: (Math.random() - 0.5) * 9,
+          vy: 2.5 + Math.random() * 6,
+          vz: (Math.random() - 0.5) * 7,
+          life: 0.75 + Math.random() * 0.35
+        });
+      }
+    }
+
+    const GATE_COLORS = [0xef4444, 0x0284c7, 0x10b981];
+    function makeSignTexture(text, bgHex) {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 512, 256);
+      ctx.strokeStyle = '#' + bgHex.toString(16).padStart(6, '0');
+      ctx.lineWidth = 22;
+      ctx.strokeRect(11, 11, 490, 234);
+
+      ctx.fillStyle = '#0f172a';
+      const fontSize = text.length <= 2 ? 128 : text.length <= 4 ? 84 : text.length <= 6 ? 62 : 48;
+      ctx.font = `900 ${fontSize}px "Inter", "Noto Sans TC", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, 256, 134);
+      const tex = new THREE.CanvasTexture(c);
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    function createGateRow(question, zPos) {
+      const row = new THREE.Group();
+      row.position.set(0, 0, zPos);
+      const gates = [];
+      question.choices.forEach((choiceText, idx) => {
+        const gx = LANE_X[idx];
+        const col = GATE_COLORS[idx % 3];
+        const g = new THREE.Group();
+        g.position.set(gx, 0, 0);
+        const pillarMat = new THREE.MeshLambertMaterial({ color: col });
+
+        const pL = new THREE.Mesh(new THREE.BoxGeometry(0.36, 3.2, 0.36), pillarMat);
+        pL.position.set(-1.65, 1.6, 0); pL.castShadow = true; g.add(pL);
+        const pR = new THREE.Mesh(new THREE.BoxGeometry(0.36, 3.2, 0.36), pillarMat);
+        pR.position.set(1.65, 1.6, 0); pR.castShadow = true; g.add(pR);
+
+        const beam = new THREE.Mesh(new THREE.BoxGeometry(3.7, 0.42, 0.46), pillarMat);
+        beam.position.set(0, 3.25, 0); beam.castShadow = true; g.add(beam);
+
+        const signTex = makeSignTexture(choiceText, col);
+        const sign = new THREE.Mesh(new THREE.BoxGeometry(3.15, 1.48, 0.2), new THREE.MeshBasicMaterial({ map: signTex }));
+        sign.position.set(0, 2.35, 0.14);
+        g.add(sign);
+
+        const curtain = new THREE.Mesh(
+          new THREE.PlaneGeometry(2.9, 2.0),
+          new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.14, side: THREE.DoubleSide })
+        );
+        curtain.position.set(0, 1.0, 0);
+        g.add(curtain);
+
+        row.add(g);
+        gates.push({ lane: idx, x: gx, choice: choiceText, correct: choiceText === question.answer, group: g, signTex });
+      });
+      scene.add(row);
+      return { row, gates, question, resolved: false };
+    }
+
+    const coinGeo = new THREE.OctahedronGeometry(0.52, 0);
+    const coinMat = new THREE.MeshLambertMaterial({ color: 0xfacc15, emissive: 0xca8a04, emissiveIntensity: 0.35 });
+    const activeCoins = [];
+    const activeObstacles = [];
+
+    function spawnTrackExtras(zStart) {
+      const coinLane = LANE_X[Math.floor(Math.random() * 3)];
+      for (let i = 0; i < 3; i++) {
+        const m = new THREE.Mesh(coinGeo, coinMat);
+        m.position.set(coinLane, 0.9, zStart + 8 + i * 3.4);
+        m.castShadow = true;
+        scene.add(m);
+        activeCoins.push({ mesh: m, taken: false });
+      }
+      const otherLanes = LANE_X.filter(x => x !== coinLane);
+      const obsX = otherLanes[Math.floor(Math.random() * otherLanes.length)];
+      const sm = createSnowman();
+      sm.position.set(obsX, 0, zStart + 14);
+      scene.add(sm);
+      activeObstacles.push({ mesh: sm, hit: false });
+    }
+
+    const SPEED_PRESETS = { easy: 14, normal: 18.5, fast: 23.5 };
+    const state = {
+      running: false, paused: false, topic: 'notes', mode: 'sprint10', speedKey: 'normal',
+      baseSpeed: 18.5, speed: 18.5, score: 0, combo: 0, maxCombo: 0, stars: 0,
+      correctCount: 0, totalCount: 0, lives: 3, shibaX: 0, targetX: 0, shibaY: 0, vy: 0,
+      shake: 0, boostTimer: 0, activeGate: null, mistakes: [],
+      keys: { left: false, right: false }, dragActive: false, dragLastX: 0, rafId: 0, lastTime: 0
+    };
+
+    function readBest(topic) {
+      try { return parseInt(localStorage.getItem('shibaSlide3dBest_' + topic) || '0', 10) || 0; }
+      catch (e) { return 0; }
+    }
+    function saveBest(topic, score) {
+      try {
+        const prev = readBest(topic);
+        if (score > prev) localStorage.setItem('shibaSlide3dBest_' + topic, String(score));
+      } catch (e) {}
+    }
+
+    const hudScore = document.getElementById('hudScore');
+    const hudCombo = document.getElementById('hudCombo');
+    const hudStars = document.getElementById('hudStars');
+    const hudHearts = document.getElementById('hudHearts');
+    const feverBadge = document.getElementById('feverBadge');
+    const bestBar = document.getElementById('bestBar');
+    const promptWrap = document.getElementById('promptWrap');
+    const promptBadge = document.getElementById('promptBadge');
+    const btnHearNote = document.getElementById('btnHearNote');
+    const promptTitle = document.getElementById('promptTitle');
+    const promptVisual = document.getElementById('promptVisual');
+    const promptSub = document.getElementById('promptSub');
+    const fxBanner = document.getElementById('fxBanner');
+    const startOverlay = document.getElementById('startOverlay');
+    const resultOverlay = document.getElementById('resultOverlay');
+    let fxTimer = 0;
+
+    function updateBestBar() { bestBar.textContent = `🏆 本機最高分：${readBest(state.topic)}`; }
+
+    function updateHud() {
+      hudScore.textContent = String(state.score);
+      hudCombo.textContent = state.combo >= 2 ? `🔥${state.combo}` : String(state.combo);
+      hudStars.textContent = String(state.stars);
+      if (state.mode === 'sprint10') {
+        hudHearts.textContent = `🏁 ${state.totalCount}/10`;
+      } else {
+        hudHearts.textContent = '❤️'.repeat(Math.max(0, state.lives)) + '🖤'.repeat(Math.max(0, 3 - state.lives));
+      }
+      const isFever = state.combo >= 3;
+      feverBadge.classList.toggle('active', isFever);
+      shiba.userData.aura.visible = isFever && state.running;
+    }
+
+    function showBanner(text, ok) {
+      fxBanner.textContent = text;
+      fxBanner.className = 'fx-banner show ' + (ok ? 'ok' : 'err');
+      clearTimeout(fxTimer);
+      fxTimer = setTimeout(() => { fxBanner.classList.remove('show'); }, 950);
+    }
+
+    function paintQuestion(q, num) {
+      promptWrap.classList.remove('is-hidden');
+      const totalSuffix = state.mode === 'sprint10' ? ' / 10 題' : ' 題';
+      promptBadge.textContent = `${q.badge} · 第 ${num}${totalSuffix}`;
+      promptTitle.textContent = q.title;
+      promptSub.textContent = q.sub || '';
+      btnHearNote.style.display = (q.note || q.keysig) ? 'inline-block' : 'none';
+      if (q.note) promptVisual.innerHTML = renderStaffSvg(q.note);
+      else if (q.keysig) promptVisual.innerHTML = renderKeysigSvg(q.keysig);
+      else promptVisual.innerHTML = '';
+    }
+
+    function clearWorldEntities() {
+      if (state.activeGate) {
+        state.activeGate.gates.forEach(g => g.signTex.dispose());
+        scene.remove(state.activeGate.row);
+        state.activeGate = null;
+      }
+      while (activeCoins.length) scene.remove(activeCoins.pop().mesh);
+      while (activeObstacles.length) scene.remove(activeObstacles.pop().mesh);
+      while (burstParticles.length) scene.remove(burstParticles.pop().mesh);
+    }
+
+    function spawnNextWave() {
+      if (state.activeGate) {
+        state.activeGate.gates.forEach(g => g.signTex.dispose());
+        scene.remove(state.activeGate.row);
+      }
+      const q = buildQuestion(state.topic);
+      state.activeGate = createGateRow(q, -58);
+      paintQuestion(q, state.totalCount + 1);
+      spawnTrackExtras(-58);
+    }
+
+    function startGame() {
+      unlockAudio();
+      clearWorldEntities();
+      state.running = true; state.paused = false;
+      state.baseSpeed = SPEED_PRESETS[state.speedKey] || 18.5;
+      state.speed = state.baseSpeed;
+      state.score = 0; state.combo = 0; state.maxCombo = 0; state.stars = 0;
+      state.correctCount = 0; state.totalCount = 0; state.lives = 3;
+      state.shibaX = 0; state.targetX = 0; state.shibaY = 0; state.vy = 0;
+      state.shake = 0; state.boostTimer = 0; state.mistakes = [];
+      startOverlay.classList.add('hidden');
+      resultOverlay.classList.add('hidden');
+      document.getElementById('btnPause').textContent = '⏸';
+      updateHud();
+      spawnNextWave();
+    }
+
+    function endGame() {
+      state.running = false;
+      promptWrap.classList.add('is-hidden');
+      shiba.userData.aura.visible = false;
+      saveBest(state.topic, state.score);
+      updateBestBar();
+      const acc = state.totalCount ? Math.round((state.correctCount / state.totalCount) * 100) : 0;
+      document.getElementById('resScore').textContent = String(state.score);
+      document.getElementById('resCorrect').textContent = `${state.correctCount}/${state.totalCount} (${acc}%)`;
+      document.getElementById('resCombo').textContent = String(state.maxCombo);
+      document.getElementById('resultTitle').textContent = acc >= 90 ? '雪地音樂大師！🏆' : '滑行挑戰完成！🎉';
+      document.getElementById('resultSub').textContent = `收集 ${state.stars} 顆星星 · 最高紀錄 ${readBest(state.topic)} 分`;
+      const rev = document.getElementById('resReview');
+      if (state.mistakes.length) {
+        rev.style.display = 'block';
+        rev.innerHTML = '<b>📝 錯題溫習：</b><ul>' + state.mistakes.slice(0, 6).map(m => `<li>${m}</li>`).join('') + '</ul>';
+      } else {
+        rev.style.display = 'none';
+      }
+      resultOverlay.classList.remove('hidden');
+    }
+
+    function triggerJump() {
+      if (!state.running || state.paused || state.shibaY > 0.05) return;
+      state.vy = 10.5;
+      sfxJump();
+    }
+
+    document.getElementById('topicPicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-topic]');
+      if (!btn) return;
+      state.topic = btn.dataset.topic;
+      document.querySelectorAll('#topicPicker .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+      updateBestBar();
+    });
+    document.getElementById('modePicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-mode]');
+      if (!btn) return;
+      state.mode = btn.dataset.mode;
+      document.querySelectorAll('#modePicker .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+    });
+    document.getElementById('speedPicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-speed]');
+      if (!btn) return;
+      state.speedKey = btn.dataset.speed;
+      document.querySelectorAll('#speedPicker .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+    });
+    btnHearNote.addEventListener('click', () => {
+      unlockAudio();
+      if (state.activeGate && state.activeGate.question) {
+        playTone(state.activeGate.question.freq || 440, 0.45, 'triangle', 0.2, 0);
+      }
+    });
+    document.getElementById('btnStart').addEventListener('click', startGame);
+    document.getElementById('btnRestart').addEventListener('click', startGame);
+    document.getElementById('btnBackMenu').addEventListener('click', () => {
+      resultOverlay.classList.add('hidden');
+      startOverlay.classList.remove('hidden');
+      updateBestBar();
+    });
+    document.getElementById('btnMute').addEventListener('click', (e) => {
+      unlockAudio();
+      muted = !muted;
+      e.currentTarget.textContent = muted ? '🔇' : '🔊';
+    });
+    document.getElementById('btnPause').addEventListener('click', (e) => {
+      if (!state.running) return;
+      state.paused = !state.paused;
+      e.currentTarget.textContent = state.paused ? '▶' : '⏸';
+      if (state.paused) startOverlay.classList.remove('hidden');
+      else startOverlay.classList.add('hidden');
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (!state.running || state.paused) return;
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') state.keys.left = true;
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') state.keys.right = true;
+      if (e.code === 'Space' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') { e.preventDefault(); triggerJump(); }
+    });
+    window.addEventListener('keyup', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') state.keys.left = false;
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') state.keys.right = false;
+    });
+
+    function bindHoldButton(el, keyName) {
+      const down = (e) => { e.preventDefault(); unlockAudio(); state.keys[keyName] = true; el.classList.add('is-down'); };
+      const up = () => { state.keys[keyName] = false; el.classList.remove('is-down'); };
+      el.addEventListener('pointerdown', down);
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointerleave', up);
+      el.addEventListener('pointercancel', up);
+    }
+    bindHoldButton(document.getElementById('btnLeft'), 'left');
+    bindHoldButton(document.getElementById('btnRight'), 'right');
+    document.getElementById('btnJump').addEventListener('pointerdown', (e) => { e.preventDefault(); unlockAudio(); triggerJump(); });
+
+    canvas.addEventListener('pointerdown', (e) => {
+      if (!state.running || state.paused) return;
+      unlockAudio();
+      state.dragActive = true;
+      state.dragLastX = e.clientX;
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (!state.dragActive || !state.running || state.paused) return;
+      const dx = e.clientX - state.dragLastX;
+      state.dragLastX = e.clientX;
+      state.targetX = Math.max(-6.4, Math.min(6.4, state.targetX + dx * 0.032));
+    });
+    window.addEventListener('pointerup', () => { state.dragActive = false; });
+    window.addEventListener('pointercancel', () => { state.dragActive = false; });
+
+    function onResize() {
+      const w = stage.clientWidth || window.innerWidth;
+      const h = stage.clientHeight || window.innerHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h, false);
+    }
+    window.addEventListener('resize', onResize);
+
+    function animate(now) {
+      state.rafId = requestAnimationFrame(animate);
+      const dt = Math.min(0.05, (now - (state.lastTime || now)) / 1000);
+      state.lastTime = now;
+      const t = now * 0.001;
+
+      const targetSkyIdx = !state.running ? 0 : (state.combo >= 6 ? 2 : state.combo >= 3 ? 1 : 0);
+      currentSky.lerp(SKY_THEMES[targetSkyIdx], Math.min(1, dt * 1.8));
+      scene.fog.color.copy(currentSky);
+
+      const activeSpeed = state.running && !state.paused
+        ? (state.speed + (state.boostTimer > 0 ? 7 : 0))
+        : 7.5;
+
+      snowTex.offset.y -= activeSpeed * dt * 0.068;
+
+      for (let i = 0; i < sceneryProps.length; i++) {
+        const p = sceneryProps[i];
+        p.position.z += activeSpeed * dt;
+        if (p.position.z > 14) p.position.z -= 115;
+      }
+
+      const posAttr = snowGeo.attributes.position;
+      for (let i = 0; i < snowCount; i++) {
+        let y = posAttr.getY(i) - dt * 2.4;
+        let z = posAttr.getZ(i) + activeSpeed * dt * 0.45;
+        if (y < 0) y = 15;
+        if (z > 14) z = -56;
+        posAttr.setY(i, y); posAttr.setZ(i, z);
+      }
+      posAttr.needsUpdate = true;
+
+      if (state.running && !state.paused) {
+        if (state.boostTimer > 0) state.boostTimer = Math.max(0, state.boostTimer - dt);
+        const steerSpeed = 13.8;
+        if (state.keys.left) state.targetX = Math.max(-6.4, state.targetX - steerSpeed * dt);
+        if (state.keys.right) state.targetX = Math.min(6.4, state.targetX + steerSpeed * dt);
+
+        const prevX = state.shibaX;
+        state.shibaX += (state.targetX - state.shibaX) * Math.min(1, dt * 13.5);
+        const vx = (state.shibaX - prevX) / Math.max(0.001, dt);
+
+        if (state.shibaY > 0 || state.vy > 0) {
+          state.shibaY += state.vy * dt;
+          state.vy -= 28 * dt;
+          if (state.shibaY <= 0) { state.shibaY = 0; state.vy = 0; }
+        }
+
+        shiba.position.set(state.shibaX, state.shibaY, 2.2);
+        shiba.rotation.z = Math.max(-0.36, Math.min(0.36, -vx * 0.032));
+        shiba.rotation.y = Math.max(-0.28, Math.min(0.28, -vx * 0.022));
+        shiba.rotation.x = state.shibaY > 0 ? 0.14 : Math.sin(t * 14) * 0.03;
+
+        shibaShadow.position.x = state.shibaX;
+        shibaShadow.scale.setScalar(Math.max(0.42, 1 - state.shibaY * 0.15));
+        let nearestLaneX = LANE_X[1];
+        let bestLaneDist = Infinity;
+        LANE_X.forEach(lx => {
+          const d = Math.abs(lx - state.shibaX);
+          if (d < bestLaneDist) { bestLaneDist = d; nearestLaneX = lx; }
+        });
+        laneGlow.position.x += (nearestLaneX - laneGlow.position.x) * Math.min(1, dt * 16);
+        laneGlowMat.color.setHex(state.combo >= 3 ? 0xfacc15 : 0x38bdf8);
+
+        for (let i = trailMax - 1; i > 0; i--) {
+          trailDots[i].position.x = trailDots[i - 1].position.x;
+          trailDots[i].visible = trailDots[i - 1].visible;
+        }
+        trailDots[0].position.x = state.shibaX;
+        trailDots[0].visible = state.shibaY < 0.25;
+
+        for (let i = activeCoins.length - 1; i >= 0; i--) {
+          const c = activeCoins[i];
+          c.mesh.position.z += activeSpeed * dt;
+          c.mesh.rotation.y += dt * 3.2;
+          c.mesh.position.y = 0.85 + Math.sin(t * 5 + i) * 0.16;
+          if (!c.taken && Math.abs(c.mesh.position.z - 2.2) < 1.25 && Math.abs(c.mesh.position.x - state.shibaX) < 1.35) {
+            c.taken = true; c.mesh.visible = false;
+            state.stars += 1; state.score += state.combo >= 3 ? 50 : 25;
+            sfxCoin(); spawnBurst(c.mesh.position.x, 1.0, 2.2, 0xfacc15, 8); updateHud();
+          }
+          if (c.mesh.position.z > 14) { scene.remove(c.mesh); activeCoins.splice(i, 1); }
+        }
+
+        for (let i = activeObstacles.length - 1; i >= 0; i--) {
+          const o = activeObstacles[i];
+          o.mesh.position.z += activeSpeed * dt;
+          if (!o.hit && state.shibaY < 1.2 && Math.abs(o.mesh.position.z - 2.2) < 1.1 && Math.abs(o.mesh.position.x - state.shibaX) < 1.15) {
+            o.hit = true; state.combo = 0; state.shake = 0.35; sfxWrong();
+            spawnBurst(o.mesh.position.x, 1.1, 2.2, 0xffffff, 14);
+            showBanner('☃️ 撞到雪人！連擊歸零', false);
+            o.mesh.visible = false; updateHud();
+          }
+          if (o.mesh.position.z > 14) { scene.remove(o.mesh); activeObstacles.splice(i, 1); }
+        }
+
+        if (state.activeGate) {
+          const ag = state.activeGate;
+          ag.row.position.z += activeSpeed * dt;
+          if (!ag.resolved && ag.row.position.z >= 1.9) {
+            ag.resolved = true;
+            state.totalCount += 1;
+            let picked = ag.gates[0];
+            let bestDist = Infinity;
+            ag.gates.forEach(g => {
+              const d = Math.abs(g.x - state.shibaX);
+              if (d < bestDist) { bestDist = d; picked = g; }
+            });
+            if (picked.correct) {
+              state.correctCount += 1; state.combo += 1;
+              if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+              const mult = state.combo >= 3 ? 2 : 1;
+              const gain = (100 + state.combo * 20) * mult;
+              state.score += gain; state.boostTimer = 0.7;
+              state.speed = Math.min(state.baseSpeed + 7, state.speed + 0.35);
+              sfxCorrect(ag.question.freq, state.combo >= 3);
+              spawnBurst(state.shibaX, 1.4, 2.2, state.combo >= 3 ? 0xfacc15 : 0x34d399, 22);
+              showBanner(state.combo >= 3 ? `🔥 FEVER 2×！+${gain} 分` : `✨ 答對！+${gain} 分`, true);
+            } else {
+              state.combo = 0;
+              if (state.mode === 'endless') state.lives -= 1;
+              state.shake = 0.45;
+              state.mistakes.push(`${ag.question.explain}（你選了 ${picked.choice}）`);
+              sfxWrong();
+              spawnBurst(state.shibaX, 1.4, 2.2, 0xef4444, 16);
+              showBanner(`❌ 正確答案：${ag.question.answer}`, false);
+            }
+            updateHud();
+            const finishedSprint = state.mode === 'sprint10' && state.totalCount >= 10;
+            const outOfLives = state.mode === 'endless' && state.lives <= 0;
+            if (finishedSprint || outOfLives) endGame();
+          }
+          if (state.running && ag.row.position.z > 9.5) spawnNextWave();
+        }
+      } else {
+        shiba.position.set(Math.sin(t * 1.4) * 2.2, 0, 2.2);
+        shibaShadow.position.x = shiba.position.x;
+        shiba.rotation.z = -Math.cos(t * 1.4) * 0.14;
+        shiba.rotation.y = -Math.cos(t * 1.4) * 0.1;
+      }
+
+      shiba.userData.tail.rotation.z = Math.sin(t * 12) * 0.28;
+      shiba.userData.scarfTail.rotation.x = Math.sin(t * 16) * 0.18;
+      if (shiba.userData.aura.visible) shiba.userData.aura.rotation.z += dt * 4;
+
+      for (let i = burstParticles.length - 1; i >= 0; i--) {
+        const bp = burstParticles[i];
+        bp.life -= dt;
+        bp.mesh.position.x += bp.vx * dt;
+        bp.mesh.position.y += bp.vy * dt;
+        bp.mesh.position.z += bp.vz * dt;
+        bp.vy -= 18 * dt;
+        bp.mesh.rotation.x += dt * 6;
+        bp.mesh.scale.setScalar(Math.max(0.01, bp.life));
+        if (bp.life <= 0) { scene.remove(bp.mesh); burstParticles.splice(i, 1); }
+      }
+
+      let camX = shiba.position.x * 0.42;
+      let camY = 5.3 + shiba.position.y * 0.25;
+      if (state.shake > 0) {
+        camX += (Math.random() - 0.5) * state.shake * 1.4;
+        camY += (Math.random() - 0.5) * state.shake * 1.1;
+        state.shake = Math.max(0, state.shake - dt * 1.6);
+      }
+      camera.position.x += (camX - camera.position.x) * Math.min(1, dt * 8);
+      camera.position.y += (camY - camera.position.y) * Math.min(1, dt * 8);
+      camera.lookAt(shiba.position.x * 0.35, 1.35, -10);
+
+      renderer.render(scene, camera);
+    }
+
+    window.onload = function () {
+      onResize();
+      updateBestBar();
+      updateHud();
+      state.rafId = requestAnimationFrame(animate);
+    };
+  })();
+  </script>
+</body>
+</html>

@@ -9266,3 +9266,7 @@ body:has(#screen-chord-card.screen.active) {
 .composer-custom-yt-row { display: flex; gap: 6px; margin-top: 10px; align-items: center; }
 .composer-yt-input { flex: 1; min-width: 0; padding: 6px 10px; border-radius: 10px; border: 1.5px solid #e5e7eb; font: inherit; font-size: 0.8rem; }
 .composer-yt-save { padding: 6px 12px; border-radius: 10px; border: none; background: #2c1810; color: #fff; font-weight: 800; font-size: 0.78rem; cursor: pointer; white-space: nowrap; }
+
+/* ===== 柴犬雪地音符滑行 3D 入口卡片 ===== */
+a.hub-shiba-3d { text-decoration: none; color: inherit; }
+.hub-shiba-3d .hub-game-btn { background: linear-gradient(135deg, #0284c7, #6366f1); }

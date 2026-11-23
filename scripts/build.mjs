@@ -126,7 +126,8 @@ for (const f of [
   "theory-drill.js",
   "rhythm-levels.js",
   "live-quiz.js",
-  "live-quiz.css"
+  "live-quiz.css",
+  "shiba-slide-3d.html"
 ]) {
   const rootPath = path.join(root, f);
   const wwwPath = path.join(root, "www", f);
