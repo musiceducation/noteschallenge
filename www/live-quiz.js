@@ -36,6 +36,34 @@
     offline: '課室服務暫時連不上。'
   };
   var LETTERS = ['A', 'B', 'C', 'D'];
+  var SHAPES = ['▲', '◆', '●', '■'];
+
+  var _sfxCtx = null;
+  function playSfx(kind) {
+    try {
+      var AC = root.AudioContext || root.webkitAudioContext;
+      if (!AC) return;
+      if (!_sfxCtx) _sfxCtx = new AC();
+      if (_sfxCtx.state === 'suspended') _sfxCtx.resume();
+      var now = _sfxCtx.currentTime;
+      var notes = kind === 'win' ? [[523.25, 0, 0.1], [659.25, 0.08, 0.12], [783.99, 0.16, 0.2]]
+        : kind === 'lose' ? [[311.13, 0, 0.14], [261.63, 0.12, 0.2]]
+        : kind === 'tick' ? [[880, 0, 0.045]]
+        : [[587.33, 0, 0.06]];
+      notes.forEach(function (n) {
+        var osc = _sfxCtx.createOscillator();
+        var g = _sfxCtx.createGain();
+        osc.type = kind === 'lose' ? 'triangle' : 'sine';
+        osc.frequency.setValueAtTime(n[0], now + n[1]);
+        g.gain.setValueAtTime(0.08, now + n[1]);
+        g.gain.exponentialRampToValueAtTime(0.001, now + n[1] + n[2]);
+        osc.connect(g);
+        g.connect(_sfxCtx.destination);
+        osc.start(now + n[1]);
+        osc.stop(now + n[1] + n[2] + 0.02);
+      });
+    } catch (err) {}
+  }
 
   function esc(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
@@ -178,19 +206,16 @@
 
   function localPhotos(spec) {
     return (spec.instruments || []).filter(function (inst) {
-      return inst && inst.nameZh && /^img\/instruments\/[A-Za-z0-9._-]+$/.test(inst.img || '');
+      return inst && inst.nameZh && /^img\/instruments\/[A-Za-z0-9._% -]+$/.test(inst.img || '');
     });
   }
 
   function buildInstrument(bank, rng) {
     var Cat = root.InstrumentCategory;
     if (!Cat || typeof Cat.resolve !== 'function') return null;
-    var spec = Cat.resolve(bank || [], 'chinese');
-    var photos = localPhotos(spec);
-    if (photos.length < 2) {
-      spec = Cat.resolve(bank || [], 'orchestra');
-      photos = localPhotos(spec);
-    }
+    var orch = localPhotos(Cat.resolve(bank || [], 'orchestra'));
+    var cn = localPhotos(Cat.resolve(bank || [], 'chinese'));
+    var photos = orch.concat(cn);
     if (photos.length < 2) return null;
     var correct = photos[Math.floor((rng || Math.random)() * photos.length)];
     var names = shuffle(photos.filter(function (inst) { return inst.nameZh !== correct.nameZh; }), rng).slice(0, 3);
@@ -222,6 +247,30 @@
     if (game === 'terms') return buildTerms(rng);
     if (game === 'instrument') return buildInstrument(bank, rng);
     return null;
+  }
+
+  function buildComposerCustomItem(rng) {
+    var list = (root.WesternComposers && Array.isArray(root.WesternComposers.COMPOSERS) && root.WesternComposers.COMPOSERS.length)
+      ? root.WesternComposers.COMPOSERS
+      : [
+          { nameZh: '巴赫', era: '巴洛克時期', famous: '《G弦之歌》、《布蘭登堡協奏曲》' },
+          { nameZh: '韋瓦第', era: '巴洛克時期', famous: '《四季》小提琴協奏曲' },
+          { nameZh: '韓德爾', era: '巴洛克時期', famous: '《彌賽亞》〈哈利路亞〉' },
+          { nameZh: '海頓', era: '古典時期', famous: '《驚愕交響曲》' },
+          { nameZh: '莫札特', era: '古典時期', famous: '《小夜曲》、《魔笛》' },
+          { nameZh: '貝多芬', era: '古典／浪漫過渡', famous: '《命運交響曲》、《給愛麗絲》' },
+          { nameZh: '舒伯特', era: '浪漫時期', famous: '《鱒魚》、《魔王》' },
+          { nameZh: '蕭邦', era: '浪漫時期', famous: '《夜曲》、《革命練習曲》' },
+          { nameZh: '柴可夫斯基', era: '浪漫時期', famous: '《天鵝湖》、《胡桃鉗》' },
+          { nameZh: '德布西', era: '印象樂派', famous: '《月光》、《大海》' }
+        ];
+    var random = rng || Math.random;
+    var target = list[Math.floor(random() * list.length)];
+    var others = shuffle(list.filter(function (c) { return c.nameZh !== target.nameZh; }), random).slice(0, 3);
+    var workTitle = (target.works && target.works.length) ? target.works[Math.floor(random() * target.works.length)].title : target.famous;
+    var pool = shuffle([target].concat(others), random);
+    var correctIdx = pool.indexOf(target);
+    return customItem('名曲「' + workTitle + '」是哪一位作曲家的代表作？', pool.map(function (c) { return c.nameZh; }), correctIdx);
   }
 
   function customItem(prompt, labels, correctIndex) {
@@ -355,7 +404,7 @@
     if (render.kind === 'rhythm') {
       return '<div class="lq-media"><div class="lq-rhythm" data-live-rhythm="1" data-shown="' + esc(render.shown || '') + '" data-blank="' + esc(render.blankQuarters) + '"></div></div>';
     }
-    if (render.kind === 'instrument' && /^img\/instruments\/[A-Za-z0-9._-]+$/.test(render.image || '')) {
+    if (render.kind === 'instrument' && /^img\/instruments\/[A-Za-z0-9._% -]+$/.test(render.image || '')) {
       return '<div class="lq-media"><img src="' + esc(render.image) + '" alt="樂器圖片"></div>';
     }
     return '';
@@ -380,41 +429,45 @@
     var top = (players || []).slice(0, 3);
     if (!top.length) return '';
     var order = [top[1], top[0], top[2]];
+    var medals = { 1: '🥇', 2: '🥈', 3: '🥉' };
     return '<div class="lq-podium">' + order.map(function (player, index) {
       if (!player) return '<div></div>';
       var place = index === 1 ? 1 : (index === 0 ? 2 : 3);
-      return '<div class="lq-pod lq-pod-' + place + '"><span>' + esc(player.avatar || '🎵') + '</span><b>' + place + '</b><div>' + esc(player.name) + '</div><div>' + esc(player.score || 0) + '</div></div>';
+      return '<div class="lq-pod lq-pod-' + place + '"><span>' + medals[place] + ' ' + esc(player.avatar || '🎵') + '</span><b>' + place + '</b><div>' + esc(player.name) + '</div><div>' + esc(player.score || 0) + ' 分</div></div>';
     }).join('') + '</div>';
   }
 
   function renderRoom(view, opts) {
     var host = !!(opts && opts.host) || !!(view && view.host);
+    var streak = Number(opts && opts.streak || 0);
     var phase = view.phase;
     var players = view.players || [];
     var question = view.question;
     var body = '';
     if (phase === 'lobby') {
       body = '<section class="lq-card">' + artTag('join') + '<p class="lq-sub">同學輸入代碼加入。老師按開始之後，全員同時作答。</p><p class="lq-code">' + esc(view.code) + '</p>' +
+        (host && view.code ? '<div class="lq-row" style="margin-bottom:8px;"><button type="button" class="lq-btn soft" data-act="copy-link" data-code="' + esc(view.code) + '">📋 複製快速加入連結</button></div>' : '') +
         '<p class="lq-note">已加入 ' + players.length + ' 人</p>' + peopleHtml(players) +
         (host ? '<div class="lq-row"><button type="button" class="lq-btn" data-act="advance">開始第一題</button></div>' : '<p class="lq-note">等待老師開始。</p>') +
         '</section>';
     } else if (phase === 'question' && question) {
       var remain = Math.max(0, Number(view.questionEndsAt) - (Date.now() + Number(opts && opts.offset || 0)));
       var ratio = view.limitMs ? Math.max(0, Math.min(1, remain / Number(view.limitMs))) : 0;
-      body = '<section class="lq-card">' + artTag('question') + '<p class="lq-tag">' + esc(gameLabel(question.game || question.type)) + ' · 第 ' + (Number(view.index) + 1) + ' / ' + esc(view.total) + ' 題</p>' +
-        '<div class="lq-count" id="lqCount" style="--lq-p:' + Math.round(ratio * 100) + '"><span id="lqCountNum">' + Math.ceil(remain / 1000) + '</span></div>' +
+      var urgent = remain > 0 && remain <= 5000;
+      body = '<section class="lq-card">' + artTag('question') + '<p class="lq-tag">' + esc(gameLabel(question.game || question.type)) + ' · 第 ' + (Number(view.index) + 1) + ' / ' + esc(view.total) + ' 題' + (streak >= 2 ? ' <span class="lq-streak-badge">🔥 ' + streak + ' 連勝</span>' : '') + '</p>' +
+        '<div class="lq-count' + (urgent ? ' is-urgent' : '') + '" id="lqCount" style="--lq-p:' + Math.round(ratio * 100) + '"><span id="lqCountNum">' + Math.ceil(remain / 1000) + '</span></div>' +
         '<h2 class="lq-prompt">' + esc(question.prompt) + '</h2>' + mediaHtml(question) +
         '<div class="lq-choices">' + question.choices.map(function (choice, index) {
-          return '<button type="button" class="lq-choice lq-c' + (index % 4) + '" data-act="choice" data-choice="' + esc(choice.id) + '"' + (host || view.locked ? ' disabled' : '') + '><span class="lq-mark">' + LETTERS[index] + '</span><span>' + esc(choice.label) + '</span></button>';
-        }).join('') + '</div><p class="lq-note">' + (view.locked ? '答案已鎖定。' : '已作答 ' + esc(view.answered || 0) + ' / ' + players.length) + '</p>' +
+          return '<button type="button" class="lq-choice lq-c' + (index % 4) + '" data-act="choice" data-choice="' + esc(choice.id) + '"' + (host || view.locked ? ' disabled' : '') + '><span class="lq-mark" aria-label="' + LETTERS[index] + '">' + SHAPES[index % 4] + '</span><span>' + esc(choice.label) + '</span></button>';
+        }).join('') + '</div><p class="lq-note">' + (view.locked ? '答案已鎖定，等待揭曉…' : '已作答 ' + esc(view.answered || 0) + ' / ' + players.length + (host ? '' : '（鍵盤 1–4 亦可作答）')) + '</p>' +
         (host ? '<div class="lq-row"><button type="button" class="lq-btn soft" data-act="advance">結束本題</button></div>' : '') +
         '</section>';
     } else if ((phase === 'reveal' || phase === 'done') && question) {
       var correct = (question.choices || []).filter(function (choice) { return choice.correct; })[0];
-      body = '<section class="lq-card">' + artTag('reveal') + '<p class="lq-tag">正確答案</p><h2 class="lq-prompt">' + esc(question.prompt) + '</h2>' + mediaHtml(question) +
-        '<div class="lq-choices">' + (question.choices || []).map(function (choice, index) {
+      body = '<section class="lq-card">' + artTag('reveal') + '<p class="lq-tag">正確答案' + (streak >= 2 ? ' <span class="lq-streak-badge">🔥 ' + streak + ' 連勝</span>' : '') + '</p><h2 class="lq-prompt">' + esc(question.prompt) + '</h2>' + mediaHtml(question) +
+        '<div class="lq-choices is-reveal">' + (question.choices || []).map(function (choice, index) {
           var cls = 'lq-choice lq-c' + (index % 4) + (choice.correct ? ' is-correct' : '') + (view.yourChoice === choice.id ? ' is-yours' : '');
-          return '<button type="button" class="' + cls + '" disabled><span class="lq-mark">' + LETTERS[index] + '</span><span>' + esc(choice.label) + '</span></button>';
+          return '<button type="button" class="' + cls + '" disabled><span class="lq-mark" aria-label="' + LETTERS[index] + '">' + SHAPES[index % 4] + '</span><span>' + esc(choice.label) + '</span></button>';
         }).join('') + '</div><p class="lq-note">' + (correct ? '答案是「' + esc(correct.label) + '」。' : '') +
         (view.yourChoice ? ' 你這一題 ' + esc(view.yourPoints || 0) + ' 分。' : '') + '</p></section>' +
         '<section class="lq-card">' + artTag(phase === 'done' ? 'podium' : 'quiz') + '<h2>' + (phase === 'done' ? '最後名次' : '目前排名') + '</h2>' +
@@ -453,6 +506,7 @@
       var stave = new Stave(10, 20, width - 20);
       stave.addTimeSignature('4/4');
       stave.setContext(context).draw();
+      if (typeof stave.setNoteStartX === 'function') stave.setNoteStartX(stave.getNoteStartX() + 26);
       var blankToken = { 4: 'ta-a-a-a', 2: 'ta-a', 1: 'ta', 0.5: 'ti', 0.25: 'ri' }[blank] || 'ta';
       var shownEvents = shown ? Levels.expandBar(shown) : [];
       var allEvents = Levels.expandBar((shown ? shown + ' ' : '') + blankToken);
@@ -567,7 +621,11 @@
       sig: '',
       poll: 0,
       clock: 0,
-      busy: false
+      busy: false,
+      zeroPulled: false,
+      lastSec: -1,
+      streak: 0,
+      demo: null
     };
 
     function show(id) {
@@ -587,22 +645,32 @@
       return ui.notice ? '<p class="lq-warn">' + esc(ui.notice) + '</p>' : '';
     }
 
+    function prefillCode() {
+      try {
+        var q = new URLSearchParams(root.location && root.location.search || '').get('live') || '';
+        return q.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+      } catch (err) { return ''; }
+    }
+
     function homeHtml(auth) {
+      var codeVal = prefillCode();
+      var demoCard = '<section class="lq-card">' + artTag('quiz') + '<h2>單機互動體驗（免連線）</h2><p class="lq-sub">老師備課或課堂示範用：立即以 3 題模擬 Kahoot 節奏、四色按鈕、倒數與頒獎台。</p>' +
+        '<div class="lq-row"><button type="button" class="lq-btn soft" data-act="demo">⚡ 立即模擬 3 題搶答</button></div></section>';
       var join = '<section class="lq-card">' + artTag('join') + '<h2>加入搶答</h2><p class="lq-sub">用課堂短碼或名冊姓名加入。代碼在老師的畫面上。</p>' +
-        '<div class="lq-field"><label for="lqJoinCode">加入代碼</label><input id="lqJoinCode" maxlength="6" autocomplete="off" placeholder="例如 K7M4QP"></div>' +
+        '<div class="lq-field"><label for="lqJoinCode">加入代碼</label><input id="lqJoinCode" maxlength="6" autocomplete="off" placeholder="例如 K7M4QP" value="' + esc(codeVal) + '"></div>' +
         '<div class="lq-row"><button type="button" class="lq-btn" data-act="join">加入</button></div></section>';
       if (!auth.signedIn) {
-        return '<section class="lq-card">' + artTag('join') + '<h2>請先登入</h2><p class="lq-sub">老師用教師帳號。同學用名冊或課堂短碼。訪客和測試人員不能存正式成績。</p></section>';
+        return '<section class="lq-card">' + artTag('join') + '<h2>請先登入</h2><p class="lq-sub">老師用教師帳號。同學用名冊或課堂短碼。訪客和測試人員不能存正式成績。</p></section>' + demoCard;
       }
       if (auth.tester) {
-        return '<section class="lq-card">' + artTag('quiz') + '<h2>測試人員</h2><p class="lq-sub">測試人員可以看畫面，但不能加入，也不會存成正式成績。</p></section>';
+        return '<section class="lq-card">' + artTag('quiz') + '<h2>測試人員</h2><p class="lq-sub">測試人員可以看畫面或進行單機模擬，不會存成正式成績。</p></section>' + demoCard;
       }
       if (!auth.teacher) return join;
       var list = ui.quizzes.map(function (quiz) {
         return '<li><span><b>' + esc(quiz.title) + '</b><small> · ' + esc(quiz.count) + ' 題</small></span><button type="button" class="lq-btn soft" data-act="host" data-id="' + esc(quiz.id) + '">主持</button></li>';
       }).join('');
       return '<section class="lq-card">' + artTag('quiz') + '<h2>我的測驗</h2>' + (list ? '<ul class="lq-items">' + list + '</ul>' : '<p class="lq-note">還沒有已儲存的測驗。</p>') +
-        '<div class="lq-row"><button type="button" class="lq-btn" data-act="editor">新測驗</button></div></section>' + join;
+        '<div class="lq-row"><button type="button" class="lq-btn" data-act="editor">新測驗</button><button type="button" class="lq-btn soft" data-act="demo">⚡ 單機模擬試玩</button></div></section>' + join;
     }
 
     function editorHtml() {
@@ -612,24 +680,25 @@
       }).join('');
       var banks = GAMES.map(function (game) {
         return '<button type="button" class="lq-bank" data-act="bank" data-game="' + game.id + '">' + artTag(BANK_ART[game.id]) + '<span>' + esc(game.label) + '</span></button>';
-      }).join('');
-      return '<section class="lq-card">' + artTag('quiz') + '<h2>新測驗</h2><div class="lq-grid"><label class="lq-field">測驗名稱<input id="lqTitle" maxlength="30" value="' + esc(draft.title) + '"></label>' +
+      }).join('') + '<button type="button" class="lq-bank" data-act="bank-composer">' + artTag('custom') + '<span>西方音樂家</span></button>';
+      return '<section class="lq-card">' + artTag('quiz') + '<h2>新測驗（共 ' + draft.items.length + ' 題）</h2><div class="lq-grid"><label class="lq-field">測驗名稱<input id="lqTitle" maxlength="30" value="' + esc(draft.title) + '" placeholder="例如：中一音樂期中搶答"></label>' +
         '<label class="lq-field">每題秒數<select id="lqLimit"><option value="10000"' + (draft.limitMs === 10000 ? ' selected' : '') + '>10 秒</option><option value="20000"' + (draft.limitMs === 20000 ? ' selected' : '') + '>20 秒</option><option value="30000"' + (draft.limitMs === 30000 ? ' selected' : '') + '>30 秒</option></select></label></div>' +
-        (items ? '<ul class="lq-items">' + items + '</ul>' : '<p class="lq-note">還沒有題目。</p>') +
+        '<div class="lq-row" style="margin-top:10px;"><button type="button" class="lq-btn soft" data-act="quick-mix" data-count="5">🎲 一鍵混搭 5 題</button><button type="button" class="lq-btn soft" data-act="quick-mix" data-count="10">🎲 一鍵混搭 10 題</button></div>' +
+        (items ? '<ul class="lq-items">' + items + '</ul>' : '<p class="lq-note">還沒有題目。可用上方「一鍵混搭」或下方題庫快速出題。</p>') +
         '</section><section class="lq-card">' + artTag('custom') + '<h2>自訂選擇題</h2><div class="lq-grid"><label class="lq-field">題目<input id="lqPrompt" maxlength="80"></label>' +
         [0, 1, 2, 3].map(function (index) {
           return '<label class="lq-field">選項 ' + LETTERS[index] + '<input id="lqC' + index + '" maxlength="40"><span><input type="radio" name="lqCorrect" value="' + index + '"' + (index === 0 ? ' checked' : '') + '> 正確</span></label>';
         }).join('') + '</div><div class="lq-row"><button type="button" class="lq-btn soft" data-act="add-custom">加入自訂題</button></div></section>' +
-        '<section class="lq-card">' + artTag('interval') + '<h2>從現有遊戲抽一題</h2><p class="lq-sub">看譜、聽辨、音名、節奏、術語和樂器。抽出來的題目會固定在這一張測驗裡。</p><div class="lq-banks">' + banks + '</div></section>' +
+        '<section class="lq-card">' + artTag('interval') + '<h2>從現有遊戲抽一題</h2><p class="lq-sub">看譜、聽辨、音名、節奏、術語、樂器與西方音樂家。抽出來的題目會固定在這一張測驗裡。</p><div class="lq-banks">' + banks + '</div></section>' +
         '<div class="lq-row"><button type="button" class="lq-btn" data-act="save">儲存並開始</button></div>';
     }
 
     function render() {
       if (!host) return;
       var auth = authState();
-      var top = '<div class="lq-top"><button type="button" class="lq-back" data-act="back">← 返回</button>' + artTag('podium', true) + '<div><h1 class="lq-title">課堂搶答</h1><p class="lq-sub">老師主持，全班同一題。</p></div></div>';
+      var top = '<div class="lq-top"><button type="button" class="lq-back" data-act="back">← 返回</button>' + artTag('podium', true) + '<div><h1 class="lq-title">課堂搶答</h1><p class="lq-sub">' + (ui.demo ? '單機模擬模式（練習／示範用）' : '老師主持，全班同一題。') + '</p></div></div>';
       var main = '';
-      if (ui.screen === 'room' && ui.view) main = renderRoom(ui.view, { host: ui.view.host, offset: ui.offset });
+      if (ui.screen === 'room' && ui.view) main = renderRoom(ui.view, { host: ui.view.host, offset: ui.offset, streak: ui.streak });
       else if (ui.screen === 'editor' && auth.teacher) main = editorHtml();
       else main = homeHtml(auth);
       host.innerHTML = '<div class="lq-wrap">' + top + noticeHtml() + main + '</div>';
@@ -641,9 +710,21 @@
       var ring = doc.getElementById('lqCount');
       if (!num || !ui.view || ui.view.phase !== 'question') return;
       var remain = Math.max(0, Number(ui.view.questionEndsAt) - (Date.now() + ui.offset));
-      num.textContent = String(Math.ceil(remain / 1000));
-      if (ring && ui.view.limitMs) ring.style.setProperty('--lq-p', String(Math.round(remain / Number(ui.view.limitMs) * 100)));
-      if (remain === 0) pull();
+      var sec = Math.ceil(remain / 1000);
+      num.textContent = String(sec);
+      if (ring && ui.view.limitMs) {
+        ring.style.setProperty('--lq-p', String(Math.round(remain / Number(ui.view.limitMs) * 100)));
+        ring.classList.toggle('is-urgent', remain > 0 && remain <= 5000);
+      }
+      if (sec !== ui.lastSec) {
+        if (sec > 0 && sec <= 5 && ui.lastSec !== -1) playSfx('tick');
+        ui.lastSec = sec;
+      }
+      if (remain === 0 && !ui.zeroPulled) {
+        ui.zeroPulled = true;
+        if (ui.demo) finishDemoQuestion(null);
+        else pull();
+      }
     }
 
     function signature(view) {
@@ -666,7 +747,19 @@
     }
 
     function applyView(data) {
+      var prevPhase = ui.view && ui.view.phase;
+      var prevIdx = ui.view && ui.view.index;
       ui.offset = Number(data.serverNow || Date.now()) - Date.now();
+      if (data.phase === 'question' && (prevPhase !== 'question' || prevIdx !== data.index)) {
+        ui.zeroPulled = false;
+        ui.lastSec = -1;
+      }
+      if ((data.phase === 'reveal' || data.phase === 'done') && prevPhase === 'question') {
+        if (data.yourChoice) {
+          if (Number(data.yourPoints) > 0) { ui.streak += 1; playSfx('win'); }
+          else { ui.streak = 0; playSfx('lose'); }
+        }
+      }
       var next = signature(data);
       ui.view = data;
       ui.notice = '';
@@ -806,7 +899,135 @@
       });
     }
 
+    function addComposerBank() {
+      readDraft();
+      var item = buildComposerCustomItem(Math.random);
+      if (item) { ui.draft.items.push(item); ui.notice = ''; }
+      else { ui.notice = '無法建立音樂家題目，請再試一次。'; }
+      render();
+    }
+
+    function addQuickMix(count) {
+      readDraft();
+      var n = Math.max(1, Math.min(15, Number(count) || 5));
+      var pool = ['note-name', 'staff-interval', 'rhythm', 'terms', 'composer'];
+      var added = 0;
+      for (var i = 0; i < n; i++) {
+        var pick = pool[i % pool.length];
+        var item = pick === 'composer' ? buildComposerCustomItem(Math.random) : buildBankItem(pick, Math.random, root.__INSTRUMENT_BANK__ || []);
+        if (!item) item = buildComposerCustomItem(Math.random);
+        if (item) { ui.draft.items.push(item); added++; }
+      }
+      if (!ui.draft.title.trim()) ui.draft.title = '課堂綜合搶答（' + ui.draft.items.length + ' 題）';
+      ui.notice = added ? '已加入 ' + added + ' 題混搭題目。' : '暫時無法自動出題。';
+      render();
+    }
+
+    function copyJoinLink(code) {
+      try {
+        var base = (root.location && root.location.origin && root.location.origin !== 'null') ? (root.location.origin + (root.location.pathname || '/')) : '';
+        var text = base ? (base + '?live=' + encodeURIComponent(code)) : code;
+        if (root.navigator && root.navigator.clipboard && root.navigator.clipboard.writeText) {
+          root.navigator.clipboard.writeText(text).then(function () {
+            ui.notice = '已複製快速加入連結（代碼 ' + code + '）。';
+            render();
+          }, function () {
+            ui.notice = '加入代碼：' + code;
+            render();
+          });
+        } else {
+          ui.notice = '加入代碼：' + code;
+          render();
+        }
+      } catch (err) {}
+    }
+
+    function demoQuestionView(idx) {
+      var d = ui.demo;
+      var item = d.items[idx];
+      return {
+        code: 'DEMO',
+        title: '單機模擬搶答',
+        host: false,
+        phase: 'question',
+        index: idx,
+        total: d.items.length,
+        limitMs: 15000,
+        questionEndsAt: Date.now() + 15000,
+        serverNow: Date.now(),
+        answered: 1,
+        locked: false,
+        players: d.players,
+        question: item
+      };
+    }
+
+    function finishDemoQuestion(choiceId) {
+      var d = ui.demo;
+      if (!d || !ui.view || ui.view.phase !== 'question') return;
+      var item = d.items[d.index];
+      var remain = Math.max(0, Number(ui.view.questionEndsAt) - Date.now());
+      var ratio = Math.max(0, Math.min(1, remain / 15000));
+      var isCorrect = choiceId && choiceId === item.correctId;
+      var pts = isCorrect ? Math.round(500 + 500 * ratio) : 0;
+      d.players.forEach(function (p) {
+        if (p.you) p.score += pts;
+        else p.score += Math.random() < 0.7 ? Math.round(520 + Math.random() * 420) : 0;
+      });
+      d.players.sort(function (a, b) { return b.score - a.score; });
+      var isLast = d.index + 1 >= d.items.length;
+      applyView({
+        code: 'DEMO',
+        title: '單機模擬搶答',
+        host: true,
+        phase: isLast ? 'done' : 'reveal',
+        index: d.index,
+        total: d.items.length,
+        limitMs: 15000,
+        serverNow: Date.now(),
+        yourChoice: choiceId || '__timeout__',
+        yourPoints: pts,
+        players: d.players,
+        question: {
+          game: item.game,
+          type: item.type,
+          prompt: item.prompt,
+          render: item.render,
+          choices: item.choices.map(function (c) { return { id: c.id, label: c.label, correct: c.id === item.correctId }; })
+        }
+      });
+    }
+
+    function startDemo() {
+      var items = [buildBankItem('terms', Math.random), buildComposerCustomItem(Math.random), buildBankItem('note-name', Math.random) || buildComposerCustomItem(Math.random)].filter(Boolean);
+      if (!items.length) return;
+      ui.demo = {
+        index: 0,
+        items: items,
+        players: [
+          { name: '你（體驗模式）', avatar: '🎹', score: 0, you: true },
+          { name: '阿明（AI同學）', avatar: '🎻', score: 0 },
+          { name: '小晴（AI同學）', avatar: '🎺', score: 0 }
+        ]
+      };
+      ui.streak = 0;
+      ui.screen = 'room';
+      ui.sig = '';
+      stopTimers();
+      applyView(demoQuestionView(0));
+      ui.clock = root.setInterval(tick, 200);
+    }
+
     function advance() {
+      if (ui.demo) {
+        if (!ui.view || ui.view.phase === 'done') { leave(); return; }
+        if (ui.view.phase === 'reveal') {
+          ui.demo.index += 1;
+          applyView(demoQuestionView(ui.demo.index));
+        }
+        return;
+      }
+      if (ui.busy) return;
       if (!ui.view || !ui.view.host) {
         if (ui.view && ui.view.phase === 'done') leave();
         return;
@@ -815,26 +1036,37 @@
         leave();
         return;
       }
+      ui.busy = true;
       call('POST', '/live/rooms/' + ui.view.code + '/advance', {}).then(function (data) {
+        ui.busy = false;
         if (!data || data.ok === false) {
           ui.notice = ERRORS[data && data.error] || ERRORS.offline;
           render();
           return;
         }
         applyView(data);
-      });
+      }, function () { ui.busy = false; });
     }
 
     function answer(choiceId) {
-      if (!ui.view || ui.view.host || ui.view.locked || ui.view.phase !== 'question') return;
+      if (ui.demo) {
+        if (!ui.view || ui.view.phase !== 'question') return;
+        playSfx('tap');
+        finishDemoQuestion(choiceId);
+        return;
+      }
+      if (ui.busy || !ui.view || ui.view.host || ui.view.locked || ui.view.phase !== 'question') return;
+      ui.busy = true;
+      playSfx('tap');
       call('POST', '/live/rooms/' + ui.view.code + '/answer', { choiceId: choiceId }).then(function (data) {
+        ui.busy = false;
         if (!data || (data.ok === false && data.error !== 'closed')) {
           ui.notice = ERRORS[data && data.error] || ERRORS.offline;
           render();
           return;
         }
         applyView(data);
-      });
+      }, function () { ui.busy = false; });
     }
 
     function play(button) {
@@ -850,6 +1082,9 @@
 
     function leave() {
       stopTimers();
+      ui.demo = null;
+      ui.streak = 0;
+      ui.busy = false;
       ui.screen = 'home';
       ui.view = null;
       ui.sig = '';
@@ -859,6 +1094,8 @@
     function open() {
       var auth = authState();
       if (auth.required && !auth.signedIn) return;
+      ui.demo = null;
+      ui.streak = 0;
       ui.screen = 'home';
       ui.notice = '';
       show('screen-live');
@@ -890,8 +1127,12 @@
         var act = button.getAttribute('data-act');
         if (act === 'back') leave();
         else if (act === 'editor') { ui.screen = 'editor'; ui.notice = ''; render(); }
+        else if (act === 'demo') startDemo();
+        else if (act === 'copy-link') copyJoinLink(button.getAttribute('data-code') || '');
         else if (act === 'add-custom') addCustom();
         else if (act === 'bank') addBank(button.getAttribute('data-game'));
+        else if (act === 'bank-composer') addComposerBank();
+        else if (act === 'quick-mix') addQuickMix(button.getAttribute('data-count'));
         else if (act === 'remove') {
           readDraft();
           ui.draft.items.splice(Number(button.getAttribute('data-index')), 1);
@@ -903,6 +1144,20 @@
         else if (act === 'advance') advance();
         else if (act === 'choice') answer(button.getAttribute('data-choice'));
         else if (act === 'play') play(button);
+      });
+      doc.addEventListener('keydown', function (event) {
+        if (ui.screen !== 'room' || !ui.view) return;
+        var tag = event.target && event.target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (ui.view.phase === 'question' && !ui.view.host && !ui.view.locked) {
+          var map = { '1': 0, '2': 1, '3': 2, '4': 3, a: 0, b: 1, c: 2, d: 3 };
+          var idx = map[String(event.key || '').toLowerCase()];
+          var choices = ui.view.question && ui.view.question.choices;
+          if (idx != null && choices && choices[idx]) {
+            event.preventDefault();
+            answer(choices[idx].id);
+          }
+        }
       });
     }
 

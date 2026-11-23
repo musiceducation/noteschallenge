@@ -73,6 +73,8 @@ for (const f of [
   "www/composer-game.js",
   "exercise-customizer.js",
   "www/exercise-customizer.js",
+  "teacher-suite.js",
+  "www/teacher-suite.js",
   "theory-drill.js",
   "www/theory-drill.js",
   "classroom.js",
@@ -93,7 +95,7 @@ for (const f of [
 ]) checkJs(f);
 for (const f of ["data/instrument-bank.json", "data/instrument-structure.json"]) checkJson(f);
 
-for (const f of ["index.html", "style.css", "privacy.html", "www/privacy.html", "PRIVACY.md"]) {
+for (const f of ["index.html", "style.css", "landing.html", "www/landing.html", "terms.html", "www/terms.html", "privacy.html", "www/privacy.html", "PRIVACY.md"]) {
   if (!fs.existsSync(path.join(root, f))) fail(`missing ${f}`);
   console.log("ok", f);
 }
@@ -118,6 +120,9 @@ for (const f of [
   "aural-quality.js",
   "composer-game.js",
   "exercise-customizer.js",
+  "teacher-suite.js",
+  "landing.html",
+  "terms.html",
   "theory-drill.js",
   "rhythm-levels.js",
   "live-quiz.js",

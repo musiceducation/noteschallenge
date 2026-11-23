@@ -14,6 +14,9 @@ assert.equal(CG.ERAS.length, 4);
 assert.equal(CG.COMPOSERS.length, 10);
 for (const c of CG.COMPOSERS) {
   assert.ok(c.id && c.name && c.en && c.work && c.title);
+  assert.ok(c.bio && c.bio.length >= 20, `${c.id} has rich bio`);
+  assert.ok(Array.isArray(c.works) && c.works.length >= 3, `${c.id} has 3+ famous works`);
+  assert.match(CG.youtubeSearchUrl(c.works[0].ytQuery), /^https:\/\/www\.youtube\.com\/results\?search_query=/);
   assert.ok(c.born > 1600 && c.died > c.born);
   assert.ok(Array.isArray(c.theme) && c.theme.length >= 6, `${c.id} has playable theme`);
   assert.ok(fs.existsSync(new URL(`../img/composers/${c.id}.jpg`, import.meta.url)), `${c.id} portrait exists`);

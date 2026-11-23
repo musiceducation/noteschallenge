@@ -7085,10 +7085,11 @@
     function launchSyllabusQuiz(user, kind, timed) {
         if (!window.AbrsmRhythmTerms) return;
         if (syllabusQuiz.timer) clearInterval(syllabusQuiz.timer);
+        if (syllabusQuiz.nextTimer) clearTimeout(syllabusQuiz.nextTimer);
         const level = document.querySelector('#g2LevelBtns .abrsm-grade-btn.active')?.dataset.level || 'easy';
         const bank = AbrsmRhythmTerms.questionsForLevel(kind === 'value' ? 'value' : 'meter', level).slice();
         for (let i = bank.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bank[i], bank[j]] = [bank[j], bank[i]]; }
-        Object.assign(syllabusQuiz, { items: bank, index: 0, score: 0, correct: 0, wrong: 0, locked: false, timed, kind, level, user, left: timed ? 60 : null, timer: null });
+        Object.assign(syllabusQuiz, { items: bank, index: 0, score: 0, correct: 0, wrong: 0, locked: false, exited: false, timed, kind, level, user, left: timed ? 60 : null, timer: null, nextTimer: null });
         const title = kind === 'value' ? '時值辨別' : (timed ? '拍號計時' : '拍號練習');
         const box = document.getElementById('screen-g2-duration');
         box.innerHTML = `<div class="om-header"><button class="om-exit" id="sqExit">✕</button><div class="om-header-center"><div class="om-title">${title}</div><span class="om-time-left" id="sqTime">${timed ? '60s' : '練習'}</span></div><div class="om-score-wrap"><div class="om-score-val" id="sqScore">0</div><div class="om-score-label">得分</div></div></div><div class="om-prompt" id="sqPrompt"></div><div class="keysig-options" id="sqOptions"></div><p class="abrsm-coverage" id="sqNote"></p>`;
@@ -7097,7 +7098,12 @@
         try {
             noteClassPresence(null, title);
         } catch (e) {}
-        document.getElementById('sqExit').onclick = () => { if (syllabusQuiz.timer) clearInterval(syllabusQuiz.timer); switchScreen('screen-g2-setup'); };
+        document.getElementById('sqExit').onclick = () => {
+            syllabusQuiz.exited = true;
+            if (syllabusQuiz.timer) { clearInterval(syllabusQuiz.timer); syllabusQuiz.timer = null; }
+            if (syllabusQuiz.nextTimer) { clearTimeout(syllabusQuiz.nextTimer); syllabusQuiz.nextTimer = null; }
+            switchScreen('screen-g2-setup');
+        };
         if (timed) {
             syllabusQuiz.timer = setInterval(() => {
                 syllabusQuiz.left -= 1;
@@ -7109,11 +7115,14 @@
         showSyllabusQuestion();
     }
     function showSyllabusQuestion() {
+        if (syllabusQuiz.exited) return;
         const q = syllabusQuiz.items[syllabusQuiz.index % syllabusQuiz.items.length];
         syllabusQuiz.current = q;
         syllabusQuiz.locked = false;
-        document.getElementById('sqPrompt').textContent = q.prompt;
+        const promptEl = document.getElementById('sqPrompt');
         const host = document.getElementById('sqOptions');
+        if (!promptEl || !host) return;
+        promptEl.textContent = q.prompt;
         host.innerHTML = '';
         const options = q.options.slice();
         for (let i = options.length - 1; i > 0; i--) {
@@ -7128,21 +7137,29 @@
             btn.className = 'keysig-opt-btn';
             btn.textContent = opt;
             btn.onclick = () => {
-                if (syllabusQuiz.locked) return;
+                if (syllabusQuiz.locked || syllabusQuiz.exited) return;
                 syllabusQuiz.locked = true;
                 const ok = opt === q.answer;
                 if (ok) { syllabusQuiz.correct += 1; syllabusQuiz.score += 10; }
                 else syllabusQuiz.wrong += 1;
-                document.getElementById('sqScore').textContent = syllabusQuiz.score;
+                const scoreEl = document.getElementById('sqScore');
+                if (scoreEl) scoreEl.textContent = syllabusQuiz.score;
                 btn.classList.add(ok ? 'correct' : 'wrong');
                 if (!ok) host.querySelectorAll('button').forEach(other => { if (other.textContent === q.answer) other.classList.add('correct'); });
-                setTimeout(() => { syllabusQuiz.index += 1; showSyllabusQuestion(); }, ok ? 450 : 1000);
+                if (syllabusQuiz.nextTimer) clearTimeout(syllabusQuiz.nextTimer);
+                syllabusQuiz.nextTimer = setTimeout(() => {
+                    syllabusQuiz.nextTimer = null;
+                    if (syllabusQuiz.exited) return;
+                    syllabusQuiz.index += 1;
+                    showSyllabusQuestion();
+                }, ok ? 450 : 1000);
             };
             host.appendChild(btn);
         });
     }
     function finishSyllabusQuiz() {
         if (syllabusQuiz.timer) { clearInterval(syllabusQuiz.timer); syllabusQuiz.timer = null; }
+        if (syllabusQuiz.nextTimer) { clearTimeout(syllabusQuiz.nextTimer); syllabusQuiz.nextTimer = null; }
         syllabusQuiz.locked = true;
         const total = syllabusQuiz.correct + syllabusQuiz.wrong;
         const accuracy = total ? Math.round(syllabusQuiz.correct / total * 100) : 0;
@@ -7161,19 +7178,52 @@
         box.appendChild(note);
         document.getElementById('sqDone').onclick = () => switchScreen('screen-g2-setup');
     }
+    function _completeNoteSvg(id) {
+        const stroke = '#2c1810';
+        if (id === 'whole') {
+            return `<svg class="complete-note-svg" viewBox="0 0 44 48" aria-hidden="true"><ellipse cx="22" cy="28" rx="10" ry="7" fill="none" stroke="${stroke}" stroke-width="3.2" transform="rotate(-12 22 28)"/></svg>`;
+        }
+        if (id === 'half') {
+            return `<svg class="complete-note-svg" viewBox="0 0 44 48" aria-hidden="true"><ellipse cx="18" cy="35" rx="8.5" ry="6.2" fill="none" stroke="${stroke}" stroke-width="3" transform="rotate(-18 18 35)"/><line x1="25.5" y1="33" x2="25.5" y2="7" stroke="${stroke}" stroke-width="2.8" stroke-linecap="round"/></svg>`;
+        }
+        if (id === 'quarter') {
+            return `<svg class="complete-note-svg" viewBox="0 0 44 48" aria-hidden="true"><ellipse cx="18" cy="35" rx="8.5" ry="6.2" fill="${stroke}" transform="rotate(-18 18 35)"/><line x1="25.5" y1="33" x2="25.5" y2="7" stroke="${stroke}" stroke-width="2.8" stroke-linecap="round"/></svg>`;
+        }
+        if (id === 'eighth') {
+            return `<svg class="complete-note-svg" viewBox="0 0 44 48" aria-hidden="true"><ellipse cx="16" cy="35" rx="8" ry="6" fill="${stroke}" transform="rotate(-18 16 35)"/><line x1="23" y1="33" x2="23" y2="7" stroke="${stroke}" stroke-width="2.8" stroke-linecap="round"/><path d="M23 8 C33 12, 34 20, 28 27" fill="none" stroke="${stroke}" stroke-width="2.8" stroke-linecap="round"/></svg>`;
+        }
+        return `<svg class="complete-note-svg" viewBox="0 0 44 48" aria-hidden="true"><ellipse cx="16" cy="35" rx="8" ry="6" fill="${stroke}" transform="rotate(-18 16 35)"/><line x1="23" y1="33" x2="23" y2="7" stroke="${stroke}" stroke-width="2.8" stroke-linecap="round"/><path d="M23 8 C33 11, 34 18, 28 24" fill="none" stroke="${stroke}" stroke-width="2.6" stroke-linecap="round"/><path d="M23 16 C33 19, 34 26, 28 32" fill="none" stroke="${stroke}" stroke-width="2.6" stroke-linecap="round"/></svg>`;
+    }
+    function _completeBeatsText(q) {
+        if (q === 4) return '4 拍';
+        if (q === 2) return '2 拍';
+        if (q === 1) return '1 拍';
+        if (q === 0.5) return '½ 拍';
+        if (q === 0.25) return '¼ 拍';
+        return q + ' 拍';
+    }
     function launchCompleteMeasure(user) {
         if (!window.RhythmLevels) return;
         const levelId = document.querySelector('#g2LevelBtns .abrsm-grade-btn.active')?.dataset.level || 'easy';
-        const round = { index: 0, score: 0, correct: 0, wrong: 0, locked: false, levelId, user, total: 8, question: null };
+        const round = { index: 0, score: 0, correct: 0, wrong: 0, locked: false, exited: false, timerId: 0, levelId, user, total: 8, question: null };
         const box = document.getElementById('screen-g2-duration');
-        box.innerHTML = `<div class="om-header"><button class="om-exit" id="completeExit">✕</button><div class="om-header-center"><div class="om-title">補足小節 · ${RhythmLevels.LABELS[levelId]}</div><span class="om-time-left" id="completeCount">1 / 8</span></div><div class="om-score-wrap"><div class="om-score-val" id="completeScore">0</div><div class="om-score-label">得分</div></div></div><p class="complete-prompt">這是 4/4。虛線空位還沒有音符，請選一個時值把它填滿。</p><div id="completeStaff" class="complete-staff"></div><div class="complete-choices" id="completeChoices"></div>`;
+        box.innerHTML = `<div class="om-header"><button class="om-exit" id="completeExit" aria-label="離開">✕</button><div class="om-header-center"><div class="om-title">補足小節 · ${RhythmLevels.LABELS[levelId]}</div><span class="om-time-left" id="completeCount">1 / 8</span></div><div class="om-score-wrap"><div class="om-score-val" id="completeScore">0</div><div class="om-score-label">得分</div></div></div><div class="complete-progress"><div class="complete-progress-fill" id="completeProgFill" style="width:12.5%"></div></div><p class="complete-prompt">這是 <strong>4/4</strong> 拍（每小節共 4 拍）。請選出能填滿紫色虛線空位的音符時值：</p><div id="completeStaff" class="complete-staff"></div><p class="complete-feedback" id="completeFeedback" aria-live="polite"></p><div class="complete-choices" id="completeChoices"></div>`;
         switchScreen('screen-g2-duration');
-        document.getElementById('completeExit').onclick = () => switchScreen('screen-g2-setup');
+        document.getElementById('completeExit').onclick = () => {
+            round.exited = true;
+            if (round.timerId) { clearTimeout(round.timerId); round.timerId = 0; }
+            switchScreen('screen-g2-setup');
+        };
         const show = () => {
+            if (round.exited) return;
             round.locked = false;
             round.question = RhythmLevels.completionQuestion(levelId, Math.random);
             const count = document.getElementById('completeCount');
             if (count) count.textContent = (round.index + 1) + ' / ' + round.total;
+            const fill = document.getElementById('completeProgFill');
+            if (fill) fill.style.width = Math.round(((round.index + 1) / round.total) * 100) + '%';
+            const fb = document.getElementById('completeFeedback');
+            if (fb) { fb.textContent = ''; fb.className = 'complete-feedback'; }
             renderCompleteStaff(round.question);
             const host = document.getElementById('completeChoices');
             host.innerHTML = '';
@@ -7188,23 +7238,32 @@
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'complete-choice';
-                btn.innerHTML = `<span class="complete-choice-symbol">${choice.symbol}</span><span class="complete-choice-label">${choice.label}</span>`;
+                btn.innerHTML = `<span class="complete-choice-symbol">${_completeNoteSvg(choice.id)}</span><span class="complete-choice-label">${choice.label}</span><span class="complete-choice-beats">${_completeBeatsText(choice.quarters)}</span>`;
                 btn.onclick = () => {
-                    if (round.locked) return;
+                    if (round.locked || round.exited) return;
                     round.locked = true;
                     const ok = choice.id === round.question.answerId;
-                    if (ok) { round.correct += 1; round.score += 10; }
-                    else round.wrong += 1;
+                    const ansObj = RhythmLevels.CHOICES[round.question.answerId];
+                    if (ok) { round.correct += 1; round.score += 10; try { audio.playEffect('countdown'); } catch (e) {} }
+                    else { round.wrong += 1; try { audio.playEffect('wrong'); } catch (e) {} }
                     document.getElementById('completeScore').textContent = round.score;
                     btn.classList.add(ok ? 'correct' : 'wrong');
+                    if (fb) {
+                        fb.textContent = ok
+                            ? `✅ 正確！補足 ${ansObj.label}（${_completeBeatsText(ansObj.quarters)}）剛好滿 4 拍。`
+                            : `❌ 還差 ${_completeBeatsText(ansObj.quarters)}，正確答案是 ${ansObj.label}。`;
+                        fb.className = 'complete-feedback ' + (ok ? 'is-ok' : 'is-err');
+                    }
                     if (!ok) host.querySelectorAll('button').forEach(other => {
-                        if (other.querySelector('.complete-choice-label')?.textContent === RhythmLevels.CHOICES[round.question.answerId].label) other.classList.add('correct');
+                        if (other.querySelector('.complete-choice-label')?.textContent === ansObj.label) other.classList.add('correct');
                     });
-                    setTimeout(() => {
+                    round.timerId = setTimeout(() => {
+                        round.timerId = 0;
+                        if (round.exited) return;
                         round.index += 1;
                         if (round.index >= round.total) finishCompleteMeasure(round);
                         else show();
-                    }, ok ? 450 : 900);
+                    }, ok ? 550 : 1200);
                 };
                 host.appendChild(btn);
             });
@@ -7215,15 +7274,16 @@
         const host = document.getElementById('completeStaff');
         if (!host || typeof VexFlow === 'undefined' || !window.RhythmLevels) return;
         host.innerHTML = '';
-        const width = Math.max(host.clientWidth || 0, 320);
-        const height = 220;
+        const width = Math.min(820, Math.max(host.clientWidth || 0, 340));
+        const height = 190;
         const { Renderer, Stave, StaveNote, Voice, Formatter, Beam, Stem } = VexFlow;
         const renderer = new Renderer(host, Renderer.Backends.SVG);
         renderer.resize(width, height);
         const context = renderer.getContext();
-        const stave = new Stave(10, 36, width - 20);
+        const stave = new Stave(16, 42, width - 32);
         stave.addTimeSignature('4/4');
         stave.setContext(context).draw();
+        if (typeof stave.setNoteStartX === 'function') stave.setNoteStartX(stave.getNoteStartX() + 30);
         const blankToken = { 4: 'ta-a-a-a', 2: 'ta-a', 1: 'ta', 0.5: 'ti', 0.25: 'ri', 0.75: 'ti ri' }[question.blankQuarters] || 'ta';
         const shownEvents = RhythmLevels.expandBar(question.shown);
         const allEvents = RhythmLevels.expandBar((question.shown ? question.shown + ' ' : '') + blankToken);
@@ -7233,7 +7293,8 @@
         const voice = new Voice({ numBeats: 16, beatValue: 16 });
         voice.setMode(2);
         voice.addTickables(notes);
-        new Formatter().joinVoices([voice]).format([voice], Math.max(80, width - 120));
+        const formatWidth = Math.max(100, width - stave.getNoteStartX() - 44);
+        new Formatter().joinVoices([voice]).format([voice], formatWidth);
         const shownCount = shownEvents.length;
         const groups = RhythmLevels.beamGroups(question.shown).map(group => group.map(index => notes[index])).filter(group => group.length > 1);
         const beams = groups.map(group => {
@@ -7244,33 +7305,37 @@
         const blankEls = notes.slice(shownCount).map(note => note.getSVGElement && note.getSVGElement()).filter(Boolean);
         const boxes = blankEls.map(el => el.getBBox());
         const rawStart = boxes.length ? Math.min.apply(null, boxes.map(box => box.x)) - 8 : stave.getNoteStartX();
-        const rawEnd = boxes.length ? Math.max.apply(null, boxes.map(box => box.x + box.width)) + 12 : rawStart + 48;
+        const rawEnd = boxes.length ? Math.max.apply(null, boxes.map(box => box.x + box.width)) + 12 : rawStart + 52;
+        const maxRight = stave.getX() + stave.getWidth() - 10;
         const blankMid = (rawStart + rawEnd) / 2;
-        const blankWidth = Math.max(72, rawEnd - rawStart);
-        const startX = blankMid - blankWidth / 2;
-        const endX = blankMid + blankWidth / 2;
+        const blankWidth = Math.max(66, Math.min(96, rawEnd - rawStart));
+        const endX = Math.min(maxRight, blankMid + blankWidth / 2);
+        const startX = Math.max(stave.getNoteStartX(), endX - blankWidth);
         blankEls.forEach(el => el.remove());
         const svg = host.querySelector('svg');
         if (!svg || endX - startX < 28) return;
+        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        svg.style.width = '100%';
+        svg.style.height = 'auto';
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         rect.setAttribute('x', String(startX));
-        rect.setAttribute('y', String(stave.getY() + 18));
+        rect.setAttribute('y', String(stave.getY() + 14));
         rect.setAttribute('width', String(endX - startX));
         rect.setAttribute('height', '78');
-        rect.setAttribute('rx', '12');
-        rect.setAttribute('fill', '#fff7e8');
+        rect.setAttribute('rx', '14');
+        rect.setAttribute('fill', '#f5f3ff');
         rect.setAttribute('stroke', '#7c3aed');
         rect.setAttribute('stroke-width', '3');
         rect.setAttribute('stroke-dasharray', '7 5');
         svg.appendChild(rect);
         const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         label.setAttribute('x', String((startX + endX) / 2));
-        label.setAttribute('y', String(stave.getY() + 66));
+        label.setAttribute('y', String(stave.getY() + 64));
         label.setAttribute('text-anchor', 'middle');
-        label.setAttribute('font-size', '32');
-        label.setAttribute('font-weight', '800');
-        label.setAttribute('fill', '#5b21b6');
-        label.textContent = '？';
+        label.setAttribute('font-size', '30');
+        label.setAttribute('font-weight', '900');
+        label.setAttribute('fill', '#6d28d9');
+        label.textContent = '?';
         svg.appendChild(label);
     }
     function finishCompleteMeasure(round) {

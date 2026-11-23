@@ -59,8 +59,8 @@
             <div id="webGoogleAuthError" class="social-auth-misconfig" hidden></div>
             <div id="webGoogleBtn" class="web-google-btn-host"></div>
             <button type="button" id="webGoogleStubBtn" class="social-auth-btn social-auth-btn-google" hidden>使用 Google 帳號登入</button>
-            <button type="button" id="webTesterBtn" class="web-tester-btn">測試人員</button>
-            <p class="web-tester-note">測試人員唔使電郵。呢個身分唔會入正式排行榜，亦唔會改到學生分數。</p>
+            <button type="button" id="webTesterBtn" class="web-tester-btn">免登入體驗 Demo</button>
+            <p class="web-tester-note">免費試玩無需電郵，不計入正式排行榜，亦不會影響學生分數。</p>
             <form id="webCodeJoinForm" class="classroom-form web-code-join">
                 <p class="web-tester-note">用老師發的 6–8 位班級短碼加入。只需姓名、班別同座號，不必用學校 Google。短碼身份只限該班，看不到同學電郵。</p>
                 <label>短碼<input name="code" minlength="6" maxlength="8" autocomplete="off" required></label>
@@ -70,7 +70,7 @@
                 <button type="submit" class="social-auth-btn social-auth-btn-google">用短碼加入</button>
                 <p id="webCodeJoinOut" class="web-tester-note"></p>
             </form>
-            <p class="web-tester-note"><a href="privacy.html">私隱說明</a></p>
+            <p class="web-tester-note"><a href="landing.html">老師方案與介紹</a>　·　<a href="privacy.html">私隱說明</a>　·　<a href="terms.html">服務條款</a></p>
         </div>
     </div>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" defer></script>
@@ -1664,7 +1664,7 @@
                 <!-- Slide 0: 五線譜與鍵盤對照 -->
                 <div class="tut-slide active">
                     <h3 class="tut-title">🎹 五線譜與鍵盤音符對照</h3>
-                    <a class="tut-img-wrap" href="img/tut-score-1.jpg" target="_blank" rel="noopener" title="點擊放大">
+                    <a class="tut-img-wrap" href="https://raw.githubusercontent.com/kennethchan6392-hash/notes/main/img/tut-score-1.jpg" target="_blank" rel="noopener" title="點擊放大">
                         <img data-src="https://raw.githubusercontent.com/kennethchan6392-hash/notes/main/img/tut-score-1.jpg" alt="五線譜與鍵盤音符對照表" class="tut-img" loading="lazy" decoding="async">
                         <span class="tut-img-hint">🔍 點擊放大</span>
                     </a>
@@ -1674,7 +1674,7 @@
                 <!-- Slide 1: 認識音符位置 -->
                 <div class="tut-slide">
                     <h3 class="tut-title">📖 認識高音譜號音符位置</h3>
-                    <a class="tut-img-wrap" href="img/tut-notes-1.jpg" target="_blank" rel="noopener" title="點擊放大">
+                    <a class="tut-img-wrap" href="https://raw.githubusercontent.com/kennethchan6392-hash/notes/main/img/tut-notes-1.jpg" target="_blank" rel="noopener" title="點擊放大">
                         <img data-src="https://raw.githubusercontent.com/kennethchan6392-hash/notes/main/img/tut-notes-1.jpg" alt="高音譜號音符位置讀譜練習表" class="tut-img" loading="lazy" decoding="async">
                         <span class="tut-img-hint">🔍 點擊放大</span>
                     </a>
@@ -1964,6 +1964,7 @@
         <h1 class="game-title">課堂任務</h1>
         <p class="game-subtitle">課題、觀察紀錄同評估報告。不是基本學力達標證書。</p>
         <div id="classroomRoot"></div>
+        <div id="teacherSuiteHost"></div>
     </div>
 
     <!-- ===================================== -->
@@ -2004,6 +2005,7 @@
     <script src="appreciate-listen.js?v=1" defer></script>
     <script src="composer-game.js?v=2" defer></script>
     <script src="exercise-customizer.js?v=1" defer></script>
+    <script src="teacher-suite.js?v=1" defer></script>
     <script src="theory-drill.js?v=1" defer></script>
     <script src="classroom.js?v=2" defer></script>
     <script src="live-quiz.js?v=2" defer></script>
