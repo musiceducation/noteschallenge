@@ -47,8 +47,21 @@ for (const file of ['index.html', 'www/index.html']) {
   const html = fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8');
   assert.match(html, /id="enterComposers"/);
   assert.match(html, /id="screen-composers"/);
-  assert.match(html, /composer-game\.js\?v=1/);
+  assert.match(html, /composer-game\.js\?v=2/);
+  assert.match(html, /hub-scene-composers\.webp\?v=1/);
+  assert.match(html, /composer-mode-atlas\.webp\?v=1/);
+  assert.match(html, /composer-mode-detective\.webp\?v=1/);
+  assert.match(html, /composer-mode-timeline\.webp\?v=1/);
+  assert.match(html, /composer-mode-erasort\.webp\?v=1/);
 }
+const gameSrc = fs.readFileSync(new URL('../composer-game.js', import.meta.url), 'utf8');
+assert.match(gameSrc, /img\/composers\//);
+assert.match(gameSrc, /era-' \+ id \+ '\.webp\?v=1/);
+assert.doesNotMatch(gameSrc, /hub-scene-composers/);
+['baroque', 'classical', 'romantic', 'modern'].forEach((id) => {
+  assert.ok(fs.existsSync(new URL(`../img/ui/era-${id}.webp`, import.meta.url)), id);
+  assert.ok(fs.existsSync(new URL(`../www/img/ui/era-${id}.webp`, import.meta.url)), 'www ' + id);
+});
 assert.equal(
   fs.readFileSync(new URL('../composer-game.js', import.meta.url), 'utf8'),
   fs.readFileSync(new URL('../www/composer-game.js', import.meta.url), 'utf8')
