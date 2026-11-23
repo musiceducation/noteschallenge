@@ -26,6 +26,13 @@
   var ERA_MAP = {};
   ERAS.forEach(function (era) { ERA_MAP[era.id] = era; });
 
+  function eraArt(id) {
+    return 'img/ui/era-' + id + '.webp?v=1';
+  }
+  function modeBanner(id) {
+    return '<img class="composer-mode-banner" src="img/ui/composer-mode-' + id + '.webp?v=1" alt="" loading="lazy" decoding="async">';
+  }
+
   function seq(notes, step, dur, gain) {
     var t = 0;
     var out = [];
@@ -446,10 +453,13 @@
     function renderAtlas() {
       var list = atlasEra === 'all' ? COMPOSERS : COMPOSERS.filter(function (c) { return c.era === atlasEra; });
       rootEl.innerHTML =
+        modeBanner('atlas') +
         '<div class="composer-era-pills" role="group" aria-label="時期篩選">' +
           '<button type="button" class="hub-filter-pill' + (atlasEra === 'all' ? ' is-active' : '') + '" data-atlas-era="all">全部 (' + COMPOSERS.length + ')</button>' +
           ERAS.map(function (era) {
-            return '<button type="button" class="hub-filter-pill' + (atlasEra === era.id ? ' is-active' : '') + '" data-atlas-era="' + era.id + '">' + esc(era.label) + '</button>';
+            return '<button type="button" class="hub-filter-pill' + (atlasEra === era.id ? ' is-active' : '') + '" data-atlas-era="' + era.id + '">' +
+              '<img class="era-tile-art" src="' + eraArt(era.id) + '" alt="" loading="lazy" decoding="async">' +
+              '<span>' + esc(era.label) + '</span></button>';
           }).join('') +
         '</div>' +
         '<div class="composer-atlas-grid">' +
@@ -512,6 +522,7 @@
       if (detState.clueLevel >= 2) clueHtml += '<div class="composer-clue">💡 線索 2：' + esc(target.clue2) + '</div>';
 
       rootEl.innerHTML =
+        modeBanner('detective') +
         '<div class="composer-hud">' +
           '<span>第 ' + (detState.idx + 1) + ' / ' + detState.rounds.length + ' 題</span>' +
           '<span>目前答對可得 <b>+' + ptsNow + '</b> 分</span>' +
@@ -605,6 +616,7 @@
       }
       var q = tlState.q;
       rootEl.innerHTML =
+        modeBanner('timeline') +
         '<div class="composer-hud">' +
           '<span>第 ' + (tlState.idx + 1) + ' / ' + TIMELINE_COUNT + ' 題</span>' +
           '<span>依 <b>最早 → 最晚</b> 順序點選</span>' +
@@ -689,6 +701,7 @@
       if (!eraState) return;
       var left = Math.max(0, Math.ceil((eraState.endsAt - Date.now()) / 1000));
       rootEl.innerHTML =
+        modeBanner('erasort') +
         '<div class="composer-hud">' +
           '<span>剩餘 <b id="composerEraLeft">' + left + 's</b></span>' +
           '<span>連擊 <b>' + eraState.combo + '</b></span>' +
@@ -704,6 +717,7 @@
           '<div class="composer-era-bins">' +
             ERAS.map(function (era) {
               return '<button type="button" class="composer-era-bin" data-era-pick="' + era.id + '" style="--era-c:' + era.color + '">' +
+                '<img class="era-tile-art" src="' + eraArt(era.id) + '" alt="" loading="lazy" decoding="async">' +
                 '<strong>' + esc(era.label) + '</strong><small>' + esc(era.years) + '</small>' +
               '</button>';
             }).join('') +

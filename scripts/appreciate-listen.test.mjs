@@ -68,10 +68,17 @@ assert.match(html, /baa-music-map\.js\?v=2/);
 assert.match(html, /ability-radar\.js\?v=2/);
 assert.match(html, /appreciate-listen\.js\?v=1/);
 assert.match(html, /classroom\.js\?v=2/);
-assert.match(html, /style\.css\?v=25/);
+assert.match(html, /style\.css\?v=26/);
 assert.match(html, /bootstrap-instruments\.js\?v=22/);
 assert.match(html, /id="screen-appreciate"/);
 assert.match(html, /id="enterAppreciate"/);
+assert.match(html, /hub-scene-appreciate\.webp\?v=1/);
+assert.match(html, /appreciate-form\.webp\?v=1/);
+assert.match(html, /appreciate-genre\.webp\?v=1/);
+assert.match(html, /appreciate-traits\.webp\?v=1/);
+['hub-scene-appreciate', 'appreciate-form', 'appreciate-genre', 'appreciate-traits'].forEach((name) => {
+  assert.ok(fs.existsSync(new URL(`../img/ui/${name}.webp`, import.meta.url)), name);
+});
 assert.doesNotMatch(html, /id="enterCompositionStudio"[^>]*hidden/);
 assert.match(fs.readFileSync(new URL('../bootstrap-instruments.js', import.meta.url), 'utf8'), /script\.js\?v=34/);
 assert.match(fs.readFileSync(new URL('../script.js', import.meta.url), 'utf8'), /skipRemote: true/);
