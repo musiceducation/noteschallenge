@@ -12,3 +12,6 @@
 ## 《節奏衝浪 3D》（`rhythm-surf-3d.html`）
 * `cyber-shiba-dj.glb` — 賽博柴犬 DJ 衝浪手主角（支援骨骼動畫 `AnimationMixer`）
 * `hoverboard-neon.glb` — 雙噴射霓虹懸浮衝浪板
+
+## 《立體琴鍵島 3D》（`chord-island-3d.html`）
+* `shiba-pianist.glb` — 燕尾服小柴犬鋼琴家主角（紫色燕尾服、紅領結、白手套，支援骨骼動畫 `AnimationMixer`）

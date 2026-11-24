@@ -2593,7 +2593,7 @@
     function usesLocalRankBoard() {
         const gf = document.getElementById('rankGameFilter');
         const game = gf ? gf.value : 'game1';
-        if (game === 'game2' || game === 'game3' || game === 'shiba3d' || game === 'rhythm3d') return true;
+        if (game === 'game2' || game === 'game3' || game === 'shiba3d' || game === 'rhythm3d' || game === 'chord3d') return true;
         if (game !== 'game1') return false;
         const mode = dom.rankModeFilter ? dom.rankModeFilter.value : 'notes-clef';
         return mode === 'notes-clef' || mode === 'noMiss';
@@ -5159,7 +5159,7 @@
         let params;
         try { params = new URLSearchParams(location.search); } catch (e) { return; }
         const rankParam = params.get('rank');
-        if (rankParam === 'shiba3d' || rankParam === 'rhythm3d') {
+        if (rankParam === 'shiba3d' || rankParam === 'rhythm3d' || rankParam === 'chord3d') {
             params.delete('rank');
             const qs = params.toString();
             try { history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash); } catch (e) {}

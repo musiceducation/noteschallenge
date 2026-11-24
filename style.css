@@ -9277,6 +9277,7 @@ body:has(#screen-chord-card.screen.active) {
 .composer-yt-save { padding: 6px 12px; border-radius: 10px; border: none; background: #2c1810; color: #fff; font-weight: 800; font-size: 0.78rem; cursor: pointer; white-space: nowrap; }
 
 /* ===== 3D 旗艦遊戲入口卡片 ===== */
-a.hub-shiba-3d, a.hub-rhythm-3d { text-decoration: none; color: inherit; }
+a.hub-shiba-3d, a.hub-rhythm-3d, a.hub-chord-3d { text-decoration: none; color: inherit; }
 .hub-shiba-3d .hub-game-btn { background: linear-gradient(135deg, #0284c7, #6366f1); }
 .hub-rhythm-3d .hub-game-btn { background: linear-gradient(135deg, #06b6d4, #8b5cf6); }
+.hub-chord-3d .hub-game-btn { background: linear-gradient(135deg, #7c3aed, #ec4899); }

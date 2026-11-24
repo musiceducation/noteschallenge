@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>立體琴鍵島 3D — 互動音樂學習站</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;900&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vexflow@5.0.0/build/cjs/vexflow.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+    html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Inter', 'Noto Sans TC', sans-serif; background: #e0e7ff; color: #1e293b; }
+    #gameStage { position: relative; width: 100vw; height: 100vh; overflow: hidden; touch-action: none; }
+    #glCanvas { display: block; width: 100%; height: 100%; cursor: pointer; }
+
+    /* Top HUD */
+    .hud-top {
+      position: absolute; top: 12px; left: 12px; right: 12px; z-index: 10;
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+      pointer-events: none;
+    }
+    .hud-pill {
+      pointer-events: auto;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255, 255, 255, 0.96);
+      border-radius: 16px;
+      padding: 8px 14px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+      display: flex; align-items: center; gap: 12px;
+      font-weight: 800; font-size: 0.92rem;
+    }
+    .hud-stat { display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
+    .hud-stat small { font-size: 0.66rem; color: #64748b; font-weight: 700; }
+    .hud-stat span { font-size: 1.08rem; color: #0f172a; font-weight: 900; }
+    .hud-hearts { font-size: 1.05rem; letter-spacing: 2px; }
+    .fever-pill {
+      display: none; padding: 4px 10px; border-radius: 999px;
+      background: linear-gradient(135deg, #f59e0b, #ec4899); color: #fff;
+      font-size: 0.74rem; font-weight: 900; letter-spacing: 0.04em;
+      animation: feverPulse 0.7s ease-in-out infinite alternate;
+    }
+    .fever-pill.active { display: inline-flex; align-items: center; gap: 4px; }
+    @keyframes feverPulse { from { transform: scale(1); } to { transform: scale(1.08); } }
+
+    .hud-actions { display: flex; gap: 8px; pointer-events: auto; align-items: center; }
+    .icon-btn {
+      height: 42px; min-width: 42px; padding: 0 10px; border-radius: 14px; border: 2px solid rgba(255,255,255,0.95);
+      background: rgba(255,255,255,0.92); backdrop-filter: blur(8px);
+      box-shadow: 0 6px 16px rgba(15,23,42,0.12); color: #0f172a; text-decoration: none;
+      font-size: 1.05rem; font-weight: 900; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+      transition: transform 0.12s ease, background 0.15s ease;
+    }
+    .icon-btn:active { transform: scale(0.92); }
+    .back-home-btn { font-size: 0.84rem; padding: 0 12px; }
+
+    /* Compact Floating Question Card */
+    .prompt-wrap {
+      position: absolute; top: 66px; left: 50%; transform: translateX(-50%);
+      z-index: 10; pointer-events: none; width: min(92vw, 410px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .prompt-wrap.is-hidden { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+    .prompt-card {
+      pointer-events: auto;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(12px);
+      border: 3px solid #a855f7;
+      border-radius: 20px;
+      padding: 8px 14px 10px;
+      box-shadow: 0 12px 28px rgba(109, 40, 217, 0.2);
+      text-align: center;
+      position: relative;
+    }
+    .prompt-head {
+      display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 2px; flex-wrap: wrap;
+    }
+    .prompt-badge {
+      display: inline-block; font-size: 0.72rem; font-weight: 900;
+      padding: 2px 10px; border-radius: 999px;
+      background: #f3e8ff; color: #7e22ce;
+    }
+    .hear-btn {
+      border: none; border-radius: 999px; padding: 2px 10px;
+      background: #fef3c7; color: #b45309; font: inherit; font-size: 0.72rem; font-weight: 900;
+      cursor: pointer; transition: transform 0.1s ease;
+    }
+    .hear-btn:active { transform: scale(0.94); }
+    .prompt-title { font-size: 1.18rem; font-weight: 900; color: #0f172a; line-height: 1.28; }
+    .prompt-sub { font-size: 0.78rem; color: #475569; margin-top: 2px; font-weight: 700; }
+    .selected-chips {
+      display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 6px; flex-wrap: wrap;
+    }
+    .note-chip {
+      padding: 3px 10px; border-radius: 999px; font-size: 0.76rem; font-weight: 900;
+      background: #ede9fe; color: #5b21b6; border: 1.5px solid #c4b5fd;
+    }
+    .note-chip.empty { background: #f8fafc; color: #94a3b8; border-style: dashed; border-color: #cbd5e1; }
+
+    /* Feedback Banner */
+    .fx-banner {
+      position: absolute; top: 44%; left: 50%; transform: translate(-50%, -50%) scale(0.8);
+      z-index: 15; pointer-events: none; opacity: 0;
+      padding: 10px 24px; border-radius: 999px;
+      font-size: 1.25rem; font-weight: 900; color: #fff;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.22);
+      transition: opacity 0.16s ease, transform 0.16s ease;
+      white-space: nowrap;
+    }
+    .fx-banner.show { opacity: 1; transform: translate(-50%, -64%) scale(1); }
+    .fx-banner.ok { background: linear-gradient(135deg, #10b981, #059669); }
+    .fx-banner.err { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+    /* Bottom Touch Controls */
+    .touch-controls {
+      position: absolute; bottom: 16px; left: 16px; right: 16px; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      pointer-events: none;
+    }
+    .touch-group { display: flex; gap: 8px; pointer-events: auto; }
+    .ctrl-btn {
+      min-width: 56px; height: 52px; padding: 0 14px;
+      border-radius: 16px; border: 2.5px solid rgba(255,255,255,0.94);
+      background: rgba(255,255,255,0.88); backdrop-filter: blur(8px);
+      color: #0f172a; font-size: 1.02rem; font-weight: 900;
+      box-shadow: 0 6px 18px rgba(15,23,42,0.16);
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: transform 0.08s ease, background 0.12s ease;
+    }
+    .ctrl-btn:active { transform: scale(0.92); background: #ede9fe; }
+    .ctrl-btn.primary-stomp {
+      background: linear-gradient(135deg, #7c3aed, #ec4899); color: #fff; border-color: #fff;
+    }
+    .ctrl-hint {
+      pointer-events: none; background: rgba(15, 23, 42, 0.62); color: #fff;
+      padding: 6px 14px; border-radius: 999px; font-size: 0.76rem; font-weight: 700;
+    }
+
+    /* Overlay Modals */
+    .overlay {
+      position: absolute; inset: 0; z-index: 20;
+      display: flex; align-items: center; justify-content: center; padding: 14px;
+      background: rgba(15, 23, 42, 0.36); backdrop-filter: blur(6px);
+    }
+    .overlay.hidden { display: none; }
+    .modal {
+      width: min(94vw, 490px);
+      background: rgba(255, 255, 255, 0.96);
+      border-radius: 26px; padding: 22px 20px;
+      border: 3px solid #fff;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+      text-align: center;
+      max-height: 92vh; overflow-y: auto;
+    }
+    .modal-tag {
+      display: inline-block; padding: 4px 12px; border-radius: 999px;
+      background: linear-gradient(135deg, #7c3aed, #ec4899); color: #fff;
+      font-size: 0.74rem; font-weight: 900; letter-spacing: 0.04em; margin-bottom: 6px;
+    }
+    .modal h1 { font-size: 1.55rem; font-weight: 900; color: #0f172a; margin-bottom: 4px; }
+    .modal p.lead { font-size: 0.86rem; color: #475569; line-height: 1.48; margin-bottom: 12px; }
+    .best-bar {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 12px; border-radius: 999px;
+      background: #fef3c7; color: #92400e; font-size: 0.78rem; font-weight: 800;
+      margin-bottom: 10px;
+    }
+    .picker-label { text-align: left; font-size: 0.76rem; font-weight: 800; color: #64748b; margin: 10px 0 6px; }
+    .seg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .seg-grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .seg-btn {
+      padding: 9px 8px; border-radius: 13px; border: 2px solid #e2e8f0;
+      background: #f8fafc; color: #334155; font: inherit; font-size: 0.84rem; font-weight: 800;
+      cursor: pointer; transition: all 0.14s ease;
+    }
+    .seg-btn:hover { border-color: #a855f7; }
+    .seg-btn.active {
+      background: #7c3aed; border-color: #7c3aed; color: #fff;
+      box-shadow: 0 5px 12px rgba(124, 58, 237, 0.28);
+    }
+    .primary-btn {
+      width: 100%; margin-top: 16px; padding: 13px 20px;
+      border-radius: 16px; border: none;
+      background: linear-gradient(135deg, #7c3aed, #ec4899);
+      color: #fff; font: inherit; font-size: 1.05rem; font-weight: 900;
+      box-shadow: 0 6px 0 #6d28d9, 0 14px 24px rgba(124, 58, 237, 0.3);
+      cursor: pointer; transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+    .primary-btn:active { transform: translateY(3px); box-shadow: 0 3px 0 #6d28d9; }
+    .result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
+    .result-box { background: #f1f5f9; border-radius: 14px; padding: 10px 6px; }
+    .result-box small { display: block; font-size: 0.7rem; color: #64748b; font-weight: 700; }
+    .result-box b { font-size: 1.2rem; color: #0f172a; font-weight: 900; }
+    .review-list { text-align: left; margin-top: 10px; background: #faf5ff; border: 1.5px solid #e9d5ff; border-radius: 14px; padding: 10px 12px; font-size: 0.82rem; color: #581c87; }
+    .review-list ul { margin: 6px 0 0 18px; }
+    .audio-mixer {
+      position: absolute; top: 62px; right: 12px; z-index: 25;
+      width: 248px; padding: 12px 14px; border-radius: 18px;
+      background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(12px);
+      border: 2px solid #e9d5ff; box-shadow: 0 14px 34px rgba(15, 23, 42, 0.22);
+      display: none; flex-direction: column; gap: 8px;
+    }
+    .audio-mixer.open { display: flex; }
+    .mixer-row { display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 800; color: #334155; }
+    .audio-mixer input[type="range"] { width: 100%; accent-color: #7c3aed; cursor: pointer; }
+    .mixer-styles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+    .mixer-styles .seg-btn { padding: 6px 4px; font-size: 0.72rem; }
+    @media (max-width: 640px) {
+      .ctrl-hint { display: none; }
+      .hud-pill { padding: 6px 10px; gap: 8px; }
+      .prompt-wrap { top: 60px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="gameStage">
+    <canvas id="glCanvas"></canvas>
+
+    <!-- Top HUD -->
+    <div class="hud-top">
+      <div class="hud-pill">
+        <div class="hud-stat"><small>得分</small><span id="hudScore">0</span></div>
+        <div class="hud-stat"><small>連擊</small><span id="hudCombo">0</span></div>
+        <div class="hud-hearts" id="hudHearts" aria-label="進度與生命">🏁 0/10</div>
+        <span class="fever-pill" id="feverBadge">✨ FEVER 2×</span>
+      </div>
+      <div class="hud-actions">
+        <a href="index.html" class="icon-btn back-home-btn" title="返回大廳" aria-label="返回大廳">← 返回</a>
+        <button type="button" class="icon-btn" id="btnMixer" title="音量與曲風設定" aria-label="音量與曲風設定">🎚️</button>
+        <button type="button" class="icon-btn" id="btnBgm" title="背景音樂開關" aria-label="背景音樂開關">🎵</button>
+        <button type="button" class="icon-btn" id="btnMute" title="音效開關" aria-label="音效開關">🔊</button>
+        <button type="button" class="icon-btn" id="btnPause" title="暫停" aria-label="暫停">⏸</button>
+      </div>
+    </div>
+
+    <!-- Audio Mixer Popover -->
+    <div class="audio-mixer" id="audioMixer">
+      <div class="mixer-row"><span>🎵 BGM 音量</span><b id="bgmVolVal">40%</b></div>
+      <input type="range" id="bgmVolRange" min="0" max="100" value="40" aria-label="BGM 音量" />
+      <div class="mixer-row"><span>🔊 音效音量</span><b id="sfxVolVal">90%</b></div>
+      <input type="range" id="sfxVolRange" min="0" max="100" value="90" aria-label="音效音量" />
+      <div class="mixer-row"><span>🎼 切換曲風</span></div>
+      <div class="mixer-styles" id="mixerStylePicker">
+        <button type="button" class="seg-btn active" data-bgm-style="islandWaltz">🏝️ 輕爵士</button>
+        <button type="button" class="seg-btn" data-bgm-style="musicBox">✨ 八音盒</button>
+        <button type="button" class="seg-btn" data-bgm-style="arcade8bit">🕹️ 8-Bit</button>
+      </div>
+    </div>
+
+    <!-- Floating Question Prompt -->
+    <div class="prompt-wrap is-hidden" id="promptWrap">
+      <div class="prompt-card">
+        <div class="prompt-head">
+          <span class="prompt-badge" id="promptBadge">三和弦 · 第 1 題</span>
+          <button type="button" class="hear-btn" id="btnHearNote">🔊 聽音提示</button>
+        </div>
+        <div class="prompt-title" id="promptTitle">C 大三和弦 (C)</div>
+        <div id="promptVisual"></div>
+        <div class="prompt-sub" id="promptSub">點擊 3D 鋼琴鍵，或用方向鍵跳躍踩出 3 個音</div>
+        <div class="selected-chips" id="selectedChips"></div>
+      </div>
+    </div>
+
+    <!-- Instant Feedback -->
+    <div class="fx-banner" id="fxBanner"></div>
+
+    <!-- Bottom Controls -->
+    <div class="touch-controls">
+      <div class="touch-group">
+        <button type="button" class="ctrl-btn" id="btnLeft" aria-label="向左移動">◀</button>
+        <button type="button" class="ctrl-btn" id="btnRight" aria-label="向右移動">▶</button>
+      </div>
+      <div class="ctrl-hint">直接點擊 3D 黑白琴鍵，或用 ← → / A D 移動＋空白鍵跳踩</div>
+      <div class="touch-group">
+        <button type="button" class="ctrl-btn" id="btnClear" aria-label="重選琴鍵">↺ 重選</button>
+        <button type="button" class="ctrl-btn primary-stomp" id="btnStomp" aria-label="跳踩琴鍵">🐾 跳踩</button>
+      </div>
+    </div>
+
+    <!-- Start / Pause Modal -->
+    <div class="overlay" id="startOverlay">
+      <div class="modal">
+        <span class="modal-tag">3D 鋼琴島嶼 · 和弦與音程挑戰</span>
+        <h1>🎹 立體琴鍵島 3D</h1>
+        <p class="lead">操縱小柴犬鋼琴家在雲海浮島上的 3D 黑白鋼琴鍵跳躍！搭配標準 VexFlow 樂譜，踩出正確的音程與和弦！</p>
+        <div class="best-bar" id="bestBar">🏆 本機最高分：0</div>
+        <div class="best-bar" id="playerBadge" style="background:#f3e8ff;color:#6b21a8;display:block;">👤 讀取學生身份中...</div>
+
+        <div class="picker-label">1. 選擇挑戰題庫</div>
+        <div class="seg-grid seg-grid-2" id="topicPicker">
+          <button type="button" class="seg-btn active" data-topic="triads">🎹 三和弦（大/小）</button>
+          <button type="button" class="seg-btn" data-topic="intervals">🎵 音程跳躍</button>
+          <button type="button" class="seg-btn" data-topic="sevenths">✨ 七和弦進階</button>
+          <button type="button" class="seg-btn" data-topic="mixed">🌟 綜合音樂島</button>
+        </div>
+
+        <div class="picker-label">2. 挑戰玩法</div>
+        <div class="seg-grid seg-grid-2" id="modePicker">
+          <button type="button" class="seg-btn active" data-mode="sprint10">🎯 10 題衝刺（課堂推薦）</button>
+          <button type="button" class="seg-btn" data-mode="endless">♾️ 無盡演奏（3 條命）</button>
+        </div>
+
+        <div class="picker-label">3. 琴鍵提示</div>
+        <div class="seg-grid seg-grid-2" id="hintPicker">
+          <button type="button" class="seg-btn active" data-hint="show">🔤 顯示白鍵音名</button>
+          <button type="button" class="seg-btn" data-hint="blind">🕶️ 盲彈大師（僅標 C）</button>
+        </div>
+
+        <div class="picker-label">4. 背景音樂曲風</div>
+        <div class="seg-grid" id="bgmStylePicker">
+          <button type="button" class="seg-btn active" data-bgm-style="islandWaltz">🏝️ 輕爵士</button>
+          <button type="button" class="seg-btn" data-bgm-style="musicBox">✨ 八音盒</button>
+          <button type="button" class="seg-btn" data-bgm-style="arcade8bit">🕹️ 8-Bit</button>
+        </div>
+
+        <button type="button" class="primary-btn" id="btnStart">▶ 登上立體琴鍵島！</button>
+      </div>
+    </div>
+
+    <!-- Result Modal -->
+    <div class="overlay hidden" id="resultOverlay">
+      <div class="modal">
+        <span class="modal-tag" id="resultTag">演奏完成</span>
+        <h1 id="resultTitle">太厲害了！🎉</h1>
+        <p class="lead" id="resultSub">小柴犬鋼琴家完成立體琴鍵島挑戰！</p>
+        <div class="best-bar" id="rankStatus" style="background:#f3e8ff;color:#6b21a8;display:none;"></div>
+        <div class="result-grid">
+          <div class="result-box"><small>總分</small><b id="resScore">0</b></div>
+          <div class="result-box"><small>答對題數</small><b id="resCorrect">0</b></div>
+          <div class="result-box"><small>最高連擊</small><b id="resCombo">0</b></div>
+        </div>
+        <div class="review-list" id="resReview" style="display:none;"></div>
+        <button type="button" class="primary-btn" id="btnRestart">🔄 再挑戰一次</button>
+        <a href="index.html?rank=chord3d" class="seg-btn" style="display:block;text-decoration:none;width:100%;margin-top:8px;">🏆 查看全班排行榜</a>
+        <button type="button" class="seg-btn" id="btnBackMenu" style="width:100%;margin-top:8px;">⚙️ 切換題庫／模式</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    // 17-key 3D Piano (C4..E5): midi 60..76
+    const PIANO_LAYOUT = [
+      { midi: 60, name: 'C4', label: 'C4', short: 'C', vex: 'c/4', acc: null, isBlack: false, whiteIdx: 0 },
+      { midi: 61, name: 'C♯4', label: 'C♯4', short: 'C♯', vex: 'c#/4', acc: '#', isBlack: true, whiteIdx: 0.5 },
+      { midi: 62, name: 'D4', label: 'D4', short: 'D', vex: 'd/4', acc: null, isBlack: false, whiteIdx: 1 },
+      { midi: 63, name: 'D♯4', label: 'D♯4', short: 'D♯', vex: 'd#/4', acc: '#', isBlack: true, whiteIdx: 1.5 },
+      { midi: 64, name: 'E4', label: 'E4', short: 'E', vex: 'e/4', acc: null, isBlack: false, whiteIdx: 2 },
+      { midi: 65, name: 'F4', label: 'F4', short: 'F', vex: 'f/4', acc: null, isBlack: false, whiteIdx: 3 },
+      { midi: 66, name: 'F♯4', label: 'F♯4', short: 'F♯', vex: 'f#/4', acc: '#', isBlack: true, whiteIdx: 3.5 },
+      { midi: 67, name: 'G4', label: 'G4', short: 'G', vex: 'g/4', acc: null, isBlack: false, whiteIdx: 4 },
+      { midi: 68, name: 'G♯4', label: 'G♯4', short: 'G♯', vex: 'g#/4', acc: '#', isBlack: true, whiteIdx: 4.5 },
+      { midi: 69, name: 'A4', label: 'A4', short: 'A', vex: 'a/4', acc: null, isBlack: false, whiteIdx: 5 },
+      { midi: 70, name: 'A♯4', label: 'B♭4', short: 'B♭', vex: 'b/4', acc: 'b', isBlack: true, whiteIdx: 5.5 },
+      { midi: 71, name: 'B4', label: 'B4', short: 'B', vex: 'b/4', acc: null, isBlack: false, whiteIdx: 6 },
+      { midi: 72, name: 'C5', label: 'C5', short: 'C5', vex: 'c/5', acc: null, isBlack: false, whiteIdx: 7 },
+      { midi: 73, name: 'C♯5', label: 'C♯5', short: 'C♯5', vex: 'c#/5', acc: '#', isBlack: true, whiteIdx: 7.5 },
+      { midi: 74, name: 'D5', label: 'D5', short: 'D5', vex: 'd/5', acc: null, isBlack: false, whiteIdx: 8 },
+      { midi: 75, name: 'D♯5', label: 'D♯5', short: 'D♯5', vex: 'd#/5', acc: '#', isBlack: true, whiteIdx: 8.5 },
+      { midi: 76, name: 'E5', label: 'E5', short: 'E5', vex: 'e/5', acc: null, isBlack: false, whiteIdx: 9 }
+    ];
+
+    function midiToFreq(midi) {
+      return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+
+    const TRIAD_BANK = [
+      { title: 'C 大三和弦 (C)', sub: 'Do - Mi - Sol', midis: [60, 64, 67], vexKeys: ['c/4', 'e/4', 'g/4'], accs: [null, null, null] },
+      { title: 'F 大三和弦 (F)', sub: 'Fa - La - Do', midis: [65, 69, 72], vexKeys: ['f/4', 'a/4', 'c/5'], accs: [null, null, null] },
+      { title: 'G 大三和弦 (G)', sub: 'Sol - Si - Re', midis: [67, 71, 74], vexKeys: ['g/4', 'b/4', 'd/5'], accs: [null, null, null] },
+      { title: 'D 小三和弦 (Dm)', sub: 'Re - Fa - La', midis: [62, 65, 69], vexKeys: ['d/4', 'f/4', 'a/4'], accs: [null, null, null] },
+      { title: 'E 小三和弦 (Em)', sub: 'Mi - Sol - Si', midis: [64, 67, 71], vexKeys: ['e/4', 'g/4', 'b/4'], accs: [null, null, null] },
+      { title: 'A 小三和弦 (Am)', sub: 'La - Do - Mi', midis: [69, 72, 76], vexKeys: ['a/4', 'c/5', 'e/5'], accs: [null, null, null] },
+      { title: 'D 大三和弦 (D)', sub: 'Re - F♯ - La', midis: [62, 66, 69], vexKeys: ['d/4', 'f#/4', 'a/4'], accs: [null, '#', null] },
+      { title: 'E 大三和弦 (E)', sub: 'Mi - G♯ - Si', midis: [64, 68, 71], vexKeys: ['e/4', 'g#/4', 'b/4'], accs: [null, '#', null] },
+      { title: 'A 大三和弦 (A)', sub: 'La - C♯ - Mi', midis: [69, 73, 76], vexKeys: ['a/4', 'c#/5', 'e/5'], accs: [null, '#', null] },
+      { title: 'G 小三和弦 (Gm)', sub: 'Sol - B♭ - Re', midis: [67, 70, 74], vexKeys: ['g/4', 'bb/4', 'd/5'], accs: [null, 'b', null] }
+    ];
+
+    const INTERVAL_BANK = [
+      { title: '大三度（C4 → E4）', sub: '相隔 4 個半音', midis: [60, 64], vexKeys: ['c/4', 'e/4'], accs: [null, null] },
+      { title: '純四度（C4 → F4）', sub: '相隔 5 個半音', midis: [60, 65], vexKeys: ['c/4', 'f/4'], accs: [null, null] },
+      { title: '純五度（C4 → G4）', sub: '相隔 7 個半音', midis: [60, 67], vexKeys: ['c/4', 'g/4'], accs: [null, null] },
+      { title: '八度（C4 → C5）', sub: '相隔 12 個半音', midis: [60, 72], vexKeys: ['c/4', 'c/5'], accs: [null, null] },
+      { title: '小三度（D4 → F4）', sub: '相隔 3 個半音', midis: [62, 65], vexKeys: ['d/4', 'f/4'], accs: [null, null] },
+      { title: '大三度（D4 → F♯4）', sub: '相隔 4 個半音', midis: [62, 66], vexKeys: ['d/4', 'f#/4'], accs: [null, '#'] },
+      { title: '純五度（D4 → A4）', sub: '相隔 7 個半音', midis: [62, 69], vexKeys: ['d/4', 'a/4'], accs: [null, null] },
+      { title: '大三度（F4 → A4）', sub: '相隔 4 個半音', midis: [65, 69], vexKeys: ['f/4', 'a/4'], accs: [null, null] },
+      { title: '純五度（G4 → D5）', sub: '相隔 7 個半音', midis: [67, 74], vexKeys: ['g/4', 'd/5'], accs: [null, null] },
+      { title: '大六度（C4 → A4）', sub: '相隔 9 個半音', midis: [60, 69], vexKeys: ['c/4', 'a/4'], accs: [null, null] }
+    ];
+
+    const SEVENTH_BANK = [
+      { title: 'C 大七和弦 (Cmaj7)', sub: 'C - E - G - B', midis: [60, 64, 67, 71], vexKeys: ['c/4', 'e/4', 'g/4', 'b/4'], accs: [null, null, null, null] },
+      { title: 'G 屬七和弦 (G7)', sub: 'G - B - D - F（調性張力）', midis: [65, 67, 71, 74], vexKeys: ['f/4', 'g/4', 'b/4', 'd/5'], accs: [null, null, null, null] },
+      { title: 'D 小七和弦 (Dm7)', sub: 'D - F - A - C', midis: [62, 65, 69, 72], vexKeys: ['d/4', 'f/4', 'a/4', 'c/5'], accs: [null, null, null, null] },
+      { title: 'F 大七和弦 (Fmaj7)', sub: 'F - A - C - E', midis: [65, 69, 72, 76], vexKeys: ['f/4', 'a/4', 'c/5', 'e/5'], accs: [null, null, null, null] },
+      { title: 'E 小七和弦 (Em7)', sub: 'E - G - B - D', midis: [64, 67, 71, 74], vexKeys: ['e/4', 'g/4', 'b/4', 'd/5'], accs: [null, null, null, null] },
+      { title: 'D 屬七和弦 (D7)', sub: 'D - F♯ - A - C', midis: [62, 66, 69, 72], vexKeys: ['d/4', 'f#/4', 'a/4', 'c/5'], accs: [null, '#', null, null] }
+    ];
+
+    function buildQuestion(topic) {
+      let pool = TRIAD_BANK;
+      let badge = '🎹 三和弦';
+      if (topic === 'intervals') { pool = INTERVAL_BANK; badge = '🎵 音程跳躍'; }
+      else if (topic === 'sevenths') { pool = SEVENTH_BANK; badge = '✨ 七和弦'; }
+      else if (topic === 'mixed') {
+        const pick = Math.random();
+        if (pick < 0.35) { pool = INTERVAL_BANK; badge = '🎵 音程跳躍'; }
+        else if (pick < 0.72) { pool = TRIAD_BANK; badge = '🎹 三和弦'; }
+        else { pool = SEVENTH_BANK; badge = '✨ 七和弦'; }
+      }
+      const item = pool[Math.floor(Math.random() * pool.length)];
+      const sorted = item.midis.slice().sort((a, b) => a - b);
+      const names = sorted.map(m => {
+        const k = PIANO_LAYOUT.find(p => p.midi === m);
+        return k ? k.label : String(m);
+      });
+      return {
+        badge,
+        title: item.title,
+        sub: item.sub,
+        targetMidis: sorted,
+        vexKeys: item.vexKeys,
+        accs: item.accs,
+        explain: `${item.title}（${names.join(' + ')}）`
+      };
+    }
+
+    function renderVexChord(container, q) {
+      const VF = typeof VexFlow !== 'undefined' ? VexFlow : null;
+      if (!VF || !VF.Renderer) {
+        container.innerHTML = `<div style="padding:10px;font-weight:900;color:#7c3aed;">${q.sub}</div>`;
+        return;
+      }
+      try {
+        const w = 230, h = 104;
+        const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
+        renderer.resize(w, h);
+        const ctx = renderer.getContext();
+        const stave = new VF.Stave(14, 6, w - 28);
+        stave.addClef('treble');
+        stave.setContext(ctx).draw();
+        const sn = new VF.StaveNote({ clef: 'treble', keys: q.vexKeys, duration: 'w' });
+        if (typeof sn.setStyle === 'function') sn.setStyle({ fillStyle: '#7c3aed', strokeStyle: '#1e1b4b' });
+        if (q.accs && typeof VF.Accidental === 'function') {
+          q.accs.forEach((acc, idx) => {
+            if (acc) sn.addModifier(new VF.Accidental(acc), idx);
+          });
+        }
+        const voice = new VF.Voice({ numBeats: 4, beatValue: 4 });
+        if (typeof voice.setMode === 'function') voice.setMode(2);
+        voice.addTickables([sn]);
+        new VF.Formatter().joinVoices([voice]).format([voice], w - stave.getNoteStartX() - 36);
+        voice.draw(ctx, stave);
+        const svg = container.querySelector('svg');
+        if (svg) {
+          svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+          svg.style.width = '210px';
+          svg.style.height = '94px';
+          svg.style.display = 'block';
+          svg.style.margin = '2px auto 0';
+        }
+      } catch (e) {
+        container.innerHTML = `<div style="padding:10px;font-weight:900;color:#7c3aed;">${q.sub}</div>`;
+      }
+    }
+
+    // Audio Engine
+    let audioCtx = null;
+    let masterGain = null;
+    let bgmGain = null;
+    let sfxGain = null;
+    let analyser = null;
+    let freqData = null;
+    let audioImpulse = 0;
+    let muted = false;
+    let bgmEnabled = true;
+    let bgmStep = 0;
+    let nextBgmTime = 0;
+    let noiseBuffer = null;
+
+    const audioPrefs = (function loadPrefs() {
+      try {
+        const p = JSON.parse(localStorage.getItem('chord3dAudioPrefs') || '{}') || {};
+        return {
+          bgmVol: typeof p.bgmVol === 'number' ? p.bgmVol : 0.4,
+          sfxVol: typeof p.sfxVol === 'number' ? p.sfxVol : 0.9,
+          style: p.style || 'islandWaltz'
+        };
+      } catch (e) { return { bgmVol: 0.4, sfxVol: 0.9, style: 'islandWaltz' }; }
+    })();
+    function saveAudioPrefs() {
+      try { localStorage.setItem('chord3dAudioPrefs', JSON.stringify(audioPrefs)); } catch (e) {}
+    }
+
+    function unlockAudio() {
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!audioCtx) {
+          audioCtx = new AC();
+          masterGain = audioCtx.createGain();
+          masterGain.gain.value = muted ? 0 : 0.92;
+          bgmGain = audioCtx.createGain();
+          bgmGain.gain.value = bgmEnabled ? audioPrefs.bgmVol : 0;
+          sfxGain = audioCtx.createGain();
+          sfxGain.gain.value = audioPrefs.sfxVol;
+          analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 64;
+          analyser.smoothingTimeConstant = 0.78;
+          freqData = new Uint8Array(analyser.frequencyBinCount);
+          bgmGain.connect(masterGain);
+          sfxGain.connect(masterGain);
+          masterGain.connect(analyser);
+          analyser.connect(audioCtx.destination);
+          noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.2, audioCtx.sampleRate);
+          const ch = noiseBuffer.getChannelData(0);
+          for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+      } catch (e) {}
+    }
+
+    function playPianoNote(freq, dur, vol, delay) {
+      audioImpulse = Math.min(1.6, audioImpulse + (vol || 0.2) * 2.5);
+      if (muted || !audioCtx || !sfxGain) return;
+      try {
+        const now = audioCtx.currentTime + (delay || 0);
+        const d = dur || 0.65;
+        const v = vol || 0.22;
+        const o1 = audioCtx.createOscillator();
+        const o2 = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o1.type = 'triangle';
+        o1.frequency.setValueAtTime(freq, now);
+        o2.type = 'sine';
+        o2.frequency.setValueAtTime(freq * 2, now);
+        const g2 = audioCtx.createGain();
+        g2.gain.value = 0.28;
+        g.gain.setValueAtTime(0.001, now);
+        g.gain.linearRampToValueAtTime(v, now + 0.012);
+        g.gain.exponentialRampToValueAtTime(0.001, now + d);
+        o1.connect(g);
+        o2.connect(g2); g2.connect(g);
+        g.connect(sfxGain);
+        o1.start(now); o2.start(now);
+        o1.stop(now + d + 0.03); o2.stop(now + d + 0.03);
+      } catch (e) {}
+    }
+
+    function playBgmTone(freq, dur, type, vol, time) {
+      if (muted || !bgmEnabled || !audioCtx || !bgmGain) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = type || 'sine';
+        osc.frequency.setValueAtTime(freq, time);
+        g.gain.setValueAtTime(0.001, time);
+        g.gain.linearRampToValueAtTime(vol, time + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.001, time + dur);
+        osc.connect(g); g.connect(bgmGain);
+        osc.start(time); osc.stop(time + dur + 0.02);
+      } catch (e) {}
+    }
+
+    const ISLAND_STYLES = {
+      islandWaltz: {
+        bpm: 108, bassWave: 'triangle', leadWave: 'sine',
+        bass: [130.81, 0, 196.00, 261.63, 174.61, 0, 220.00, 261.63, 146.83, 0, 196.00, 246.94, 130.81, 0, 196.00, 0],
+        lead: [523.25, 659.25, 783.99, 659.25, 698.46, 587.33, 523.25, 0, 587.33, 698.46, 783.99, 587.33, 523.25, 0, 392.00, 0]
+      },
+      musicBox: {
+        bpm: 112, bassWave: 'sine', leadWave: 'sine',
+        bass: [261.63, 0, 329.63, 0, 220.00, 0, 261.63, 0, 174.61, 0, 220.00, 0, 196.00, 0, 246.94, 0],
+        lead: [783.99, 659.25, 523.25, 659.25, 880.00, 659.25, 523.25, 0, 698.46, 587.33, 523.25, 587.33, 783.99, 987.77, 783.99, 0]
+      },
+      arcade8bit: {
+        bpm: 126, bassWave: 'square', leadWave: 'square',
+        bass: [130.81, 130.81, 196.00, 130.81, 174.61, 174.61, 220.00, 174.61, 196.00, 196.00, 246.94, 196.00, 130.81, 164.81, 196.00, 261.63],
+        lead: [659.25, 523.25, 659.25, 783.99, 880.00, 783.99, 698.46, 659.25, 587.33, 659.25, 783.99, 587.33, 523.25, 0, 392.00, 0]
+      }
+    };
+
+    function tickIslandBgm() {
+      if (!audioCtx || !state.running || state.paused || muted || !bgmEnabled) return;
+      const st = ISLAND_STYLES[audioPrefs.style] || ISLAND_STYLES.islandWaltz;
+      const stepDur = 60 / st.bpm / 2;
+      if (nextBgmTime < audioCtx.currentTime) nextBgmTime = audioCtx.currentTime + 0.03;
+      while (nextBgmTime < audioCtx.currentTime + 0.14) {
+        const s = bgmStep % 16;
+        const b = st.bass[s];
+        if (b) playBgmTone(b, stepDur * 0.9, st.bassWave, st.bassWave === 'square' ? 0.05 : 0.09, nextBgmTime);
+        const l = st.lead[s];
+        if (l) playBgmTone(l, stepDur * 0.95, st.leadWave, st.leadWave === 'square' ? 0.045 : 0.075, nextBgmTime);
+        bgmStep += 1;
+        nextBgmTime += stepDur;
+      }
+    }
+
+    function sfxCorrectChord(midis, fever) {
+      midis.forEach((m, i) => playPianoNote(midiToFreq(m), 0.75, 0.16, i * 0.045));
+      if (fever) playPianoNote(midiToFreq(midis[midis.length - 1] + 12), 0.6, 0.12, 0.24);
+    }
+    function sfxWrong() {
+      playPianoNote(164.81, 0.25, 0.16, 0);
+      playPianoNote(155.56, 0.35, 0.16, 0.08);
+    }
+
+    // Three.js Scene
+    const stage = document.getElementById('gameStage');
+    const canvas = document.getElementById('glCanvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.08;
+
+    const skyNormal = new THREE.Color(0xdbeafe);
+    const skyFever = new THREE.Color(0x312e81);
+    const currentSky = skyNormal.clone();
+
+    const scene = new THREE.Scene();
+    scene.background = currentSky;
+    scene.fog = new THREE.Fog(currentSky.getHex(), 26, 78);
+
+    const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 120);
+    camera.position.set(0, 9.2, 13.5);
+    camera.lookAt(0, 0.9, 0.2);
+
+    const hemi = new THREE.HemisphereLight(0xffffff, 0xc4b5fd, 0.95);
+    scene.add(hemi);
+    const sun = new THREE.DirectionalLight(0xfffbeb, 1.0);
+    sun.position.set(10, 22, 12);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.camera.near = 2; sun.shadow.camera.far = 55;
+    sun.shadow.camera.left = -14; sun.shadow.camera.right = 14;
+    sun.shadow.camera.top = 14; sun.shadow.camera.bottom = -14;
+    scene.add(sun);
+
+    // Floating Island Platform
+    const islandGroup = new THREE.Group();
+    const islandTop = new THREE.Mesh(
+      new THREE.CylinderGeometry(11.6, 10.8, 0.9, 32),
+      new THREE.MeshStandardMaterial({ color: 0xecfdf5, roughness: 0.75 })
+    );
+    islandTop.position.y = -0.5;
+    islandTop.receiveShadow = true;
+    islandGroup.add(islandTop);
+
+    const islandRim = new THREE.Mesh(
+      new THREE.CylinderGeometry(11.9, 11.4, 0.35, 32),
+      new THREE.MeshStandardMaterial({ color: 0xa78bfa, roughness: 0.5 })
+    );
+    islandRim.position.y = -0.22;
+    islandGroup.add(islandRim);
+
+    const islandRock = new THREE.Mesh(
+      new THREE.ConeGeometry(10.6, 8.2, 12),
+      new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.9, flatShading: true })
+    );
+    islandRock.rotation.x = Math.PI;
+    islandRock.position.y = -5.0;
+    islandGroup.add(islandRock);
+    scene.add(islandGroup);
+
+    // Piano Frame Base
+    const pianoBase = new THREE.Mesh(
+      new THREE.BoxGeometry(15.6, 0.55, 5.4),
+      new THREE.MeshStandardMaterial({ color: 0x1e1b4b, roughness: 0.35, metalness: 0.2 })
+    );
+    pianoBase.position.set(0, 0.02, 0.1);
+    pianoBase.receiveShadow = true;
+    scene.add(pianoBase);
+
+    const pianoBackboard = new THREE.Mesh(
+      new THREE.BoxGeometry(15.6, 1.5, 0.6),
+      new THREE.MeshStandardMaterial({ color: 0x312e81, roughness: 0.3, metalness: 0.25 })
+    );
+    pianoBackboard.position.set(0, 0.85, -2.35);
+    pianoBackboard.castShadow = true;
+    scene.add(pianoBackboard);
+
+    // Audio-reactive Crystal Equalizer Pillars
+    const eqPillars = [];
+    const eqGeo = new THREE.OctahedronGeometry(0.45, 0);
+    for (let i = 0; i < 8; i++) {
+      const ang = (i / 8) * Math.PI - Math.PI; // arc behind island
+      const x = Math.cos(ang) * 9.8;
+      const z = Math.sin(ang) * 4.2 - 2.6;
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0xa855f7, emissive: 0x7c3aed, emissiveIntensity: 0.45,
+        transparent: true, opacity: 0.88, roughness: 0.2
+      });
+      const m = new THREE.Mesh(eqGeo, mat);
+      m.position.set(x, 1.2, z);
+      scene.add(m);
+      eqPillars.push({ mesh: m, mat, bin: (i * 2) % 16, phase: i * 0.7 });
+    }
+
+    // Floating Clouds
+    const clouds = [];
+    const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
+    for (let i = 0; i < 8; i++) {
+      const cg = new THREE.Group();
+      [[-1.4, 0, 0, 2.2, 1.0, 1.3], [0.2, 0.3, 0.1, 2.6, 1.3, 1.5], [1.7, -0.05, 0, 1.8, 0.9, 1.2]].forEach(([x, y, z, w, h, d]) => {
+        const puff = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), cloudMat);
+        puff.position.set(x, y, z); cg.add(puff);
+      });
+      cg.position.set(-22 + i * 6.5, 4 + (i % 3) * 2.5, -10 - (i % 4) * 5);
+      scene.add(cg);
+      clouds.push(cg);
+    }
+
+    // Build 17 Interactive 3D Piano Keys
+    const pianoKeys = [];
+    const clickableMeshes = [];
+    const KEY_SPACING = 1.44;
+    const WHITE_START_X = -4.5 * KEY_SPACING;
+
+    function makeKeyLabelTexture(text) {
+      const c = document.createElement('canvas');
+      c.width = 128; c.height = 128;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 128, 128);
+      ctx.fillStyle = '#475569';
+      ctx.font = '900 44px "Inter", "Noto Sans TC", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, 64, 64);
+      const tex = new THREE.CanvasTexture(c);
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    PIANO_LAYOUT.forEach((def, idx) => {
+      const x = WHITE_START_X + def.whiteIdx * KEY_SPACING;
+      const w = def.isBlack ? 0.82 : 1.32;
+      const h = def.isBlack ? 0.42 : 0.38;
+      const d = def.isBlack ? 2.7 : 4.4;
+      const baseY = def.isBlack ? 0.66 : 0.36;
+      const z = def.isBlack ? -0.82 : 0.15;
+
+      const mat = new THREE.MeshStandardMaterial({
+        color: def.isBlack ? 0x1e293b : 0xf8fafc,
+        roughness: def.isBlack ? 0.3 : 0.25,
+        metalness: 0.08,
+        emissive: 0x000000,
+        emissiveIntensity: 0
+      });
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+      mesh.position.set(x, baseY, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData.keyIndex = idx;
+      scene.add(mesh);
+      clickableMeshes.push(mesh);
+
+      let labelPlate = null;
+      if (!def.isBlack) {
+        const tex = makeKeyLabelTexture(def.label);
+        const plateMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.92 });
+        labelPlate = new THREE.Mesh(new THREE.PlaneGeometry(0.86, 0.86), plateMat);
+        labelPlate.rotation.x = -Math.PI / 2;
+        labelPlate.position.set(0, h * 0.5 + 0.01, 1.55);
+        mesh.add(labelPlate);
+      }
+
+      pianoKeys.push({
+        index: idx,
+        def,
+        mesh,
+        mat,
+        labelPlate,
+        x,
+        z,
+        baseY,
+        topY: baseY + h * 0.5,
+        press: 0,
+        selected: false,
+        flashState: null // 'ok' | 'err' | null
+      });
+    });
+
+    // Cursor highlight ring on piano
+    const cursorRing = new THREE.Mesh(
+      new THREE.RingGeometry(0.46, 0.62, 24),
+      new THREE.MeshBasicMaterial({ color: 0xfacc15, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })
+    );
+    cursorRing.rotation.x = -Math.PI / 2;
+    cursorRing.position.set(pianoKeys[0].x, pianoKeys[0].topY + 0.03, pianoKeys[0].z + 0.35);
+    scene.add(cursorRing);
+
+    // 3D Shiba Pianist Character
+    function createShibaPianist() {
+      const g = new THREE.Group();
+      const orange = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.65 });
+      const darkOrange = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.7 });
+      const cream = new THREE.MeshStandardMaterial({ color: 0xfffbeb, roughness: 0.7 });
+      const black = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4 });
+      const coat = new THREE.MeshStandardMaterial({ color: 0x6d28d9, roughness: 0.55 });
+      const red = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.5 });
+      const pink = new THREE.MeshStandardMaterial({ color: 0xfb7185, roughness: 0.6 });
+
+      function box(w, h, d, mat, x, y, z) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+        m.position.set(x, y, z); m.castShadow = true;
+        return m;
+      }
+
+      const rig = new THREE.Group();
+      g.add(rig);
+
+      // Tailcoat torso
+      rig.add(box(0.84, 0.82, 0.64, coat, 0, 0.78, 0));
+      rig.add(box(0.42, 0.62, 0.66, cream, 0, 0.82, 0.02)); // white shirt front
+      // Bow tie
+      rig.add(box(0.32, 0.14, 0.12, red, 0, 1.1, 0.34));
+      // Tailcoat tails
+      const tailL = box(0.26, 0.45, 0.12, coat, -0.22, 0.42, -0.34);
+      tailL.rotation.x = 0.25; rig.add(tailL);
+      const tailR = box(0.26, 0.45, 0.12, coat, 0.22, 0.42, -0.34);
+      tailR.rotation.x = 0.25; rig.add(tailR);
+
+      // Head (facing forward +Z toward camera/keys)
+      const head = new THREE.Group();
+      head.position.set(0, 1.56, 0.04);
+      head.add(box(0.92, 0.8, 0.84, orange, 0, 0, 0));
+      head.add(box(0.76, 0.34, 0.28, cream, 0, -0.16, 0.36));
+      head.add(box(0.32, 0.24, 0.24, cream, 0, -0.1, 0.48));
+      head.add(box(0.14, 0.1, 0.08, black, 0, -0.04, 0.61));
+      head.add(box(0.11, 0.12, 0.08, black, -0.22, 0.08, 0.42));
+      head.add(box(0.11, 0.12, 0.08, black, 0.22, 0.08, 0.42));
+
+      const earL = new THREE.Group();
+      earL.position.set(-0.32, 0.4, 0);
+      earL.add(box(0.24, 0.32, 0.18, darkOrange, 0, 0.14, 0));
+      earL.add(box(0.14, 0.2, 0.08, pink, 0, 0.12, 0.08));
+      head.add(earL);
+
+      const earR = new THREE.Group();
+      earR.position.set(0.32, 0.4, 0);
+      earR.add(box(0.24, 0.32, 0.18, darkOrange, 0, 0.14, 0));
+      earR.add(box(0.14, 0.2, 0.08, pink, 0, 0.12, 0.08));
+      head.add(earR);
+      rig.add(head);
+
+      // White-gloved arms
+      const armL = new THREE.Group();
+      armL.position.set(-0.54, 1.0, 0);
+      armL.add(box(0.2, 0.42, 0.22, coat, 0, -0.16, 0));
+      armL.add(box(0.22, 0.2, 0.24, cream, 0, -0.4, 0.06));
+      rig.add(armL);
+
+      const armR = new THREE.Group();
+      armR.position.set(0.54, 1.0, 0);
+      armR.add(box(0.2, 0.42, 0.22, coat, 0, -0.16, 0));
+      armR.add(box(0.22, 0.2, 0.24, cream, 0, -0.4, 0.06));
+      rig.add(armR);
+
+      // Legs
+      const legL = box(0.26, 0.38, 0.28, cream, -0.22, 0.19, 0.02);
+      const legR = box(0.26, 0.38, 0.28, cream, 0.22, 0.19, 0.02);
+      rig.add(legL); rig.add(legR);
+
+      // Fever aura
+      const aura = new THREE.Mesh(
+        new THREE.TorusGeometry(0.95, 0.06, 10, 28),
+        new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: 0.78 })
+      );
+      aura.rotation.x = Math.PI / 2;
+      aura.position.y = 0.25;
+      aura.visible = false;
+      g.add(aura);
+
+      g.userData = { rig, head, earL, earR, armL, armR, legL, legR, aura };
+      return g;
+    }
+
+    const shiba = createShibaPianist();
+    shiba.position.set(pianoKeys[0].x, pianoKeys[0].topY, pianoKeys[0].z);
+    scene.add(shiba);
+
+    const activeMixers = [];
+    if (typeof THREE.GLTFLoader === 'function') {
+      try {
+        const loader = new THREE.GLTFLoader();
+        loader.load('models/shiba-pianist.glb', (gltf) => {
+          const root = gltf.scene || (gltf.scenes && gltf.scenes[0]);
+          if (!root) return;
+          root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+          const b = new THREE.Box3().setFromObject(root);
+          const sz = new THREE.Vector3();
+          b.getSize(sz);
+          const sc = 1.95 / Math.max(sz.y, 0.001);
+          root.scale.setScalar(sc);
+          const b2 = new THREE.Box3().setFromObject(root);
+          const ct = new THREE.Vector3();
+          b2.getCenter(ct);
+          root.position.set(-ct.x, -b2.min.y, -ct.z);
+          shiba.userData.rig.children.forEach((ch) => { ch.visible = false; });
+          shiba.userData.rig.add(root);
+          if (gltf.animations && gltf.animations.length) {
+            const mixer = new THREE.AnimationMixer(root);
+            mixer.clipAction(gltf.animations[0]).play();
+            activeMixers.push(mixer);
+          }
+        }, undefined, () => {});
+      } catch (e) {}
+    }
+
+    // 3D Note Particles
+    const NOTE_GLYPHS = ['♪', '♫', '♩', '★'];
+    const noteTexCache = NOTE_GLYPHS.map((glyph) => {
+      const c = document.createElement('canvas');
+      c.width = 128; c.height = 128;
+      const ctx = c.getContext('2d');
+      ctx.shadowColor = 'rgba(255,255,255,0.9)';
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 84px "Inter", "Noto Sans TC", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(glyph, 64, 68);
+      return new THREE.CanvasTexture(c);
+    });
+
+    const noteSprites = [];
+    function spawnNoteBurst(x, y, z, colorHex, count) {
+      for (let i = 0; i < (count || 6); i++) {
+        const tex = noteTexCache[i % noteTexCache.length];
+        const mat = new THREE.SpriteMaterial({ map: tex, color: colorHex, transparent: true, opacity: 1, depthWrite: false });
+        const sp = new THREE.Sprite(mat);
+        sp.position.set(x, y, z);
+        sp.scale.set(0.75, 0.75, 1);
+        scene.add(sp);
+        noteSprites.push({
+          sprite: sp, mat,
+          vx: (Math.random() - 0.5) * 4.5,
+          vy: 2.8 + Math.random() * 3.8,
+          vz: (Math.random() - 0.5) * 3.5,
+          life: 0.85 + Math.random() * 0.3,
+          maxLife: 1.15
+        });
+      }
+    }
+
+    // Game State
+    const state = {
+      running: false,
+      paused: false,
+      locked: false,
+      topic: 'triads',
+      mode: 'sprint10',
+      hintMode: 'show',
+      score: 0,
+      combo: 0,
+      maxCombo: 0,
+      correctCount: 0,
+      totalCount: 0,
+      lives: 3,
+      cursorIdx: 0,
+      selectedMidis: [],
+      question: null,
+      mistakes: [],
+      hop: null, // { sx, sz, sy, tx, tz, ty, t, dur }
+      shake: 0,
+      rafId: 0,
+      lastTime: 0
+    };
+
+    function readBest(topic) {
+      try { return parseInt(localStorage.getItem('chordIsland3dBest_' + topic) || '0', 10) || 0; }
+      catch (e) { return 0; }
+    }
+    function saveBest(topic, score) {
+      try {
+        if (score > readBest(topic)) localStorage.setItem('chordIsland3dBest_' + topic, String(score));
+      } catch (e) {}
+    }
+
+    const hudScore = document.getElementById('hudScore');
+    const hudCombo = document.getElementById('hudCombo');
+    const hudHearts = document.getElementById('hudHearts');
+    const feverBadge = document.getElementById('feverBadge');
+    const bestBar = document.getElementById('bestBar');
+    const promptWrap = document.getElementById('promptWrap');
+    const promptBadge = document.getElementById('promptBadge');
+    const promptTitle = document.getElementById('promptTitle');
+    const promptVisual = document.getElementById('promptVisual');
+    const promptSub = document.getElementById('promptSub');
+    const selectedChips = document.getElementById('selectedChips');
+    const fxBanner = document.getElementById('fxBanner');
+    const startOverlay = document.getElementById('startOverlay');
+    const resultOverlay = document.getElementById('resultOverlay');
+    let fxTimer = 0;
+
+    function updateBestBar() { bestBar.textContent = `🏆 本機最高分：${readBest(state.topic)}`; }
+
+    function updateKeyHintVisibility() {
+      pianoKeys.forEach((k) => {
+        if (!k.labelPlate) return;
+        if (state.hintMode === 'blind') {
+          k.labelPlate.visible = (k.def.midi === 60 || k.def.midi === 72);
+        } else {
+          k.labelPlate.visible = true;
+        }
+      });
+    }
+
+    function updateHud() {
+      hudScore.textContent = String(state.score);
+      hudCombo.textContent = state.combo >= 2 ? `🔥${state.combo}` : String(state.combo);
+      if (state.mode === 'sprint10') {
+        hudHearts.textContent = `🏁 ${state.totalCount}/10`;
+      } else {
+        hudHearts.textContent = '❤️'.repeat(Math.max(0, state.lives)) + '🖤'.repeat(Math.max(0, 3 - state.lives));
+      }
+      const isFever = state.combo >= 3;
+      feverBadge.classList.toggle('active', isFever);
+      shiba.userData.aura.visible = isFever && state.running;
+    }
+
+    function showBanner(text, ok) {
+      fxBanner.textContent = text;
+      fxBanner.className = 'fx-banner show ' + (ok ? 'ok' : 'err');
+      clearTimeout(fxTimer);
+      fxTimer = setTimeout(() => { fxBanner.classList.remove('show'); }, 1050);
+    }
+
+    function paintSelectedChips() {
+      if (!state.question) return;
+      const needed = state.question.targetMidis.length;
+      const sorted = state.selectedMidis.slice().sort((a, b) => a - b);
+      let html = '';
+      for (let i = 0; i < needed; i++) {
+        if (i < sorted.length) {
+          const k = PIANO_LAYOUT.find(p => p.midi === sorted[i]);
+          html += `<span class="note-chip">${k ? k.label : sorted[i]}</span>`;
+        } else {
+          html += `<span class="note-chip empty">?</span>`;
+        }
+      }
+      selectedChips.innerHTML = html;
+    }
+
+    function clearKeyHighlights() {
+      state.selectedMidis = [];
+      pianoKeys.forEach((k) => {
+        k.selected = false;
+        k.flashState = null;
+      });
+      paintSelectedChips();
+    }
+
+    function loadNextQuestion() {
+      state.locked = false;
+      clearKeyHighlights();
+      state.question = buildQuestion(state.topic);
+      promptWrap.classList.remove('is-hidden');
+      const num = state.totalCount + 1;
+      const totalSuffix = state.mode === 'sprint10' ? ' / 10 題' : ' 題';
+      promptBadge.textContent = `${state.question.badge} · 第 ${num}${totalSuffix}`;
+      promptTitle.textContent = state.question.title;
+      promptSub.textContent = `踩出 ${state.question.targetMidis.length} 個琴鍵（${state.question.sub}）`;
+      promptVisual.innerHTML = '';
+      renderVexChord(promptVisual, state.question);
+      paintSelectedChips();
+    }
+
+    function jumpToKeyIndex(idx, toggleSelect) {
+      const clamped = Math.max(0, Math.min(pianoKeys.length - 1, idx));
+      state.cursorIdx = clamped;
+      const keyObj = pianoKeys[clamped];
+      keyObj.press = 1.0;
+
+      state.hop = {
+        sx: shiba.position.x,
+        sz: shiba.position.z,
+        sy: shiba.position.y,
+        tx: keyObj.x,
+        tz: keyObj.z + (keyObj.def.isBlack ? 0 : 0.35),
+        ty: keyObj.topY,
+        t: 0,
+        dur: 0.18
+      };
+
+      playPianoNote(midiToFreq(keyObj.def.midi), 0.7, 0.24, 0);
+      spawnNoteBurst(keyObj.x, keyObj.topY + 1.1, keyObj.z, 0xc084fc, 4);
+
+      if (!toggleSelect || !state.running || state.paused || state.locked || !state.question) return;
+
+      const midi = keyObj.def.midi;
+      const existingIdx = state.selectedMidis.indexOf(midi);
+      if (existingIdx >= 0) {
+        state.selectedMidis.splice(existingIdx, 1);
+        keyObj.selected = false;
+      } else {
+        state.selectedMidis.push(midi);
+        keyObj.selected = true;
+      }
+      paintSelectedChips();
+
+      if (state.selectedMidis.length >= state.question.targetMidis.length) {
+        state.locked = true;
+        setTimeout(evaluateAnswer, 260);
+      }
+    }
+
+    function evaluateAnswer() {
+      if (!state.running || !state.question) return;
+      const q = state.question;
+      const picked = state.selectedMidis.slice().sort((a, b) => a - b);
+      const target = q.targetMidis;
+      const isCorrect = picked.length === target.length && picked.every((v, i) => v === target[i]);
+
+      state.totalCount += 1;
+      if (isCorrect) {
+        state.correctCount += 1;
+        state.combo += 1;
+        if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+        const mult = state.combo >= 3 ? 2 : 1;
+        const gain = (120 + state.combo * 25) * mult;
+        state.score += gain;
+        pianoKeys.forEach(k => { if (k.selected) k.flashState = 'ok'; });
+        sfxCorrectChord(target, state.combo >= 3);
+        spawnNoteBurst(shiba.position.x, shiba.position.y + 1.8, shiba.position.z, 0x34d399, 10);
+        showBanner(state.combo >= 3 ? `🔥 FEVER 2×！+${gain} 分` : `✨ 完美和弦！+${gain} 分`, true);
+      } else {
+        state.combo = 0;
+        if (state.mode === 'endless') state.lives -= 1;
+        state.shake = 0.38;
+        pianoKeys.forEach(k => {
+          if (target.includes(k.def.midi)) k.flashState = 'ok';
+          else if (k.selected) k.flashState = 'err';
+        });
+        const pickedNames = picked.map(m => (PIANO_LAYOUT.find(p => p.midi === m) || {}).label || m).join('+');
+        state.mistakes.push(`${q.explain}（你踩了 ${pickedNames}）`);
+        sfxWrong();
+        showBanner(`❌ 正確組合：${q.explain.split('（')[1]?.replace('）', '') || q.sub}`, false);
+      }
+
+      updateHud();
+      const finishedSprint = state.mode === 'sprint10' && state.totalCount >= 10;
+      const outOfLives = state.mode === 'endless' && state.lives <= 0;
+      setTimeout(() => {
+        if (!state.running) return;
+        if (finishedSprint || outOfLives) endGame();
+        else loadNextQuestion();
+      }, isCorrect ? 720 : 1250);
+    }
+
+    function startGame() {
+      unlockAudio();
+      state.running = true;
+      state.paused = false;
+      state.locked = false;
+      state.score = 0;
+      state.combo = 0;
+      state.maxCombo = 0;
+      state.correctCount = 0;
+      state.totalCount = 0;
+      state.lives = 3;
+      state.mistakes = [];
+      state.cursorIdx = 0;
+      shiba.position.set(pianoKeys[0].x, pianoKeys[0].topY, pianoKeys[0].z + 0.35);
+      startOverlay.classList.add('hidden');
+      resultOverlay.classList.add('hidden');
+      document.getElementById('btnPause').textContent = '⏸';
+      updateKeyHintVisibility();
+      updateHud();
+      loadNextQuestion();
+    }
+
+    const TOPIC_LABELS = { triads: '三和弦', intervals: '音程跳躍', sevenths: '七和弦', mixed: '綜合音樂島' };
+
+    function readStoredStudent() {
+      try {
+        const s = JSON.parse(localStorage.getItem('musicGameSettingsV4') || '{}') || {};
+        let name = (s.savedName === '__other__' ? s.savedCustomName : s.savedName) || '';
+        name = String(name || '').trim();
+        if (!name || name === '訪客' || name === '__other__') return null;
+        return {
+          name,
+          grade: parseInt(s.userGrade, 10) || 0,
+          class: String(s.userClass || 'A'),
+          id: String(s.userId || '')
+        };
+      } catch (e) { return null; }
+    }
+
+    function paintPlayerBadge() {
+      const el = document.getElementById('playerBadge');
+      if (!el) return;
+      const u = readStoredStudent();
+      if (u) {
+        const gTxt = u.grade ? `中${['', '一', '二', '三', '四', '五', '六'][u.grade] || u.grade}` : '';
+        el.textContent = `👤 ${u.name}（${gTxt}${u.class}班）· 成績將同步排行榜`;
+      } else {
+        el.textContent = '👤 訪客模式（先回大廳選姓名即可上榜）';
+      }
+    }
+
+    function submit3DRank(gameKey, score, accuracy, maxCombo, modeName, difficulty) {
+      const statusEl = document.getElementById('rankStatus');
+      const user = readStoredStudent();
+      if (!user || !score) {
+        if (statusEl) {
+          statusEl.style.display = 'inline-flex';
+          statusEl.textContent = !user ? '💡 回大廳選擇學生姓名後即可上傳排行榜' : '💡 取得分數即可上傳排行榜';
+        }
+        return;
+      }
+      const record = {
+        game: gameKey,
+        name: user.name,
+        grade: user.grade,
+        class: user.class,
+        id: user.id || '',
+        mode: gameKey,
+        mode_name: modeName,
+        score,
+        max_combo: maxCombo,
+        accuracy,
+        difficulty: difficulty || '',
+        timestamp: new Date().toLocaleString('zh-TW')
+      };
+      try {
+        const key = 'musicGameRanks_' + gameKey;
+        const all = JSON.parse(localStorage.getItem(key) || '[]');
+        const idx = all.findIndex(r => r.name === user.name && r.class === user.class && Number(r.grade) === Number(user.grade) && (r.difficulty || '') === (difficulty || ''));
+        if (idx >= 0) {
+          if (score > (all[idx].score || 0)) all[idx] = Object.assign({}, all[idx], record);
+        } else {
+          all.push(record);
+        }
+        localStorage.setItem(key, JSON.stringify(all));
+        const pending = JSON.parse(localStorage.getItem('musicGamePending3DRanks') || '[]');
+        pending.push(record);
+        localStorage.setItem('musicGamePending3DRanks', JSON.stringify(pending.slice(-20)));
+        if (statusEl) {
+          statusEl.style.display = 'inline-flex';
+          statusEl.textContent = `✅ 已記錄 ${user.name} 的成績，點下方即可看排行榜！`;
+        }
+      } catch (e) {
+        if (statusEl) {
+          statusEl.style.display = 'inline-flex';
+          statusEl.textContent = '💾 已儲存至本機紀錄';
+        }
+      }
+    }
+
+    function endGame() {
+      state.running = false;
+      promptWrap.classList.add('is-hidden');
+      shiba.userData.aura.visible = false;
+      saveBest(state.topic, state.score);
+      updateBestBar();
+      const acc = state.totalCount ? Math.round((state.correctCount / state.totalCount) * 100) : 0;
+      document.getElementById('resScore').textContent = String(state.score);
+      document.getElementById('resCorrect').textContent = `${state.correctCount}/${state.totalCount} (${acc}%)`;
+      document.getElementById('resCombo').textContent = String(state.maxCombo);
+      document.getElementById('resultTitle').textContent = acc >= 90 ? '立體鋼琴大師！🏆' : '演奏挑戰完成！🎉';
+      document.getElementById('resultSub').textContent = `本模式最高紀錄：${readBest(state.topic)} 分`;
+      const rev = document.getElementById('resReview');
+      if (state.mistakes.length) {
+        rev.style.display = 'block';
+        rev.innerHTML = '<b>📝 錯題溫習：</b><ul>' + state.mistakes.slice(0, 6).map(m => `<li>${m}</li>`).join('') + '</ul>';
+      } else {
+        rev.style.display = 'none';
+      }
+      const diffLabel = state.hintMode === 'blind' ? 'Hard' : 'Normal';
+      submit3DRank('chord3d', state.score, acc, state.maxCombo, TOPIC_LABELS[state.topic] || state.topic, diffLabel);
+      resultOverlay.classList.remove('hidden');
+    }
+
+    // Raycasting on 3D Piano Keys
+    const raycaster = new THREE.Raycaster();
+    const pointerNdc = new THREE.Vector2();
+    canvas.addEventListener('pointerdown', (e) => {
+      if (!state.running || state.paused || state.locked) return;
+      unlockAudio();
+      const rect = canvas.getBoundingClientRect();
+      pointerNdc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      pointerNdc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointerNdc, camera);
+      const hits = raycaster.intersectObjects(clickableMeshes, false);
+      if (hits.length > 0) {
+        const keyIdx = hits[0].object.userData.keyIndex;
+        if (typeof keyIdx === 'number') jumpToKeyIndex(keyIdx, true);
+      }
+    });
+
+    // UI Bindings
+    document.getElementById('topicPicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-topic]');
+      if (!btn) return;
+      state.topic = btn.dataset.topic;
+      document.querySelectorAll('#topicPicker .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+      updateBestBar();
+    });
+    document.getElementById('modePicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-mode]');
+      if (!btn) return;
+      state.mode = btn.dataset.mode;
+      document.querySelectorAll('#modePicker .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+    });
+    document.getElementById('hintPicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-hint]');
+      if (!btn) return;
+      state.hintMode = btn.dataset.hint;
+      document.querySelectorAll('#hintPicker .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+    });
+
+    document.getElementById('btnHearNote').addEventListener('click', () => {
+      unlockAudio();
+      if (state.question) {
+        state.question.targetMidis.forEach((m, i) => playPianoNote(midiToFreq(m), 0.7, 0.16, i * 0.14));
+      }
+    });
+    document.getElementById('btnStart').addEventListener('click', startGame);
+    document.getElementById('btnRestart').addEventListener('click', startGame);
+    document.getElementById('btnBackMenu').addEventListener('click', () => {
+      resultOverlay.classList.add('hidden');
+      startOverlay.classList.remove('hidden');
+      updateBestBar();
+    });
+
+    document.getElementById('btnLeft').addEventListener('click', () => {
+      if (!state.running || state.paused || state.locked) return;
+      unlockAudio();
+      jumpToKeyIndex(state.cursorIdx - 1, false);
+    });
+    document.getElementById('btnRight').addEventListener('click', () => {
+      if (!state.running || state.paused || state.locked) return;
+      unlockAudio();
+      jumpToKeyIndex(state.cursorIdx + 1, false);
+    });
+    document.getElementById('btnStomp').addEventListener('click', () => {
+      if (!state.running || state.paused || state.locked) return;
+      unlockAudio();
+      jumpToKeyIndex(state.cursorIdx, true);
+    });
+    document.getElementById('btnClear').addEventListener('click', () => {
+      if (!state.running || state.paused || state.locked) return;
+      clearKeyHighlights();
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (!state.running || state.paused || state.locked) return;
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+        e.preventDefault(); unlockAudio(); jumpToKeyIndex(state.cursorIdx - 1, false);
+      } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+        e.preventDefault(); unlockAudio(); jumpToKeyIndex(state.cursorIdx + 1, false);
+      } else if (e.code === 'Space' || e.key === 'Enter' || e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') {
+        e.preventDefault(); unlockAudio(); jumpToKeyIndex(state.cursorIdx, true);
+      } else if (e.key === 'Backspace' || e.key === 'Escape') {
+        clearKeyHighlights();
+      }
+    });
+
+    // Mixer Controls
+    const bgmRange = document.getElementById('bgmVolRange');
+    const sfxRange = document.getElementById('sfxVolRange');
+    const bgmValEl = document.getElementById('bgmVolVal');
+    const sfxValEl = document.getElementById('sfxVolVal');
+    const mixerEl = document.getElementById('audioMixer');
+
+    function applyAudioPrefsToUi() {
+      bgmRange.value = String(Math.round(audioPrefs.bgmVol * 100));
+      sfxRange.value = String(Math.round(audioPrefs.sfxVol * 100));
+      bgmValEl.textContent = bgmRange.value + '%';
+      sfxValEl.textContent = sfxRange.value + '%';
+      document.querySelectorAll('[data-bgm-style]').forEach((b) => {
+        b.classList.toggle('active', b.dataset.bgmStyle === audioPrefs.style);
+      });
+      const btnBgm = document.getElementById('btnBgm');
+      if (btnBgm) {
+        btnBgm.textContent = bgmEnabled ? '🎵' : '🎶';
+        btnBgm.style.opacity = bgmEnabled ? '1' : '0.55';
+      }
+      if (bgmGain && audioCtx) bgmGain.gain.setTargetAtTime(bgmEnabled ? audioPrefs.bgmVol : 0, audioCtx.currentTime, 0.03);
+      if (sfxGain && audioCtx) sfxGain.gain.setTargetAtTime(audioPrefs.sfxVol, audioCtx.currentTime, 0.03);
+    }
+
+    function setBgmStyle(styleKey) {
+      if (!ISLAND_STYLES[styleKey]) return;
+      audioPrefs.style = styleKey;
+      bgmStep = 0;
+      saveAudioPrefs();
+      applyAudioPrefsToUi();
+    }
+
+    document.getElementById('bgmStylePicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-bgm-style]');
+      if (btn) { unlockAudio(); setBgmStyle(btn.dataset.bgmStyle); }
+    });
+    document.getElementById('mixerStylePicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-bgm-style]');
+      if (btn) { unlockAudio(); setBgmStyle(btn.dataset.bgmStyle); }
+    });
+    bgmRange.addEventListener('input', () => {
+      unlockAudio();
+      audioPrefs.bgmVol = Math.max(0, Math.min(1, Number(bgmRange.value) / 100));
+      bgmEnabled = audioPrefs.bgmVol > 0;
+      saveAudioPrefs();
+      applyAudioPrefsToUi();
+    });
+    sfxRange.addEventListener('input', () => {
+      unlockAudio();
+      audioPrefs.sfxVol = Math.max(0, Math.min(1, Number(sfxRange.value) / 100));
+      saveAudioPrefs();
+      applyAudioPrefsToUi();
+    });
+    document.getElementById('btnMixer').addEventListener('click', (e) => {
+      e.stopPropagation();
+      unlockAudio();
+      mixerEl.classList.toggle('open');
+    });
+    document.addEventListener('pointerdown', (e) => {
+      if (mixerEl.classList.contains('open') && !mixerEl.contains(e.target) && e.target.id !== 'btnMixer') {
+        mixerEl.classList.remove('open');
+      }
+    });
+    document.getElementById('btnBgm').addEventListener('click', () => {
+      unlockAudio();
+      bgmEnabled = !bgmEnabled;
+      applyAudioPrefsToUi();
+    });
+    document.getElementById('btnMute').addEventListener('click', (e) => {
+      unlockAudio();
+      muted = !muted;
+      e.currentTarget.textContent = muted ? '🔇' : '🔊';
+      if (masterGain && audioCtx) masterGain.gain.setTargetAtTime(muted ? 0 : 0.92, audioCtx.currentTime, 0.04);
+    });
+    document.getElementById('btnPause').addEventListener('click', (e) => {
+      if (!state.running) return;
+      state.paused = !state.paused;
+      e.currentTarget.textContent = state.paused ? '▶' : '⏸';
+      if (state.paused) startOverlay.classList.remove('hidden');
+      else startOverlay.classList.add('hidden');
+    });
+
+    function onResize() {
+      const w = stage.clientWidth || window.innerWidth;
+      const h = stage.clientHeight || window.innerHeight;
+      camera.aspect = w / h;
+      camera.fov = w < 640 ? 58 : 48;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h, false);
+    }
+    window.addEventListener('resize', onResize);
+
+    // Animation Loop
+    function animate(now) {
+      state.rafId = requestAnimationFrame(animate);
+      const dt = Math.min(0.05, (now - (state.lastTime || now)) / 1000);
+      state.lastTime = now;
+      const t = now * 0.001;
+
+      const targetSky = (state.running && state.combo >= 3) ? skyFever : skyNormal;
+      currentSky.lerp(targetSky, Math.min(1, dt * 2.2));
+      scene.fog.color.copy(currentSky);
+
+      for (let i = 0; i < activeMixers.length; i++) activeMixers[i].update(dt);
+
+      audioImpulse = Math.max(0, audioImpulse - dt * 2.6);
+      let avgAudio = audioImpulse * 0.35;
+      if (analyser && freqData) {
+        analyser.getByteFrequencyData(freqData);
+        let sum = 0;
+        for (let i = 0; i < 16; i++) sum += freqData[i];
+        avgAudio = Math.max(avgAudio, (sum / (16 * 255)) * 1.8);
+      }
+
+      const eqTarget = new THREE.Color(state.combo >= 3 ? 0xfacc15 : 0xa855f7);
+      for (let i = 0; i < eqPillars.length; i++) {
+        const ep = eqPillars[i];
+        const binVal = (analyser && freqData) ? (freqData[ep.bin] / 255) : 0;
+        const sc = 0.8 + binVal * 1.6 + Math.sin(t * 2.4 + ep.phase) * 0.15;
+        ep.mesh.scale.set(sc * 0.85, sc * 1.6, sc * 0.85);
+        ep.mesh.position.y = 1.1 + Math.sin(t * 1.8 + ep.phase) * 0.25;
+        ep.mesh.rotation.y += dt * 1.1;
+        ep.mat.color.lerp(eqTarget, Math.min(1, dt * 4));
+        ep.mat.emissive.lerp(eqTarget, Math.min(1, dt * 4));
+        ep.mat.emissiveIntensity = 0.35 + avgAudio * 0.9;
+      }
+
+      for (let i = 0; i < clouds.length; i++) {
+        clouds[i].position.x += dt * 0.45;
+        if (clouds[i].position.x > 26) clouds[i].position.x = -26;
+      }
+
+      // Animate Piano Keys
+      for (let i = 0; i < pianoKeys.length; i++) {
+        const k = pianoKeys[i];
+        k.press = Math.max(0, k.press - dt * 5.2);
+        const depth = (k.press * 0.16) + (k.selected ? 0.08 : 0);
+        k.mesh.position.y = k.baseY - depth;
+
+        if (k.flashState === 'ok') {
+          k.mat.emissive.setHex(0x10b981);
+          k.mat.emissiveIntensity = 0.75;
+        } else if (k.flashState === 'err') {
+          k.mat.emissive.setHex(0xef4444);
+          k.mat.emissiveIntensity = 0.75;
+        } else if (k.selected) {
+          k.mat.emissive.setHex(0x8b5cf6);
+          k.mat.emissiveIntensity = 0.6;
+        } else if (i === state.cursorIdx && state.running) {
+          k.mat.emissive.setHex(0x38bdf8);
+          k.mat.emissiveIntensity = 0.25 + Math.sin(t * 6) * 0.1;
+        } else {
+          k.mat.emissive.setHex(0x000000);
+          k.mat.emissiveIntensity = 0;
+        }
+      }
+
+      // Update cursor ring
+      const curKey = pianoKeys[state.cursorIdx] || pianoKeys[0];
+      cursorRing.position.x += (curKey.x - cursorRing.position.x) * Math.min(1, dt * 16);
+      cursorRing.position.z += ((curKey.z + (curKey.def.isBlack ? 0 : 0.35)) - cursorRing.position.z) * Math.min(1, dt * 16);
+      cursorRing.position.y = curKey.topY + 0.03;
+      cursorRing.visible = state.running;
+
+      // Update Shiba Pianist hop or idle
+      if (state.hop) {
+        state.hop.t += dt;
+        const p = Math.min(1, state.hop.t / state.hop.dur);
+        const arc = Math.sin(p * Math.PI) * 1.45;
+        shiba.position.x = state.hop.sx + (state.hop.tx - state.hop.sx) * p;
+        shiba.position.z = state.hop.sz + (state.hop.tz - state.hop.sz) * p;
+        shiba.position.y = state.hop.sy + (state.hop.ty - state.hop.sy) * p + arc;
+        shiba.userData.armL.rotation.x = -0.9 * Math.sin(p * Math.PI);
+        shiba.userData.armR.rotation.x = -0.9 * Math.sin(p * Math.PI);
+        if (p >= 1) {
+          state.hop = null;
+          shiba.userData.rig.scale.set(1.12, 0.86, 1.12);
+        }
+      } else {
+        const restY = curKey.topY - (curKey.selected ? 0.08 : 0);
+        shiba.position.y += (restY - shiba.position.y) * Math.min(1, dt * 14);
+        shiba.userData.armL.rotation.x = Math.sin(t * 4) * 0.12;
+        shiba.userData.armR.rotation.x = -Math.sin(t * 4) * 0.12;
+      }
+
+      shiba.userData.rig.scale.x += (1 - shiba.userData.rig.scale.x) * Math.min(1, dt * 12);
+      shiba.userData.rig.scale.y += (1 - shiba.userData.rig.scale.y) * Math.min(1, dt * 12);
+      shiba.userData.rig.scale.z += (1 - shiba.userData.rig.scale.z) * Math.min(1, dt * 12);
+      shiba.userData.head.rotation.y = Math.sin(t * 2.2) * 0.08;
+      shiba.userData.earL.rotation.z = 0.08 + Math.sin(t * 8) * 0.08;
+      shiba.userData.earR.rotation.z = -0.08 - Math.sin(t * 8) * 0.08;
+      if (shiba.userData.aura.visible) shiba.userData.aura.rotation.z += dt * 3.5;
+
+      tickIslandBgm();
+
+      // Update 3D note sprites
+      for (let i = noteSprites.length - 1; i >= 0; i--) {
+        const ns = noteSprites[i];
+        ns.life -= dt;
+        ns.sprite.position.x += ns.vx * dt;
+        ns.sprite.position.y += ns.vy * dt;
+        ns.sprite.position.z += ns.vz * dt;
+        ns.vy -= 6.5 * dt;
+        const ratio = Math.max(0, ns.life / ns.maxLife);
+        ns.mat.opacity = ratio;
+        const sc = 0.55 + (1 - ratio) * 0.45;
+        ns.sprite.scale.set(sc, sc, 1);
+        if (ns.life <= 0) { scene.remove(ns.sprite); ns.mat.dispose(); noteSprites.splice(i, 1); }
+      }
+
+      // Gentle camera follow + screen shake
+      let camX = shiba.position.x * 0.24;
+      let camY = 9.2;
+      if (state.shake > 0) {
+        camX += (Math.random() - 0.5) * state.shake * 1.1;
+        camY += (Math.random() - 0.5) * state.shake * 0.9;
+        state.shake = Math.max(0, state.shake - dt * 1.8);
+      }
+      camera.position.x += (camX - camera.position.x) * Math.min(1, dt * 6);
+      camera.position.y += (camY - camera.position.y) * Math.min(1, dt * 6);
+      camera.lookAt(shiba.position.x * 0.18, 0.85, 0.2);
+
+      renderer.render(scene, camera);
+    }
+
+    window.onload = function () {
+      onResize();
+      paintPlayerBadge();
+      applyAudioPrefsToUi();
+      updateBestBar();
+      updateHud();
+      state.rafId = requestAnimationFrame(animate);
+    };
+  })();
+  </script>
+</body>
+</html>
