@@ -4366,6 +4366,10 @@
             renderRanksForGame(gf.value, deviceClassroomRows(gf.value));
             return;
         }
+        if (gf && (gf.value === 'shiba3d' || gf.value === 'rhythm3d' || gf.value === 'chord3d')) {
+            renderRanksForGame(gf.value, deviceClassroomRows(gf.value));
+            return;
+        }
         if (gf && gf.value !== 'game1') { renderRanksForGame(gf.value); return; }
         const fC = dom.rankClassFilter.value, fG = parseInt(dom.rankGradeFilter.value), fM = dom.rankModeFilter.value;
         const abrsmWrap = document.getElementById('rankAbrsmFilterWrap');
@@ -5872,6 +5876,22 @@
             const needs = unsigned || (!hasAuthName && (!val || val === '__guest__' || val === '__other__'));
             hubScreen.classList.toggle('hub-needs-login', needs);
             document.querySelectorAll('#screen-hub .hub-game-card').forEach(c => c.classList.toggle('is-locked', needs));
+            if (hasAuthName) {
+                try {
+                    const authUser = getBoundAuthUser();
+                    if (authUser && authUser.name) {
+                        const cur = JSON.parse(localStorage.getItem('musicGameSettingsV4') || '{}') || {};
+                        if (!cur.savedName || cur.savedName === '訪客' || cur.savedName === '__other__') {
+                            localStorage.setItem('musicGameSettingsV4', JSON.stringify(Object.assign({}, cur, {
+                                savedName: authUser.name,
+                                userGrade: authUser.grade ? String(authUser.grade) : (cur.userGrade || ''),
+                                userClass: authUser.class || cur.userClass || 'A',
+                                userId: authUser.id || cur.userId || ''
+                            })));
+                        }
+                    }
+                } catch (e) {}
+            }
         }
 
         const hubQuickGuestBtn = document.getElementById('hubQuickGuestBtn');
