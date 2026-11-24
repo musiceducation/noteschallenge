@@ -212,6 +212,18 @@
       background: linear-gradient(135deg, #f59e0b, #ec4899);
       box-shadow: 0 10px 26px rgba(236, 72, 153, 0.4);
     }
+    .audio-mixer {
+      position: absolute; top: 62px; right: 12px; z-index: 25;
+      width: 248px; padding: 12px 14px; border-radius: 18px;
+      background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(12px);
+      border: 1.5px solid rgba(56, 189, 248, 0.55); box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+      display: none; flex-direction: column; gap: 8px;
+    }
+    .audio-mixer.open { display: flex; }
+    .mixer-row { display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 800; color: #cbd5e1; }
+    .audio-mixer input[type="range"] { width: 100%; accent-color: #38bdf8; cursor: pointer; }
+    .mixer-styles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+    .mixer-styles .seg-btn { padding: 6px 4px; font-size: 0.72rem; }
     @media (max-width: 640px) {
       .hud-pill { padding: 6px 10px; gap: 8px; }
       .pad-btn { height: 70px; }
@@ -235,8 +247,24 @@
       </div>
       <div class="hud-actions">
         <a href="index.html" class="icon-btn back-home-btn" title="返回大廳" aria-label="返回大廳">← 返回</a>
+        <button type="button" class="icon-btn" id="btnMixer" title="音量與曲風設定" aria-label="音量與曲風設定">🎚️</button>
+        <button type="button" class="icon-btn" id="btnBgm" title="背景音樂開關" aria-label="背景音樂開關">🎵</button>
         <button type="button" class="icon-btn" id="btnMute" title="音效開關" aria-label="音效開關">🔊</button>
         <button type="button" class="icon-btn" id="btnRestartTop" title="重新開始" aria-label="重新開始">↺</button>
+      </div>
+    </div>
+
+    <!-- Audio Mixer Popover -->
+    <div class="audio-mixer" id="audioMixer">
+      <div class="mixer-row"><span>🎵 BGM 音量</span><b id="bgmVolVal">45%</b></div>
+      <input type="range" id="bgmVolRange" min="0" max="100" value="45" aria-label="BGM 音量" />
+      <div class="mixer-row"><span>🔊 音效音量</span><b id="sfxVolVal">88%</b></div>
+      <input type="range" id="sfxVolRange" min="0" max="100" value="88" aria-label="音效音量" />
+      <div class="mixer-row"><span>🎼 切換曲風</span></div>
+      <div class="mixer-styles" id="mixerStylePicker">
+        <button type="button" class="seg-btn active" data-bgm-style="synthwave">🌆 電音</button>
+        <button type="button" class="seg-btn" data-bgm-style="lofiChill">☕ Lo-Fi</button>
+        <button type="button" class="seg-btn" data-bgm-style="rockBand">🎸 搖滾</button>
       </div>
     </div>
 
@@ -295,6 +323,13 @@
           <button type="button" class="seg-btn" data-speed="0.85">🐢 0.85× 練習</button>
           <button type="button" class="seg-btn active" data-speed="1">🏄 1.0× 標準</button>
           <button type="button" class="seg-btn" data-speed="1.2">⚡ 1.2× 高手</button>
+        </div>
+
+        <div class="picker-label">3. 背景音樂曲風</div>
+        <div class="seg-grid" id="bgmStylePicker">
+          <button type="button" class="seg-btn active" data-bgm-style="synthwave">🌆 霓虹電音</button>
+          <button type="button" class="seg-btn" data-bgm-style="lofiChill">☕ Lo-Fi</button>
+          <button type="button" class="seg-btn" data-bgm-style="rockBand">🎸 搖滾舞台</button>
         </div>
 
         <div class="legend-row">
@@ -424,6 +459,31 @@
     let audioImpulse = 0;
     let muted = false;
 
+    let bgmGain = null;
+    let sfxGain = null;
+    let bgmEnabled = true;
+    let noiseBuffer = null;
+
+    const audioPrefs = (function loadPrefs() {
+      try {
+        const p = JSON.parse(localStorage.getItem('rhythm3dAudioPrefs') || '{}') || {};
+        return {
+          bgmVol: typeof p.bgmVol === 'number' ? p.bgmVol : 0.45,
+          sfxVol: typeof p.sfxVol === 'number' ? p.sfxVol : 0.88,
+          style: p.style || 'synthwave'
+        };
+      } catch (e) { return { bgmVol: 0.45, sfxVol: 0.88, style: 'synthwave' }; }
+    })();
+    function saveAudioPrefs() {
+      try { localStorage.setItem('rhythm3dAudioPrefs', JSON.stringify(audioPrefs)); } catch (e) {}
+    }
+
+    const RHYTHM_STYLES = {
+      synthwave: { bassWave: 'sawtooth', bassVol: 0.14, bassUp: 1, padWave: 'triangle', padThird: 2.5, leadWave: 'triangle', leadVol: 0.075, arp: [2, 2.5, 3, 4] },
+      lofiChill: { bassWave: 'sine', bassVol: 0.16, bassUp: 1.5, padWave: 'sine', padThird: 2.4, leadWave: 'sine', leadVol: 0.065, arp: [2, 2.4, 3, 3.6] },
+      rockBand:  { bassWave: 'square', bassVol: 0.085, bassUp: 1, padWave: 'sawtooth', padThird: 3, leadWave: 'square', leadVol: 0.055, arp: [2, 3, 4, 3] }
+    };
+
     function unlockAudio() {
       try {
         const AC = window.AudioContext || window.webkitAudioContext;
@@ -431,20 +491,90 @@
         if (!audioCtx) {
           audioCtx = new AC();
           masterGain = audioCtx.createGain();
-          masterGain.gain.value = 0.88;
+          masterGain.gain.value = muted ? 0 : 0.88;
+          bgmGain = audioCtx.createGain();
+          bgmGain.gain.value = bgmEnabled ? audioPrefs.bgmVol : 0;
+          sfxGain = audioCtx.createGain();
+          sfxGain.gain.value = audioPrefs.sfxVol;
           analyser = audioCtx.createAnalyser();
           analyser.fftSize = 64;
           analyser.smoothingTimeConstant = 0.76;
           freqData = new Uint8Array(analyser.frequencyBinCount);
+          bgmGain.connect(masterGain);
+          sfxGain.connect(masterGain);
           masterGain.connect(analyser);
           analyser.connect(audioCtx.destination);
+          noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.22, audioCtx.sampleRate);
+          const ch = noiseBuffer.getChannelData(0);
+          for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
         }
         if (audioCtx.state === 'suspended') audioCtx.resume();
       } catch (e) {}
     }
 
+    function scheduleBgmTone(time, freq, dur, type, vol) {
+      if (muted || !bgmEnabled || !audioCtx || !bgmGain) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = type || 'triangle';
+        osc.frequency.setValueAtTime(freq, time);
+        g.gain.setValueAtTime(0.001, time);
+        g.gain.linearRampToValueAtTime(vol || 0.1, time + 0.012);
+        g.gain.exponentialRampToValueAtTime(0.001, time + (dur || 0.16));
+        osc.connect(g); g.connect(bgmGain);
+        osc.start(time); osc.stop(time + (dur || 0.16) + 0.02);
+      } catch (e) {}
+    }
+
+    function scheduleBgmKick(time) {
+      if (muted || !bgmEnabled || !audioCtx || !bgmGain) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(150, time);
+        osc.frequency.exponentialRampToValueAtTime(42, time + 0.14);
+        g.gain.setValueAtTime(0.5, time);
+        g.gain.exponentialRampToValueAtTime(0.001, time + 0.16);
+        osc.connect(g); g.connect(bgmGain);
+        osc.start(time); osc.stop(time + 0.17);
+      } catch (e) {}
+    }
+
+    function scheduleBgmSnare(time) {
+      if (muted || !bgmEnabled || !audioCtx || !bgmGain || !noiseBuffer) return;
+      try {
+        const src = audioCtx.createBufferSource();
+        src.buffer = noiseBuffer;
+        const bp = audioCtx.createBiquadFilter();
+        bp.type = 'bandpass'; bp.frequency.value = 1800;
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0.24, time);
+        g.gain.exponentialRampToValueAtTime(0.001, time + 0.14);
+        src.connect(bp); bp.connect(g); g.connect(bgmGain);
+        src.start(time); src.stop(time + 0.15);
+      } catch (e) {}
+    }
+
+    function scheduleBgmHat(time, open) {
+      if (muted || !bgmEnabled || !audioCtx || !bgmGain || !noiseBuffer) return;
+      try {
+        const src = audioCtx.createBufferSource();
+        src.buffer = noiseBuffer;
+        const hp = audioCtx.createBiquadFilter();
+        hp.type = 'highpass'; hp.frequency.value = open ? 6000 : 8500;
+        const g = audioCtx.createGain();
+        const d = open ? 0.1 : 0.04;
+        g.gain.setValueAtTime(open ? 0.1 : 0.07, time);
+        g.gain.exponentialRampToValueAtTime(0.001, time + d);
+        src.connect(hp); hp.connect(g); g.connect(bgmGain);
+        src.start(time); src.stop(time + d + 0.01);
+      } catch (e) {}
+    }
+
     function scheduleToneAt(time, freq, dur, type, vol) {
-      if (muted || !audioCtx || !masterGain) return;
+      if (muted || !audioCtx || !sfxGain) return;
       try {
         const osc = audioCtx.createOscillator();
         const g = audioCtx.createGain();
@@ -453,7 +583,7 @@
         g.gain.setValueAtTime(0.001, time);
         g.gain.linearRampToValueAtTime(vol || 0.14, time + 0.01);
         g.gain.exponentialRampToValueAtTime(0.001, time + (dur || 0.16));
-        osc.connect(g); g.connect(masterGain);
+        osc.connect(g); g.connect(sfxGain);
         osc.start(time); osc.stop(time + (dur || 0.16) + 0.02);
       } catch (e) {}
     }
@@ -485,6 +615,8 @@
     const canvas = document.getElementById('glCanvas');
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x090d1f);
@@ -567,14 +699,103 @@
     }
 
     // 3D Neon Surfboard Drone (glides to hit lanes)
+    // Elevated neon highway guardrails
+    const railMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.72 });
+    [-5.25, 5.25].forEach((rx) => {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.22, 120), railMat);
+      rail.position.set(rx, 0.16, -44);
+      scene.add(rail);
+    });
+
+    // Grand 3D Concert Cyber-Stadium (Speaker towers, sweeping spotlights, sky halo rings)
+    const towerMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.45, roughness: 0.4 });
+    const wooferMat = new THREE.MeshBasicMaterial({ color: 0x6366f1 });
+    for (let i = 0; i < 6; i++) {
+      [-9.5, 9.5].forEach((tx) => {
+        const tg = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.BoxGeometry(2.6, 8.5, 2.4), towerMat);
+        body.position.y = 4.25; tg.add(body);
+        [2.2, 4.6, 6.8].forEach((wy) => {
+          const ring = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.12, 8, 20), wooferMat);
+          ring.position.set(0, wy, 1.24); tg.add(ring);
+        });
+        tg.position.set(tx, 0, -10 - i * 16);
+        scene.add(tg);
+      });
+    }
+
+    const stadiumSpots = [];
+    for (let i = 0; i < 6; i++) {
+      const side = i % 2 === 0 ? -1 : 1;
+      const mat = new THREE.MeshBasicMaterial({ color: i % 3 === 0 ? 0x38bdf8 : 0xf472b6, transparent: true, opacity: 0.12, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(4.2, 22, 16, 1, true), mat);
+      cone.position.set(side * 10, 10, -14 - i * 14);
+      const baseAngle = side * 0.45;
+      cone.rotation.z = baseAngle;
+      scene.add(cone);
+      stadiumSpots.push({ mesh: cone, mat, baseAngle });
+    }
+
+    const skyRings = [];
+    [0x38bdf8, 0xa855f7, 0xf472b6].forEach((col, i) => {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(14 + i * 4.5, 0.16, 8, 48),
+        new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.38 })
+      );
+      ring.position.set(0, 8.5, -58 - i * 10);
+      scene.add(ring);
+      skyRings.push(ring);
+    });
+
+    // Articulated 3D Cyber-Shiba DJ Surfer on Neon Hoverboard
     const surfer = new THREE.Group();
-    const boardMat = new THREE.MeshLambertMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.55 });
-    const board = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.18, 2.2), boardMat);
-    board.position.y = 0.22;
-    surfer.add(board);
-    const fin = new THREE.Mesh(new THREE.OctahedronGeometry(0.45, 0), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
-    fin.position.set(0, 0.65, 0.15);
-    surfer.add(fin);
+    const boardMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.6, roughness: 0.25 });
+    const boardTrim = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+    const boardDeck = new THREE.Mesh(new THREE.BoxGeometry(1.65, 0.18, 2.5), boardMat);
+    boardDeck.position.y = 0.22; surfer.add(boardDeck);
+    const boardGlow = new THREE.Mesh(new THREE.BoxGeometry(1.74, 0.08, 2.35), boardTrim);
+    boardGlow.position.y = 0.21; surfer.add(boardGlow);
+
+    const thrusterMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.85 });
+    const thrusterL = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.07, 8, 16), thrusterMat);
+    thrusterL.position.set(-0.42, 0.22, 1.26); surfer.add(thrusterL);
+    const thrusterR = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.07, 8, 16), thrusterMat);
+    thrusterR.position.set(0.42, 0.22, 1.26); surfer.add(thrusterR);
+
+    const sOrange = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.6 });
+    const sCream = new THREE.MeshStandardMaterial({ color: 0xfffbeb, roughness: 0.65 });
+    const sDark = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4 });
+    const sNeon = new THREE.MeshBasicMaterial({ color: 0xf472b6 });
+
+    function sBox(w, h, d, mat, x, y, z) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+      m.position.set(x, y, z); return m;
+    }
+
+    const torso = sBox(0.84, 0.82, 0.62, sOrange, 0, 0.88, 0);
+    surfer.add(torso);
+    surfer.add(sBox(0.62, 0.56, 0.12, sCream, 0, 0.84, -0.28));
+    surfer.add(sBox(0.24, 0.42, 0.24, sCream, -0.24, 0.44, 0.06));
+    surfer.add(sBox(0.24, 0.42, 0.24, sCream, 0.24, 0.44, -0.06));
+
+    const armL = sBox(0.22, 0.54, 0.22, sOrange, -0.56, 0.96, 0);
+    const armR = sBox(0.22, 0.54, 0.22, sOrange, 0.56, 0.96, 0);
+    surfer.add(armL); surfer.add(armR);
+
+    const head = new THREE.Group();
+    head.position.set(0, 1.62, 0);
+    head.add(sBox(0.86, 0.76, 0.78, sOrange, 0, 0, 0));
+    head.add(sBox(0.72, 0.3, 0.2, sCream, 0, -0.15, -0.35));
+    head.add(sBox(0.14, 0.1, 0.08, sDark, 0, -0.06, -0.44));
+    head.add(sBox(0.22, 0.28, 0.16, sOrange, -0.28, 0.48, 0));
+    head.add(sBox(0.22, 0.28, 0.16, sOrange, 0.28, 0.48, 0));
+    // Neon DJ Headphones
+    head.add(sBox(0.98, 0.12, 0.16, sDark, 0, 0.42, 0));
+    head.add(sBox(0.14, 0.34, 0.32, sNeon, -0.48, 0.04, 0));
+    head.add(sBox(0.14, 0.34, 0.32, sNeon, 0.48, 0.04, 0));
+    surfer.add(head);
+
+    surfer.userData = { head, armL, armR, thrusterL, thrusterR };
     surfer.position.set(0, 0, STRIKE_Z + 1.65);
     scene.add(surfer);
 
@@ -879,18 +1100,39 @@
     function scheduleMetronome(songTime) {
       if (!audioCtx) return;
       const lvl = LEVELS[state.levelKey] || LEVELS.pop44;
+      const halfBeat = state.secPerBeat * 0.5;
       while (state.nextBeatToSchedule < state.totalBeats) {
         const beatTime = state.nextBeatToSchedule * state.secPerBeat;
-        if (beatTime > songTime + 0.16) break;
+        if (beatTime > songTime + 0.18) break;
         const absTime = state.songStartTime + beatTime;
         const beatInBar = state.nextBeatToSchedule % state.beatsPerBar;
         const barIdx = Math.floor(state.nextBeatToSchedule / state.beatsPerBar);
-        // Woodblock click (accent on beat 1)
-        scheduleToneAt(absTime, beatInBar === 0 ? 1100 : 760, 0.055, 'triangle', beatInBar === 0 ? 0.16 : 0.085);
-        // Warm bass chord pulse on beat 1 after count-in
-        if (beatInBar === 0 && barIdx >= 1) {
+
+        // Crisp metronome click (accent on beat 1)
+        scheduleToneAt(absTime, beatInBar === 0 ? 1120 : 760, 0.05, 'triangle', beatInBar === 0 ? 0.14 : 0.075);
+
+        // Full multi-track BGM after count-in bar (uses active style)
+        if (barIdx >= 1) {
+          const st = RHYTHM_STYLES[audioPrefs.style] || RHYTHM_STYLES.synthwave;
           const root = lvl.chordRoots[(barIdx - 1) % lvl.chordRoots.length];
-          scheduleToneAt(absTime, root * 0.5, state.secPerBeat * 1.4, 'sine', 0.13);
+          if (beatInBar === 0 || (state.beatsPerBar === 4 && beatInBar === 2)) {
+            scheduleBgmKick(absTime);
+          } else {
+            scheduleBgmSnare(absTime);
+          }
+          scheduleBgmHat(absTime, false);
+          scheduleBgmHat(absTime + halfBeat, true);
+
+          scheduleBgmTone(absTime, root * 0.5, halfBeat * 0.85, st.bassWave, st.bassVol);
+          scheduleBgmTone(absTime + halfBeat, root * st.bassUp, halfBeat * 0.8, st.bassWave, st.bassVol * 0.75);
+
+          if (beatInBar === 0) {
+            scheduleBgmTone(absTime, root * 2, state.secPerBeat * state.beatsPerBar * 0.9, st.padWave, 0.08);
+            scheduleBgmTone(absTime, root * st.padThird, state.secPerBeat * state.beatsPerBar * 0.9, 'sine', 0.06);
+          }
+
+          scheduleBgmTone(absTime, root * st.arp[beatInBar % st.arp.length], halfBeat * 0.85, st.leadWave, st.leadVol);
+          scheduleBgmTone(absTime + halfBeat, root * st.arp[(beatInBar + 1) % st.arp.length], halfBeat * 0.75, 'sine', st.leadVol * 0.75);
         }
         state.nextBeatToSchedule += 1;
       }
@@ -1010,10 +1252,77 @@
       startOverlay.classList.remove('hidden');
       updateBestBar();
     });
+    const bgmRange = document.getElementById('bgmVolRange');
+    const sfxRange = document.getElementById('sfxVolRange');
+    const bgmValEl = document.getElementById('bgmVolVal');
+    const sfxValEl = document.getElementById('sfxVolVal');
+    const mixerEl = document.getElementById('audioMixer');
+
+    function applyAudioPrefsToUi() {
+      bgmRange.value = String(Math.round(audioPrefs.bgmVol * 100));
+      sfxRange.value = String(Math.round(audioPrefs.sfxVol * 100));
+      bgmValEl.textContent = bgmRange.value + '%';
+      sfxValEl.textContent = sfxRange.value + '%';
+      document.querySelectorAll('[data-bgm-style]').forEach((b) => {
+        b.classList.toggle('active', b.dataset.bgmStyle === audioPrefs.style);
+      });
+      const btnBgm = document.getElementById('btnBgm');
+      if (btnBgm) {
+        btnBgm.textContent = bgmEnabled ? '🎵' : '🎶';
+        btnBgm.style.opacity = bgmEnabled ? '1' : '0.55';
+      }
+      if (bgmGain && audioCtx) bgmGain.gain.setTargetAtTime(bgmEnabled ? audioPrefs.bgmVol : 0, audioCtx.currentTime, 0.03);
+      if (sfxGain && audioCtx) sfxGain.gain.setTargetAtTime(audioPrefs.sfxVol, audioCtx.currentTime, 0.03);
+    }
+
+    function setBgmStyle(styleKey) {
+      if (!RHYTHM_STYLES[styleKey]) return;
+      audioPrefs.style = styleKey;
+      saveAudioPrefs();
+      applyAudioPrefsToUi();
+    }
+
+    document.getElementById('bgmStylePicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-bgm-style]');
+      if (btn) { unlockAudio(); setBgmStyle(btn.dataset.bgmStyle); }
+    });
+    document.getElementById('mixerStylePicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-bgm-style]');
+      if (btn) { unlockAudio(); setBgmStyle(btn.dataset.bgmStyle); }
+    });
+    bgmRange.addEventListener('input', () => {
+      unlockAudio();
+      audioPrefs.bgmVol = Math.max(0, Math.min(1, Number(bgmRange.value) / 100));
+      bgmEnabled = audioPrefs.bgmVol > 0;
+      saveAudioPrefs();
+      applyAudioPrefsToUi();
+    });
+    sfxRange.addEventListener('input', () => {
+      unlockAudio();
+      audioPrefs.sfxVol = Math.max(0, Math.min(1, Number(sfxRange.value) / 100));
+      saveAudioPrefs();
+      applyAudioPrefsToUi();
+    });
+    document.getElementById('btnMixer').addEventListener('click', (e) => {
+      e.stopPropagation();
+      unlockAudio();
+      mixerEl.classList.toggle('open');
+    });
+    document.addEventListener('pointerdown', (e) => {
+      if (mixerEl.classList.contains('open') && !mixerEl.contains(e.target) && e.target.id !== 'btnMixer') {
+        mixerEl.classList.remove('open');
+      }
+    });
+    document.getElementById('btnBgm').addEventListener('click', () => {
+      unlockAudio();
+      bgmEnabled = !bgmEnabled;
+      applyAudioPrefsToUi();
+    });
     document.getElementById('btnMute').addEventListener('click', (e) => {
       unlockAudio();
       muted = !muted;
       e.currentTarget.textContent = muted ? '🔇' : '🔊';
+      if (masterGain && audioCtx) masterGain.gain.setTargetAtTime(muted ? 0 : 0.88, audioCtx.currentTime, 0.04);
     });
 
     function onResize() {
@@ -1066,12 +1375,28 @@
         r.group.scale.setScalar(1 + r.flash * 0.14);
       }
 
-      // Surfer glide
+      // Articulated Cyber-Shiba DJ Surfer + Stadium Spotlights animation
       state.surferX += (state.surferTargetX - state.surferX) * Math.min(1, dt * 16);
       surfer.position.x = state.surferX;
-      surfer.position.y = Math.sin(t * 6) * 0.08;
-      surfer.rotation.z = (state.surferX - state.surferTargetX) * 0.08;
-      fin.rotation.y += dt * 3.5;
+      surfer.position.y = Math.sin(t * 6) * 0.09 + avgAudio * 0.14;
+      surfer.rotation.z = (state.surferX - state.surferTargetX) * 0.12;
+      surfer.rotation.y = (state.surferX - state.surferTargetX) * 0.08;
+      if (surfer.userData.head) {
+        const beatPhase = t * (state.bpm / 60) * Math.PI * 2;
+        surfer.userData.head.rotation.x = Math.sin(beatPhase) * 0.12;
+        surfer.userData.armL.rotation.x = -0.35 + Math.sin(beatPhase) * 0.25;
+        surfer.userData.armR.rotation.x = -0.35 - Math.sin(beatPhase) * 0.25;
+        surfer.userData.thrusterL.scale.setScalar(0.85 + avgAudio * 0.65);
+        surfer.userData.thrusterR.scale.setScalar(0.85 + avgAudio * 0.65);
+      }
+      for (let i = 0; i < stadiumSpots.length; i++) {
+        const sp = stadiumSpots[i];
+        sp.mesh.rotation.z = sp.baseAngle + Math.sin(t * 1.4 + i) * 0.24;
+        sp.mat.opacity = 0.08 + avgAudio * 0.14;
+      }
+      for (let i = 0; i < skyRings.length; i++) {
+        skyRings[i].rotation.z += dt * (0.25 + i * 0.12);
+      }
 
       if (state.running) {
         const songTime = (audioCtx ? audioCtx.currentTime : now / 1000) - state.songStartTime;
@@ -1164,6 +1489,7 @@
     window.onload = function () {
       onResize();
       paintPlayerBadge();
+      applyAudioPrefsToUi();
       updateBestBar();
       updateHud();
       state.rafId = requestAnimationFrame(animate);

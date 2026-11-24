@@ -193,6 +193,18 @@
     .result-box b { font-size: 1.2rem; color: #0f172a; font-weight: 900; }
     .review-list { text-align: left; margin-top: 10px; background: #fff7ed; border: 1.5px solid #fed7aa; border-radius: 14px; padding: 10px 12px; font-size: 0.82rem; color: #7c2d12; }
     .review-list ul { margin: 6px 0 0 18px; }
+    .audio-mixer {
+      position: absolute; top: 62px; right: 12px; z-index: 25;
+      width: 248px; padding: 12px 14px; border-radius: 18px;
+      background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(12px);
+      border: 2px solid #bae6fd; box-shadow: 0 14px 34px rgba(15, 23, 42, 0.22);
+      display: none; flex-direction: column; gap: 8px;
+    }
+    .audio-mixer.open { display: flex; }
+    .mixer-row { display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 800; color: #334155; }
+    .audio-mixer input[type="range"] { width: 100%; accent-color: #0284c7; cursor: pointer; }
+    .mixer-styles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+    .mixer-styles .seg-btn { padding: 6px 4px; font-size: 0.72rem; }
     @media (max-width: 640px) {
       .ctrl-hint { display: none; }
       .hud-pill { padding: 6px 10px; gap: 8px; }
@@ -216,8 +228,24 @@
       </div>
       <div class="hud-actions">
         <a href="index.html" class="icon-btn back-home-btn" title="返回大廳" aria-label="返回大廳">← 返回</a>
+        <button type="button" class="icon-btn" id="btnMixer" title="音量與曲風設定" aria-label="音量與曲風設定">🎚️</button>
+        <button type="button" class="icon-btn" id="btnBgm" title="背景音樂開關" aria-label="背景音樂開關">🎵</button>
         <button type="button" class="icon-btn" id="btnMute" title="音效開關" aria-label="音效開關">🔊</button>
         <button type="button" class="icon-btn" id="btnPause" title="暫停" aria-label="暫停">⏸</button>
+      </div>
+    </div>
+
+    <!-- Audio Mixer Popover -->
+    <div class="audio-mixer" id="audioMixer">
+      <div class="mixer-row"><span>🎵 BGM 音量</span><b id="bgmVolVal">45%</b></div>
+      <input type="range" id="bgmVolRange" min="0" max="100" value="45" aria-label="BGM 音量" />
+      <div class="mixer-row"><span>🔊 音效音量</span><b id="sfxVolVal">90%</b></div>
+      <input type="range" id="sfxVolRange" min="0" max="100" value="90" aria-label="音效音量" />
+      <div class="mixer-row"><span>🎼 切換曲風</span></div>
+      <div class="mixer-styles" id="mixerStylePicker">
+        <button type="button" class="seg-btn active" data-bgm-style="winterPop">❄️ 電音</button>
+        <button type="button" class="seg-btn" data-bgm-style="musicBox">✨ 八音盒</button>
+        <button type="button" class="seg-btn" data-bgm-style="arcade8bit">🕹️ 8-Bit</button>
       </div>
     </div>
 
@@ -277,6 +305,13 @@
           <button type="button" class="seg-btn" data-speed="easy">🐢 輕鬆</button>
           <button type="button" class="seg-btn active" data-speed="normal">🐕 標準</button>
           <button type="button" class="seg-btn" data-speed="fast">⚡ 極速</button>
+        </div>
+
+        <div class="picker-label">4. 背景音樂曲風</div>
+        <div class="seg-grid" id="bgmStylePicker">
+          <button type="button" class="seg-btn active" data-bgm-style="winterPop">❄️ 冬季電音</button>
+          <button type="button" class="seg-btn" data-bgm-style="musicBox">✨ 八音盒</button>
+          <button type="button" class="seg-btn" data-bgm-style="arcade8bit">🕹️ 8-Bit</button>
         </div>
 
         <button type="button" class="primary-btn" id="btnStart">▶ 開始 3D 滑行！</button>
@@ -457,10 +492,31 @@
 
     let audioCtx = null;
     let masterGain = null;
+    let bgmGain = null;
+    let sfxGain = null;
     let analyser = null;
     let freqData = null;
     let audioImpulse = 0;
     let muted = false;
+    let bgmEnabled = true;
+    let bgmStep = 0;
+    let nextBgmTime = 0;
+    let noiseBuffer = null;
+
+    const audioPrefs = (function loadPrefs() {
+      try {
+        const p = JSON.parse(localStorage.getItem('shiba3dAudioPrefs') || '{}') || {};
+        return {
+          bgmVol: typeof p.bgmVol === 'number' ? p.bgmVol : 0.45,
+          sfxVol: typeof p.sfxVol === 'number' ? p.sfxVol : 0.9,
+          style: p.style || 'winterPop'
+        };
+      } catch (e) { return { bgmVol: 0.45, sfxVol: 0.9, style: 'winterPop' }; }
+    })();
+    function saveAudioPrefs() {
+      try { localStorage.setItem('shiba3dAudioPrefs', JSON.stringify(audioPrefs)); } catch (e) {}
+    }
+
     function unlockAudio() {
       try {
         const AC = window.AudioContext || window.webkitAudioContext;
@@ -468,20 +524,149 @@
         if (!audioCtx) {
           audioCtx = new AC();
           masterGain = audioCtx.createGain();
-          masterGain.gain.value = 0.92;
+          masterGain.gain.value = muted ? 0 : 0.92;
+          bgmGain = audioCtx.createGain();
+          bgmGain.gain.value = bgmEnabled ? audioPrefs.bgmVol : 0;
+          sfxGain = audioCtx.createGain();
+          sfxGain.gain.value = audioPrefs.sfxVol;
           analyser = audioCtx.createAnalyser();
           analyser.fftSize = 64;
           analyser.smoothingTimeConstant = 0.78;
           freqData = new Uint8Array(analyser.frequencyBinCount);
+          bgmGain.connect(masterGain);
+          sfxGain.connect(masterGain);
           masterGain.connect(analyser);
           analyser.connect(audioCtx.destination);
+          noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.2, audioCtx.sampleRate);
+          const ch = noiseBuffer.getChannelData(0);
+          for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
         }
         if (audioCtx.state === 'suspended') audioCtx.resume();
       } catch (e) {}
     }
+
+    function playBgmTone(freq, dur, type, vol, time) {
+      if (muted || !bgmEnabled || !audioCtx || !bgmGain) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = type || 'triangle';
+        osc.frequency.setValueAtTime(freq, time);
+        g.gain.setValueAtTime(0.001, time);
+        g.gain.linearRampToValueAtTime(vol, time + 0.012);
+        g.gain.exponentialRampToValueAtTime(0.001, time + dur);
+        osc.connect(g); g.connect(bgmGain);
+        osc.start(time); osc.stop(time + dur + 0.02);
+      } catch (e) {}
+    }
+
+    function playBgmKick(time) {
+      if (muted || !bgmEnabled || !audioCtx || !bgmGain) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(145, time);
+        osc.frequency.exponentialRampToValueAtTime(42, time + 0.13);
+        g.gain.setValueAtTime(0.45, time);
+        g.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+        osc.connect(g); g.connect(bgmGain);
+        osc.start(time); osc.stop(time + 0.16);
+      } catch (e) {}
+    }
+
+    function playBgmHat(time, open) {
+      if (muted || !bgmEnabled || !audioCtx || !bgmGain || !noiseBuffer) return;
+      try {
+        const src = audioCtx.createBufferSource();
+        src.buffer = noiseBuffer;
+        const hp = audioCtx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = open ? 5500 : 8000;
+        const g = audioCtx.createGain();
+        const d = open ? 0.12 : 0.045;
+        g.gain.setValueAtTime(open ? 0.12 : 0.075, time);
+        g.gain.exponentialRampToValueAtTime(0.001, time + d);
+        src.connect(hp); hp.connect(g); g.connect(bgmGain);
+        src.start(time); src.stop(time + d + 0.01);
+      } catch (e) {}
+    }
+
+    const SHIBA_STYLES = {
+      winterPop: {
+        bpm: 128, bassWave: 'sawtooth', leadWave: 'triangle', drums: true,
+        bass: [
+          130.81, 0, 130.81, 196.00, 130.81, 0, 164.81, 196.00,
+          98.00, 0, 98.00, 146.83, 98.00, 0, 123.47, 146.83,
+          110.00, 0, 110.00, 164.81, 110.00, 0, 130.81, 164.81,
+          87.31, 0, 87.31, 130.81, 98.00, 0, 146.83, 196.00
+        ],
+        lead: [
+          523.25, 659.25, 783.99, 659.25, 587.33, 523.25, 659.25, 0,
+          783.99, 659.25, 587.33, 493.88, 587.33, 659.25, 587.33, 0,
+          523.25, 659.25, 880.00, 783.99, 659.25, 587.33, 523.25, 659.25,
+          698.46, 659.25, 587.33, 523.25, 587.33, 783.99, 523.25, 0
+        ]
+      },
+      musicBox: {
+        bpm: 112, bassWave: 'sine', leadWave: 'sine', drums: false,
+        bass: [
+          261.63, 0, 329.63, 0, 392.00, 0, 329.63, 0,
+          246.94, 0, 293.66, 0, 392.00, 0, 293.66, 0,
+          220.00, 0, 261.63, 0, 329.63, 0, 261.63, 0,
+          174.61, 0, 220.00, 0, 261.63, 0, 392.00, 0
+        ],
+        lead: [
+          783.99, 659.25, 523.25, 659.25, 783.99, 1046.5, 783.99, 0,
+          783.99, 587.33, 493.88, 587.33, 783.99, 987.77, 783.99, 0,
+          880.00, 659.25, 523.25, 659.25, 880.00, 1046.5, 880.00, 0,
+          698.46, 587.33, 523.25, 587.33, 659.25, 783.99, 1046.5, 0
+        ]
+      },
+      arcade8bit: {
+        bpm: 138, bassWave: 'square', leadWave: 'square', drums: true,
+        bass: [
+          130.81, 130.81, 196.00, 130.81, 164.81, 164.81, 196.00, 164.81,
+          110.00, 110.00, 164.81, 110.00, 130.81, 130.81, 164.81, 130.81,
+          87.31, 87.31, 130.81, 87.31, 98.00, 98.00, 146.83, 98.00,
+          130.81, 146.83, 164.81, 196.00, 261.63, 196.00, 164.81, 130.81
+        ],
+        lead: [
+          659.25, 659.25, 0, 659.25, 523.25, 659.25, 783.99, 0,
+          523.25, 0, 392.00, 0, 329.63, 0, 440.00, 493.88,
+          523.25, 587.33, 659.25, 0, 783.99, 880.00, 783.99, 659.25,
+          587.33, 523.25, 587.33, 659.25, 523.25, 0, 392.00, 0
+        ]
+      }
+    };
+
+    function tickShibaBgm() {
+      if (!audioCtx || !state.running || state.paused || muted || !bgmEnabled) return;
+      const style = SHIBA_STYLES[audioPrefs.style] || SHIBA_STYLES.winterPop;
+      const stepDur = 60 / style.bpm / 2;
+      if (nextBgmTime < audioCtx.currentTime) nextBgmTime = audioCtx.currentTime + 0.03;
+      while (nextBgmTime < audioCtx.currentTime + 0.14) {
+        const s = bgmStep % 32;
+        if (style.drums) {
+          if (s % 4 === 0) playBgmKick(nextBgmTime);
+          if (s % 4 === 2) playBgmHat(nextBgmTime, true);
+          else playBgmHat(nextBgmTime, false);
+        }
+        const bass = style.bass[s];
+        if (bass) playBgmTone(bass, stepDur * 0.85, style.bassWave, style.bassWave === 'square' ? 0.07 : 0.11, nextBgmTime);
+        const lead = style.lead[s];
+        if (lead) {
+          const oct = state.combo >= 3 ? 2 : 1;
+          playBgmTone(lead * oct, stepDur * 0.9, style.leadWave, style.leadWave === 'square' ? 0.055 : 0.09, nextBgmTime);
+        }
+        bgmStep += 1;
+        nextBgmTime += stepDur;
+      }
+    }
+
     function playTone(freq, dur, type, vol, delay) {
       audioImpulse = Math.min(1.6, audioImpulse + (vol || 0.14) * 3.2);
-      if (muted || !audioCtx || !masterGain) return;
+      if (muted || !audioCtx || !sfxGain) return;
       try {
         const now = audioCtx.currentTime + (delay || 0);
         const osc = audioCtx.createOscillator();
@@ -491,7 +676,7 @@
         gain.gain.setValueAtTime(0.001, now);
         gain.gain.linearRampToValueAtTime(vol || 0.14, now + 0.015);
         gain.gain.exponentialRampToValueAtTime(0.001, now + (dur || 0.2));
-        osc.connect(gain); gain.connect(masterGain);
+        osc.connect(gain); gain.connect(sfxGain);
         osc.start(now); osc.stop(now + (dur || 0.2) + 0.02);
       } catch (e) {}
     }
@@ -523,7 +708,7 @@
     }
     function sfxJump() {
       audioImpulse = Math.min(1.6, audioImpulse + 0.45);
-      if (muted || !audioCtx || !masterGain) return;
+      if (muted || !audioCtx || !sfxGain) return;
       try {
         const now = audioCtx.currentTime;
         const osc = audioCtx.createOscillator();
@@ -533,7 +718,7 @@
         osc.frequency.exponentialRampToValueAtTime(680, now + 0.14);
         g.gain.setValueAtTime(0.11, now);
         g.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
-        osc.connect(g); g.connect(masterGain);
+        osc.connect(g); g.connect(sfxGain);
         osc.start(now); osc.stop(now + 0.17);
       } catch (e) {}
     }
@@ -544,6 +729,8 @@
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.06;
 
     const SKY_THEMES = [
       new THREE.Color(0xcdeaff),
@@ -654,14 +841,45 @@
     }
     for (let i = 0; i < 4; i++) trackArches.push(createTrackArch(-14 - i * 28));
 
+    const mountainBodyMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.9 });
+    const mountainSnowMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.65 });
+    for (let i = 0; i < 16; i++) {
+      const mGroup = new THREE.Group();
+      const h = 16 + (i % 4) * 5;
+      const r = 10 + (i % 3) * 3.5;
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(r, h, 6), mountainBodyMat);
+      cone.position.y = h * 0.5; mGroup.add(cone);
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(r * 0.44, h * 0.44, 6), mountainSnowMat);
+      cap.position.y = h * 0.78; mGroup.add(cap);
+      const side = i % 2 === 0 ? -1 : 1;
+      mGroup.position.set(side * (28 + (i % 3) * 8), -0.5, -18 - i * 8);
+      mGroup.rotation.y = i * 0.7;
+      scene.add(mGroup);
+    }
+
+    const clouds = [];
+    const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
+    for (let i = 0; i < 10; i++) {
+      const cg = new THREE.Group();
+      [[-1.6, 0, 0, 2.2, 1.1, 1.4], [0.2, 0.35, 0.1, 2.8, 1.4, 1.7], [1.9, -0.05, -0.1, 2.0, 1.0, 1.3]].forEach(([x, y, z, w, h, d]) => {
+        const puff = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), cloudMat);
+        puff.position.set(x, y, z); cg.add(puff);
+      });
+      cg.position.set((Math.random() - 0.5) * 54, 15 + Math.random() * 6, -15 - i * 9);
+      scene.add(cg);
+      clouds.push(cg);
+    }
+
     function createShiba() {
       const g = new THREE.Group();
-      const orange = new THREE.MeshLambertMaterial({ color: 0xf59e0b });
-      const darkOrange = new THREE.MeshLambertMaterial({ color: 0xd97706 });
-      const cream = new THREE.MeshLambertMaterial({ color: 0xfffbeb });
-      const black = new THREE.MeshLambertMaterial({ color: 0x1e293b });
-      const red = new THREE.MeshLambertMaterial({ color: 0xef4444 });
-      const pink = new THREE.MeshLambertMaterial({ color: 0xfb7185 });
+      const orange = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.65 });
+      const darkOrange = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.7 });
+      const cream = new THREE.MeshStandardMaterial({ color: 0xfffbeb, roughness: 0.7 });
+      const black = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4 });
+      const red = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.55 });
+      const pink = new THREE.MeshStandardMaterial({ color: 0xfb7185, roughness: 0.6 });
+      const boardMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.35, roughness: 0.25 });
+      const boardTrimMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
 
       function box(w, h, d, mat, x, y, z) {
         const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
@@ -669,50 +887,79 @@
         return m;
       }
 
-      g.add(box(1.15, 0.58, 1.55, orange, 0, 0.42, 0));
-      g.add(box(0.95, 0.22, 1.38, cream, 0, 0.16, 0.02));
+      const board = new THREE.Group();
+      board.add(box(1.18, 0.1, 2.65, boardMat, 0, 0.08, 0));
+      board.add(box(1.24, 0.04, 2.4, boardTrimMat, 0, 0.07, 0));
+      const nose = box(1.12, 0.09, 0.42, boardMat, 0, 0.16, -1.42);
+      nose.rotation.x = -0.38; board.add(nose);
+      const tailDeck = box(1.12, 0.09, 0.36, boardMat, 0, 0.14, 1.38);
+      tailDeck.rotation.x = 0.3; board.add(tailDeck);
+      g.add(board);
+
+      const rig = new THREE.Group();
+      rig.position.y = 0.14;
+      g.add(rig);
+
+      rig.add(box(1.1, 0.58, 1.48, orange, 0, 0.52, 0));
+      rig.add(box(0.92, 0.24, 1.34, cream, 0, 0.26, 0.02));
+
       const head = new THREE.Group();
-      head.position.set(0, 0.85, -0.78);
+      head.position.set(0, 0.96, -0.72);
       head.add(box(1.06, 0.88, 0.96, orange, 0, 0, 0));
       head.add(box(0.92, 0.36, 0.28, cream, 0, -0.18, -0.44));
       head.add(box(0.36, 0.26, 0.28, cream, 0, -0.12, -0.56));
       head.add(box(0.16, 0.12, 0.1, black, 0, -0.05, -0.71));
-      head.add(box(0.12, 0.12, 0.08, black, -0.26, 0.08, -0.49));
-      head.add(box(0.12, 0.12, 0.08, black, 0.26, 0.08, -0.49));
+      const eyeL = box(0.12, 0.13, 0.08, black, -0.26, 0.08, -0.49);
+      const eyeR = box(0.12, 0.13, 0.08, black, 0.26, 0.08, -0.49);
+      head.add(eyeL); head.add(eyeR);
       head.add(box(0.14, 0.07, 0.06, cream, -0.26, 0.22, -0.49));
       head.add(box(0.14, 0.07, 0.06, cream, 0.26, 0.22, -0.49));
-      head.add(box(0.28, 0.36, 0.2, darkOrange, -0.36, 0.56, -0.05));
-      head.add(box(0.16, 0.22, 0.08, pink, -0.36, 0.54, -0.14));
-      head.add(box(0.28, 0.36, 0.2, darkOrange, 0.36, 0.56, -0.05));
-      head.add(box(0.16, 0.22, 0.08, pink, 0.36, 0.54, -0.14));
-      g.add(head);
 
-      g.add(box(1.18, 0.2, 0.32, red, 0, 0.58, -0.52));
-      const scarfTail = box(0.26, 0.14, 0.72, red, 0.42, 0.66, 0.05);
-      scarfTail.rotation.y = 0.22;
-      g.add(scarfTail);
+      const earL = new THREE.Group();
+      earL.position.set(-0.36, 0.44, -0.05);
+      earL.add(box(0.28, 0.36, 0.2, darkOrange, 0, 0.14, 0));
+      earL.add(box(0.16, 0.22, 0.08, pink, 0, 0.12, -0.09));
+      head.add(earL);
 
-      g.add(box(0.26, 0.22, 0.62, cream, -0.52, 0.2, -0.88));
-      g.add(box(0.26, 0.22, 0.62, cream, 0.52, 0.2, -0.88));
-      g.add(box(0.28, 0.22, 0.62, cream, -0.46, 0.22, 0.88));
-      g.add(box(0.28, 0.22, 0.62, cream, 0.46, 0.22, 0.88));
+      const earR = new THREE.Group();
+      earR.position.set(0.36, 0.44, -0.05);
+      earR.add(box(0.28, 0.36, 0.2, darkOrange, 0, 0.14, 0));
+      earR.add(box(0.16, 0.22, 0.08, pink, 0, 0.12, -0.09));
+      head.add(earR);
+      rig.add(head);
+
+      rig.add(box(1.16, 0.2, 0.32, red, 0, 0.68, -0.48));
+      const scarf1 = new THREE.Group();
+      scarf1.position.set(0.42, 0.72, -0.18);
+      scarf1.add(box(0.24, 0.13, 0.56, red, 0, 0, 0.26));
+      const scarf2 = new THREE.Group();
+      scarf2.position.set(0, 0, 0.52);
+      scarf2.add(box(0.21, 0.11, 0.48, red, 0, 0, 0.22));
+      scarf1.add(scarf2);
+      rig.add(scarf1);
+
+      const legFL = box(0.24, 0.36, 0.26, cream, -0.42, 0.18, -0.52);
+      const legFR = box(0.24, 0.36, 0.26, cream, 0.42, 0.18, -0.52);
+      const legBL = box(0.26, 0.36, 0.28, cream, -0.4, 0.18, 0.54);
+      const legBR = box(0.26, 0.36, 0.28, cream, 0.4, 0.18, 0.54);
+      rig.add(legFL); rig.add(legFR); rig.add(legBL); rig.add(legBR);
 
       const tail = new THREE.Group();
-      tail.position.set(0, 0.68, 0.78);
+      tail.position.set(0, 0.76, 0.74);
       tail.add(box(0.26, 0.44, 0.26, orange, 0, 0.18, 0.06));
       tail.add(box(0.24, 0.24, 0.28, cream, 0, 0.38, -0.06));
-      g.add(tail);
+      rig.add(tail);
 
       const aura = new THREE.Mesh(
-        new THREE.TorusGeometry(1.15, 0.07, 8, 24),
-        new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: 0.75 })
+        new THREE.TorusGeometry(1.28, 0.075, 10, 28),
+        new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: 0.78 })
       );
       aura.rotation.x = Math.PI / 2;
-      aura.position.y = 0.45;
+      aura.position.y = 0.52;
       aura.visible = false;
       g.add(aura);
 
-      g.userData = { head, tail, scarfTail, aura };
+      g.userData = { rig, board, head, eyeL, eyeR, earL, earR, tail, scarf1, scarf2, legFL, legFR, legBL, legBR, aura };
       return g;
     }
 
@@ -1316,10 +1563,78 @@
       startOverlay.classList.remove('hidden');
       updateBestBar();
     });
+    const bgmRange = document.getElementById('bgmVolRange');
+    const sfxRange = document.getElementById('sfxVolRange');
+    const bgmValEl = document.getElementById('bgmVolVal');
+    const sfxValEl = document.getElementById('sfxVolVal');
+    const mixerEl = document.getElementById('audioMixer');
+
+    function applyAudioPrefsToUi() {
+      bgmRange.value = String(Math.round(audioPrefs.bgmVol * 100));
+      sfxRange.value = String(Math.round(audioPrefs.sfxVol * 100));
+      bgmValEl.textContent = bgmRange.value + '%';
+      sfxValEl.textContent = sfxRange.value + '%';
+      document.querySelectorAll('[data-bgm-style]').forEach((b) => {
+        b.classList.toggle('active', b.dataset.bgmStyle === audioPrefs.style);
+      });
+      const btnBgm = document.getElementById('btnBgm');
+      if (btnBgm) {
+        btnBgm.textContent = bgmEnabled ? '🎵' : '🎶';
+        btnBgm.style.opacity = bgmEnabled ? '1' : '0.55';
+      }
+      if (bgmGain && audioCtx) bgmGain.gain.setTargetAtTime(bgmEnabled ? audioPrefs.bgmVol : 0, audioCtx.currentTime, 0.03);
+      if (sfxGain && audioCtx) sfxGain.gain.setTargetAtTime(audioPrefs.sfxVol, audioCtx.currentTime, 0.03);
+    }
+
+    function setBgmStyle(styleKey) {
+      if (!SHIBA_STYLES[styleKey]) return;
+      audioPrefs.style = styleKey;
+      bgmStep = 0;
+      saveAudioPrefs();
+      applyAudioPrefsToUi();
+    }
+
+    document.getElementById('bgmStylePicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-bgm-style]');
+      if (btn) { unlockAudio(); setBgmStyle(btn.dataset.bgmStyle); }
+    });
+    document.getElementById('mixerStylePicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-bgm-style]');
+      if (btn) { unlockAudio(); setBgmStyle(btn.dataset.bgmStyle); }
+    });
+    bgmRange.addEventListener('input', () => {
+      unlockAudio();
+      audioPrefs.bgmVol = Math.max(0, Math.min(1, Number(bgmRange.value) / 100));
+      bgmEnabled = audioPrefs.bgmVol > 0;
+      saveAudioPrefs();
+      applyAudioPrefsToUi();
+    });
+    sfxRange.addEventListener('input', () => {
+      unlockAudio();
+      audioPrefs.sfxVol = Math.max(0, Math.min(1, Number(sfxRange.value) / 100));
+      saveAudioPrefs();
+      applyAudioPrefsToUi();
+    });
+    document.getElementById('btnMixer').addEventListener('click', (e) => {
+      e.stopPropagation();
+      unlockAudio();
+      mixerEl.classList.toggle('open');
+    });
+    document.addEventListener('pointerdown', (e) => {
+      if (mixerEl.classList.contains('open') && !mixerEl.contains(e.target) && e.target.id !== 'btnMixer') {
+        mixerEl.classList.remove('open');
+      }
+    });
+    document.getElementById('btnBgm').addEventListener('click', (e) => {
+      unlockAudio();
+      bgmEnabled = !bgmEnabled;
+      applyAudioPrefsToUi();
+    });
     document.getElementById('btnMute').addEventListener('click', (e) => {
       unlockAudio();
       muted = !muted;
       e.currentTarget.textContent = muted ? '🔇' : '🔊';
+      if (masterGain && audioCtx) masterGain.gain.setTargetAtTime(muted ? 0 : 0.92, audioCtx.currentTime, 0.04);
     });
     document.getElementById('btnPause').addEventListener('click', (e) => {
       if (!state.running) return;
@@ -1477,6 +1792,13 @@
       }
       spAttr.needsUpdate = true;
 
+      tickShibaBgm();
+
+      for (let i = 0; i < clouds.length; i++) {
+        clouds[i].position.z += activeSpeed * dt * 0.16;
+        if (clouds[i].position.z > 18) clouds[i].position.z -= 95;
+      }
+
       if (state.running && !state.paused) {
         if (state.boostTimer > 0) state.boostTimer = Math.max(0, state.boostTimer - dt);
         const steerSpeed = 13.8;
@@ -1490,13 +1812,33 @@
         if (state.shibaY > 0 || state.vy > 0) {
           state.shibaY += state.vy * dt;
           state.vy -= 28 * dt;
-          if (state.shibaY <= 0) { state.shibaY = 0; state.vy = 0; }
+          if (state.shibaY <= 0) {
+            state.shibaY = 0; state.vy = 0;
+            shiba.userData.rig.scale.set(1.16, 0.82, 1.12);
+          }
         }
 
         shiba.position.set(state.shibaX, state.shibaY, 2.2);
         shiba.rotation.z = Math.max(-0.36, Math.min(0.36, -vx * 0.032));
         shiba.rotation.y = Math.max(-0.28, Math.min(0.28, -vx * 0.022));
         shiba.rotation.x = state.shibaY > 0 ? 0.14 : Math.sin(t * 14) * 0.03;
+
+        const rig = shiba.userData.rig;
+        rig.scale.x += (1 - rig.scale.x) * Math.min(1, dt * 12);
+        rig.scale.y += (1 - rig.scale.y) * Math.min(1, dt * 12);
+        rig.scale.z += (1 - rig.scale.z) * Math.min(1, dt * 12);
+        shiba.userData.head.rotation.y = Math.max(-0.35, Math.min(0.35, -vx * 0.025));
+        shiba.userData.head.rotation.x = Math.sin(t * 8.5) * 0.06;
+        const blink = (t % 3.6) > 3.46 ? 0.15 : 1;
+        shiba.userData.eyeL.scale.y = blink;
+        shiba.userData.eyeR.scale.y = blink;
+        shiba.userData.earL.rotation.z = 0.12 + Math.sin(t * 12) * 0.14;
+        shiba.userData.earR.rotation.z = -0.12 - Math.sin(t * 12) * 0.14;
+        const stride = state.shibaY > 0 ? 0.4 : Math.sin(t * 14) * 0.14;
+        shiba.userData.legFL.rotation.x = stride;
+        shiba.userData.legFR.rotation.x = -stride;
+        shiba.userData.legBL.rotation.x = -stride;
+        shiba.userData.legBR.rotation.x = stride;
 
         shibaShadow.position.x = state.shibaX;
         shibaShadow.scale.setScalar(Math.max(0.42, 1 - state.shibaY * 0.15));
@@ -1626,7 +1968,9 @@
       }
 
       shiba.userData.tail.rotation.z = Math.sin(t * 12) * 0.28;
-      shiba.userData.scarfTail.rotation.x = Math.sin(t * 16) * 0.18;
+      shiba.userData.scarf1.rotation.x = Math.sin(t * 15) * 0.16;
+      shiba.userData.scarf1.rotation.y = 0.18 + Math.cos(t * 11) * 0.12;
+      shiba.userData.scarf2.rotation.x = Math.sin(t * 15 - 0.8) * 0.22;
       if (shiba.userData.aura.visible) shiba.userData.aura.rotation.z += dt * 4;
 
       for (let i = burstParticles.length - 1; i >= 0; i--) {
@@ -1672,6 +2016,7 @@
     window.onload = function () {
       onResize();
       paintPlayerBadge();
+      applyAudioPrefsToUi();
       updateBestBar();
       updateHud();
       state.rafId = requestAnimationFrame(animate);
