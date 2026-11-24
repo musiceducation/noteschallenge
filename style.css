@@ -3,6 +3,9 @@ html {
     font-size: 110%;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    overflow-x: clip;
+    overflow-y: auto;
+    height: auto;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
 button, select, input, a, label { touch-action: manipulation; }
@@ -112,10 +115,10 @@ body {
     justify-content: flex-start;
     align-items: center;
     font-family: 'Lexend', 'Nunito', 'Noto Sans TC', 'PingFang TC', '微軟正黑體', sans-serif;
-    padding: max(2vh, var(--app-safe-top)) max(16px, var(--app-safe-right)) max(12px, var(--app-safe-bottom)) max(16px, var(--app-safe-left));
-    color: var(--text-dark); overflow-x: hidden;
-    -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;
-    touch-action: pan-x pan-y;
+    padding: max(2vh, var(--app-safe-top)) max(16px, var(--app-safe-right)) max(28px, var(--app-safe-bottom)) max(16px, var(--app-safe-left));
+    color: var(--text-dark); overflow-x: clip; overflow-y: visible;
+    -webkit-overflow-scrolling: touch; overscroll-behavior-y: auto;
+    touch-action: pan-y;
 }
 @keyframes gradientDrift {
     0%   { background-position: 0% 25%; }
@@ -1811,7 +1814,13 @@ canvas { display: block; max-width: 100%; width: 100%; height: auto; }
     }
 }
 
-#screen-hub.screen { max-width: min(1360px, 100%); }
+#screen-hub.screen {
+    max-width: min(1360px, 100%);
+    contain: none;
+    height: auto;
+    overflow: visible;
+    padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+}
 
 /* Hub layout: single column (aside profile card hidden) */
 .hub-layout {
