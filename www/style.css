@@ -9277,7 +9277,7 @@ body:has(#screen-chord-card.screen.active) {
 .composer-yt-save { padding: 6px 12px; border-radius: 10px; border: none; background: #2c1810; color: #fff; font-weight: 800; font-size: 0.78rem; cursor: pointer; white-space: nowrap; }
 
 /* ===== 3D 旗艦遊戲入口卡片 ===== */
-a.hub-shiba-3d, a.hub-rhythm-3d, a.hub-chord-3d {
+a.hub-shiba-3d, a.hub-rhythm-3d, a.hub-chord-3d, a.hub-world-3d {
   text-decoration: none;
   color: inherit;
   transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease;
@@ -9285,12 +9285,15 @@ a.hub-shiba-3d, a.hub-rhythm-3d, a.hub-chord-3d {
 a.hub-shiba-3d { box-shadow: 0 10px 26px rgba(2, 132, 199, 0.18), inset 0 0 0 1.5px rgba(56, 189, 248, 0.45); }
 a.hub-rhythm-3d { box-shadow: 0 10px 26px rgba(139, 92, 246, 0.2), inset 0 0 0 1.5px rgba(34, 211, 238, 0.45); }
 a.hub-chord-3d { box-shadow: 0 10px 26px rgba(236, 72, 153, 0.2), inset 0 0 0 1.5px rgba(192, 132, 252, 0.5); }
-a.hub-shiba-3d:hover, a.hub-rhythm-3d:hover, a.hub-chord-3d:hover {
+a.hub-world-3d { box-shadow: 0 10px 26px rgba(245, 158, 11, 0.22), inset 0 0 0 1.5px rgba(236, 72, 153, 0.5); }
+a.hub-shiba-3d:hover, a.hub-rhythm-3d:hover, a.hub-chord-3d:hover, a.hub-world-3d:hover {
   transform: translateY(-5px) scale(1.015);
 }
 a.hub-shiba-3d .hub-game-tag { background: linear-gradient(135deg, #0284c7, #38bdf8); color: #fff; box-shadow: 0 3px 10px rgba(2, 132, 199, 0.35); }
 a.hub-rhythm-3d .hub-game-tag { background: linear-gradient(135deg, #06b6d4, #8b5cf6); color: #fff; box-shadow: 0 3px 10px rgba(139, 92, 246, 0.35); }
 a.hub-chord-3d .hub-game-tag { background: linear-gradient(135deg, #7c3aed, #ec4899); color: #fff; box-shadow: 0 3px 10px rgba(236, 72, 153, 0.35); }
+a.hub-world-3d .hub-game-tag { background: linear-gradient(135deg, #f59e0b, #ec4899); color: #fff; box-shadow: 0 3px 10px rgba(245, 158, 11, 0.35); }
 .hub-shiba-3d .hub-game-btn { background: linear-gradient(135deg, #0284c7, #6366f1); color: #fff; }
 .hub-rhythm-3d .hub-game-btn { background: linear-gradient(135deg, #06b6d4, #8b5cf6); color: #fff; }
 .hub-chord-3d .hub-game-btn { background: linear-gradient(135deg, #7c3aed, #ec4899); color: #fff; }
+.hub-world-3d .hub-game-btn { background: linear-gradient(135deg, #ec4899, #f59e0b); color: #fff; }

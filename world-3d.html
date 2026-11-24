@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>糖豆人音樂派對世界 3D — 互動音樂學習站</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;900&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vexflow@5.0.0/build/cjs/vexflow.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+    html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Inter', 'Noto Sans TC', sans-serif; background: #bae6fd; color: #1e293b; }
+    #gameStage { position: relative; width: 100vw; height: 100vh; overflow: hidden; touch-action: none; }
+    #glCanvas { display: block; width: 100%; height: 100%; }
+    .hud-top { position: absolute; top: 12px; left: 12px; right: 12px; z-index: 10; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; pointer-events: none; }
+    .hud-pill { pointer-events: auto; background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(10px); border: 2.5px solid #fff; border-radius: 18px; padding: 7px 14px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14); display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 0.9rem; flex-wrap: wrap; }
+    .hud-stat { display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
+    .hud-stat small { font-size: 0.65rem; color: #64748b; font-weight: 700; }
+    .hud-stat span { font-size: 1.05rem; color: #0f172a; font-weight: 900; }
+    .mode-pill { padding: 4px 11px; border-radius: 999px; background: linear-gradient(135deg, #ec4899, #f59e0b); color: #fff; font-size: 0.74rem; font-weight: 900; white-space: nowrap; }
+    .mode-pill.quiz { background: linear-gradient(135deg, #7c3aed, #ec4899); animation: pulseTag 0.7s infinite alternate; }
+    @keyframes pulseTag { from { transform: scale(1); } to { transform: scale(1.06); } }
+    .hud-actions { display: flex; gap: 8px; pointer-events: auto; align-items: center; }
+    .icon-btn { height: 42px; min-width: 42px; padding: 0 11px; border-radius: 14px; border: 2px solid #fff; background: rgba(255,255,255,0.92); backdrop-filter: blur(8px); box-shadow: 0 6px 16px rgba(15,23,42,0.12); color: #0f172a; text-decoration: none; font-size: 1rem; font-weight: 900; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+    .icon-btn:active { transform: scale(0.92); }
+    .back-home-btn { font-size: 0.84rem; }
+    .prompt-wrap { position: absolute; top: 64px; left: 50%; transform: translateX(-50%); z-index: 10; pointer-events: none; width: min(94vw, 420px); transition: opacity 0.2s ease, transform 0.2s ease; }
+    .prompt-wrap.is-hidden { opacity: 0; transform: translateX(-50%) translateY(-10px); pointer-events: none; }
+    .prompt-card { pointer-events: auto; background: rgba(255, 255, 255, 0.95); border: 3px solid #ec4899; border-radius: 20px; padding: 7px 14px; box-shadow: 0 12px 28px rgba(236, 72, 153, 0.24); text-align: center; }
+    .prompt-head { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 2px; }
+    .prompt-badge { padding: 2px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 900; background: #fce7f3; color: #be185d; }
+    .timer-badge { padding: 2px 10px; border-radius: 999px; font-size: 0.74rem; font-weight: 900; background: #fef3c7; color: #b45309; }
+    .prompt-title { font-size: 1.06rem; font-weight: 900; color: #0f172a; }
+    .prompt-sub { font-size: 0.76rem; color: #475569; font-weight: 700; margin-top: 2px; }
+    .portal-prompt { position: absolute; bottom: 112px; left: 50%; transform: translateX(-50%); z-index: 14; display: none; align-items: center; gap: 10px; background: rgba(15, 23, 42, 0.86); color: #fff; padding: 10px 16px; border-radius: 999px; border: 2px solid #fde047; box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3); font-weight: 800; font-size: 0.9rem; white-space: nowrap; }
+    .portal-prompt.show { display: flex; }
+    .portal-go-btn { padding: 6px 14px; border-radius: 999px; border: none; background: linear-gradient(135deg, #f59e0b, #ec4899); color: #fff; font: inherit; font-weight: 900; cursor: pointer; }
+    .fx-banner { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) scale(0.8); z-index: 15; pointer-events: none; opacity: 0; padding: 10px 24px; border-radius: 999px; font-size: 1.25rem; font-weight: 900; color: #fff; box-shadow: 0 12px 30px rgba(0,0,0,0.22); transition: opacity 0.16s ease, transform 0.16s ease; white-space: nowrap; }
+    .fx-banner.show { opacity: 1; transform: translate(-50%, -62%) scale(1); }
+    .fx-banner.ok { background: linear-gradient(135deg, #10b981, #059669); }
+    .fx-banner.err { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    .touch-controls { position: absolute; bottom: 16px; left: 16px; right: 16px; z-index: 10; display: flex; align-items: flex-end; justify-content: space-between; pointer-events: none; }
+    .joy-base { pointer-events: auto; position: relative; width: 108px; height: 108px; border-radius: 50%; background: rgba(255, 255, 255, 0.35); border: 2.5px solid rgba(255, 255, 255, 0.85); backdrop-filter: blur(6px); touch-action: none; display: flex; align-items: center; justify-content: center; }
+    .joy-knob { width: 46px; height: 46px; border-radius: 50%; background: rgba(255, 255, 255, 0.94); box-shadow: 0 6px 14px rgba(15, 23, 42, 0.25); pointer-events: none; }
+    .ctrl-hint { pointer-events: none; background: rgba(15, 23, 42, 0.62); color: #fff; padding: 6px 14px; border-radius: 999px; font-size: 0.76rem; font-weight: 700; margin-bottom: 8px; }
+    .action-cluster { display: flex; gap: 8px; pointer-events: auto; align-items: flex-end; }
+    .act-btn { height: 58px; min-width: 62px; padding: 0 14px; border-radius: 20px; border: 2.5px solid #fff; font: inherit; font-weight: 900; font-size: 0.95rem; color: #fff; cursor: pointer; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.22); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
+    .act-btn:active { transform: scale(0.92); }
+    .btn-jump { background: linear-gradient(135deg, #06b6d4, #0284c7); }
+    .btn-dive { background: linear-gradient(135deg, #ec4899, #f59e0b); }
+    .btn-emote { background: rgba(255, 255, 255, 0.92); color: #0f172a; min-width: 52px; }
+    .btn-party { background: linear-gradient(135deg, #7c3aed, #ec4899); }
+    #nameLayer { position: absolute; inset: 0; pointer-events: none; z-index: 6; overflow: hidden; }
+    .name-tag { position: absolute; transform: translate(-50%, -100%); padding: 2px 8px; border-radius: 999px; background: rgba(15, 23, 42, 0.72); color: #fff; font-size: 0.72rem; font-weight: 800; white-space: nowrap; border: 1.5px solid rgba(255, 255, 255, 0.65); }
+    .name-tag.me { background: rgba(236, 72, 153, 0.9); border-color: #fde047; }
+    .emote-pop { display: block; font-size: 1.25rem; text-align: center; margin-bottom: 2px; animation: bounceEmote 0.4s ease; }
+    @keyframes bounceEmote { from { transform: scale(0.5); } to { transform: scale(1.1); } }
+    .overlay { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 14px; background: rgba(15, 23, 42, 0.38); backdrop-filter: blur(6px); }
+    .overlay.hidden { display: none; }
+    .modal { width: min(94vw, 480px); background: rgba(255, 255, 255, 0.97); border-radius: 26px; padding: 22px 20px; border: 3px solid #fff; box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28); text-align: center; max-height: 92vh; overflow-y: auto; }
+    .modal-tag { display: inline-block; padding: 4px 12px; border-radius: 999px; background: linear-gradient(135deg, #ec4899, #f59e0b); color: #fff; font-size: 0.74rem; font-weight: 900; margin-bottom: 6px; }
+    .modal h1 { font-size: 1.52rem; font-weight: 900; color: #0f172a; margin-bottom: 4px; }
+    .modal p.lead { font-size: 0.85rem; color: #475569; line-height: 1.48; margin-bottom: 12px; }
+    .best-bar { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; background: #fef3c7; color: #92400e; font-size: 0.78rem; font-weight: 800; margin-bottom: 8px; }
+    .picker-label { text-align: left; font-size: 0.76rem; font-weight: 800; color: #64748b; margin: 10px 0 6px; }
+    .seg-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+    .seg-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .seg-btn { padding: 8px 6px; border-radius: 13px; border: 2px solid #e2e8f0; background: #f8fafc; color: #334155; font: inherit; font-size: 0.8rem; font-weight: 800; cursor: pointer; }
+    .seg-btn.active { background: #ec4899; border-color: #ec4899; color: #fff; }
+    .primary-btn { width: 100%; margin-top: 16px; padding: 13px 20px; border-radius: 16px; border: none; background: linear-gradient(135deg, #ec4899, #f59e0b); color: #fff; font: inherit; font-size: 1.05rem; font-weight: 900; box-shadow: 0 6px 0 #be185d, 0 14px 24px rgba(236, 72, 153, 0.3); cursor: pointer; }
+    .primary-btn:active { transform: translateY(3px); box-shadow: 0 3px 0 #be185d; }
+    @media (max-width: 640px) { .ctrl-hint { display: none; } .joy-base { width: 92px; height: 92px; } .act-btn { height: 50px; min-width: 52px; font-size: 0.82rem; padding: 0 10px; } }
+  </style>
+</head>
+<body>
+  <div id="gameStage">
+    <canvas id="glCanvas"></canvas>
+    <div id="nameLayer"></div>
+    <div class="hud-top">
+      <div class="hud-pill">
+        <div class="hud-stat"><small>同場玩家</small><span id="hudPlayers">1</span></div>
+        <div class="hud-stat"><small>派對分數</small><span id="hudScore">0</span></div>
+        <div class="hud-stat"><small>連勝</small><span id="hudStreak">0</span></div>
+        <span class="mode-pill" id="modeBadge">🎪 自由樂園探索</span>
+      </div>
+      <div class="hud-actions">
+        <a href="index.html" class="icon-btn back-home-btn" title="返回 2D 大廳">← 返回</a>
+        <button type="button" class="icon-btn" id="btnResetCam" title="重設視角">🎥</button>
+        <button type="button" class="icon-btn" id="btnMute" title="音效開關">🔊</button>
+      </div>
+    </div>
+    <div class="prompt-wrap is-hidden" id="partyPrompt">
+      <div class="prompt-card">
+        <div class="prompt-head">
+          <span class="prompt-badge" id="partyBadge">音符地板生存戰</span>
+          <span class="timer-badge" id="partyTimer">⏱ 6.0s</span>
+        </div>
+        <div class="prompt-title" id="partyTitle">衝去踩住正確答案地磚！</div>
+        <div id="partyVisual"></div>
+        <div class="prompt-sub" id="partySub">倒數結束後，錯誤地磚會掉進雲海！</div>
+      </div>
+    </div>
+    <div class="portal-prompt" id="portalPrompt">
+      <span id="portalText">❄️ 前往《柴犬滑行 3D》</span>
+      <button type="button" class="portal-go-btn" id="btnPortalGo">傳送進入 ▶</button>
+    </div>
+    <div class="fx-banner" id="fxBanner"></div>
+    <div class="touch-controls">
+      <div class="joy-base" id="joyBase"><div class="joy-knob" id="joyKnob"></div></div>
+      <div class="ctrl-hint">WASD / 方向鍵跑動 · 空白鍵跳躍 · Shift 飛撲 · 拖曳旋轉 360° 視角</div>
+      <div class="action-cluster">
+        <button type="button" class="act-btn btn-party" id="btnStartParty">🎪<small>地磚賽</small></button>
+        <button type="button" class="act-btn btn-emote" id="btnEmote">🎵</button>
+        <button type="button" class="act-btn btn-dive" id="btnDive">💨<small>飛撲</small></button>
+        <button type="button" class="act-btn btn-jump" id="btnJump">⬆️<small>跳躍</small></button>
+      </div>
+    </div>
+    <div class="overlay" id="startOverlay">
+      <div class="modal">
+        <span class="modal-tag">Fall Guys 糖豆人風 · 3D 多人音樂樂園</span>
+        <h1>🎪 糖豆人音樂派對世界 3D</h1>
+        <p class="lead">化身圓滾滾的糖豆人小柴犬，與全班同學在繽紛充氣樂園奔跑、飛撲、彈跳鼓墊、遊玩「音符地板生存戰」，並走進傳送門進入三款 3D 遊戲！</p>
+        <div class="best-bar" id="playerBadge">👤 讀取學生身份中...</div>
+        <div class="picker-label">1. 選擇糖豆柴犬配色</div>
+        <div class="seg-grid" id="skinPicker">
+          <button type="button" class="seg-btn active" data-skin="0xf59e0b">🐕 經典</button>
+          <button type="button" class="seg-btn" data-skin="0xf472b6">🍓 草莓</button>
+          <button type="button" class="seg-btn" data-skin="0x38bdf8">🫐 藍莓</button>
+          <button type="button" class="seg-btn" data-skin="0xa855f7">🍇 葡萄</button>
+          <button type="button" class="seg-btn" data-skin="0x10b981">🍏 青蘋</button>
+        </div>
+        <div class="picker-label">2. 全班連線房間代碼（同班輸入相同代碼即可同框）</div>
+        <input type="text" id="roomCodeInput" value="MUSIC1" maxlength="12" style="width:100%;padding:9px 12px;border-radius:12px;border:2px solid #e2e8f0;font:inherit;font-weight:900;text-align:center;text-transform:uppercase;letter-spacing:0.08em;" aria-label="房間代碼" />
+        <div class="picker-label">3. 課室同場示範玩家（單人試玩也超熱鬧）</div>
+        <div class="seg-grid-2" id="botPicker">
+          <button type="button" class="seg-btn active" data-bots="1">🤖 開啟（10 位同場糖豆柴犬）</button>
+          <button type="button" class="seg-btn" data-bots="0">👤 關閉（僅真實玩家）</button>
+        </div>
+        <button type="button" class="primary-btn" id="btnEnterWorld">▶ 跳進 3D 音樂派對世界！</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    // Read student identity
+    function readStoredStudent() {
+      try {
+        const s = JSON.parse(localStorage.getItem('musicGameSettingsV4') || '{}') || {};
+        let name = (s.savedName === '__other__' ? s.savedCustomName : s.savedName) || '';
+        name = String(name || '').trim();
+        if (!name || name === '訪客' || name === '__other__') return null;
+        return {
+          name,
+          grade: parseInt(s.userGrade, 10) || 0,
+          class: String(s.userClass || 'A'),
+          id: String(s.userId || '')
+        };
+      } catch (e) { return null; }
+    }
+    const meUser = readStoredStudent();
+    const myDisplayName = meUser ? `${meUser.name}${meUser.class ? '·' + meUser.class : ''}` : '你（訪客柴犬）';
+
+    const badgeEl = document.getElementById('playerBadge');
+    if (badgeEl) {
+      badgeEl.textContent = meUser
+        ? `👤 ${myDisplayName} · 準備進入糖豆人派對！`
+        : '👤 訪客模式（回大廳登入後將顯示你的名字牌）';
+    }
+
+    // Audio
+    let audioCtx = null;
+    let muted = false;
+    function unlockAudio() {
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!audioCtx) audioCtx = new AC();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+      } catch (e) {}
+    }
+    function playTone(freq, dur, type, vol, delay) {
+      if (muted || !audioCtx) return;
+      try {
+        const now = audioCtx.currentTime + (delay || 0);
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = type || 'triangle';
+        osc.frequency.setValueAtTime(freq, now);
+        g.gain.setValueAtTime(0.001, now);
+        g.gain.linearRampToValueAtTime(vol || 0.14, now + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.001, now + (dur || 0.2));
+        osc.connect(g); g.connect(audioCtx.destination);
+        osc.start(now); osc.stop(now + (dur || 0.2) + 0.03);
+      } catch (e) {}
+    }
+    function sfxJump() { playTone(360, 0.14, 'sine', 0.12, 0); playTone(540, 0.12, 'sine', 0.1, 0.05); }
+    function sfxDive() { playTone(260, 0.12, 'triangle', 0.14, 0); playTone(440, 0.14, 'triangle', 0.12, 0.04); }
+    function sfxBounce() { playTone(160, 0.22, 'sine', 0.2, 0); playTone(480, 0.2, 'triangle', 0.14, 0.04); }
+    function sfxOk() { [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => playTone(f, 0.2, 'triangle', 0.14, i * 0.05)); }
+    function sfxFail() { playTone(220, 0.22, 'sawtooth', 0.1, 0); playTone(165, 0.28, 'sawtooth', 0.1, 0.1); }
+
+    // Three.js Scene
+    const stage = document.getElementById('gameStage');
+    const canvas = document.getElementById('glCanvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xbae6fd);
+    scene.fog = new THREE.Fog(0xbae6fd, 36, 110);
+
+    const camera = new THREE.PerspectiveCamera(52, 1, 0.1, 150);
+    const hemi = new THREE.HemisphereLight(0xffffff, 0xfbcfe8, 0.96);
+    scene.add(hemi);
+    const sun = new THREE.DirectionalLight(0xfffbeb, 0.95);
+    sun.position.set(16, 30, 18);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.camera.near = 2; sun.shadow.camera.far = 90;
+    sun.shadow.camera.left = -28; sun.shadow.camera.right = 28;
+    sun.shadow.camera.top = 28; sun.shadow.camera.bottom = -28;
+    scene.add(sun);
+
+    // Candy Party Plaza Floor
+    function makePlazaTex() {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 512;
+      const ctx = c.getContext('2d');
+      const cols = ['#fdf2f8', '#eff6ff', '#fefce8', '#f0fdf4'];
+      const sz = 128;
+      for (let y = 0; y < 4; y++) {
+        for (let x = 0; x < 4; x++) {
+          ctx.fillStyle = cols[(x + y) % 4];
+          ctx.fillRect(x * sz, y * sz, sz, sz);
+        }
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(6, 6);
+      return tex;
+    }
+
+    const plazaBase = new THREE.Mesh(
+      new THREE.CylinderGeometry(28, 25, 2.2, 48),
+      new THREE.MeshStandardMaterial({ map: makePlazaTex(), roughness: 0.65 })
+    );
+    plazaBase.position.y = -1.1;
+    plazaBase.receiveShadow = true;
+    scene.add(plazaBase);
+
+    const plazaRim = new THREE.Mesh(
+      new THREE.TorusGeometry(28.1, 0.55, 14, 64),
+      new THREE.MeshStandardMaterial({ color: 0xf472b6, roughness: 0.35 })
+    );
+    plazaRim.rotation.x = Math.PI / 2;
+    plazaRim.position.y = 0.05;
+    scene.add(plazaRim);
+
+    // Inflatable Candy Bumpers around plaza
+    const bumperColors = [0xf472b6, 0x38bdf8, 0xfacc15, 0xa855f7, 0x34d399];
+    for (let i = 0; i < 16; i++) {
+      const ang = (i / 16) * Math.PI * 2;
+      const b = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.65, 0.78, 1.4, 16),
+        new THREE.MeshStandardMaterial({ color: bumperColors[i % bumperColors.length], roughness: 0.3 })
+      );
+      b.position.set(Math.cos(ang) * 26.8, 0.7, Math.sin(ang) * 26.8);
+      b.castShadow = true;
+      scene.add(b);
+    }
+
+    // Floating Candy Clouds
+    const clouds = [];
+    const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+    for (let i = 0; i < 10; i++) {
+      const cg = new THREE.Group();
+      [[-1.6, 0, 0, 2.4, 1.2, 1.5], [0.2, 0.4, 0.1, 3.0, 1.5, 1.8], [1.9, 0, 0, 2.1, 1.1, 1.3]].forEach(([x, y, z, w, h, d]) => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), cloudMat);
+        m.position.set(x, y, z); cg.add(m);
+      });
+      const ang = (i / 10) * Math.PI * 2;
+      cg.position.set(Math.cos(ang) * 38, 8 + (i % 3) * 3.5, Math.sin(ang) * 38);
+      scene.add(cg);
+      clouds.push({ g: cg, ang, r: 38, y: cg.position.y, spd: 0.04 + (i % 3) * 0.015 });
+    }
+
+    // 3 Bouncy Drum Pads
+    const drumPads = [];
+    [[-13, -10], [13, -10], [0, 16]].forEach(([dx, dz]) => {
+      const g = new THREE.Group();
+      g.position.set(dx, 0, dz);
+      const body = new THREE.Mesh(
+        new THREE.CylinderGeometry(2.1, 2.3, 0.7, 24),
+        new THREE.MeshStandardMaterial({ color: 0xf43f5e, roughness: 0.35 })
+      );
+      body.position.y = 0.35; body.castShadow = true; g.add(body);
+      const head = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.9, 1.9, 0.18, 24),
+        new THREE.MeshStandardMaterial({ color: 0xfef08a, emissive: 0xf59e0b, emissiveIntensity: 0.25 })
+      );
+      head.position.y = 0.72; g.add(head);
+      scene.add(g);
+      drumPads.push({ x: dx, z: dz, r: 2.15, mesh: g, bounceAnim: 0 });
+    });
+
+    // 2 Spinning Music Sweeper Bars (Fall Guys obstacle!)
+    const sweepers = [];
+    [[-13, 8], [13, 8]].forEach(([sx, sz], idx) => {
+      const g = new THREE.Group();
+      g.position.set(sx, 0, sz);
+      const hub = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.9, 1.0, 1.4, 16),
+        new THREE.MeshStandardMaterial({ color: 0x7c3aed, roughness: 0.3 })
+      );
+      hub.position.y = 0.7; hub.castShadow = true; g.add(hub);
+      const bar = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.32, 0.32, 8.8, 12),
+        new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0xca8a04, emissiveIntensity: 0.2 })
+      );
+      bar.rotation.z = Math.PI / 2;
+      bar.position.y = 0.85; bar.castShadow = true; g.add(bar);
+      scene.add(g);
+      sweepers.push({ group: g, x: sx, z: sz, angle: idx * 1.4, speed: idx === 0 ? 1.55 : -1.55, len: 4.5 });
+    });
+
+    // 3 Game Portals
+    const PORTALS = [
+      { x: -18, z: -15, color: 0x0284c7, label: '❄️ 前往《柴犬滑行 3D》', url: 'shiba-slide-3d.html' },
+      { x: 0, z: -21, color: 0x8b5cf6, label: '🏄 前往《節奏衝浪 3D》', url: 'rhythm-surf-3d.html' },
+      { x: 18, z: -15, color: 0xec4899, label: '🎹 前往《立體琴鍵島 3D》', url: 'chord-island-3d.html' }
+    ];
+    PORTALS.forEach((p) => {
+      const g = new THREE.Group();
+      g.position.set(p.x, 0, p.z);
+      g.lookAt(0, 0, 0);
+      const arch = new THREE.Mesh(
+        new THREE.TorusGeometry(2.6, 0.38, 14, 32, Math.PI),
+        new THREE.MeshStandardMaterial({ color: p.color, emissive: p.color, emissiveIntensity: 0.3, roughness: 0.3 })
+      );
+      arch.position.y = 0.2; arch.castShadow = true; g.add(arch);
+      const pad = new THREE.Mesh(
+        new THREE.CylinderGeometry(2.5, 2.7, 0.18, 28),
+        new THREE.MeshBasicMaterial({ color: p.color, transparent: true, opacity: 0.55 })
+      );
+      pad.position.y = 0.09; g.add(pad);
+      scene.add(g);
+      p.group = g;
+    });
+
+    // Central 3x3 Fall Guys Music Floor Match Arena
+    const arenaTiles = [];
+    const TILE_COLORS = [0xf472b6, 0x38bdf8, 0xfacc15, 0x34d399, 0xa855f7, 0xfb923c, 0x22d3ee, 0xf43f5e, 0x818cf8];
+    const TILE_SIZE = 3.9;
+    const TILE_GAP = 4.3;
+
+    function makeTileTexture(text, bgHex) {
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#' + bgHex.toString(16).padStart(6, '0');
+      ctx.fillRect(0, 0, 256, 256);
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.lineWidth = 16;
+      ctx.strokeRect(8, 8, 240, 240);
+      if (text) {
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = 'rgba(0,0,0,0.35)';
+        ctx.shadowBlur = 8;
+        const fs = text.length <= 2 ? 96 : text.length <= 4 ? 64 : 44;
+        ctx.font = `900 ${fs}px "Inter", "Noto Sans TC", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, 128, 130);
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.45)';
+        ctx.font = '900 92px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('♪', 128, 130);
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        const idx = r * 3 + c;
+        const tx = (c - 1) * TILE_GAP;
+        const tz = (r - 1) * TILE_GAP;
+        const col = TILE_COLORS[idx % TILE_COLORS.length];
+        const tex = makeTileTexture('', col);
+        const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.4 });
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(TILE_SIZE, 0.45, TILE_SIZE), mat);
+        mesh.position.set(tx, 0.22, tz);
+        mesh.receiveShadow = true;
+        mesh.castShadow = true;
+        scene.add(mesh);
+        arenaTiles.push({ idx, x: tx, z: tz, color: col, mesh, mat, tex, label: '', dropped: false, dropY: 0.22 });
+      }
+    }
+
+    function setTileLabel(tile, text) {
+      tile.label = text;
+      if (tile.tex) tile.tex.dispose();
+      tile.tex = makeTileTexture(text, tile.color);
+      tile.mat.map = tile.tex;
+      tile.mat.needsUpdate = true;
+    }
+
+    // Bean-Shiba Avatar Builder (Fall Guys proportions!)
+    function createBeanShiba(coatColor) {
+      const g = new THREE.Group();
+      const bodyMat = new THREE.MeshStandardMaterial({ color: coatColor, roughness: 0.42 });
+      const orange = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.55 });
+      const cream = new THREE.MeshStandardMaterial({ color: 0xfffbeb, roughness: 0.6 });
+      const black = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.35 });
+      const pink = new THREE.MeshStandardMaterial({ color: 0xfb7185, roughness: 0.5 });
+
+      const rig = new THREE.Group();
+      g.add(rig);
+
+      // Chubby Bean torso
+      const torso = new THREE.Mesh(new THREE.SphereGeometry(0.68, 18, 14), bodyMat);
+      torso.scale.set(1.0, 1.18, 0.9);
+      torso.position.y = 0.88;
+      torso.castShadow = true;
+      rig.add(torso);
+
+      const belly = new THREE.Mesh(new THREE.SphereGeometry(0.5, 14, 12), cream);
+      belly.scale.set(0.9, 1.0, 0.55);
+      belly.position.set(0, 0.84, 0.36);
+      rig.add(belly);
+
+      // Shiba Head
+      const head = new THREE.Group();
+      head.position.set(0, 1.65, 0.06);
+      const skull = new THREE.Mesh(new THREE.SphereGeometry(0.56, 18, 14), orange);
+      skull.scale.set(1.08, 0.95, 0.98);
+      skull.castShadow = true;
+      head.add(skull);
+
+      const muzzle = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.26, 0.32), cream);
+      muzzle.position.set(0, -0.14, 0.42);
+      head.add(muzzle);
+
+      const nose = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.1, 0.1), black);
+      nose.position.set(0, -0.06, 0.58);
+      head.add(nose);
+
+      const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), black);
+      eyeL.position.set(-0.22, 0.06, 0.48);
+      head.add(eyeL);
+      const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), black);
+      eyeR.position.set(0.22, 0.06, 0.48);
+      head.add(eyeR);
+
+      [-0.32, 0.32].forEach((ex) => {
+        const ear = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.34, 6), orange);
+        ear.position.set(ex, 0.48, 0);
+        ear.rotation.z = ex < 0 ? 0.22 : -0.22;
+        head.add(ear);
+        const inner = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.2, 6), pink);
+        inner.position.set(ex, 0.46, 0.05);
+        inner.rotation.z = ex < 0 ? 0.22 : -0.22;
+        head.add(inner);
+      });
+      rig.add(head);
+
+      // Stubby Arms & Legs
+      const armL = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), cream);
+      armL.scale.set(0.9, 1.4, 0.9);
+      armL.position.set(-0.68, 0.95, 0.05);
+      rig.add(armL);
+      const armR = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), cream);
+      armR.scale.set(0.9, 1.4, 0.9);
+      armR.position.set(0.68, 0.95, 0.05);
+      rig.add(armR);
+
+      const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.42, 10), cream);
+      legL.position.set(-0.26, 0.21, 0);
+      rig.add(legL);
+      const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.42, 10), cream);
+      legR.position.set(0.26, 0.21, 0);
+      rig.add(legR);
+
+      g.userData = { rig, head, armL, armR, legL, legR, torsoMat: bodyMat };
+      return g;
+    }
+
+    // Nameplate Layer
+    const nameLayer = document.getElementById('nameLayer');
+    function makeNameTag(text, isMe) {
+      const el = document.createElement('div');
+      el.className = 'name-tag' + (isMe ? ' me' : '');
+      el.textContent = text;
+      nameLayer.appendChild(el);
+      return el;
+    }
+
+    // Player & Demo Classmates
+    const player = {
+      name: myDisplayName,
+      isMe: true,
+      mesh: createBeanShiba(0xf59e0b),
+      tag: makeNameTag(myDisplayName, true),
+      x: 0, y: 0.45, z: 12,
+      vx: 0, vy: 0, vz: 0,
+      yaw: Math.PI,
+      diveTimer: 0,
+      emote: '',
+      emoteTimer: 0
+    };
+    scene.add(player.mesh);
+
+    const BOT_NAMES = ['陳小明·A', '李樂彤·B', '張子軒·A', '黃思穎·C', '劉浩然·B', '林嘉欣·A', '吳柏霖·D', '周芷晴·C', '鄭宇軒·B', '何詠琳·A'];
+    const BOT_COLORS = [0xf472b6, 0x38bdf8, 0xa855f7, 0x10b981, 0xfb923c, 0x22d3ee, 0xf43f5e, 0x818cf8, 0xfacc15, 0x34d399];
+    const bots = [];
+    function rebuildBots(enabled) {
+      while (bots.length) {
+        const b = bots.pop();
+        scene.remove(b.mesh);
+        if (b.tag && b.tag.parentNode) b.tag.parentNode.removeChild(b.tag);
+      }
+      if (!enabled) {
+        document.getElementById('hudPlayers').textContent = '1';
+        return;
+      }
+      BOT_NAMES.forEach((bname, i) => {
+        const ang = (i / BOT_NAMES.length) * Math.PI * 2;
+        const rad = 7 + (i % 3) * 4;
+        const mesh = createBeanShiba(BOT_COLORS[i % BOT_COLORS.length]);
+        scene.add(mesh);
+        bots.push({
+          name: bname,
+          mesh,
+          tag: makeNameTag(bname, false),
+          x: Math.cos(ang) * rad,
+          y: 0.45,
+          z: Math.sin(ang) * rad,
+          vx: 0, vy: 0, vz: 0,
+          yaw: Math.random() * Math.PI * 2,
+          tx: Math.cos(ang) * 6,
+          tz: Math.sin(ang) * 6,
+          thinkTimer: Math.random() * 2,
+          emote: '',
+          emoteTimer: 0
+        });
+      });
+      document.getElementById('hudPlayers').textContent = String(1 + bots.length);
+    }
+
+    // Party Floor Match Question Bank
+    const PARTY_QUESTIONS = [
+      { badge: '🎼 音名識別', title: '高音譜號下加一線是什麼音？', ans: 'C4', pool: ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5', 'D5'] },
+      { badge: '🎼 音名識別', title: '高音譜號第二線是什麼音？', ans: 'G4', pool: ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5', 'E5'] },
+      { badge: '🔑 調號辨別', title: '1 個升記號（F♯）是什麼大調？', ans: 'G 大調', pool: ['C 大調', 'G 大調', 'F 大調', 'D 大調', 'B♭大調', 'A 大調', 'E 大調', 'E♭大調', 'A♭大調'] },
+      { badge: '🔑 調號辨別', title: '1 個降記號（B♭）是什麼大調？', ans: 'F 大調', pool: ['C 大調', 'G 大調', 'F 大調', 'D 大調', 'B♭大調', 'A 大調', 'E 大調', 'E♭大調', 'A♭大調'] },
+      { badge: '📖 音樂術語', title: '「Allegro」代表什麼速度？', ans: '快板', pool: ['快板', '慢板', '行板', '中板', '急板', '漸強', '漸弱', '斷奏', '漸慢'] },
+      { badge: '📖 音樂術語', title: '「Crescendo」是什麼意思？', ans: '漸強', pool: ['漸強', '漸弱', '漸慢', '強音', '弱音', '斷奏', '圓滑', '快板', '急板'] },
+      { badge: '🎹 和弦組成', title: 'C 大三和弦的三個音是？', ans: 'C-E-G', pool: ['C-E-G', 'D-F-A', 'E-G-B', 'F-A-C', 'G-B-D', 'A-C-E', 'C-F-G', 'C-E♭-G', 'G-B♭-D'] }
+    ];
+
+    const state = {
+      started: false,
+      botsEnabled: true,
+      score: 0,
+      streak: 0,
+      partyPhase: 'idle', // 'idle' | 'countdown' | 'reveal'
+      partyTimer: 0,
+      partyQ: null,
+      keys: { w: false, a: false, s: false, d: false },
+      joyX: 0, joyY: 0,
+      activePortal: null
+    };
+
+    const fxBanner = document.getElementById('fxBanner');
+    let fxTimer = 0;
+    function showBanner(txt, ok) {
+      fxBanner.textContent = txt;
+      fxBanner.className = 'fx-banner show ' + (ok ? 'ok' : 'err');
+      clearTimeout(fxTimer);
+      fxTimer = setTimeout(() => fxBanner.classList.remove('show'), 1100);
+    }
+
+    function startPartyRound() {
+      const q = PARTY_QUESTIONS[Math.floor(Math.random() * PARTY_QUESTIONS.length)];
+      state.partyQ = q;
+      state.partyPhase = 'countdown';
+      state.partyTimer = 6.5;
+      document.getElementById('modeBadge').textContent = '🎪 音符地磚生存戰';
+      document.getElementById('modeBadge').classList.add('quiz');
+      document.getElementById('partyPrompt').classList.remove('is-hidden');
+      document.getElementById('partyBadge').textContent = q.badge;
+      document.getElementById('partyTitle').textContent = q.title;
+      document.getElementById('partySub').textContent = '快跑或飛撲去企住正確的 3D 彩色地磚！';
+
+      // Assign labels to 9 tiles (shuffle)
+      const labels = q.pool.slice().sort(() => Math.random() - 0.5);
+      arenaTiles.forEach((tile, i) => {
+        tile.dropped = false;
+        tile.dropY = 0.22;
+        tile.mesh.position.y = 0.22;
+        tile.mesh.visible = true;
+        setTileLabel(tile, labels[i]);
+      });
+
+      // Direct bots toward random or correct tiles
+      bots.forEach((b, i) => {
+        const goCorrect = Math.random() < 0.68;
+        const targetTile = goCorrect
+          ? arenaTiles.find(t => t.label === q.ans)
+          : arenaTiles[Math.floor(Math.random() * arenaTiles.length)];
+        if (targetTile) {
+          b.tx = targetTile.x + (Math.random() - 0.5) * 2.2;
+          b.tz = targetTile.z + (Math.random() - 0.5) * 2.2;
+        }
+      });
+    }
+
+    function finishPartyRound() {
+      state.partyPhase = 'reveal';
+      state.partyTimer = 2.6;
+      const ans = state.partyQ.ans;
+      let playerSafe = false;
+      arenaTiles.forEach((tile) => {
+        if (tile.label !== ans) {
+          tile.dropped = true;
+        } else {
+          if (Math.abs(player.x - tile.x) <= TILE_SIZE * 0.56 && Math.abs(player.z - tile.z) <= TILE_SIZE * 0.56) {
+            playerSafe = true;
+          }
+        }
+      });
+      if (playerSafe) {
+        state.streak += 1;
+        const gain = 150 + state.streak * 30;
+        state.score += gain;
+        sfxOk();
+        showBanner(`🎉 生存成功！+${gain} 分`, true);
+      } else {
+        state.streak = 0;
+        sfxFail();
+        showBanner(`💦 跌落雲海！答案係 ${ans}`, false);
+      }
+      document.getElementById('hudScore').textContent = String(state.score);
+      document.getElementById('hudStreak').textContent = String(state.streak);
+    }
+
+    function endPartyMode() {
+      state.partyPhase = 'idle';
+      document.getElementById('modeBadge').textContent = '🎪 自由樂園探索';
+      document.getElementById('modeBadge').classList.remove('quiz');
+      document.getElementById('partyPrompt').classList.add('is-hidden');
+      arenaTiles.forEach((tile) => {
+        tile.dropped = false;
+        tile.dropY = 0.22;
+        tile.mesh.position.y = 0.22;
+        tile.mesh.visible = true;
+        setTileLabel(tile, '');
+      });
+    }
+
+    // 360° Orbit Camera
+    const orbit = { yaw: 0, pitch: 0.48, dist: 15.5, targetYaw: 0, targetPitch: 0.48, targetDist: 15.5, dragging: false, lastX: 0, lastY: 0 };
+    document.getElementById('btnResetCam').addEventListener('click', () => {
+      orbit.targetYaw = 0; orbit.targetPitch = 0.48; orbit.targetDist = 15.5;
+    });
+    canvas.addEventListener('pointerdown', (e) => {
+      unlockAudio();
+      orbit.dragging = true; orbit.lastX = e.clientX; orbit.lastY = e.clientY;
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (!orbit.dragging) return;
+      const dx = e.clientX - orbit.lastX;
+      const dy = e.clientY - orbit.lastY;
+      orbit.lastX = e.clientX; orbit.lastY = e.clientY;
+      orbit.targetYaw -= dx * 0.008;
+      orbit.targetPitch = Math.max(0.18, Math.min(1.25, orbit.targetPitch + dy * 0.006));
+    });
+    window.addEventListener('pointerup', () => { orbit.dragging = false; });
+    window.addEventListener('pointercancel', () => { orbit.dragging = false; });
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      orbit.targetDist = Math.max(8.5, Math.min(28.0, orbit.targetDist + e.deltaY * 0.015));
+    }, { passive: false });
+
+    // Virtual Joystick
+    const joyBase = document.getElementById('joyBase');
+    const joyKnob = document.getElementById('joyKnob');
+    let joyPointer = null;
+    joyBase.addEventListener('pointerdown', (e) => {
+      e.stopPropagation(); unlockAudio(); joyPointer = e.pointerId; updateJoy(e);
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (joyPointer !== null && e.pointerId === joyPointer) updateJoy(e);
+    });
+    window.addEventListener('pointerup', (e) => {
+      if (joyPointer !== null && e.pointerId === joyPointer) {
+        joyPointer = null; state.joyX = 0; state.joyY = 0; joyKnob.style.transform = '';
+      }
+    });
+    function updateJoy(e) {
+      const rect = joyBase.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      let dx = e.clientX - cx;
+      let dy = e.clientY - cy;
+      const maxR = rect.width * 0.36;
+      const d = Math.hypot(dx, dy);
+      if (d > maxR) { dx = (dx / d) * maxR; dy = (dy / d) * maxR; }
+      joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+      state.joyX = dx / maxR;
+      state.joyY = dy / maxR;
+    }
+
+    // Actions
+    function doJump() {
+      if (!state.started || player.y > 0.55) return;
+      player.vy = 11.2;
+      sfxJump();
+    }
+    function doDive() {
+      if (!state.started || player.diveTimer > 0) return;
+      player.diveTimer = 0.36;
+      const fx = Math.sin(player.yaw);
+      const fz = Math.cos(player.yaw);
+      player.vx = fx * 17.5;
+      player.vz = fz * 17.5;
+      if (player.y <= 0.55) player.vy = 5.6;
+      sfxDive();
+    }
+    const EMOTES = ['🎵', '🔥', '👋', '👏', '🎉'];
+    let emoteIdx = 0;
+    function doEmote() {
+      player.emote = EMOTES[emoteIdx % EMOTES.length];
+      emoteIdx += 1;
+      player.emoteTimer = 2.0;
+      playTone(659.25, 0.14, 'sine', 0.12, 0);
+    }
+
+    document.getElementById('btnJump').addEventListener('click', () => { unlockAudio(); doJump(); });
+    document.getElementById('btnDive').addEventListener('click', () => { unlockAudio(); doDive(); });
+    document.getElementById('btnEmote').addEventListener('click', () => { unlockAudio(); doEmote(); });
+    document.getElementById('btnStartParty').addEventListener('click', () => {
+      unlockAudio();
+      if (state.partyPhase === 'idle') startPartyRound();
+      else endPartyMode();
+    });
+    document.getElementById('btnPortalGo').addEventListener('click', () => {
+      if (state.activePortal) window.location.href = state.activePortal.url;
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (!state.started) return;
+      if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') state.keys.w = true;
+      if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') state.keys.s = true;
+      if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') state.keys.a = true;
+      if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') state.keys.d = true;
+      if (e.code === 'Space') { e.preventDefault(); unlockAudio(); doJump(); }
+      if (e.key === 'Shift') { unlockAudio(); doDive(); }
+      if ((e.key === 'e' || e.key === 'E' || e.key === 'Enter') && state.activePortal) {
+        window.location.href = state.activePortal.url;
+      }
+    });
+    window.addEventListener('keyup', (e) => {
+      if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') state.keys.w = false;
+      if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') state.keys.s = false;
+      if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') state.keys.a = false;
+      if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') state.keys.d = false;
+    });
+
+    // Modal Pickers
+    document.getElementById('skinPicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-skin]');
+      if (!btn) return;
+      document.querySelectorAll('#skinPicker .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+      player.mesh.userData.torsoMat.color.setHex(parseInt(btn.dataset.skin, 16));
+    });
+    document.getElementById('botPicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-bots]');
+      if (!btn) return;
+      state.botsEnabled = btn.dataset.bots === '1';
+      document.querySelectorAll('#botPicker .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+    });
+    document.getElementById('btnEnterWorld').addEventListener('click', () => {
+      unlockAudio();
+      state.started = true;
+      document.getElementById('startOverlay').classList.add('hidden');
+      rebuildBots(state.botsEnabled);
+    });
+    document.getElementById('btnMute').addEventListener('click', (e) => {
+      muted = !muted;
+      e.currentTarget.textContent = muted ? '🔇' : '🔊';
+    });
+
+    function onResize() {
+      const w = stage.clientWidth || window.innerWidth;
+      const h = stage.clientHeight || window.innerHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h, false);
+    }
+    window.addEventListener('resize', onResize);
+
+    // Project 3D position to 2D screen nameplate
+    const projVec = new THREE.Vector3();
+    function updateNameTag(entity) {
+      projVec.set(entity.x, entity.y + 2.5, entity.z);
+      projVec.project(camera);
+      if (projVec.z > 1) {
+        entity.tag.style.display = 'none';
+        return;
+      }
+      entity.tag.style.display = 'block';
+      const sx = (projVec.x * 0.5 + 0.5) * stage.clientWidth;
+      const sy = (-projVec.y * 0.5 + 0.5) * stage.clientHeight;
+      entity.tag.style.left = sx + 'px';
+      entity.tag.style.top = sy + 'px';
+      if (entity.emoteTimer > 0 && entity.emote) {
+        entity.tag.innerHTML = `<span class="emote-pop">${entity.emote}</span>${entity.name}`;
+      } else {
+        entity.tag.textContent = entity.name;
+      }
+    }
+
+    function getGroundHeightAt(x, z) {
+      // Check if on any arena tile
+      for (let i = 0; i < arenaTiles.length; i++) {
+        const t = arenaTiles[i];
+        if (!t.dropped && Math.abs(x - t.x) <= TILE_SIZE * 0.5 && Math.abs(z - t.z) <= TILE_SIZE * 0.5) {
+          return 0.45;
+        }
+      }
+      // If inside dropped tile pit, return -12 so player falls and respawns
+      if (Math.abs(x) <= 6.2 && Math.abs(z) <= 6.2) return -12;
+      if (Math.hypot(x, z) <= 27.2) return 0;
+      return -12;
+    }
+
+    let lastTime = 0;
+    function animate(now) {
+      requestAnimationFrame(animate);
+      const dt = Math.min(0.05, (now - (lastTime || now)) / 1000);
+      lastTime = now;
+      const t = now * 0.001;
+
+      // Clouds
+      clouds.forEach((c) => {
+        c.ang += c.spd * dt;
+        c.g.position.set(Math.cos(c.ang) * c.r, c.y + Math.sin(t + c.ang) * 0.6, Math.sin(c.ang) * c.r);
+      });
+
+      // Sweepers
+      sweepers.forEach((sw) => {
+        sw.angle += sw.speed * dt;
+        sw.group.rotation.y = sw.angle;
+      });
+
+      // Drum bounce anim
+      drumPads.forEach((dp) => {
+        if (dp.bounceAnim > 0) {
+          dp.bounceAnim = Math.max(0, dp.bounceAnim - dt * 5);
+          dp.mesh.scale.set(1 + dp.bounceAnim * 0.16, 1 - dp.bounceAnim * 0.2, 1 + dp.bounceAnim * 0.16);
+        } else {
+          dp.mesh.scale.set(1, 1, 1);
+        }
+      });
+
+      // Dropping tiles animation
+      arenaTiles.forEach((tile) => {
+        if (tile.dropped && tile.dropY > -14) {
+          tile.dropY -= dt * 16;
+          tile.mesh.position.y = tile.dropY;
+          if (tile.dropY < -12) tile.mesh.visible = false;
+        }
+      });
+
+      // Party Floor Match Timer
+      if (state.partyPhase === 'countdown') {
+        state.partyTimer -= dt;
+        document.getElementById('partyTimer').textContent = `⏱ ${Math.max(0, state.partyTimer).toFixed(1)}s`;
+        if (state.partyTimer <= 0) finishPartyRound();
+      } else if (state.partyPhase === 'reveal') {
+        state.partyTimer -= dt;
+        if (state.partyTimer <= 0) startPartyRound();
+      }
+
+      if (state.started) {
+        // Player movement relative to camera yaw
+        let inX = (state.keys.d ? 1 : 0) - (state.keys.a ? 1 : 0) + state.joyX;
+        let inZ = (state.keys.s ? 1 : 0) - (state.keys.w ? 1 : 0) + state.joyY;
+        const mag = Math.hypot(inX, inZ);
+        if (mag > 1) { inX /= mag; inZ /= mag; }
+
+        if (player.diveTimer > 0) {
+          player.diveTimer = Math.max(0, player.diveTimer - dt);
+        } else if (mag > 0.08) {
+          const sinY = Math.sin(orbit.yaw), cosY = Math.cos(orbit.yaw);
+          const wx = inX * cosY + inZ * sinY;
+          const wz = -inX * sinY + inZ * cosY;
+          const spd = 10.5;
+          player.vx += (wx * spd - player.vx) * Math.min(1, dt * 12);
+          player.vz += (wz * spd - player.vz) * Math.min(1, dt * 12);
+          player.yaw = Math.atan2(wx, wz);
+        } else {
+          player.vx *= Math.max(0, 1 - dt * 10);
+          player.vz *= Math.max(0, 1 - dt * 10);
+        }
+
+        player.x += player.vx * dt;
+        player.z += player.vz * dt;
+        const floorY = getGroundHeightAt(player.x, player.z);
+        player.vy -= 28 * dt;
+        player.y += player.vy * dt;
+        if (player.y <= floorY && floorY > -5) {
+          player.y = floorY;
+          player.vy = 0;
+        }
+        if (player.y < -9) {
+          player.x = 0; player.y = 4; player.z = 12; player.vx = 0; player.vz = 0; player.vy = 0;
+          showBanner('☁️ 跌落雲海，重新降落！', false);
+        }
+
+        // Drum pads collision
+        drumPads.forEach((dp) => {
+          if (Math.hypot(player.x - dp.x, player.z - dp.z) < dp.r && player.y <= 1.1) {
+            player.vy = 17.5;
+            dp.bounceAnim = 1;
+            sfxBounce();
+          }
+        });
+
+        // Sweeper bar collision
+        sweepers.forEach((sw) => {
+          const dx = player.x - sw.x, dz = player.z - sw.z;
+          const dist = Math.hypot(dx, dz);
+          if (dist < sw.len && player.y < 1.35) {
+            const barDirX = Math.cos(-sw.angle), barDirZ = Math.sin(-sw.angle);
+            const perp = Math.abs(dx * barDirZ - dz * barDirX);
+            if (perp < 0.75) {
+              const pushAngle = Math.atan2(dz, dx);
+              player.vx = Math.cos(pushAngle) * 14;
+              player.vz = Math.sin(pushAngle) * 14;
+              player.vy = 6.5;
+              sfxDive();
+            }
+          }
+        });
+
+        // Portals proximity check
+        let nearPortal = null;
+        PORTALS.forEach((p) => {
+          if (Math.hypot(player.x - p.x, player.z - p.z) < 3.2) nearPortal = p;
+        });
+        state.activePortal = nearPortal;
+        const portalEl = document.getElementById('portalPrompt');
+        if (nearPortal) {
+          document.getElementById('portalText').textContent = nearPortal.label;
+          portalEl.classList.add('show');
+        } else {
+          portalEl.classList.remove('show');
+        }
+
+        if (player.emoteTimer > 0) player.emoteTimer = Math.max(0, player.emoteTimer - dt);
+
+        player.mesh.position.set(player.x, player.y, player.z);
+        player.mesh.rotation.y = player.yaw;
+        player.mesh.rotation.x = player.diveTimer > 0 ? 0.85 : 0;
+        const runSpd = Math.hypot(player.vx, player.vz);
+        player.mesh.userData.legL.rotation.x = Math.sin(t * 14) * Math.min(0.6, runSpd * 0.06);
+        player.mesh.userData.legR.rotation.x = -Math.sin(t * 14) * Math.min(0.6, runSpd * 0.06);
+        updateNameTag(player);
+
+        // Update Demo Classmate Bots + Fall Guys Bumper Physics
+        bots.forEach((b) => {
+          b.thinkTimer -= dt;
+          if (b.thinkTimer <= 0 && state.partyPhase === 'idle') {
+            b.thinkTimer = 1.6 + Math.random() * 2.5;
+            const ang = Math.random() * Math.PI * 2;
+            const r = 4 + Math.random() * 17;
+            b.tx = Math.cos(ang) * r;
+            b.tz = Math.sin(ang) * r;
+            if (Math.random() < 0.22) { b.emote = EMOTES[Math.floor(Math.random() * EMOTES.length)]; b.emoteTimer = 1.8; }
+          }
+          const dx = b.tx - b.x, dz = b.tz - b.z;
+          const d = Math.hypot(dx, dz);
+          if (d > 0.6) {
+            b.vx += ((dx / d) * 6.5 - b.vx) * Math.min(1, dt * 6);
+            b.vz += ((dz / d) * 6.5 - b.vz) * Math.min(1, dt * 6);
+            b.yaw = Math.atan2(dx, dz);
+          } else {
+            b.vx *= 0.85; b.vz *= 0.85;
+          }
+          // Bumper collision with player
+          const px = b.x - player.x, pz = b.z - player.z;
+          const pd = Math.hypot(px, pz);
+          if (pd > 0.01 && pd < 1.25 && Math.abs(b.y - player.y) < 1.3) {
+            const nx = px / pd, nz = pz / pd;
+            b.vx += nx * 5.5; b.vz += nz * 5.5;
+            player.vx -= nx * 3.5; player.vz -= nz * 3.5;
+          }
+          b.x += b.vx * dt; b.z += b.vz * dt;
+          const bf = getGroundHeightAt(b.x, b.z);
+          b.vy -= 26 * dt; b.y += b.vy * dt;
+          if (b.y <= bf && bf > -5) { b.y = bf; b.vy = 0; }
+          if (b.y < -8) { b.x = (Math.random() - 0.5) * 14; b.y = 4; b.z = 12; b.vy = 0; }
+          if (b.emoteTimer > 0) b.emoteTimer = Math.max(0, b.emoteTimer - dt);
+          b.mesh.position.set(b.x, b.y, b.z);
+          b.mesh.rotation.y = b.yaw;
+          b.mesh.userData.legL.rotation.x = Math.sin(t * 12 + b.x) * 0.4;
+          b.mesh.userData.legR.rotation.x = -Math.sin(t * 12 + b.x) * 0.4;
+          updateNameTag(b);
+        });
+
+        // Smoothly interpolate real online classmates
+        remotePlayers.forEach((rp) => {
+          rp.x += (rp.tx - rp.x) * Math.min(1, dt * 10);
+          rp.y += (rp.ty - rp.y) * Math.min(1, dt * 10);
+          rp.z += (rp.tz - rp.z) * Math.min(1, dt * 10);
+          rp.mesh.position.set(rp.x, rp.y, rp.z);
+          rp.mesh.rotation.y = rp.yaw;
+          rp.mesh.rotation.x = rp.dive ? 0.85 : 0;
+          rp.mesh.userData.legL.rotation.x = Math.sin(t * 12 + rp.x) * 0.35;
+          rp.mesh.userData.legR.rotation.x = -Math.sin(t * 12 + rp.x) * 0.35;
+          updateNameTag(rp);
+        });
+      }
+
+      // Camera Orbit Follow
+      orbit.yaw += (orbit.targetYaw - orbit.yaw) * Math.min(1, dt * 10);
+      orbit.pitch += (orbit.targetPitch - orbit.pitch) * Math.min(1, dt * 10);
+      orbit.dist += (orbit.targetDist - orbit.dist) * Math.min(1, dt * 10);
+      const horiz = Math.cos(orbit.pitch) * orbit.dist;
+      camera.position.set(
+        player.x + Math.sin(orbit.yaw) * horiz,
+        player.y + 1.8 + Math.sin(orbit.pitch) * orbit.dist,
+        player.z + Math.cos(orbit.yaw) * horiz
+      );
+      camera.lookAt(player.x, player.y + 1.4, player.z);
+
+      renderer.render(scene, camera);
+    }
+
+    // Live Multiplayer Sync via Cloudflare Worker (/world/sync)
+    let worldSyncApi = '';
+    fetch('auth-config.js').then(r => r.text()).then((txt) => {
+      const m = txt.match(/authApiBase\s*:\s*['"]([^'"]+)['"]/);
+      if (m && m[1]) worldSyncApi = m[1].replace(/\/+$/, '') + '/world/sync';
+    }).catch(() => {});
+    const myClientId = 'p_' + Math.random().toString(36).slice(2, 10) + '_' + Date.now().toString(36);
+    const remotePlayers = new Map();
+    let syncInFlight = false;
+
+    async function pollWorldSync() {
+      if (!state.started || !worldSyncApi || syncInFlight) return;
+      syncInFlight = true;
+      try {
+        const roomEl = document.getElementById('roomCodeInput');
+        const room = (roomEl ? roomEl.value : 'MUSIC1').trim().toUpperCase() || 'MUSIC1';
+        const res = await fetch(worldSyncApi, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            room,
+            id: myClientId,
+            name: player.name,
+            skin: player.mesh.userData.torsoMat.color.getHex(),
+            x: Number(player.x.toFixed(2)),
+            y: Number(player.y.toFixed(2)),
+            z: Number(player.z.toFixed(2)),
+            yaw: Number(player.yaw.toFixed(2)),
+            dive: player.diveTimer > 0,
+            emote: player.emoteTimer > 0 ? player.emote : ''
+          })
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data || !data.ok || !Array.isArray(data.players)) return;
+        const seen = new Set();
+        data.players.forEach((p) => {
+          if (!p || !p.id || p.id === myClientId) return;
+          seen.add(p.id);
+          let rp = remotePlayers.get(p.id);
+          if (!rp) {
+            const mesh = createBeanShiba(p.skin || 0x38bdf8);
+            scene.add(mesh);
+            rp = {
+              id: p.id, name: p.name || '同學', mesh,
+              tag: makeNameTag(p.name || '同學', false),
+              x: p.x || 0, y: p.y || 0.45, z: p.z || 12,
+              tx: p.x || 0, ty: p.y || 0.45, tz: p.z || 12,
+              yaw: p.yaw || 0, dive: false, emote: '', emoteTimer: 0
+            };
+            remotePlayers.set(p.id, rp);
+          }
+          rp.tx = p.x || 0; rp.ty = p.y || 0.45; rp.tz = p.z || 12;
+          rp.yaw = p.yaw || 0; rp.dive = !!p.dive;
+          rp.emote = p.emote || ''; rp.emoteTimer = p.emote ? 1.5 : 0;
+        });
+        for (const [id, rp] of remotePlayers.entries()) {
+          if (!seen.has(id)) {
+            scene.remove(rp.mesh);
+            if (rp.tag && rp.tag.parentNode) rp.tag.parentNode.removeChild(rp.tag);
+            remotePlayers.delete(id);
+          }
+        }
+        document.getElementById('hudPlayers').textContent = String(1 + bots.length + remotePlayers.size);
+      } catch (e) {
+        // Offline or worker not yet deployed — local/bot mode continues seamlessly
+      } finally {
+        syncInFlight = false;
+      }
+    }
+    setInterval(pollWorldSync, 450);
+
+    window.onload = function () {
+      onResize();
+      requestAnimationFrame(animate);
+    };
+  })();
+  </script>
+</body>
+</html>

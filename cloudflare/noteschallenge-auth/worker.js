@@ -2132,6 +2132,9 @@ export default {
       const live = await handleLiveQuiz(request, env, path, cors);
       if (live) return live;
 
+      const world3d = await handleWorld3D(request, env, path, cors);
+      if (world3d) return world3d;
+
       return jsonResponse({ ok: false, error: 'not found' }, 404, cors);
     } catch (err) {
       console.error('[noteschallenge-auth]', err && err.message ? err.message : err);
@@ -2139,3 +2142,44 @@ export default {
     }
   }
 };
+
+const WORLD_3D_ROOMS = new Map();
+async function handleWorld3D(request, env, path, cors) {
+  if (path !== '/world/sync' || request.method !== 'POST') return null;
+  let body = null;
+  try { body = await request.json(); } catch (e) { return jsonResponse({ ok: false, error: 'bad json' }, 400, cors); }
+  const roomId = String((body && body.room) || 'MUSIC1').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 16) || 'MUSIC1';
+  const pid = String((body && body.id) || '').trim().slice(0, 48);
+  if (!pid) return jsonResponse({ ok: false, error: 'missing id' }, 400, cors);
+  const now = Date.now();
+  let room = WORLD_3D_ROOMS.get(roomId);
+  if (!room) {
+    room = new Map();
+    WORLD_3D_ROOMS.set(roomId, room);
+  }
+  // Prune stale players (>15s idle)
+  for (const [k, v] of room.entries()) {
+    if (now - v.ts > 15000) room.delete(k);
+  }
+  // Cap room at 60 players
+  if (!room.has(pid) && room.size >= 60) {
+    return jsonResponse({ ok: false, error: 'room full' }, 429, cors);
+  }
+  room.set(pid, {
+    id: pid,
+    name: String((body && body.name) || '玩家').trim().slice(0, 24),
+    skin: Number(body && body.skin) || 0xf59e0b,
+    x: Number(body && body.x) || 0,
+    y: Number(body && body.y) || 0,
+    z: Number(body && body.z) || 0,
+    yaw: Number(body && body.yaw) || 0,
+    dive: !!(body && body.dive),
+    emote: String((body && body.emote) || '').slice(0, 8),
+    ts: now
+  });
+  const players = [];
+  for (const p of room.values()) {
+    players.push({ id: p.id, name: p.name, skin: p.skin, x: p.x, y: p.y, z: p.z, yaw: p.yaw, dive: p.dive, emote: p.emote });
+  }
+  return jsonResponse({ ok: true, room: roomId, serverTime: now, players }, 200, cors);
+}
