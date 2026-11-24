@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;900&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vexflow@5.0.0/build/cjs/vexflow.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
     html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Inter', 'Noto Sans TC', sans-serif; background: #cfeaff; color: #1e293b; }
@@ -343,29 +344,29 @@
     'use strict';
 
     const NOTE_BANK = [
-      { label: 'C', name: 'C4 (中央 Do)', y: 58, ledger: [58], freq: 261.63 },
-      { label: 'D', name: 'D4 (Re)', y: 53, ledger: [], freq: 293.66 },
-      { label: 'E', name: 'E4 (Mi)', y: 48, ledger: [], freq: 329.63 },
-      { label: 'F', name: 'F4 (Fa)', y: 43, ledger: [], freq: 349.23 },
-      { label: 'G', name: 'G4 (Sol)', y: 38, ledger: [], freq: 392.00 },
-      { label: 'A', name: 'A4 (La)', y: 33, ledger: [], freq: 440.00 },
-      { label: 'B', name: 'B4 (Si)', y: 28, ledger: [], freq: 493.88 },
-      { label: 'C', name: 'C5 (高音 Do)', y: 23, ledger: [], freq: 523.25 },
-      { label: 'D', name: 'D5 (Re)', y: 18, ledger: [], freq: 587.33 },
-      { label: 'E', name: 'E5 (Mi)', y: 13, ledger: [], freq: 659.25 },
-      { label: 'F', name: 'F5 (Fa)', y: 8, ledger: [], freq: 698.46 }
+      { label: 'C', name: 'C4 (中央 Do)', vexKey: 'c/4', freq: 261.63 },
+      { label: 'D', name: 'D4 (Re)', vexKey: 'd/4', freq: 293.66 },
+      { label: 'E', name: 'E4 (Mi)', vexKey: 'e/4', freq: 329.63 },
+      { label: 'F', name: 'F4 (Fa)', vexKey: 'f/4', freq: 349.23 },
+      { label: 'G', name: 'G4 (Sol)', vexKey: 'g/4', freq: 392.00 },
+      { label: 'A', name: 'A4 (La)', vexKey: 'a/4', freq: 440.00 },
+      { label: 'B', name: 'B4 (Si)', vexKey: 'b/4', freq: 493.88 },
+      { label: 'C', name: 'C5 (高音 Do)', vexKey: 'c/5', freq: 523.25 },
+      { label: 'D', name: 'D5 (Re)', vexKey: 'd/5', freq: 587.33 },
+      { label: 'E', name: 'E5 (Mi)', vexKey: 'e/5', freq: 659.25 },
+      { label: 'F', name: 'F5 (Fa)', vexKey: 'f/5', freq: 698.46 }
     ];
 
     const KEYSIG_BANK = [
-      { name: 'C 大調', type: 'none', count: 0, freq: 261.63, desc: '沒有升降記號' },
-      { name: 'G 大調', type: 'sharp', count: 1, freq: 392.00, desc: '1 個升記號（F♯）' },
-      { name: 'F 大調', type: 'flat', count: 1, freq: 349.23, desc: '1 個降記號（B♭）' },
-      { name: 'D 大調', type: 'sharp', count: 2, freq: 293.66, desc: '2 個升記號（F♯ C♯）' },
-      { name: 'B♭ 大調', type: 'flat', count: 2, freq: 466.16, desc: '2 個降記號（B♭ E♭）' },
-      { name: 'A 大調', type: 'sharp', count: 3, freq: 440.00, desc: '3 個升記號（F♯ C♯ G♯）' },
-      { name: 'E♭ 大調', type: 'flat', count: 3, freq: 311.13, desc: '3 個降記號（B♭ E♭ A♭）' },
-      { name: 'E 大調', type: 'sharp', count: 4, freq: 329.63, desc: '4 個升記號（F♯ C♯ G♯ D♯）' },
-      { name: 'A♭ 大調', type: 'flat', count: 4, freq: 415.30, desc: '4 個降記號（B♭ E♭ A♭ D♭）' }
+      { name: 'C 大調', vexSig: 'C', freq: 261.63, desc: '沒有升降記號' },
+      { name: 'G 大調', vexSig: 'G', freq: 392.00, desc: '1 個升記號（F♯）' },
+      { name: 'F 大調', vexSig: 'F', freq: 349.23, desc: '1 個降記號（B♭）' },
+      { name: 'D 大調', vexSig: 'D', freq: 293.66, desc: '2 個升記號（F♯ C♯）' },
+      { name: 'B♭ 大調', vexSig: 'Bb', freq: 466.16, desc: '2 個降記號（B♭ E♭）' },
+      { name: 'A 大調', vexSig: 'A', freq: 440.00, desc: '3 個升記號（F♯ C♯ G♯）' },
+      { name: 'E♭ 大調', vexSig: 'Eb', freq: 311.13, desc: '3 個降記號（B♭ E♭ A♭）' },
+      { name: 'E 大調', vexSig: 'E', freq: 329.63, desc: '4 個升記號（F♯ C♯ G♯ D♯）' },
+      { name: 'A♭ 大調', vexSig: 'Ab', freq: 415.30, desc: '4 個降記號（B♭ E♭ A♭ D♭）' }
     ];
 
     const TERM_BANK = [
@@ -446,48 +447,66 @@
       };
     }
 
-    function renderStaffSvg(note) {
-      const lines = [8, 18, 28, 38, 48].map(y =>
-        `<line x1="20" y1="${y}" x2="196" y2="${y}" stroke="#1e293b" stroke-width="1.8"/>`
-      ).join('');
-      const ledgers = (note.ledger || []).map(y =>
-        `<line x1="112" y1="${y}" x2="146" y2="${y}" stroke="#1e293b" stroke-width="2"/>`
-      ).join('');
-      const stemUp = note.y >= 28;
-      const stemX = stemUp ? 137 : 121;
-      const stemY2 = stemUp ? note.y - 25 : note.y + 25;
-      return `<svg class="staff-svg" viewBox="0 0 216 70" aria-label="五線譜音名題目">
-        ${lines}
-        <text x="30" y="45" font-size="44" fill="#0f172a" font-family="serif">𝄞</text>
-        ${ledgers}
-        <ellipse cx="129" cy="${note.y}" rx="8.2" ry="5.8" transform="rotate(-18 129 ${note.y})" fill="#0284c7" stroke="#0f172a" stroke-width="1.5"/>
-        <line x1="${stemX}" y1="${note.y}" x2="${stemX}" y2="${stemY2}" stroke="#0f172a" stroke-width="2.2"/>
-      </svg>`;
+    function renderVexNote(container, note) {
+      const VF = typeof VexFlow !== 'undefined' ? VexFlow : null;
+      if (!VF || !VF.Renderer) {
+        container.innerHTML = `<div style="padding:12px;font-weight:900;color:#0284c7;">音符：${note.name}</div>`;
+        return;
+      }
+      try {
+        const w = 240, h = 112;
+        const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
+        renderer.resize(w, h);
+        const ctx = renderer.getContext();
+        const stave = new VF.Stave(14, 10, w - 28);
+        stave.addClef('treble');
+        stave.setContext(ctx).draw();
+        const sn = new VF.StaveNote({ clef: 'treble', keys: [note.vexKey], duration: 'w' });
+        if (typeof sn.setStyle === 'function') sn.setStyle({ fillStyle: '#0284c7', strokeStyle: '#0f172a' });
+        const voice = new VF.Voice({ numBeats: 4, beatValue: 4 });
+        if (typeof voice.setMode === 'function') voice.setMode(2);
+        voice.addTickables([sn]);
+        new VF.Formatter().joinVoices([voice]).format([voice], w - stave.getNoteStartX() - 36);
+        voice.draw(ctx, stave);
+        const svg = container.querySelector('svg');
+        if (svg) {
+          svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+          svg.style.width = '220px';
+          svg.style.height = '96px';
+          svg.style.display = 'block';
+          svg.style.margin = '2px auto 0';
+        }
+      } catch (e) {
+        container.innerHTML = `<div style="padding:12px;font-weight:900;color:#0284c7;">${note.name}</div>`;
+      }
     }
 
-    function renderKeysigSvg(ks) {
-      const lines = [12, 22, 32, 42, 52].map(y =>
-        `<line x1="20" y1="${y}" x2="196" y2="${y}" stroke="#1e293b" stroke-width="1.8"/>`
-      ).join('');
-      const sharpYs = [12, 27, 7, 22];
-      const flatYs = [32, 17, 37, 22];
-      let marks = '';
-      if (ks.type === 'sharp') {
-        for (let i = 0; i < ks.count; i++) {
-          marks += `<text x="${78 + i * 20}" y="${sharpYs[i] + 7}" font-size="22" font-weight="900" fill="#0284c7" font-family="serif">♯</text>`;
-        }
-      } else if (ks.type === 'flat') {
-        for (let i = 0; i < ks.count; i++) {
-          marks += `<text x="${78 + i * 19}" y="${flatYs[i] + 5}" font-size="24" font-weight="900" fill="#7c3aed" font-family="serif">♭</text>`;
-        }
-      } else {
-        marks = `<text x="115" y="37" font-size="13" font-weight="800" fill="#64748b" text-anchor="middle">（無升降號）</text>`;
+    function renderVexKeysig(container, ks) {
+      const VF = typeof VexFlow !== 'undefined' ? VexFlow : null;
+      if (!VF || !VF.Renderer) {
+        container.innerHTML = `<div style="padding:12px;font-weight:900;color:#0284c7;">${ks.desc}</div>`;
+        return;
       }
-      return `<svg class="staff-svg" viewBox="0 0 216 68" aria-label="五線譜調號題目">
-        ${lines}
-        <text x="30" y="49" font-size="44" fill="#0f172a" font-family="serif">𝄞</text>
-        ${marks}
-      </svg>`;
+      try {
+        const w = 240, h = 104;
+        const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
+        renderer.resize(w, h);
+        const ctx = renderer.getContext();
+        const stave = new VF.Stave(14, 6, w - 28);
+        stave.addClef('treble');
+        if (ks.vexSig && ks.vexSig !== 'C') stave.addKeySignature(ks.vexSig);
+        stave.setContext(ctx).draw();
+        const svg = container.querySelector('svg');
+        if (svg) {
+          svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+          svg.style.width = '220px';
+          svg.style.height = '92px';
+          svg.style.display = 'block';
+          svg.style.margin = '2px auto 0';
+        }
+      } catch (e) {
+        container.innerHTML = `<div style="padding:12px;font-weight:900;color:#0284c7;">${ks.desc}</div>`;
+      }
     }
 
     let audioCtx = null;
@@ -1372,9 +1391,9 @@
       promptTitle.textContent = q.title;
       promptSub.textContent = q.sub || '';
       btnHearNote.style.display = (q.note || q.keysig) ? 'inline-block' : 'none';
-      if (q.note) promptVisual.innerHTML = renderStaffSvg(q.note);
-      else if (q.keysig) promptVisual.innerHTML = renderKeysigSvg(q.keysig);
-      else promptVisual.innerHTML = '';
+      promptVisual.innerHTML = '';
+      if (q.note) renderVexNote(promptVisual, q.note);
+      else if (q.keysig) renderVexKeysig(promptVisual, q.keysig);
     }
 
     function clearWorldEntities() {
