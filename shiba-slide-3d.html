@@ -230,6 +230,7 @@
       </div>
       <div class="hud-actions">
         <a href="index.html" class="icon-btn back-home-btn" title="返回大廳" aria-label="返回大廳">← 返回</a>
+        <button type="button" class="icon-btn" id="btnCamMode" title="切換 3D 視角" aria-label="切換 3D 視角">🎥</button>
         <button type="button" class="icon-btn" id="btnMixer" title="音量與曲風設定" aria-label="音量與曲風設定">🎚️</button>
         <button type="button" class="icon-btn" id="btnBgm" title="背景音樂開關" aria-label="背景音樂開關">🎵</button>
         <button type="button" class="icon-btn" id="btnMute" title="音效開關" aria-label="音效開關">🔊</button>
@@ -2071,8 +2072,14 @@
         if (ns.life <= 0) { scene.remove(ns.sprite); ns.mat.dispose(); noteSprites.splice(i, 1); }
       }
 
+      const camPresets = [
+        { y: 5.3, z: 9.6, lookY: 1.35, lookZ: -10 },
+        { y: 9.4, z: 12.6, lookY: 0.9, lookZ: -12 },
+        { y: 3.2, z: 7.4, lookY: 1.55, lookZ: -11 }
+      ];
+      const cp = camPresets[state.camIdx || 0] || camPresets[0];
       let camX = shiba.position.x * 0.42;
-      let camY = 5.3 + shiba.position.y * 0.25;
+      let camY = cp.y + shiba.position.y * 0.25;
       if (state.shake > 0) {
         camX += (Math.random() - 0.5) * state.shake * 1.4;
         camY += (Math.random() - 0.5) * state.shake * 1.1;
@@ -2080,9 +2087,19 @@
       }
       camera.position.x += (camX - camera.position.x) * Math.min(1, dt * 8);
       camera.position.y += (camY - camera.position.y) * Math.min(1, dt * 8);
-      camera.lookAt(shiba.position.x * 0.35, 1.35, -10);
+      camera.position.z += (cp.z - camera.position.z) * Math.min(1, dt * 6);
+      camera.lookAt(shiba.position.x * 0.35, cp.lookY, cp.lookZ);
 
       renderer.render(scene, camera);
+    }
+
+    const btnCamMode = document.getElementById('btnCamMode');
+    if (btnCamMode) {
+      btnCamMode.addEventListener('click', () => {
+        state.camIdx = ((state.camIdx || 0) + 1) % 3;
+        const labels = ['標準追尾', '高空全景', '動感低角'];
+        showBanner('🎥 視角：' + labels[state.camIdx], true);
+      });
     }
 
     window.onload = function () {
