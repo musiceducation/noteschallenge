@@ -353,20 +353,52 @@
     function hideCustomName() {
         if (_customNameInput) _customNameInput.style.display = 'none';
     }
+    function getBoundAuthUser() {
+        const auth = window.WebGoogleAuth;
+        if (!auth || !auth.signedIn) return null;
+        const bound = auth.binding;
+        if (bound && bound.name) {
+            const id = bound.role !== 'teacher' && window.ClassShare ? ClassShare.identity(bound) : null;
+            return {
+                name: bound.name,
+                grade: id ? id.grade : (parseInt(bound.grade, 10) || 0),
+                class: id ? (id.class || bound.class || '') : (bound.class || ''),
+                id: bound.seat || (dom.userId ? dom.userId.value : '') || ''
+            };
+        }
+        if (auth.profile && auth.profile.name) {
+            return {
+                name: auth.profile.name,
+                grade: parseInt(dom.userGrade?.value, 10) || 0,
+                class: dom.userClass?.value || '',
+                id: dom.userId?.value || ''
+            };
+        }
+        return null;
+    }
     function getPlayerName() {
         if (dom.userName.value === '__other__') {
             return _customNameInput ? _customNameInput.value.trim() : '';
         }
-        return dom.userName.value;
+        if (dom.userName.value && dom.userName.value !== '訪客') return dom.userName.value;
+        const authUser = getBoundAuthUser();
+        return authUser ? authUser.name : dom.userName.value;
     }
     function scoredModeNeedsName() {
         const cfg = state.modeConfig || {};
         return cfg.type === 'challenge';
     }
     function ensurePlayIdentity() {
-        const playerName = getPlayerName();
+        const authUser = getBoundAuthUser();
+        const rawName = dom.userName.value === '__other__' ? (_customNameInput ? _customNameInput.value.trim() : '') : dom.userName.value;
+        const playerName = (rawName && rawName !== '訪客') ? rawName : (authUser ? authUser.name : rawName);
         if (!scoredModeNeedsName()) {
-            state.currentUser = playerName ? { name: playerName, grade: parseInt(dom.userGrade.value, 10) || 0, class: dom.userClass.value, id: dom.userId.value } : null;
+            state.currentUser = authUser || (playerName ? { name: playerName, grade: parseInt(dom.userGrade.value, 10) || 0, class: dom.userClass.value, id: dom.userId.value } : null);
+            if (dom.nameField) dom.nameField.classList.remove('error');
+            return true;
+        }
+        if (authUser && (!rawName || rawName === '訪客')) {
+            state.currentUser = authUser;
             if (dom.nameField) dom.nameField.classList.remove('error');
             return true;
         }
@@ -381,6 +413,8 @@
     }
     function ensureScoredIdentity() {
         if (state.currentUser && state.currentUser.name && state.currentUser.name !== '訪客') return true;
+        const authUser = getBoundAuthUser();
+        if (authUser) { state.currentUser = authUser; return true; }
         alert('❗ 請先選擇姓名，方可開始。');
         return false;
     }
@@ -5832,8 +5866,10 @@
                 return;
             }
             const val = hubName.value;
-            const unsigned = window.WebGoogleAuth && window.WebGoogleAuth.required && !window.WebGoogleAuth.signedIn;
-            const needs = unsigned || !val || val === '__guest__' || val === '__other__';
+            const signedIn = !!(window.WebGoogleAuth && window.WebGoogleAuth.signedIn);
+            const hasAuthName = !!(signedIn && ((window.WebGoogleAuth.binding && window.WebGoogleAuth.binding.name) || (window.WebGoogleAuth.profile && window.WebGoogleAuth.profile.name)));
+            const unsigned = window.WebGoogleAuth && window.WebGoogleAuth.required && !signedIn;
+            const needs = unsigned || (!hasAuthName && (!val || val === '__guest__' || val === '__other__'));
             hubScreen.classList.toggle('hub-needs-login', needs);
             document.querySelectorAll('#screen-hub .hub-game-card').forEach(c => c.classList.toggle('is-locked', needs));
         }

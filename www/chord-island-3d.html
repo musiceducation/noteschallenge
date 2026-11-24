@@ -59,40 +59,40 @@
 
     /* Compact Floating Question Card */
     .prompt-wrap {
-      position: absolute; top: 66px; left: 50%; transform: translateX(-50%);
-      z-index: 10; pointer-events: none; width: min(92vw, 410px);
+      position: absolute; top: 58px; left: 50%; transform: translateX(-50%);
+      z-index: 10; pointer-events: none; width: min(94vw, 430px);
       transition: opacity 0.2s ease, transform 0.2s ease;
     }
     .prompt-wrap.is-hidden { opacity: 0; transform: translateX(-50%) translateY(-10px); }
     .prompt-card {
       pointer-events: auto;
-      background: rgba(255, 255, 255, 0.94);
-      backdrop-filter: blur(12px);
-      border: 3px solid #a855f7;
-      border-radius: 20px;
-      padding: 8px 14px 10px;
-      box-shadow: 0 12px 28px rgba(109, 40, 217, 0.2);
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
+      border: 2.5px solid #a855f7;
+      border-radius: 18px;
+      padding: 6px 12px 7px;
+      box-shadow: 0 10px 24px rgba(109, 40, 217, 0.18);
       text-align: center;
       position: relative;
     }
     .prompt-head {
-      display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 2px; flex-wrap: wrap;
+      display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 1px; flex-wrap: wrap;
     }
     .prompt-badge {
-      display: inline-block; font-size: 0.72rem; font-weight: 900;
-      padding: 2px 10px; border-radius: 999px;
+      display: inline-block; font-size: 0.7rem; font-weight: 900;
+      padding: 2px 9px; border-radius: 999px;
       background: #f3e8ff; color: #7e22ce;
     }
     .hear-btn {
-      border: none; border-radius: 999px; padding: 2px 10px;
-      background: #fef3c7; color: #b45309; font: inherit; font-size: 0.72rem; font-weight: 900;
+      border: none; border-radius: 999px; padding: 2px 9px;
+      background: #fef3c7; color: #b45309; font: inherit; font-size: 0.7rem; font-weight: 900;
       cursor: pointer; transition: transform 0.1s ease;
     }
     .hear-btn:active { transform: scale(0.94); }
-    .prompt-title { font-size: 1.18rem; font-weight: 900; color: #0f172a; line-height: 1.28; }
-    .prompt-sub { font-size: 0.78rem; color: #475569; margin-top: 2px; font-weight: 700; }
+    .prompt-title { font-size: 1.05rem; font-weight: 900; color: #0f172a; line-height: 1.22; }
+    .prompt-sub { font-size: 0.74rem; color: #475569; margin-top: 1px; font-weight: 700; }
     .selected-chips {
-      display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 6px; flex-wrap: wrap;
+      display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 4px; flex-wrap: wrap;
     }
     .note-chip {
       padding: 3px 10px; border-radius: 999px; font-size: 0.76rem; font-weight: 900;
@@ -229,6 +229,7 @@
       </div>
       <div class="hud-actions">
         <a href="index.html" class="icon-btn back-home-btn" title="返回大廳" aria-label="返回大廳">← 返回</a>
+        <button type="button" class="icon-btn" id="btnResetCam" title="重設 360° 視角" aria-label="重設視角">🎥</button>
         <button type="button" class="icon-btn" id="btnMixer" title="音量與曲風設定" aria-label="音量與曲風設定">🎚️</button>
         <button type="button" class="icon-btn" id="btnBgm" title="背景音樂開關" aria-label="背景音樂開關">🎵</button>
         <button type="button" class="icon-btn" id="btnMute" title="音效開關" aria-label="音效開關">🔊</button>
@@ -461,10 +462,10 @@
         const svg = container.querySelector('svg');
         if (svg) {
           svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-          svg.style.width = '210px';
-          svg.style.height = '94px';
+          svg.style.width = '175px';
+          svg.style.height = '70px';
           svg.style.display = 'block';
-          svg.style.margin = '2px auto 0';
+          svg.style.margin = '1px auto 0';
         }
       } catch (e) {
         container.innerHTML = `<div style="padding:10px;font-weight:900;color:#7c3aed;">${q.sub}</div>`;
@@ -1282,12 +1283,38 @@
       resultOverlay.classList.remove('hidden');
     }
 
-    // Raycasting on 3D Piano Keys
+    // 360° Orbit Camera + Zoom + Raycasting on 3D Piano Keys
+    const orbit = {
+      yaw: 0, pitch: 0.56, dist: 16.2,
+      targetYaw: 0, targetPitch: 0.56, targetDist: 16.2,
+      dragging: false, moved: 0, lastX: 0, lastY: 0
+    };
+    document.getElementById('btnResetCam').addEventListener('click', () => {
+      orbit.targetYaw = 0; orbit.targetPitch = 0.56; orbit.targetDist = 16.2;
+    });
     const raycaster = new THREE.Raycaster();
     const pointerNdc = new THREE.Vector2();
     canvas.addEventListener('pointerdown', (e) => {
-      if (!state.running || state.paused || state.locked) return;
       unlockAudio();
+      orbit.dragging = true;
+      orbit.moved = 0;
+      orbit.lastX = e.clientX;
+      orbit.lastY = e.clientY;
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (!orbit.dragging) return;
+      const dx = e.clientX - orbit.lastX;
+      const dy = e.clientY - orbit.lastY;
+      orbit.lastX = e.clientX;
+      orbit.lastY = e.clientY;
+      orbit.moved += Math.hypot(dx, dy);
+      orbit.targetYaw -= dx * 0.0085;
+      orbit.targetPitch = Math.max(0.16, Math.min(1.38, orbit.targetPitch + dy * 0.0065));
+    });
+    window.addEventListener('pointerup', (e) => {
+      if (!orbit.dragging) return;
+      orbit.dragging = false;
+      if (orbit.moved >= 7 || !state.running || state.paused || state.locked) return;
       const rect = canvas.getBoundingClientRect();
       pointerNdc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       pointerNdc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -1298,6 +1325,11 @@
         if (typeof keyIdx === 'number') jumpToKeyIndex(keyIdx, true);
       }
     });
+    window.addEventListener('pointercancel', () => { orbit.dragging = false; });
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      orbit.targetDist = Math.max(9.0, Math.min(24.0, orbit.targetDist + e.deltaY * 0.012));
+    }, { passive: false });
 
     // UI Bindings
     document.getElementById('topicPicker').addEventListener('click', (e) => {
@@ -1577,17 +1609,24 @@
         if (ns.life <= 0) { scene.remove(ns.sprite); ns.mat.dispose(); noteSprites.splice(i, 1); }
       }
 
-      // Gentle camera follow + screen shake
-      let camX = shiba.position.x * 0.24;
-      let camY = 9.2;
+      // 360° spherical orbit camera + gentle follow + screen shake
+      orbit.yaw += (orbit.targetYaw - orbit.yaw) * Math.min(1, dt * 10);
+      orbit.pitch += (orbit.targetPitch - orbit.pitch) * Math.min(1, dt * 10);
+      orbit.dist += (orbit.targetDist - orbit.dist) * Math.min(1, dt * 10);
+      const lookX = shiba.position.x * 0.18;
+      const lookY = 2.0;
+      const lookZ = 0.2;
+      const horiz = Math.cos(orbit.pitch) * orbit.dist;
+      let camX = lookX + Math.sin(orbit.yaw) * horiz;
+      let camY = lookY + Math.sin(orbit.pitch) * orbit.dist;
+      let camZ = lookZ + Math.cos(orbit.yaw) * horiz;
       if (state.shake > 0) {
         camX += (Math.random() - 0.5) * state.shake * 1.1;
         camY += (Math.random() - 0.5) * state.shake * 0.9;
         state.shake = Math.max(0, state.shake - dt * 1.8);
       }
-      camera.position.x += (camX - camera.position.x) * Math.min(1, dt * 6);
-      camera.position.y += (camY - camera.position.y) * Math.min(1, dt * 6);
-      camera.lookAt(shiba.position.x * 0.18, 0.85, 0.2);
+      camera.position.set(camX, camY, camZ);
+      camera.lookAt(lookX, lookY, lookZ);
 
       renderer.render(scene, camera);
     }
