@@ -2593,7 +2593,7 @@
     function usesLocalRankBoard() {
         const gf = document.getElementById('rankGameFilter');
         const game = gf ? gf.value : 'game1';
-        if (game === 'game2' || game === 'game3') return true;
+        if (game === 'game2' || game === 'game3' || game === 'shiba3d' || game === 'rhythm3d') return true;
         if (game !== 'game1') return false;
         const mode = dom.rankModeFilter ? dom.rankModeFilter.value : 'notes-clef';
         return mode === 'notes-clef' || mode === 'noMiss';
@@ -5138,9 +5138,48 @@
     }
 
 
+    function flushPending3DRanks() {
+        try {
+            const raw = localStorage.getItem('musicGamePending3DRanks');
+            if (!raw) return;
+            const list = JSON.parse(raw);
+            if (!Array.isArray(list) || !list.length) return;
+            localStorage.removeItem('musicGamePending3DRanks');
+            list.forEach((rec) => {
+                if (!rec || !rec.game || !rec.name || !rec.score) return;
+                const u = { name: rec.name, grade: rec.grade, class: rec.class, id: rec.id || '' };
+                submitScoreToGAS(rec.game, u, rec.score, rec.accuracy || 0, rec.max_combo || 0, rec.mode_name || rec.game);
+                recordGameResult(u, rec.game, rec.score, rec.accuracy || 0, rec.max_combo || 0, rec.difficulty || '');
+            });
+        } catch (e) {}
+    }
+
     function resumeRhythmReturn() {
+        flushPending3DRanks();
         let params;
         try { params = new URLSearchParams(location.search); } catch (e) { return; }
+        const rankParam = params.get('rank');
+        if (rankParam === 'shiba3d' || rankParam === 'rhythm3d') {
+            params.delete('rank');
+            const qs = params.toString();
+            try { history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash); } catch (e) {}
+            const gf = document.getElementById('rankGameFilter');
+            if (gf) gf.value = rankParam;
+            const mfRow = dom.rankModeFilter?.closest?.('.rank-filter');
+            if (mfRow) mfRow.style.display = 'none';
+            const rhythmKindWrap = document.getElementById('rankRhythmKindWrap');
+            if (rhythmKindWrap) rhythmKindWrap.style.display = 'none';
+            const noteClefWrap = document.getElementById('rankNoteClefWrap');
+            if (noteClefWrap) noteClefWrap.style.display = 'none';
+            const dfWrap = document.getElementById('rankDiffFilterWrap');
+            if (dfWrap) dfWrap.style.display = 'none';
+            if (dom.rankGradeFilter) dom.rankGradeFilter.value = '0';
+            if (dom.rankClassFilter) dom.rankClassFilter.value = '0';
+            if (dom.leaderboardLayout) dom.leaderboardLayout.classList.add('view-only');
+            switchScreen('screen-leaderboard');
+            loadRanks(2, { force: true });
+            return;
+        }
         if (params.get('g2') !== 'setup') return;
         params.delete('g2');
         const qs = params.toString();

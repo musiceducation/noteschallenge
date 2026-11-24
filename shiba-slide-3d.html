@@ -35,6 +35,14 @@
     .hud-stat small { font-size: 0.66rem; color: #64748b; font-weight: 700; }
     .hud-stat span { font-size: 1.08rem; color: #0f172a; font-weight: 900; }
     .hud-hearts { font-size: 1.05rem; letter-spacing: 2px; }
+    .zone-pill {
+      padding: 4px 10px; border-radius: 999px;
+      background: linear-gradient(135deg, #0284c7, #38bdf8); color: #fff;
+      font-size: 0.72rem; font-weight: 900; letter-spacing: 0.03em;
+      white-space: nowrap; transition: background 0.35s ease;
+    }
+    .zone-pill.zone-1 { background: linear-gradient(135deg, #06b6d4, #6366f1); }
+    .zone-pill.zone-2 { background: linear-gradient(135deg, #7c3aed, #ec4899); }
     .fever-pill {
       display: none; padding: 4px 10px; border-radius: 999px;
       background: linear-gradient(135deg, #f59e0b, #ec4899); color: #fff;
@@ -203,6 +211,7 @@
         <div class="hud-stat"><small>連擊</small><span id="hudCombo">0</span></div>
         <div class="hud-stat"><small>星星</small><span id="hudStars">0</span></div>
         <div class="hud-hearts" id="hudHearts" aria-label="生命值">❤️❤️❤️</div>
+        <span class="zone-pill" id="zoneBadge">❄️ 雪松森林</span>
         <span class="fever-pill" id="feverBadge">✨ FEVER 2×</span>
       </div>
       <div class="hud-actions">
@@ -243,10 +252,11 @@
     <!-- Start / Pause Modal -->
     <div class="overlay" id="startOverlay">
       <div class="modal">
-        <span class="modal-tag">3D 旗艦模式</span>
+        <span class="modal-tag">3D 旗艦模式 · 地形＋音訊粒子升級</span>
         <h1>🐕 柴犬雪地音符滑行 3D</h1>
-        <p class="lead">支援 4 大音樂題庫、發光跑道對準輔助與 3 段動態天氣（晴雪 → 晚霞 → 極光 FEVER 2×）！</p>
+        <p class="lead">3 大動態地形（雪松森林 → 冰晶峽谷 → 極光星海）、音符跳台與加速冰帶，搭配即時音訊頻譜光柱與 3D 音符粒子爆發！</p>
         <div class="best-bar" id="bestBar">🏆 本機最高分：0</div>
+        <div class="best-bar" id="playerBadge" style="background:#e0f2fe;color:#0369a1;display:block;">👤 讀取學生身份中...</div>
 
         <div class="picker-label">1. 選擇題庫模式</div>
         <div class="seg-grid seg-grid-4" id="topicPicker">
@@ -279,6 +289,7 @@
         <span class="modal-tag" id="resultTag">滑行完成</span>
         <h1 id="resultTitle">太厲害了！🎉</h1>
         <p class="lead" id="resultSub">柴犬成功完成雪地音樂挑戰！</p>
+        <div class="best-bar" id="rankStatus" style="background:#e0f2fe;color:#0369a1;display:none;"></div>
         <div class="result-grid">
           <div class="result-box"><small>總分</small><b id="resScore">0</b></div>
           <div class="result-box"><small>答對題數</small><b id="resCorrect">0</b></div>
@@ -286,6 +297,7 @@
         </div>
         <div class="review-list" id="resReview" style="display:none;"></div>
         <button type="button" class="primary-btn" id="btnRestart">🔄 再滑一次</button>
+        <a href="index.html?rank=shiba3d" class="seg-btn" style="display:block;text-decoration:none;width:100%;margin-top:8px;">🏆 查看全班排行榜</a>
         <button type="button" class="seg-btn" id="btnBackMenu" style="width:100%;margin-top:8px;">⚙️ 切換題庫／模式</button>
       </div>
     </div>
@@ -444,17 +456,32 @@
     }
 
     let audioCtx = null;
+    let masterGain = null;
+    let analyser = null;
+    let freqData = null;
+    let audioImpulse = 0;
     let muted = false;
     function unlockAudio() {
       try {
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return;
-        if (!audioCtx) audioCtx = new AC();
+        if (!audioCtx) {
+          audioCtx = new AC();
+          masterGain = audioCtx.createGain();
+          masterGain.gain.value = 0.92;
+          analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 64;
+          analyser.smoothingTimeConstant = 0.78;
+          freqData = new Uint8Array(analyser.frequencyBinCount);
+          masterGain.connect(analyser);
+          analyser.connect(audioCtx.destination);
+        }
         if (audioCtx.state === 'suspended') audioCtx.resume();
       } catch (e) {}
     }
     function playTone(freq, dur, type, vol, delay) {
-      if (muted || !audioCtx) return;
+      audioImpulse = Math.min(1.6, audioImpulse + (vol || 0.14) * 3.2);
+      if (muted || !audioCtx || !masterGain) return;
       try {
         const now = audioCtx.currentTime + (delay || 0);
         const osc = audioCtx.createOscillator();
@@ -464,7 +491,7 @@
         gain.gain.setValueAtTime(0.001, now);
         gain.gain.linearRampToValueAtTime(vol || 0.14, now + 0.015);
         gain.gain.exponentialRampToValueAtTime(0.001, now + (dur || 0.2));
-        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.connect(gain); gain.connect(masterGain);
         osc.start(now); osc.stop(now + (dur || 0.2) + 0.02);
       } catch (e) {}
     }
@@ -483,8 +510,20 @@
       playTone(880, 0.09, 'sine', 0.11, 0);
       playTone(1318.5, 0.14, 'sine', 0.11, 0.06);
     }
+    function sfxRamp() {
+      [392, 523.25, 659.25, 783.99, 1046.5].forEach((f, i) => playTone(f, 0.16, 'triangle', 0.13, i * 0.04));
+    }
+    function sfxBoost() {
+      playTone(587.33, 0.14, 'sine', 0.13, 0);
+      playTone(880, 0.18, 'triangle', 0.14, 0.05);
+      playTone(1174.66, 0.24, 'sine', 0.12, 0.1);
+    }
+    function sfxZoneShift() {
+      [261.63, 329.63, 392.0, 493.88, 587.33].forEach((f, i) => playTone(f, 0.35, 'sine', 0.1, i * 0.055));
+    }
     function sfxJump() {
-      if (muted || !audioCtx) return;
+      audioImpulse = Math.min(1.6, audioImpulse + 0.45);
+      if (muted || !audioCtx || !masterGain) return;
       try {
         const now = audioCtx.currentTime;
         const osc = audioCtx.createOscillator();
@@ -494,7 +533,7 @@
         osc.frequency.exponentialRampToValueAtTime(680, now + 0.14);
         g.gain.setValueAtTime(0.11, now);
         g.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
-        osc.connect(g); g.connect(audioCtx.destination);
+        osc.connect(g); g.connect(masterGain);
         osc.start(now); osc.stop(now + 0.17);
       } catch (e) {}
     }
@@ -555,15 +594,29 @@
       return tex;
     }
 
+    const ZONE_CONFIG = [
+      { name: '❄️ 雪松森林', sky: new THREE.Color(0xcdeaff), groundTint: new THREE.Color(0xffffff), eqColor: 0x38bdf8, archColor: 0x38bdf8, hillAmp: 1.4 },
+      { name: '🧊 冰晶峽谷', sky: new THREE.Color(0xbae6fd), groundTint: new THREE.Color(0xe0f2fe), eqColor: 0x818cf8, archColor: 0x06b6d4, hillAmp: 2.6 },
+      { name: '🌌 極光星海', sky: new THREE.Color(0x1e1b4b), groundTint: new THREE.Color(0xc7d2fe), eqColor: 0xf472b6, archColor: 0xfacc15, hillAmp: 3.4 }
+    ];
+
     const snowTex = makeSnowTexture();
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(54, 160),
-      new THREE.MeshLambertMaterial({ map: snowTex })
-    );
+    const groundGeo = new THREE.PlaneGeometry(58, 160, 22, 40);
+    const groundBasePos = groundGeo.attributes.position.array.slice();
+    const groundMat = new THREE.MeshLambertMaterial({ map: snowTex, color: 0xffffff });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.position.z = -50;
     ground.receiveShadow = true;
     scene.add(ground);
+
+    const auroraGeo = new THREE.PlaneGeometry(46, 10, 28, 4);
+    const auroraBasePos = auroraGeo.attributes.position.array.slice();
+    const auroraMat = new THREE.MeshBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
+    const auroraRibbon = new THREE.Mesh(auroraGeo, auroraMat);
+    auroraRibbon.position.set(0, 14.5, -48);
+    auroraRibbon.rotation.x = 0.25;
+    scene.add(auroraRibbon);
 
     const LANE_X = [-4.6, 0, 4.6];
     const laneGlowMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.22 });
@@ -571,6 +624,35 @@
     laneGlow.rotation.x = -Math.PI / 2;
     laneGlow.position.set(0, 0.02, -24);
     scene.add(laneGlow);
+
+    const eqPillars = [];
+    const eqGeo = new THREE.BoxGeometry(0.68, 1, 0.68);
+    for (let i = 0; i < 12; i++) {
+      const zPos = 1 - i * 5.2;
+      [-8.1, 8.1].forEach((xPos, sideIdx) => {
+        const mat = new THREE.MeshLambertMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.45, transparent: true, opacity: 0.88 });
+        const bar = new THREE.Mesh(eqGeo, mat);
+        bar.position.set(xPos, 0.5, zPos);
+        scene.add(bar);
+        eqPillars.push({ mesh: bar, mat, bin: (i * 2 + sideIdx) % 20, phase: i * 0.55 + sideIdx * 1.4 });
+      });
+    }
+
+    const trackArches = [];
+    function createTrackArch(zPos) {
+      const g = new THREE.Group();
+      const mat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.36 });
+      const leftPost = new THREE.Mesh(new THREE.BoxGeometry(0.26, 6.2, 0.26), mat);
+      leftPost.position.set(-8.6, 3.1, 0); g.add(leftPost);
+      const rightPost = new THREE.Mesh(new THREE.BoxGeometry(0.26, 6.2, 0.26), mat);
+      rightPost.position.set(8.6, 3.1, 0); g.add(rightPost);
+      const topBar = new THREE.Mesh(new THREE.BoxGeometry(17.5, 0.26, 0.26), mat);
+      topBar.position.set(0, 6.2, 0); g.add(topBar);
+      g.position.set(0, 0, zPos);
+      scene.add(g);
+      return { group: g, mat };
+    }
+    for (let i = 0; i < 4; i++) trackArches.push(createTrackArch(-14 - i * 28));
 
     function createShiba() {
       const g = new THREE.Group();
@@ -700,11 +782,23 @@
       return g;
     }
 
+    const crystalMat = new THREE.MeshLambertMaterial({ color: 0x67e8f9, emissive: 0x0891b2, emissiveIntensity: 0.4, transparent: true, opacity: 0.88 });
+    function createIceCrystal() {
+      const g = new THREE.Group();
+      const main = new THREE.Mesh(new THREE.OctahedronGeometry(0.85, 0), crystalMat);
+      main.scale.set(0.8, 2.3, 0.8); main.position.y = 1.6; main.castShadow = true; g.add(main);
+      const side1 = new THREE.Mesh(new THREE.OctahedronGeometry(0.55, 0), crystalMat);
+      side1.scale.set(0.7, 1.5, 0.7); side1.position.set(0.65, 0.85, 0.2); side1.rotation.z = -0.35; g.add(side1);
+      const side2 = new THREE.Mesh(new THREE.OctahedronGeometry(0.45, 0), crystalMat);
+      side2.scale.set(0.7, 1.3, 0.7); side2.position.set(-0.6, 0.75, -0.15); side2.rotation.z = 0.32; g.add(side2);
+      return g;
+    }
+
     const sceneryProps = [];
-    for (let i = 0; i < 34; i++) {
+    for (let i = 0; i < 36; i++) {
       const side = i % 2 === 0 ? -1 : 1;
-      const obj = i % 5 === 0 ? createSnowman() : createPineTree();
-      obj.position.set(side * (9.2 + Math.random() * 11), 0, -i * 3.4 + 6);
+      const obj = i % 6 === 0 ? createIceCrystal() : (i % 5 === 0 ? createSnowman() : createPineTree());
+      obj.position.set(side * (10.2 + Math.random() * 11), 0, -i * 3.3 + 6);
       obj.scale.setScalar(0.85 + Math.random() * 0.45);
       scene.add(obj);
       sceneryProps.push(obj);
@@ -723,6 +817,69 @@
       snowGeo,
       new THREE.PointsMaterial({ color: 0xffffff, size: 0.24, transparent: true, opacity: 0.85 })
     ));
+
+    function makeGlowOrbTexture() {
+      const c = document.createElement('canvas');
+      c.width = 64; c.height = 64;
+      const ctx = c.getContext('2d');
+      const grad = ctx.createRadialGradient(32, 32, 2, 32, 32, 30);
+      grad.addColorStop(0, 'rgba(255,255,255,1)');
+      grad.addColorStop(0.35, 'rgba(186,230,253,0.9)');
+      grad.addColorStop(1, 'rgba(56,189,248,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 64, 64);
+      return new THREE.CanvasTexture(c);
+    }
+    const sparkCount = 140;
+    const sparkPositions = new Float32Array(sparkCount * 3);
+    for (let i = 0; i < sparkCount; i++) {
+      sparkPositions[i * 3] = (Math.random() - 0.5) * 26;
+      sparkPositions[i * 3 + 1] = 0.6 + Math.random() * 10;
+      sparkPositions[i * 3 + 2] = -Math.random() * 64 + 8;
+    }
+    const sparkGeo = new THREE.BufferGeometry();
+    sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPositions, 3));
+    const sparkMat = new THREE.PointsMaterial({
+      color: 0x7dd3fc, size: 0.55, map: makeGlowOrbTexture(),
+      transparent: true, opacity: 0.72, blending: THREE.AdditiveBlending, depthWrite: false
+    });
+    const musicSparks = new THREE.Points(sparkGeo, sparkMat);
+    scene.add(musicSparks);
+
+    const NOTE_GLYPHS = ['♪', '♫', '♩', '★'];
+    const noteTexCache = NOTE_GLYPHS.map((glyph) => {
+      const c = document.createElement('canvas');
+      c.width = 128; c.height = 128;
+      const ctx = c.getContext('2d');
+      ctx.shadowColor = 'rgba(255,255,255,0.9)';
+      ctx.shadowBlur = 16;
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 84px "Inter", "Noto Sans TC", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(glyph, 64, 68);
+      return new THREE.CanvasTexture(c);
+    });
+
+    const noteSprites = [];
+    function spawnNoteBurst(x, y, z, colorHex, count) {
+      for (let i = 0; i < (count || 8); i++) {
+        const tex = noteTexCache[i % noteTexCache.length];
+        const mat = new THREE.SpriteMaterial({ map: tex, color: colorHex, transparent: true, opacity: 1, depthWrite: false });
+        const sp = new THREE.Sprite(mat);
+        sp.position.set(x, y, z);
+        sp.scale.set(0.85, 0.85, 1);
+        scene.add(sp);
+        noteSprites.push({
+          sprite: sp, mat,
+          vx: (Math.random() - 0.5) * 7.5,
+          vy: 3.4 + Math.random() * 5.2,
+          vz: (Math.random() - 0.5) * 5.5,
+          life: 0.9 + Math.random() * 0.4,
+          maxLife: 1.3
+        });
+      }
+    }
 
     const burstParticles = [];
     const burstGeo = new THREE.BoxGeometry(0.24, 0.24, 0.24);
@@ -806,28 +963,94 @@
     const coinMat = new THREE.MeshLambertMaterial({ color: 0xfacc15, emissive: 0xca8a04, emissiveIntensity: 0.35 });
     const activeCoins = [];
     const activeObstacles = [];
+    const activeRamps = [];
+    const activeBoosts = [];
+
+    const rampBodyMat = new THREE.MeshLambertMaterial({ color: 0xf97316, emissive: 0xea580c, emissiveIntensity: 0.25 });
+    const rampGlowMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+    function createJumpRamp() {
+      const g = new THREE.Group();
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.28, 3.6), rampBodyMat);
+      deck.position.set(0, 0.55, 0);
+      deck.rotation.x = 0.28;
+      deck.castShadow = true;
+      g.add(deck);
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.08, 3.2), rampGlowMat);
+      stripe.position.set(0, 0.72, 0);
+      stripe.rotation.x = 0.28;
+      g.add(stripe);
+      return g;
+    }
+
+    const boostPadMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.82 });
+    const boostRimMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe });
+    function createBoostPad() {
+      const g = new THREE.Group();
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.08, 4.6), boostPadMat);
+      pad.position.set(0, 0.05, 0);
+      g.add(pad);
+      [-1.1, 0, 1.1].forEach((oz) => {
+        const chevron = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 0.32), boostRimMat);
+        chevron.position.set(0, 0.07, oz);
+        g.add(chevron);
+      });
+      return g;
+    }
 
     function spawnTrackExtras(zStart) {
-      const coinLane = LANE_X[Math.floor(Math.random() * 3)];
-      for (let i = 0; i < 3; i++) {
-        const m = new THREE.Mesh(coinGeo, coinMat);
-        m.position.set(coinLane, 0.9, zStart + 8 + i * 3.4);
-        m.castShadow = true;
-        scene.add(m);
-        activeCoins.push({ mesh: m, taken: false });
+      const shuffledLanes = shuffle(LANE_X);
+      const featureLane = shuffledLanes[0];
+      const obsLane = shuffledLanes[1];
+      const bonusLane = shuffledLanes[2];
+      const useRamp = Math.random() < 0.55;
+
+      if (useRamp) {
+        const ramp = createJumpRamp();
+        ramp.position.set(featureLane, 0, zStart + 19);
+        scene.add(ramp);
+        activeRamps.push({ mesh: ramp, used: false });
+        for (let i = 0; i < 3; i++) {
+          const m = new THREE.Mesh(coinGeo, coinMat);
+          const arcY = i === 1 ? 3.4 : 2.55;
+          m.position.set(featureLane, arcY, zStart + 13 - i * 3.1);
+          m.castShadow = true;
+          scene.add(m);
+          activeCoins.push({ mesh: m, taken: false, baseY: arcY });
+        }
+      } else {
+        const pad = createBoostPad();
+        pad.position.set(featureLane, 0, zStart + 17);
+        scene.add(pad);
+        activeBoosts.push({ mesh: pad, used: false });
+        for (let i = 0; i < 3; i++) {
+          const m = new THREE.Mesh(coinGeo, coinMat);
+          m.position.set(featureLane, 0.9, zStart + 8 + i * 3.2);
+          m.castShadow = true;
+          scene.add(m);
+          activeCoins.push({ mesh: m, taken: false, baseY: 0.9 });
+        }
       }
-      const otherLanes = LANE_X.filter(x => x !== coinLane);
-      const obsX = otherLanes[Math.floor(Math.random() * otherLanes.length)];
+
       const sm = createSnowman();
-      sm.position.set(obsX, 0, zStart + 14);
+      sm.position.set(obsLane, 0, zStart + 14.5);
       scene.add(sm);
-      activeObstacles.push({ mesh: sm, hit: false });
+      activeObstacles.push({
+        mesh: sm, hit: false, baseX: obsLane,
+        patrolAmp: state.zoneIdx >= 1 ? 1.15 : 0,
+        patrolPhase: Math.random() * Math.PI * 2
+      });
+
+      const sideCoin = new THREE.Mesh(coinGeo, coinMat);
+      sideCoin.position.set(bonusLane, 0.9, zStart + 12);
+      sideCoin.castShadow = true;
+      scene.add(sideCoin);
+      activeCoins.push({ mesh: sideCoin, taken: false, baseY: 0.9 });
     }
 
     const SPEED_PRESETS = { easy: 14, normal: 18.5, fast: 23.5 };
     const state = {
       running: false, paused: false, topic: 'notes', mode: 'sprint10', speedKey: 'normal',
-      baseSpeed: 18.5, speed: 18.5, score: 0, combo: 0, maxCombo: 0, stars: 0,
+      baseSpeed: 18.5, speed: 18.5, score: 0, combo: 0, maxCombo: 0, stars: 0, zoneIdx: 0,
       correctCount: 0, totalCount: 0, lives: 3, shibaX: 0, targetX: 0, shibaY: 0, vy: 0,
       shake: 0, boostTimer: 0, activeGate: null, mistakes: [],
       keys: { left: false, right: false }, dragActive: false, dragLastX: 0, rafId: 0, lastTime: 0
@@ -848,6 +1071,7 @@
     const hudCombo = document.getElementById('hudCombo');
     const hudStars = document.getElementById('hudStars');
     const hudHearts = document.getElementById('hudHearts');
+    const zoneBadge = document.getElementById('zoneBadge');
     const feverBadge = document.getElementById('feverBadge');
     const bestBar = document.getElementById('bestBar');
     const promptWrap = document.getElementById('promptWrap');
@@ -872,6 +1096,16 @@
       } else {
         hudHearts.textContent = '❤️'.repeat(Math.max(0, state.lives)) + '🖤'.repeat(Math.max(0, 3 - state.lives));
       }
+      const nextZone = !state.running ? 0 : (state.combo >= 6 ? 2 : Math.floor(state.totalCount / 3) % 3);
+      if (nextZone !== state.zoneIdx) {
+        state.zoneIdx = nextZone;
+        if (state.running && state.totalCount > 0) {
+          sfxZoneShift();
+          showBanner(`🗺️ 進入新地形：${ZONE_CONFIG[state.zoneIdx].name}`, true);
+        }
+      }
+      zoneBadge.textContent = ZONE_CONFIG[state.zoneIdx].name;
+      zoneBadge.className = 'zone-pill zone-' + state.zoneIdx;
       const isFever = state.combo >= 3;
       feverBadge.classList.toggle('active', isFever);
       shiba.userData.aura.visible = isFever && state.running;
@@ -904,7 +1138,13 @@
       }
       while (activeCoins.length) scene.remove(activeCoins.pop().mesh);
       while (activeObstacles.length) scene.remove(activeObstacles.pop().mesh);
+      while (activeRamps.length) scene.remove(activeRamps.pop().mesh);
+      while (activeBoosts.length) scene.remove(activeBoosts.pop().mesh);
       while (burstParticles.length) scene.remove(burstParticles.pop().mesh);
+      while (noteSprites.length) {
+        const ns = noteSprites.pop();
+        scene.remove(ns.sprite); ns.mat.dispose();
+      }
     }
 
     function spawnNextWave() {
@@ -924,7 +1164,7 @@
       state.running = true; state.paused = false;
       state.baseSpeed = SPEED_PRESETS[state.speedKey] || 18.5;
       state.speed = state.baseSpeed;
-      state.score = 0; state.combo = 0; state.maxCombo = 0; state.stars = 0;
+      state.score = 0; state.combo = 0; state.maxCombo = 0; state.stars = 0; state.zoneIdx = 0;
       state.correctCount = 0; state.totalCount = 0; state.lives = 3;
       state.shibaX = 0; state.targetX = 0; state.shibaY = 0; state.vy = 0;
       state.shake = 0; state.boostTimer = 0; state.mistakes = [];
@@ -933,6 +1173,85 @@
       document.getElementById('btnPause').textContent = '⏸';
       updateHud();
       spawnNextWave();
+    }
+
+    const TOPIC_LABELS = { notes: '音名識辨', keysig: '調號辨別', terms: '音樂術語', composers: '西方音樂家' };
+    const SPEED_LABELS = { easy: 'Easy', normal: 'Normal', fast: 'Hard' };
+
+    function readStoredStudent() {
+      try {
+        const s = JSON.parse(localStorage.getItem('musicGameSettingsV4') || '{}') || {};
+        let name = (s.savedName === '__other__' ? s.savedCustomName : s.savedName) || '';
+        name = String(name || '').trim();
+        if (!name || name === '訪客' || name === '__other__') return null;
+        return {
+          name,
+          grade: parseInt(s.userGrade, 10) || 0,
+          class: String(s.userClass || 'A'),
+          id: String(s.userId || '')
+        };
+      } catch (e) { return null; }
+    }
+
+    function paintPlayerBadge() {
+      const el = document.getElementById('playerBadge');
+      if (!el) return;
+      const u = readStoredStudent();
+      if (u) {
+        const gTxt = u.grade ? `中${['', '一', '二', '三', '四', '五', '六'][u.grade] || u.grade}` : '';
+        el.textContent = `👤 ${u.name}（${gTxt}${u.class}班）· 成績將同步排行榜`;
+      } else {
+        el.textContent = '👤 訪客模式（先回大廳選姓名即可上榜）';
+      }
+    }
+
+    function submit3DRank(gameKey, score, accuracy, maxCombo, modeName, difficulty) {
+      const statusEl = document.getElementById('rankStatus');
+      const user = readStoredStudent();
+      if (!user || !score) {
+        if (statusEl) {
+          statusEl.style.display = 'inline-flex';
+          statusEl.textContent = !user ? '💡 回大廳選擇學生姓名後即可上傳排行榜' : '💡 取得分數即可上傳排行榜';
+        }
+        return;
+      }
+      const record = {
+        game: gameKey,
+        name: user.name,
+        grade: user.grade,
+        class: user.class,
+        id: user.id || '',
+        mode: gameKey,
+        mode_name: modeName,
+        score,
+        max_combo: maxCombo,
+        accuracy,
+        difficulty: difficulty || '',
+        timestamp: new Date().toLocaleString('zh-TW')
+      };
+      try {
+        const key = 'musicGameRanks_' + gameKey;
+        const all = JSON.parse(localStorage.getItem(key) || '[]');
+        const idx = all.findIndex(r => r.name === user.name && r.class === user.class && Number(r.grade) === Number(user.grade) && (r.difficulty || '') === (difficulty || ''));
+        if (idx >= 0) {
+          if (score > (all[idx].score || 0)) all[idx] = Object.assign({}, all[idx], record);
+        } else {
+          all.push(record);
+        }
+        localStorage.setItem(key, JSON.stringify(all));
+        const pending = JSON.parse(localStorage.getItem('musicGamePending3DRanks') || '[]');
+        pending.push(record);
+        localStorage.setItem('musicGamePending3DRanks', JSON.stringify(pending.slice(-20)));
+        if (statusEl) {
+          statusEl.style.display = 'inline-flex';
+          statusEl.textContent = `✅ 已記錄 ${user.name} 的成績，點下方即可看排行榜！`;
+        }
+      } catch (e) {
+        if (statusEl) {
+          statusEl.style.display = 'inline-flex';
+          statusEl.textContent = '💾 已儲存至本機紀錄';
+        }
+      }
     }
 
     function endGame() {
@@ -954,6 +1273,8 @@
       } else {
         rev.style.display = 'none';
       }
+      const modeLabel = (TOPIC_LABELS[state.topic] || state.topic) + '·' + (SPEED_LABELS[state.speedKey] || 'Normal');
+      submit3DRank('shiba3d', state.score, acc, state.maxCombo, modeLabel, SPEED_LABELS[state.speedKey] || 'Normal');
       resultOverlay.classList.remove('hidden');
     }
 
@@ -1061,20 +1382,76 @@
       state.lastTime = now;
       const t = now * 0.001;
 
-      const targetSkyIdx = !state.running ? 0 : (state.combo >= 6 ? 2 : state.combo >= 3 ? 1 : 0);
-      currentSky.lerp(SKY_THEMES[targetSkyIdx], Math.min(1, dt * 1.8));
+      const zoneCfg = ZONE_CONFIG[state.zoneIdx] || ZONE_CONFIG[0];
+      const targetSky = (state.running && state.combo >= 3 && state.zoneIdx === 0) ? SKY_THEMES[1] : zoneCfg.sky;
+      currentSky.lerp(targetSky, Math.min(1, dt * 1.8));
       scene.fog.color.copy(currentSky);
+      groundMat.color.lerp(zoneCfg.groundTint, Math.min(1, dt * 1.8));
+
+      audioImpulse = Math.max(0, audioImpulse - dt * 2.6);
+      let avgAudio = audioImpulse * 0.35;
+      if (analyser && freqData) {
+        analyser.getByteFrequencyData(freqData);
+        let sum = 0;
+        for (let i = 0; i < 16; i++) sum += freqData[i];
+        avgAudio = Math.max(avgAudio, (sum / (16 * 255)) * 1.8);
+      }
+
+      const eqTargetColor = new THREE.Color(state.combo >= 3 ? 0xfacc15 : zoneCfg.eqColor);
+      for (let i = 0; i < eqPillars.length; i++) {
+        const ep = eqPillars[i];
+        const binVal = (analyser && freqData) ? (freqData[ep.bin] / 255) : 0;
+        const pulse = 0.28 + Math.abs(Math.sin(t * 3.2 + ep.phase)) * (0.28 + audioImpulse * 0.6);
+        const h = Math.max(0.4, (binVal * 4.8 + pulse * 1.6) * (state.combo >= 3 ? 1.35 : 1.0));
+        ep.mesh.scale.y += (h - ep.mesh.scale.y) * Math.min(1, dt * 16);
+        ep.mesh.position.y = ep.mesh.scale.y * 0.5;
+        ep.mat.color.lerp(eqTargetColor, Math.min(1, dt * 4));
+        ep.mat.emissive.lerp(eqTargetColor, Math.min(1, dt * 4));
+        ep.mat.emissiveIntensity = 0.35 + avgAudio * 0.9;
+      }
+
+      const gAttr = groundGeo.attributes.position;
+      for (let i = 0; i < gAttr.count; i++) {
+        const bx = groundBasePos[i * 3];
+        const by = groundBasePos[i * 3 + 1];
+        const absX = Math.abs(bx);
+        if (absX > 8.6) {
+          const edgeFactor = Math.min(1, (absX - 8.6) / 14);
+          const hill = (Math.sin(by * 0.14 - t * 2.2) * 0.6 + Math.cos(bx * 0.28 + by * 0.08) * 0.4 + 0.8) * zoneCfg.hillAmp * edgeFactor;
+          gAttr.setZ(i, hill);
+        }
+      }
+      gAttr.needsUpdate = true;
+
+      const targetAuroraOp = state.zoneIdx === 2 ? 0.52 + Math.sin(t * 2) * 0.12 : 0;
+      auroraMat.opacity += (targetAuroraOp - auroraMat.opacity) * Math.min(1, dt * 2.5);
+      if (auroraMat.opacity > 0.01) {
+        const aAttr = auroraGeo.attributes.position;
+        for (let i = 0; i < aAttr.count; i++) {
+          const ax = auroraBasePos[i * 3];
+          aAttr.setZ(i, Math.sin(ax * 0.2 + t * 1.8) * 2.4 + Math.cos(ax * 0.35 - t * 1.3) * (1.2 + avgAudio * 2));
+        }
+        aAttr.needsUpdate = true;
+      }
 
       const activeSpeed = state.running && !state.paused
-        ? (state.speed + (state.boostTimer > 0 ? 7 : 0))
+        ? (state.speed + (state.boostTimer > 0 ? 7.5 : 0))
         : 7.5;
 
       snowTex.offset.y -= activeSpeed * dt * 0.068;
 
+      for (let i = 0; i < trackArches.length; i++) {
+        const ar = trackArches[i];
+        ar.group.position.z += activeSpeed * dt;
+        if (ar.group.position.z > 12) ar.group.position.z -= 112;
+        ar.mat.color.lerp(new THREE.Color(zoneCfg.archColor), Math.min(1, dt * 3));
+        ar.mat.opacity = 0.24 + avgAudio * 0.38;
+      }
+
       for (let i = 0; i < sceneryProps.length; i++) {
         const p = sceneryProps[i];
         p.position.z += activeSpeed * dt;
-        if (p.position.z > 14) p.position.z -= 115;
+        if (p.position.z > 14) p.position.z -= 118;
       }
 
       const posAttr = snowGeo.attributes.position;
@@ -1086,6 +1463,19 @@
         posAttr.setY(i, y); posAttr.setZ(i, z);
       }
       posAttr.needsUpdate = true;
+
+      const spAttr = sparkGeo.attributes.position;
+      sparkMat.size = 0.48 + avgAudio * 0.65;
+      sparkMat.color.lerp(eqTargetColor, Math.min(1, dt * 4));
+      for (let i = 0; i < sparkCount; i++) {
+        let x = spAttr.getX(i) + Math.sin(t * 2 + i) * dt * (0.4 + avgAudio * 1.4);
+        let y = spAttr.getY(i) + dt * (0.35 + avgAudio * 2.2);
+        let z = spAttr.getZ(i) + activeSpeed * dt * 0.55;
+        if (y > 12) y = 0.5;
+        if (z > 12) z = -56;
+        spAttr.setXYZ(i, x, y, z);
+      }
+      spAttr.needsUpdate = true;
 
       if (state.running && !state.paused) {
         if (state.boostTimer > 0) state.boostTimer = Math.max(0, state.boostTimer - dt);
@@ -1126,15 +1516,50 @@
         trailDots[0].position.x = state.shibaX;
         trailDots[0].visible = state.shibaY < 0.25;
 
+        for (let i = activeRamps.length - 1; i >= 0; i--) {
+          const r = activeRamps[i];
+          r.mesh.position.z += activeSpeed * dt;
+          if (!r.used && state.shibaY < 0.8 && Math.abs(r.mesh.position.z - 2.2) < 1.85 && Math.abs(r.mesh.position.x - state.shibaX) < 1.55) {
+            r.used = true;
+            state.vy = 13.8;
+            state.score += 35;
+            sfxRamp();
+            spawnNoteBurst(state.shibaX, 1.2, 2.2, 0xfacc15, 7);
+            showBanner('🚀 音符飛躍！+35', true);
+            updateHud();
+          }
+          if (r.mesh.position.z > 14) { scene.remove(r.mesh); activeRamps.splice(i, 1); }
+        }
+
+        for (let i = activeBoosts.length - 1; i >= 0; i--) {
+          const b = activeBoosts[i];
+          b.mesh.position.z += activeSpeed * dt;
+          if (!b.used && state.shibaY < 0.5 && Math.abs(b.mesh.position.z - 2.2) < 2.2 && Math.abs(b.mesh.position.x - state.shibaX) < 1.55) {
+            b.used = true;
+            state.boostTimer = 0.9;
+            state.score += 30;
+            sfxBoost();
+            spawnBurst(state.shibaX, 0.7, 2.2, 0x22d3ee, 14);
+            spawnNoteBurst(state.shibaX, 1.1, 2.2, 0x38bdf8, 5);
+            showBanner('⚡ 冰面加速！+30', true);
+            updateHud();
+          }
+          if (b.mesh.position.z > 14) { scene.remove(b.mesh); activeBoosts.splice(i, 1); }
+        }
+
         for (let i = activeCoins.length - 1; i >= 0; i--) {
           const c = activeCoins[i];
           c.mesh.position.z += activeSpeed * dt;
           c.mesh.rotation.y += dt * 3.2;
-          c.mesh.position.y = 0.85 + Math.sin(t * 5 + i) * 0.16;
-          if (!c.taken && Math.abs(c.mesh.position.z - 2.2) < 1.25 && Math.abs(c.mesh.position.x - state.shibaX) < 1.35) {
+          const baseY = c.baseY || 0.9;
+          c.mesh.position.y = baseY + Math.sin(t * 5 + i) * 0.16;
+          if (!c.taken && Math.abs(c.mesh.position.z - 2.2) < 1.35 && Math.abs(c.mesh.position.x - state.shibaX) < 1.45 && Math.abs(c.mesh.position.y - (state.shibaY + 0.75)) < 1.55) {
             c.taken = true; c.mesh.visible = false;
             state.stars += 1; state.score += state.combo >= 3 ? 50 : 25;
-            sfxCoin(); spawnBurst(c.mesh.position.x, 1.0, 2.2, 0xfacc15, 8); updateHud();
+            sfxCoin();
+            spawnBurst(c.mesh.position.x, c.mesh.position.y, 2.2, 0xfacc15, 8);
+            spawnNoteBurst(c.mesh.position.x, c.mesh.position.y + 0.2, 2.2, 0xfef08a, 3);
+            updateHud();
           }
           if (c.mesh.position.z > 14) { scene.remove(c.mesh); activeCoins.splice(i, 1); }
         }
@@ -1142,6 +1567,9 @@
         for (let i = activeObstacles.length - 1; i >= 0; i--) {
           const o = activeObstacles[i];
           o.mesh.position.z += activeSpeed * dt;
+          if (o.patrolAmp > 0) {
+            o.mesh.position.x = o.baseX + Math.sin(t * 2.4 + o.patrolPhase) * o.patrolAmp;
+          }
           if (!o.hit && state.shibaY < 1.2 && Math.abs(o.mesh.position.z - 2.2) < 1.1 && Math.abs(o.mesh.position.x - state.shibaX) < 1.15) {
             o.hit = true; state.combo = 0; state.shake = 0.35; sfxWrong();
             spawnBurst(o.mesh.position.x, 1.1, 2.2, 0xffffff, 14);
@@ -1172,6 +1600,7 @@
               state.speed = Math.min(state.baseSpeed + 7, state.speed + 0.35);
               sfxCorrect(ag.question.freq, state.combo >= 3);
               spawnBurst(state.shibaX, 1.4, 2.2, state.combo >= 3 ? 0xfacc15 : 0x34d399, 22);
+              spawnNoteBurst(state.shibaX, 1.8, 2.2, state.combo >= 3 ? 0xf472b6 : 0x34d399, 10);
               showBanner(state.combo >= 3 ? `🔥 FEVER 2×！+${gain} 分` : `✨ 答對！+${gain} 分`, true);
             } else {
               state.combo = 0;
@@ -1212,6 +1641,20 @@
         if (bp.life <= 0) { scene.remove(bp.mesh); burstParticles.splice(i, 1); }
       }
 
+      for (let i = noteSprites.length - 1; i >= 0; i--) {
+        const ns = noteSprites[i];
+        ns.life -= dt;
+        ns.sprite.position.x += ns.vx * dt;
+        ns.sprite.position.y += ns.vy * dt;
+        ns.sprite.position.z += ns.vz * dt;
+        ns.vy -= 8.5 * dt;
+        const ratio = Math.max(0, ns.life / ns.maxLife);
+        ns.mat.opacity = ratio;
+        const sc = 0.65 + (1 - ratio) * 0.55;
+        ns.sprite.scale.set(sc, sc, 1);
+        if (ns.life <= 0) { scene.remove(ns.sprite); ns.mat.dispose(); noteSprites.splice(i, 1); }
+      }
+
       let camX = shiba.position.x * 0.42;
       let camY = 5.3 + shiba.position.y * 0.25;
       if (state.shake > 0) {
@@ -1228,6 +1671,7 @@
 
     window.onload = function () {
       onResize();
+      paintPlayerBadge();
       updateBestBar();
       updateHud();
       state.rafId = requestAnimationFrame(animate);

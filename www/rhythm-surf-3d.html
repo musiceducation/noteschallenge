@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>節奏衝浪 3D — 互動音樂學習站</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;900&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+    html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Inter', 'Noto Sans TC', sans-serif; background: #090d1f; color: #f8fafc; }
+    #gameStage { position: relative; width: 100vw; height: 100vh; overflow: hidden; touch-action: none; }
+    #glCanvas { display: block; width: 100%; height: 100%; }
+
+    /* Top HUD */
+    .hud-top {
+      position: absolute; top: 12px; left: 12px; right: 12px; z-index: 10;
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+      pointer-events: none;
+    }
+    .hud-pill {
+      pointer-events: auto;
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(12px);
+      border: 1.5px solid rgba(56, 189, 248, 0.45);
+      border-radius: 16px;
+      padding: 8px 14px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+      display: flex; align-items: center; gap: 12px;
+      font-weight: 800; font-size: 0.9rem;
+    }
+    .hud-stat { display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
+    .hud-stat small { font-size: 0.65rem; color: #94a3b8; font-weight: 700; }
+    .hud-stat span { font-size: 1.08rem; color: #f8fafc; font-weight: 900; }
+    .meter-pill {
+      padding: 4px 10px; border-radius: 999px;
+      background: linear-gradient(135deg, #0284c7, #6366f1); color: #fff;
+      font-size: 0.72rem; font-weight: 900; white-space: nowrap;
+    }
+    .fever-pill {
+      display: none; padding: 4px 10px; border-radius: 999px;
+      background: linear-gradient(135deg, #f59e0b, #ec4899); color: #fff;
+      font-size: 0.72rem; font-weight: 900; letter-spacing: 0.04em;
+      animation: feverPulse 0.65s ease-in-out infinite alternate;
+    }
+    .fever-pill.active { display: inline-flex; align-items: center; gap: 4px; }
+    @keyframes feverPulse { from { transform: scale(1); } to { transform: scale(1.08); } }
+
+    .hud-actions { display: flex; gap: 8px; pointer-events: auto; align-items: center; }
+    .icon-btn {
+      height: 42px; min-width: 42px; padding: 0 10px; border-radius: 14px;
+      border: 1.5px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.82); backdrop-filter: blur(8px);
+      color: #f8fafc; text-decoration: none;
+      font-size: 1rem; font-weight: 900; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: transform 0.12s ease, background 0.15s ease;
+    }
+    .icon-btn:active { transform: scale(0.92); }
+    .back-home-btn { font-size: 0.84rem; padding: 0 12px; }
+
+    /* Progress bar + Beat indicator */
+    .song-bar-wrap {
+      position: absolute; top: 68px; left: 50%; transform: translateX(-50%);
+      z-index: 10; pointer-events: none; width: min(92vw, 440px);
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      transition: opacity 0.2s ease;
+    }
+    .song-bar-wrap.is-hidden { opacity: 0; }
+    .beat-dots { display: flex; gap: 8px; align-items: center; }
+    .beat-dot {
+      width: 12px; height: 12px; border-radius: 50%;
+      background: rgba(148, 163, 184, 0.35); border: 1.5px solid rgba(255, 255, 255, 0.35);
+      transition: transform 0.08s ease, background 0.08s ease, box-shadow 0.08s ease;
+    }
+    .beat-dot.on {
+      background: #38bdf8; transform: scale(1.38);
+      box-shadow: 0 0 14px #38bdf8;
+    }
+    .beat-dot.accent.on {
+      background: #facc15; box-shadow: 0 0 16px #facc15;
+    }
+    .progress-track {
+      width: 100%; height: 7px; border-radius: 999px;
+      background: rgba(15, 23, 42, 0.72); border: 1px solid rgba(148, 163, 184, 0.3);
+      overflow: hidden;
+    }
+    .progress-fill {
+      width: 0%; height: 100%; border-radius: 999px;
+      background: linear-gradient(90deg, #38bdf8, #a855f7, #f472b6);
+      transition: width 0.1s linear;
+    }
+    .kodaly-cue {
+      font-size: 0.78rem; font-weight: 800; color: #e2e8f0;
+      background: rgba(15, 23, 42, 0.72); padding: 3px 12px; border-radius: 999px;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+    }
+
+    /* Judge Banner */
+    .judge-banner {
+      position: absolute; top: 43%; left: 50%; transform: translate(-50%, -50%) scale(0.75);
+      z-index: 14; pointer-events: none; opacity: 0;
+      padding: 8px 22px; border-radius: 999px;
+      font-size: 1.38rem; font-weight: 900; letter-spacing: 0.04em; color: #fff;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+      transition: opacity 0.12s ease, transform 0.12s ease;
+      white-space: nowrap;
+    }
+    .judge-banner.show { opacity: 1; transform: translate(-50%, -62%) scale(1); }
+    .judge-banner.perfect { background: linear-gradient(135deg, #f59e0b, #eab308); }
+    .judge-banner.good { background: linear-gradient(135deg, #06b6d4, #0284c7); }
+    .judge-banner.rest { background: linear-gradient(135deg, #10b981, #059669); }
+    .judge-banner.miss { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+    /* 4-Lane GuitarHero Touch / Key Pads */
+    .lane-pads {
+      position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+      z-index: 12; width: min(96vw, 560px);
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+    }
+    .pad-btn {
+      height: 76px; border-radius: 18px;
+      border: 2.5px solid rgba(255, 255, 255, 0.32);
+      background: rgba(15, 23, 42, 0.78); backdrop-filter: blur(10px);
+      color: #fff; font: inherit; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+      transition: transform 0.06s ease, background 0.08s ease, box-shadow 0.08s ease;
+    }
+    .pad-btn .pad-sym { font-size: 1.45rem; font-weight: 900; line-height: 1; }
+    .pad-btn .pad-lbl { font-size: 0.7rem; font-weight: 800; opacity: 0.9; }
+    .pad-btn .pad-key { font-size: 0.64rem; font-weight: 800; opacity: 0.65; }
+    .pad-btn[data-lane="0"] { border-color: rgba(56, 189, 248, 0.8); }
+    .pad-btn[data-lane="1"] { border-color: rgba(52, 211, 153, 0.8); }
+    .pad-btn[data-lane="2"] { border-color: rgba(251, 191, 36, 0.8); }
+    .pad-btn[data-lane="3"] { border-color: rgba(244, 114, 182, 0.8); }
+    .pad-btn.is-down { transform: scale(0.93) translateY(2px); }
+    .pad-btn[data-lane="0"].is-down { background: rgba(56, 189, 248, 0.55); box-shadow: 0 0 24px #38bdf8; }
+    .pad-btn[data-lane="1"].is-down { background: rgba(52, 211, 153, 0.55); box-shadow: 0 0 24px #34d399; }
+    .pad-btn[data-lane="2"].is-down { background: rgba(251, 191, 36, 0.55); box-shadow: 0 0 24px #fbbf24; }
+    .pad-btn[data-lane="3"].is-down { background: rgba(244, 114, 182, 0.55); box-shadow: 0 0 24px #f472b6; }
+
+    /* Overlay Modals */
+    .overlay {
+      position: absolute; inset: 0; z-index: 20;
+      display: flex; align-items: center; justify-content: center; padding: 14px;
+      background: rgba(2, 6, 23, 0.62); backdrop-filter: blur(8px);
+    }
+    .overlay.hidden { display: none; }
+    .modal {
+      width: min(94vw, 500px);
+      background: rgba(15, 23, 42, 0.96);
+      border-radius: 26px; padding: 22px 20px;
+      border: 2px solid rgba(56, 189, 248, 0.5);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+      text-align: center; color: #f8fafc;
+      max-height: 92vh; overflow-y: auto;
+    }
+    .modal-tag {
+      display: inline-block; padding: 4px 12px; border-radius: 999px;
+      background: linear-gradient(135deg, #06b6d4, #8b5cf6); color: #fff;
+      font-size: 0.74rem; font-weight: 900; letter-spacing: 0.04em; margin-bottom: 6px;
+    }
+    .modal h1 { font-size: 1.55rem; font-weight: 900; margin-bottom: 4px; }
+    .modal p.lead { font-size: 0.85rem; color: #cbd5e1; line-height: 1.5; margin-bottom: 10px; }
+    .best-bar {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 12px; border-radius: 999px;
+      background: rgba(250, 204, 21, 0.16); border: 1px solid rgba(250, 204, 21, 0.4);
+      color: #fde047; font-size: 0.78rem; font-weight: 800; margin-bottom: 10px;
+    }
+    .picker-label { text-align: left; font-size: 0.76rem; font-weight: 800; color: #94a3b8; margin: 10px 0 6px; }
+    .seg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .seg-grid-1 { grid-template-columns: 1fr; }
+    .seg-btn {
+      padding: 9px 10px; border-radius: 13px; border: 1.5px solid rgba(148, 163, 184, 0.3);
+      background: rgba(30, 41, 59, 0.8); color: #e2e8f0; font: inherit; font-size: 0.84rem; font-weight: 800;
+      cursor: pointer; transition: all 0.14s ease; text-align: center;
+    }
+    .seg-btn:hover { border-color: #38bdf8; }
+    .seg-btn.active {
+      background: linear-gradient(135deg, #0284c7, #6366f1); border-color: #38bdf8; color: #fff;
+      box-shadow: 0 5px 16px rgba(56, 189, 248, 0.35);
+    }
+    .legend-row {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px;
+      font-size: 0.72rem; font-weight: 800;
+    }
+    .legend-chip {
+      padding: 6px 4px; border-radius: 10px; background: rgba(30, 41, 59, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+    .primary-btn {
+      width: 100%; margin-top: 16px; padding: 13px 20px;
+      border-radius: 16px; border: none;
+      background: linear-gradient(135deg, #06b6d4, #6366f1);
+      color: #fff; font: inherit; font-size: 1.05rem; font-weight: 900;
+      box-shadow: 0 6px 0 #3730a3, 0 14px 28px rgba(99, 102, 241, 0.38);
+      cursor: pointer; transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+    .primary-btn:active { transform: translateY(3px); box-shadow: 0 3px 0 #3730a3; }
+    .result-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0; }
+    .result-box { background: rgba(30, 41, 59, 0.85); border-radius: 14px; padding: 10px 6px; border: 1px solid rgba(148, 163, 184, 0.2); }
+    .result-box small { display: block; font-size: 0.68rem; color: #94a3b8; font-weight: 700; }
+    .result-box b { font-size: 1.15rem; color: #fff; font-weight: 900; }
+    .grade-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 68px; height: 68px; border-radius: 20px; margin: 6px auto 8px;
+      font-size: 2.2rem; font-weight: 900; color: #fff;
+      background: linear-gradient(135deg, #f59e0b, #ec4899);
+      box-shadow: 0 10px 26px rgba(236, 72, 153, 0.4);
+    }
+    @media (max-width: 640px) {
+      .hud-pill { padding: 6px 10px; gap: 8px; }
+      .pad-btn { height: 70px; }
+      .pad-btn .pad-key { display: none; }
+      .result-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div id="gameStage">
+    <canvas id="glCanvas"></canvas>
+
+    <!-- Top HUD -->
+    <div class="hud-top">
+      <div class="hud-pill">
+        <div class="hud-stat"><small>得分</small><span id="hudScore">0</span></div>
+        <div class="hud-stat"><small>連擊</small><span id="hudCombo">0</span></div>
+        <div class="hud-stat"><small>準確度</small><span id="hudAcc">100%</span></div>
+        <span class="meter-pill" id="meterBadge">4/4 · 92 BPM</span>
+        <span class="fever-pill" id="feverBadge">✨ FEVER 2×</span>
+      </div>
+      <div class="hud-actions">
+        <a href="index.html" class="icon-btn back-home-btn" title="返回大廳" aria-label="返回大廳">← 返回</a>
+        <button type="button" class="icon-btn" id="btnMute" title="音效開關" aria-label="音效開關">🔊</button>
+        <button type="button" class="icon-btn" id="btnRestartTop" title="重新開始" aria-label="重新開始">↺</button>
+      </div>
+    </div>
+
+    <!-- Beat Dots + Song Progress -->
+    <div class="song-bar-wrap is-hidden" id="songBarWrap">
+      <div class="beat-dots" id="beatDots"></div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="kodaly-cue" id="kodalyCue">跟著節拍擊中發光音符 · 遇見紅色 𝄽 休止符不要按！</div>
+    </div>
+
+    <!-- Instant Judge Banner -->
+    <div class="judge-banner" id="judgeBanner"></div>
+
+    <!-- 4-Lane GuitarHero Controls -->
+    <div class="lane-pads" id="lanePads">
+      <button type="button" class="pad-btn" data-lane="0" aria-label="四分音符軌道 D">
+        <span class="pad-sym" style="color:#38bdf8;">♩</span>
+        <span class="pad-lbl">四分 Ta</span>
+        <span class="pad-key">[ D ]</span>
+      </button>
+      <button type="button" class="pad-btn" data-lane="1" aria-label="八分音符軌道 F">
+        <span class="pad-sym" style="color:#34d399;">♫</span>
+        <span class="pad-lbl">八分 Ti-Ti</span>
+        <span class="pad-key">[ F ]</span>
+      </button>
+      <button type="button" class="pad-btn" data-lane="2" aria-label="二分長音軌道 J">
+        <span class="pad-sym" style="color:#fbbf24;">𝅗𝅥</span>
+        <span class="pad-lbl">二分 Ta-a</span>
+        <span class="pad-key">[ J ]</span>
+      </button>
+      <button type="button" class="pad-btn" data-lane="3" aria-label="重音切分軌道 K">
+        <span class="pad-sym" style="color:#f472b6;">♬</span>
+        <span class="pad-lbl">重音／切分</span>
+        <span class="pad-key">[ K ]</span>
+      </button>
+    </div>
+
+    <!-- Start Modal -->
+    <div class="overlay" id="startOverlay">
+      <div class="modal">
+        <span class="modal-tag">3D 旗艦節奏遊戲</span>
+        <h1>🏄 節奏衝浪 3D</h1>
+        <p class="lead">參考 3D 音遊軌道判定＋音訊主時鐘同步！沿著發光五線譜霓虹高速道，按鍵（<b>D / F / J / K</b> 或直接點擊下方音符鍵）擊中節拍音符，遇到紅色 <b>𝄽 休止符</b> 記得放手靜音！</p>
+        <div class="best-bar" id="bestBar">🏆 本關最高分：0</div>
+        <div class="best-bar" id="playerBadge" style="background:rgba(56,189,248,0.16);border-color:rgba(56,189,248,0.4);color:#7dd3fc;display:block;">👤 讀取學生身份中...</div>
+
+        <div class="picker-label">1. 選擇節奏關卡</div>
+        <div class="seg-grid seg-grid-1" id="levelPicker">
+          <button type="button" class="seg-btn active" data-level="pop44">🌊 4/4 流行節奏入門（92 BPM · ♩ / 𝅗𝅥 / 𝄽）</button>
+          <button type="button" class="seg-btn" data-level="waltz34">💃 3/4 圓舞曲搖擺（104 BPM · 強弱弱＋♫）</button>
+          <button type="button" class="seg-btn" data-level="sync44">⚡ 4/4 進階切分衝浪（118 BPM · 全音符挑戰）</button>
+        </div>
+
+        <div class="picker-label">2. 速度倍率</div>
+        <div class="seg-grid" id="speedPicker">
+          <button type="button" class="seg-btn" data-speed="0.85">🐢 0.85× 練習</button>
+          <button type="button" class="seg-btn active" data-speed="1">🏄 1.0× 標準</button>
+          <button type="button" class="seg-btn" data-speed="1.2">⚡ 1.2× 高手</button>
+        </div>
+
+        <div class="legend-row">
+          <div class="legend-chip" style="color:#38bdf8;">♩ D 鍵</div>
+          <div class="legend-chip" style="color:#34d399;">♫ F 鍵</div>
+          <div class="legend-chip" style="color:#fbbf24;">𝅗𝅥 J 鍵</div>
+          <div class="legend-chip" style="color:#f472b6;">♬ K 鍵</div>
+        </div>
+
+        <button type="button" class="primary-btn" id="btnStart">▶ 開始 3D 節奏衝浪！</button>
+      </div>
+    </div>
+
+    <!-- Result Modal -->
+    <div class="overlay hidden" id="resultOverlay">
+      <div class="modal">
+        <span class="modal-tag" id="resTag">演奏完成</span>
+        <div class="grade-badge" id="resGrade">S</div>
+        <h1 id="resTitle">節奏衝浪大師！🎉</h1>
+        <p class="lead" id="resSub"></p>
+        <div class="best-bar" id="rankStatus" style="background:rgba(56,189,248,0.16);border-color:rgba(56,189,248,0.4);color:#7dd3fc;display:none;"></div>
+        <div class="result-grid">
+          <div class="result-box"><small>總分</small><b id="resScore">0</b></div>
+          <div class="result-box"><small>PERFECT</small><b id="resPerfect">0</b></div>
+          <div class="result-box"><small>最高連擊</small><b id="resCombo">0</b></div>
+          <div class="result-box"><small>準確率</small><b id="resAcc">100%</b></div>
+        </div>
+        <button type="button" class="primary-btn" id="btnRestart">🔄 再挑戰一次</button>
+        <a href="index.html?rank=rhythm3d" class="seg-btn" style="display:block;text-decoration:none;width:100%;margin-top:8px;">🏆 查看全班排行榜</a>
+        <button type="button" class="seg-btn" id="btnBackMenu" style="width:100%;margin-top:8px;">⚙️ 切換關卡／速度</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    // ===== 1. LEVELS & MUSICAL CHARTS (Audio-Driven Master Clock) =====
+    // Lane 0: Quarter (♩ Ta), Lane 1: Eighth (♫ Ti-Ti), Lane 2: Half (𝅗𝅥 Ta-a, sustain), Lane 3: Accent/Syncopation (♬)
+    // isRest: true -> Red Rest block (𝄽), DO NOT PRESS!
+    const LEVELS = {
+      pop44: {
+        name: '4/4 流行節奏入門',
+        beatsPerBar: 4,
+        bpm: 92,
+        bars: 8,
+        chordRoots: [261.63, 196.00, 220.00, 174.61], // C - G - Am - F
+        buildChart: function () {
+          const notes = [];
+          // 8 bars of 4/4 (beats 0..31), lead-in 4 beats (count-in)
+          const patterns = [
+            [{ b: 0, l: 0, sym: '♩' }, { b: 1, l: 0, sym: '♩' }, { b: 2, l: 2, sym: '𝅗𝅥', dur: 1.8 }],
+            [{ b: 0, l: 0, sym: '♩' }, { b: 1, l: 1, sym: '♫' }, { b: 1.5, l: 1, sym: '♫' }, { b: 2, l: 0, sym: '♩' }, { b: 3, l: 0, sym: '𝄽', rest: true }],
+            [{ b: 0, l: 0, sym: '♩' }, { b: 1, l: 0, sym: '♩' }, { b: 2, l: 1, sym: '♫' }, { b: 2.5, l: 1, sym: '♫' }, { b: 3, l: 3, sym: '♬' }],
+            [{ b: 0, l: 2, sym: '𝅗𝅥', dur: 1.8 }, { b: 2, l: 0, sym: '𝄽', rest: true }, { b: 3, l: 3, sym: '♬' }]
+          ];
+          for (let bar = 0; bar < 8; bar++) {
+            const pat = patterns[bar % patterns.length];
+            pat.forEach(p => {
+              notes.push({ beat: 4 + bar * 4 + p.b, lane: p.l, sym: p.sym, dur: p.dur || 0, rest: !!p.rest });
+            });
+          }
+          return notes;
+        }
+      },
+      waltz34: {
+        name: '3/4 圓舞曲搖擺',
+        beatsPerBar: 3,
+        bpm: 104,
+        bars: 10,
+        chordRoots: [293.66, 220.00, 246.94, 196.00], // D - A - Bm - G
+        buildChart: function () {
+          const notes = [];
+          const patterns = [
+            [{ b: 0, l: 3, sym: '♬' }, { b: 1, l: 0, sym: '♩' }, { b: 2, l: 0, sym: '♩' }],
+            [{ b: 0, l: 2, sym: '𝅗𝅥', dur: 1.8 }, { b: 2, l: 1, sym: '♫' }, { b: 2.5, l: 1, sym: '♫' }],
+            [{ b: 0, l: 3, sym: '♬' }, { b: 1, l: 1, sym: '♫' }, { b: 1.5, l: 1, sym: '♫' }, { b: 2, l: 0, sym: '𝄽', rest: true }],
+            [{ b: 0, l: 3, sym: '♬' }, { b: 1, l: 2, sym: '𝅗𝅥', dur: 1.7 }]
+          ];
+          for (let bar = 0; bar < 10; bar++) {
+            const pat = patterns[bar % patterns.length];
+            pat.forEach(p => {
+              notes.push({ beat: 3 + bar * 3 + p.b, lane: p.l, sym: p.sym, dur: p.dur || 0, rest: !!p.rest });
+            });
+          }
+          return notes;
+        }
+      },
+      sync44: {
+        name: '4/4 進階切分衝浪',
+        beatsPerBar: 4,
+        bpm: 118,
+        bars: 10,
+        chordRoots: [261.63, 293.66, 329.63, 392.00],
+        buildChart: function () {
+          const notes = [];
+          const patterns = [
+            [{ b: 0, l: 0, sym: '♩' }, { b: 1, l: 1, sym: '♫' }, { b: 1.5, l: 3, sym: '♬' }, { b: 2.5, l: 1, sym: '♫' }, { b: 3, l: 0, sym: '♩' }],
+            [{ b: 0, l: 3, sym: '♬' }, { b: 0.5, l: 1, sym: '♫' }, { b: 1, l: 0, sym: '𝄽', rest: true }, { b: 2, l: 2, sym: '𝅗𝅥', dur: 1.7 }],
+            [{ b: 0, l: 1, sym: '♫' }, { b: 0.5, l: 1, sym: '♫' }, { b: 1, l: 3, sym: '♬' }, { b: 2, l: 1, sym: '♫' }, { b: 2.5, l: 1, sym: '♫' }, { b: 3, l: 3, sym: '♬' }],
+            [{ b: 0, l: 0, sym: '♩' }, { b: 1, l: 2, sym: '𝅗𝅥', dur: 1.7 }, { b: 3, l: 1, sym: '𝄽', rest: true }]
+          ];
+          for (let bar = 0; bar < 10; bar++) {
+            const pat = patterns[bar % patterns.length];
+            pat.forEach(p => {
+              notes.push({ beat: 4 + bar * 4 + p.b, lane: p.l, sym: p.sym, dur: p.dur || 0, rest: !!p.rest });
+            });
+          }
+          return notes;
+        }
+      }
+    };
+
+    const LANE_COLORS = [0x38bdf8, 0x34d399, 0xfbbf24, 0xf472b6];
+    const LANE_HEX = ['#38bdf8', '#34d399', '#fbbf24', '#f472b6'];
+    const LANE_X = [-3.6, -1.2, 1.2, 3.6];
+    const LANE_PITCH = [523.25, 587.33, 659.25, 783.99]; // C5 D5 E5 G5
+    const STRIKE_Z = 3.2;
+    const SCROLL_UNITS_PER_SEC = 20;
+
+    // ===== 2. WEB AUDIO + ANALYSER ENGINE =====
+    let audioCtx = null;
+    let masterGain = null;
+    let analyser = null;
+    let freqData = null;
+    let audioImpulse = 0;
+    let muted = false;
+
+    function unlockAudio() {
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!audioCtx) {
+          audioCtx = new AC();
+          masterGain = audioCtx.createGain();
+          masterGain.gain.value = 0.88;
+          analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 64;
+          analyser.smoothingTimeConstant = 0.76;
+          freqData = new Uint8Array(analyser.frequencyBinCount);
+          masterGain.connect(analyser);
+          analyser.connect(audioCtx.destination);
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+      } catch (e) {}
+    }
+
+    function scheduleToneAt(time, freq, dur, type, vol) {
+      if (muted || !audioCtx || !masterGain) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = type || 'triangle';
+        osc.frequency.setValueAtTime(freq, time);
+        g.gain.setValueAtTime(0.001, time);
+        g.gain.linearRampToValueAtTime(vol || 0.14, time + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.001, time + (dur || 0.16));
+        osc.connect(g); g.connect(masterGain);
+        osc.start(time); osc.stop(time + (dur || 0.16) + 0.02);
+      } catch (e) {}
+    }
+
+    function playHitSfx(lane, isPerfect) {
+      audioImpulse = Math.min(1.8, audioImpulse + (isPerfect ? 0.9 : 0.6));
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      const f = LANE_PITCH[lane] || 523.25;
+      scheduleToneAt(now, f, 0.18, 'triangle', 0.22);
+      if (isPerfect) scheduleToneAt(now + 0.02, f * 1.5, 0.22, 'sine', 0.12);
+    }
+
+    function playMissSfx() {
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      scheduleToneAt(now, 155, 0.16, 'sawtooth', 0.11);
+    }
+
+    function playRestOkSfx() {
+      audioImpulse = Math.min(1.5, audioImpulse + 0.4);
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      scheduleToneAt(now, 880, 0.09, 'sine', 0.09);
+    }
+
+    // ===== 3. THREE.JS 3D GUITAR-HERO HIGHWAY SCENE =====
+    const stage = document.getElementById('gameStage');
+    const canvas = document.getElementById('glCanvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x090d1f);
+    scene.fog = new THREE.Fog(0x090d1f, 32, 92);
+
+    const camera = new THREE.PerspectiveCamera(56, 1, 0.1, 140);
+    camera.position.set(0, 6.4, 10.6);
+    camera.lookAt(0, 0.5, -12);
+
+    scene.add(new THREE.HemisphereLight(0xc7d2fe, 0x0f172a, 0.9));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
+    dirLight.position.set(8, 22, 12);
+    scene.add(dirLight);
+
+    // 3D Highway Deck (Five-line musical staff inspired neon fretboard)
+    function makeHighwayTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 512;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, 512, 512);
+      // Horizontal staff grid lines
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.22)';
+      ctx.lineWidth = 3;
+      for (let y = 0; y < 512; y += 64) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(512, y); ctx.stroke();
+      }
+      // 5 vertical divider rails
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.55)';
+      ctx.lineWidth = 5;
+      [4, 128, 256, 384, 508].forEach(x => {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 512); ctx.stroke();
+      });
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(1, 12);
+      return tex;
+    }
+
+    const highwayTex = makeHighwayTexture();
+    const highway = new THREE.Mesh(
+      new THREE.PlaneGeometry(10.2, 120),
+      new THREE.MeshLambertMaterial({ map: highwayTex })
+    );
+    highway.rotation.x = -Math.PI / 2;
+    highway.position.set(0, 0, -44);
+    scene.add(highway);
+
+    // Glowing strike-zone bar
+    const strikeBar = new THREE.Mesh(
+      new THREE.BoxGeometry(10.6, 0.08, 0.34),
+      new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.75 })
+    );
+    strikeBar.position.set(0, 0.05, STRIKE_Z);
+    scene.add(strikeBar);
+
+    // 4 3D Receptors (GuitarHero style rings) + Hit Beams
+    const receptors = [];
+    for (let i = 0; i < 4; i++) {
+      const g = new THREE.Group();
+      g.position.set(LANE_X[i], 0.14, STRIKE_Z);
+      const ringMat = new THREE.MeshBasicMaterial({ color: LANE_COLORS[i] });
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.82, 0.11, 10, 28), ringMat);
+      ring.rotation.x = Math.PI / 2;
+      g.add(ring);
+
+      const coreMat = new THREE.MeshBasicMaterial({ color: LANE_COLORS[i], transparent: true, opacity: 0.25 });
+      const core = new THREE.Mesh(new THREE.CircleGeometry(0.72, 24), coreMat);
+      core.rotation.x = -Math.PI / 2;
+      g.add(core);
+
+      const beamMat = new THREE.MeshBasicMaterial({ color: LANE_COLORS[i], transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.85, 6, 12, 1, true), beamMat);
+      beam.position.y = 3;
+      g.add(beam);
+
+      scene.add(g);
+      receptors.push({ group: g, ring, coreMat, beamMat, flash: 0 });
+    }
+
+    // 3D Neon Surfboard Drone (glides to hit lanes)
+    const surfer = new THREE.Group();
+    const boardMat = new THREE.MeshLambertMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.55 });
+    const board = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.18, 2.2), boardMat);
+    board.position.y = 0.22;
+    surfer.add(board);
+    const fin = new THREE.Mesh(new THREE.OctahedronGeometry(0.45, 0), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
+    fin.position.set(0, 0.65, 0.15);
+    surfer.add(fin);
+    surfer.position.set(0, 0, STRIKE_Z + 1.65);
+    scene.add(surfer);
+
+    // Track-edge 3D Audio Equalizer Pillars
+    const eqPillars = [];
+    const eqGeo = new THREE.BoxGeometry(0.55, 1, 0.55);
+    for (let i = 0; i < 14; i++) {
+      const z = 4 - i * 4.8;
+      [-6.5, 6.5].forEach((x, sIdx) => {
+        const mat = new THREE.MeshLambertMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.55 });
+        const m = new THREE.Mesh(eqGeo, mat);
+        m.position.set(x, 0.5, z);
+        scene.add(m);
+        eqPillars.push({ mesh: m, mat, bin: (i * 2 + sIdx) % 24, phase: i * 0.45 + sIdx });
+      });
+    }
+
+    // Starfield / Audio-reactive Space Particles
+    const starCount = 220;
+    const starPos = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      starPos[i * 3] = (Math.random() - 0.5) * 44;
+      starPos[i * 3 + 1] = 1 + Math.random() * 18;
+      starPos[i * 3 + 2] = -Math.random() * 78 + 8;
+    }
+    const starGeo = new THREE.BufferGeometry();
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+    const starMat = new THREE.PointsMaterial({ color: 0x93c5fd, size: 0.28, transparent: true, opacity: 0.85 });
+    scene.add(new THREE.Points(starGeo, starMat));
+
+    // Cached Note Symbol Textures
+    const symTexCache = {};
+    function getSymbolTexture(sym, hexColor, isRest) {
+      const key = sym + '_' + hexColor + '_' + (isRest ? 'r' : 'n');
+      if (symTexCache[key]) return symTexCache[key];
+      const c = document.createElement('canvas');
+      c.width = 128; c.height = 128;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = isRest ? '#7f1d1d' : '#0f172a';
+      ctx.fillRect(0, 0, 128, 128);
+      ctx.strokeStyle = isRest ? '#ef4444' : hexColor;
+      ctx.lineWidth = 12;
+      ctx.strokeRect(6, 6, 116, 116);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 72px "Inter", "Noto Sans TC", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(sym, 64, 68);
+      const tex = new THREE.CanvasTexture(c);
+      symTexCache[key] = tex;
+      return tex;
+    }
+
+    // 3D Particle Bursts
+    const bursts = [];
+    const burstGeo = new THREE.BoxGeometry(0.24, 0.24, 0.24);
+    function spawnHitBurst(x, colorHex, count) {
+      const mat = new THREE.MeshBasicMaterial({ color: colorHex });
+      for (let i = 0; i < (count || 14); i++) {
+        const m = new THREE.Mesh(burstGeo, mat);
+        m.position.set(x, 0.65, STRIKE_Z);
+        scene.add(m);
+        bursts.push({
+          mesh: m,
+          vx: (Math.random() - 0.5) * 8.5,
+          vy: 3.0 + Math.random() * 5.8,
+          vz: (Math.random() - 0.5) * 5.5,
+          life: 0.55 + Math.random() * 0.25
+        });
+      }
+    }
+
+    // ===== 4. GAME STATE & CHART RUNTIME =====
+    const state = {
+      running: false, levelKey: 'pop44', speedMult: 1,
+      bpm: 92, beatsPerBar: 4, secPerBeat: 60 / 92,
+      songStartTime: 0, totalBeats: 36, nextBeatToSchedule: 0,
+      score: 0, combo: 0, maxCombo: 0, perfects: 0, goods: 0, restOks: 0, misses: 0,
+      surferX: 0, surferTargetX: 0, shake: 0,
+      activeNotes: [], activeBarlines: [], rafId: 0, lastTime: 0
+    };
+
+    const hudScore = document.getElementById('hudScore');
+    const hudCombo = document.getElementById('hudCombo');
+    const hudAcc = document.getElementById('hudAcc');
+    const meterBadge = document.getElementById('meterBadge');
+    const feverBadge = document.getElementById('feverBadge');
+    const songBarWrap = document.getElementById('songBarWrap');
+    const beatDotsEl = document.getElementById('beatDots');
+    const progressFill = document.getElementById('progressFill');
+    const kodalyCue = document.getElementById('kodalyCue');
+    const judgeBanner = document.getElementById('judgeBanner');
+    const bestBar = document.getElementById('bestBar');
+    const startOverlay = document.getElementById('startOverlay');
+    const resultOverlay = document.getElementById('resultOverlay');
+    let judgeTimer = 0;
+
+    function readBest(lvl) {
+      try { return parseInt(localStorage.getItem('rhythmSurf3dBest_' + lvl) || '0', 10) || 0; }
+      catch (e) { return 0; }
+    }
+    function saveBest(lvl, score) {
+      try { if (score > readBest(lvl)) localStorage.setItem('rhythmSurf3dBest_' + lvl, String(score)); }
+      catch (e) {}
+    }
+    function updateBestBar() { bestBar.textContent = `🏆 本關最高分：${readBest(state.levelKey)}`; }
+
+    function showJudge(text, cls) {
+      judgeBanner.textContent = text;
+      judgeBanner.className = 'judge-banner show ' + cls;
+      clearTimeout(judgeTimer);
+      judgeTimer = setTimeout(() => judgeBanner.classList.remove('show'), 480);
+    }
+
+    function updateHud() {
+      hudScore.textContent = String(state.score);
+      hudCombo.textContent = state.combo >= 3 ? `🔥${state.combo}` : String(state.combo);
+      const judged = state.perfects + state.goods + state.restOks + state.misses;
+      const acc = judged ? Math.round(((state.perfects + state.goods * 0.7 + state.restOks) / judged) * 100) : 100;
+      hudAcc.textContent = acc + '%';
+      feverBadge.classList.toggle('active', state.combo >= 8);
+    }
+
+    function clearStageEntities() {
+      while (state.activeNotes.length) scene.remove(state.activeNotes.pop().mesh);
+      while (state.activeBarlines.length) scene.remove(state.activeBarlines.pop().mesh);
+      while (bursts.length) scene.remove(bursts.pop().mesh);
+    }
+
+    function buildBeatDots(count) {
+      beatDotsEl.innerHTML = '';
+      for (let i = 0; i < count; i++) {
+        const d = document.createElement('span');
+        d.className = 'beat-dot' + (i === 0 ? ' accent' : '');
+        beatDotsEl.appendChild(d);
+      }
+    }
+
+    function startGame() {
+      unlockAudio();
+      clearStageEntities();
+      const lvl = LEVELS[state.levelKey] || LEVELS.pop44;
+      state.bpm = Math.round(lvl.bpm * state.speedMult);
+      state.beatsPerBar = lvl.beatsPerBar;
+      state.secPerBeat = 60 / state.bpm;
+      state.totalBeats = state.beatsPerBar * (lvl.bars + 1) + 2;
+      state.nextBeatToSchedule = 0;
+      state.score = 0; state.combo = 0; state.maxCombo = 0;
+      state.perfects = 0; state.goods = 0; state.restOks = 0; state.misses = 0;
+      state.surferX = 0; state.surferTargetX = 0; state.shake = 0;
+      state.songStartTime = (audioCtx ? audioCtx.currentTime : performance.now() / 1000) + 0.15;
+
+      // Spawn 3D note gems from chart
+      const chart = lvl.buildChart();
+      chart.forEach((n) => {
+        const targetTime = n.beat * state.secPerBeat;
+        const g = new THREE.Group();
+        const col = n.rest ? 0xef4444 : LANE_COLORS[n.lane];
+        const hex = n.rest ? '#ef4444' : LANE_HEX[n.lane];
+        const tex = getSymbolTexture(n.sym, hex, n.rest);
+
+        const headMat = new THREE.MeshLambertMaterial({ map: tex, emissive: col, emissiveIntensity: n.rest ? 0.55 : 0.3 });
+        const head = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.58, 1.15), headMat);
+        head.position.y = 0.34;
+        g.add(head);
+
+        // Sustain tail for half notes (𝅗𝅥)
+        if (n.dur && n.dur > 0) {
+          const tailLen = n.dur * state.secPerBeat * SCROLL_UNITS_PER_SEC * 0.85;
+          const tail = new THREE.Mesh(
+            new THREE.BoxGeometry(0.62, 0.18, tailLen),
+            new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.65 })
+          );
+          tail.position.set(0, 0.24, -tailLen * 0.5 - 0.45);
+          g.add(tail);
+        }
+
+        g.position.set(LANE_X[n.lane], 0, -200);
+        scene.add(g);
+        state.activeNotes.push({
+          mesh: g, lane: n.lane, targetTime, rest: n.rest, sym: n.sym, hit: false, missed: false
+        });
+      });
+
+      // Spawn 3D measure barlines
+      const barGeo = new THREE.BoxGeometry(10.0, 0.04, 0.16);
+      const barMat = new THREE.MeshBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.55 });
+      for (let b = 0; b <= state.totalBeats; b += state.beatsPerBar) {
+        const m = new THREE.Mesh(barGeo, barMat);
+        m.position.set(0, 0.03, -200);
+        scene.add(m);
+        state.activeBarlines.push({ mesh: m, targetTime: b * state.secPerBeat });
+      }
+
+      meterBadge.textContent = `${state.beatsPerBar}/4 · ${state.bpm} BPM`;
+      buildBeatDots(state.beatsPerBar);
+      kodalyCue.textContent = `預備拍 1-${state.beatsPerBar}！準備跟著節拍擊打音符`;
+      songBarWrap.classList.remove('is-hidden');
+      startOverlay.classList.add('hidden');
+      resultOverlay.classList.add('hidden');
+      state.running = true;
+      updateHud();
+    }
+
+    function readStoredStudent() {
+      try {
+        const s = JSON.parse(localStorage.getItem('musicGameSettingsV4') || '{}') || {};
+        let name = (s.savedName === '__other__' ? s.savedCustomName : s.savedName) || '';
+        name = String(name || '').trim();
+        if (!name || name === '訪客' || name === '__other__') return null;
+        return {
+          name,
+          grade: parseInt(s.userGrade, 10) || 0,
+          class: String(s.userClass || 'A'),
+          id: String(s.userId || '')
+        };
+      } catch (e) { return null; }
+    }
+
+    function paintPlayerBadge() {
+      const el = document.getElementById('playerBadge');
+      if (!el) return;
+      const u = readStoredStudent();
+      if (u) {
+        const gTxt = u.grade ? `中${['', '一', '二', '三', '四', '五', '六'][u.grade] || u.grade}` : '';
+        el.textContent = `👤 ${u.name}（${gTxt}${u.class}班）· 成績將同步排行榜`;
+      } else {
+        el.textContent = '👤 訪客模式（先回大廳選姓名即可上榜）';
+      }
+    }
+
+    function submit3DRank(gameKey, score, accuracy, maxCombo, modeName, difficulty) {
+      const statusEl = document.getElementById('rankStatus');
+      const user = readStoredStudent();
+      if (!user || !score) {
+        if (statusEl) {
+          statusEl.style.display = 'inline-flex';
+          statusEl.textContent = !user ? '💡 回大廳選擇學生姓名後即可上傳排行榜' : '💡 取得分數即可上傳排行榜';
+        }
+        return;
+      }
+      const record = {
+        game: gameKey,
+        name: user.name,
+        grade: user.grade,
+        class: user.class,
+        id: user.id || '',
+        mode: gameKey,
+        mode_name: modeName,
+        score,
+        max_combo: maxCombo,
+        accuracy,
+        difficulty: difficulty || '',
+        timestamp: new Date().toLocaleString('zh-TW')
+      };
+      try {
+        const key = 'musicGameRanks_' + gameKey;
+        const all = JSON.parse(localStorage.getItem(key) || '[]');
+        const idx = all.findIndex(r => r.name === user.name && r.class === user.class && Number(r.grade) === Number(user.grade) && (r.difficulty || '') === (difficulty || ''));
+        if (idx >= 0) {
+          if (score > (all[idx].score || 0)) all[idx] = Object.assign({}, all[idx], record);
+        } else {
+          all.push(record);
+        }
+        localStorage.setItem(key, JSON.stringify(all));
+        const pending = JSON.parse(localStorage.getItem('musicGamePending3DRanks') || '[]');
+        pending.push(record);
+        localStorage.setItem('musicGamePending3DRanks', JSON.stringify(pending.slice(-20)));
+        if (statusEl) {
+          statusEl.style.display = 'inline-flex';
+          statusEl.textContent = `✅ 已記錄 ${user.name} 的成績，點下方即可看排行榜！`;
+        }
+      } catch (e) {
+        if (statusEl) {
+          statusEl.style.display = 'inline-flex';
+          statusEl.textContent = '💾 已儲存至本機紀錄';
+        }
+      }
+    }
+
+    function endGame() {
+      state.running = false;
+      songBarWrap.classList.add('is-hidden');
+      saveBest(state.levelKey, state.score);
+      updateBestBar();
+      const judged = state.perfects + state.goods + state.restOks + state.misses;
+      const acc = judged ? Math.round(((state.perfects + state.goods * 0.7 + state.restOks) / judged) * 100) : 100;
+      const grade = acc >= 95 && state.misses === 0 ? 'S' : acc >= 85 ? 'A' : acc >= 70 ? 'B' : 'C';
+      document.getElementById('resGrade').textContent = grade;
+      document.getElementById('resScore').textContent = String(state.score);
+      document.getElementById('resPerfect').textContent = String(state.perfects);
+      document.getElementById('resCombo').textContent = String(state.maxCombo);
+      document.getElementById('resAcc').textContent = acc + '%';
+      document.getElementById('resTitle').textContent = state.misses === 0 ? 'FULL COMBO！節奏大師！🏆' : '衝浪演出完成！🎉';
+      document.getElementById('resSub').textContent = `${LEVELS[state.levelKey].name} · 休止符守紀 ${state.restOks} 次 · 最高分 ${readBest(state.levelKey)}`;
+      const diffLabel = state.speedMult >= 1.2 ? 'Hard' : state.speedMult <= 0.85 ? 'Easy' : 'Normal';
+      submit3DRank('rhythm3d', state.score, acc, state.maxCombo, `${LEVELS[state.levelKey].name}·${diffLabel}`, diffLabel);
+      resultOverlay.classList.remove('hidden');
+    }
+
+    // Audio-driven lookahead metronome + bass groove
+    function scheduleMetronome(songTime) {
+      if (!audioCtx) return;
+      const lvl = LEVELS[state.levelKey] || LEVELS.pop44;
+      while (state.nextBeatToSchedule < state.totalBeats) {
+        const beatTime = state.nextBeatToSchedule * state.secPerBeat;
+        if (beatTime > songTime + 0.16) break;
+        const absTime = state.songStartTime + beatTime;
+        const beatInBar = state.nextBeatToSchedule % state.beatsPerBar;
+        const barIdx = Math.floor(state.nextBeatToSchedule / state.beatsPerBar);
+        // Woodblock click (accent on beat 1)
+        scheduleToneAt(absTime, beatInBar === 0 ? 1100 : 760, 0.055, 'triangle', beatInBar === 0 ? 0.16 : 0.085);
+        // Warm bass chord pulse on beat 1 after count-in
+        if (beatInBar === 0 && barIdx >= 1) {
+          const root = lvl.chordRoots[(barIdx - 1) % lvl.chordRoots.length];
+          scheduleToneAt(absTime, root * 0.5, state.secPerBeat * 1.4, 'sine', 0.13);
+        }
+        state.nextBeatToSchedule += 1;
+      }
+    }
+
+    // Handle player hit on a lane (0..3)
+    function triggerLaneHit(lane) {
+      if (!state.running) return;
+      unlockAudio();
+      receptors[lane].flash = 1.0;
+      state.surferTargetX = LANE_X[lane];
+      const songTime = (audioCtx ? audioCtx.currentTime : performance.now() / 1000) - state.songStartTime;
+
+      let bestNote = null;
+      let bestAbsDiff = Infinity;
+      for (let i = 0; i < state.activeNotes.length; i++) {
+        const n = state.activeNotes[i];
+        if (n.hit || n.missed || n.lane !== lane) continue;
+        const diff = Math.abs(n.targetTime - songTime);
+        if (diff < 0.18 && diff < bestAbsDiff) {
+          bestAbsDiff = diff;
+          bestNote = n;
+        }
+      }
+
+      if (!bestNote) {
+        // Light tap feedback without punishing off-note clicks harshly
+        return;
+      }
+
+      if (bestNote.rest) {
+        // Pressed on a Rest block -> mistake!
+        bestNote.missed = true;
+        bestNote.mesh.visible = false;
+        state.combo = 0;
+        state.misses += 1;
+        state.shake = 0.35;
+        playMissSfx();
+        spawnHitBurst(LANE_X[lane], 0xef4444, 14);
+        showJudge('𝄽 休止符要靜音！', 'miss');
+        updateHud();
+        return;
+      }
+
+      bestNote.hit = true;
+      bestNote.mesh.visible = false;
+      state.combo += 1;
+      if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+      const mult = state.combo >= 8 ? 2 : 1;
+
+      if (bestAbsDiff <= 0.078) {
+        state.perfects += 1;
+        const pts = 100 * mult;
+        state.score += pts;
+        playHitSfx(lane, true);
+        spawnHitBurst(LANE_X[lane], 0xfacc15, 18);
+        showJudge(mult > 1 ? `✨ PERFECT 2× +${pts}` : `✨ PERFECT +${pts}`, 'perfect');
+      } else {
+        state.goods += 1;
+        const pts = 60 * mult;
+        state.score += pts;
+        playHitSfx(lane, false);
+        spawnHitBurst(LANE_X[lane], LANE_COLORS[lane], 12);
+        showJudge(`👍 GOOD +${pts}`, 'good');
+      }
+      updateHud();
+    }
+
+    // ===== 5. INPUT BINDINGS =====
+    const KEY_MAP = { KeyD: 0, KeyF: 1, KeyJ: 2, KeyK: 3, ArrowLeft: 0, ArrowDown: 1, ArrowUp: 2, ArrowRight: 3 };
+    const padBtns = Array.from(document.querySelectorAll('.pad-btn'));
+
+    window.addEventListener('keydown', (e) => {
+      if (e.repeat) return;
+      const lane = KEY_MAP[e.code];
+      if (lane === undefined) return;
+      e.preventDefault();
+      padBtns[lane].classList.add('is-down');
+      triggerLaneHit(lane);
+    });
+    window.addEventListener('keyup', (e) => {
+      const lane = KEY_MAP[e.code];
+      if (lane !== undefined) padBtns[lane].classList.remove('is-down');
+    });
+
+    padBtns.forEach((btn) => {
+      const lane = Number(btn.dataset.lane);
+      btn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        btn.classList.add('is-down');
+        triggerLaneHit(lane);
+      });
+      const release = () => btn.classList.remove('is-down');
+      btn.addEventListener('pointerup', release);
+      btn.addEventListener('pointerleave', release);
+      btn.addEventListener('pointercancel', release);
+    });
+
+    document.getElementById('levelPicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-level]');
+      if (!btn) return;
+      state.levelKey = btn.dataset.level;
+      document.querySelectorAll('#levelPicker .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+      updateBestBar();
+    });
+    document.getElementById('speedPicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-speed]');
+      if (!btn) return;
+      state.speedMult = parseFloat(btn.dataset.speed) || 1;
+      document.querySelectorAll('#speedPicker .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+    });
+    document.getElementById('btnStart').addEventListener('click', startGame);
+    document.getElementById('btnRestart').addEventListener('click', startGame);
+    document.getElementById('btnRestartTop').addEventListener('click', () => { if (state.running) startGame(); });
+    document.getElementById('btnBackMenu').addEventListener('click', () => {
+      resultOverlay.classList.add('hidden');
+      startOverlay.classList.remove('hidden');
+      updateBestBar();
+    });
+    document.getElementById('btnMute').addEventListener('click', (e) => {
+      unlockAudio();
+      muted = !muted;
+      e.currentTarget.textContent = muted ? '🔇' : '🔊';
+    });
+
+    function onResize() {
+      const w = stage.clientWidth || window.innerWidth;
+      const h = stage.clientHeight || window.innerHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h, false);
+    }
+    window.addEventListener('resize', onResize);
+
+    // ===== 6. MAIN RENDER & SYNC LOOP =====
+    function animate(now) {
+      state.rafId = requestAnimationFrame(animate);
+      const dt = Math.min(0.05, (now - (state.lastTime || now)) / 1000);
+      state.lastTime = now;
+      const t = now * 0.001;
+
+      audioImpulse = Math.max(0, audioImpulse - dt * 3.0);
+      let avgAudio = audioImpulse * 0.4;
+      if (analyser && freqData) {
+        analyser.getByteFrequencyData(freqData);
+        let sum = 0;
+        for (let i = 0; i < 16; i++) sum += freqData[i];
+        avgAudio = Math.max(avgAudio, (sum / (16 * 255)) * 1.9);
+      }
+
+      // Scroll neon highway & update audio equalizer pillars
+      const scrollStep = (state.running ? SCROLL_UNITS_PER_SEC : 7) * dt;
+      highwayTex.offset.y -= scrollStep * 0.1;
+      starMat.size = 0.25 + avgAudio * 0.32;
+
+      const eqCol = new THREE.Color(state.combo >= 8 ? 0xfacc15 : 0x38bdf8);
+      for (let i = 0; i < eqPillars.length; i++) {
+        const ep = eqPillars[i];
+        const binVal = (analyser && freqData) ? (freqData[ep.bin] / 255) : 0;
+        const h = Math.max(0.45, binVal * 5.2 + 0.4 + Math.abs(Math.sin(t * 4 + ep.phase)) * (0.6 + audioImpulse * 1.4));
+        ep.mesh.scale.y += (h - ep.mesh.scale.y) * Math.min(1, dt * 18);
+        ep.mesh.position.y = ep.mesh.scale.y * 0.5;
+        ep.mat.color.lerp(eqCol, Math.min(1, dt * 5));
+        ep.mat.emissive.lerp(eqCol, Math.min(1, dt * 5));
+      }
+
+      // Receptor flash decay
+      for (let i = 0; i < receptors.length; i++) {
+        const r = receptors[i];
+        r.flash = Math.max(0, r.flash - dt * 5.5);
+        r.coreMat.opacity = 0.22 + r.flash * 0.65;
+        r.beamMat.opacity = r.flash * 0.55;
+        r.group.scale.setScalar(1 + r.flash * 0.14);
+      }
+
+      // Surfer glide
+      state.surferX += (state.surferTargetX - state.surferX) * Math.min(1, dt * 16);
+      surfer.position.x = state.surferX;
+      surfer.position.y = Math.sin(t * 6) * 0.08;
+      surfer.rotation.z = (state.surferX - state.surferTargetX) * 0.08;
+      fin.rotation.y += dt * 3.5;
+
+      if (state.running) {
+        const songTime = (audioCtx ? audioCtx.currentTime : now / 1000) - state.songStartTime;
+        scheduleMetronome(songTime);
+
+        const totalSec = state.totalBeats * state.secPerBeat;
+        progressFill.style.width = Math.max(0, Math.min(100, (songTime / totalSec) * 100)) + '%';
+
+        // Beat indicator dots
+        const curBeat = Math.floor(songTime / state.secPerBeat);
+        const beatInBar = ((curBeat % state.beatsPerBar) + state.beatsPerBar) % state.beatsPerBar;
+        const dots = beatDotsEl.children;
+        for (let i = 0; i < dots.length; i++) dots[i].classList.toggle('on', curBeat >= 0 && i === beatInBar);
+        if (curBeat >= state.beatsPerBar) {
+          kodalyCue.textContent = state.combo >= 8 ? '🔥 FEVER 2× 全速衝浪中！' : '跟著節拍擊中音符 · 遇見紅色 𝄽 休止符放手！';
+        }
+
+        // Move 3D measure barlines by audio master clock
+        for (let i = 0; i < state.activeBarlines.length; i++) {
+          const bl = state.activeBarlines[i];
+          const dtToStrike = bl.targetTime - songTime;
+          bl.mesh.position.z = STRIKE_Z - dtToStrike * SCROLL_UNITS_PER_SEC;
+          bl.mesh.visible = bl.mesh.position.z > -82 && bl.mesh.position.z < 9;
+        }
+
+        // Move 3D notes by audio master clock + auto-miss / rest-ok check
+        for (let i = 0; i < state.activeNotes.length; i++) {
+          const n = state.activeNotes[i];
+          if (n.hit || n.missed) continue;
+          const dtToStrike = n.targetTime - songTime;
+          const z = STRIKE_Z - dtToStrike * SCROLL_UNITS_PER_SEC;
+          n.mesh.position.z = z;
+          n.mesh.visible = z > -82 && z < 10;
+
+          if (dtToStrike < -0.17) {
+            if (n.rest) {
+              n.hit = true;
+              n.mesh.visible = false;
+              state.restOks += 1;
+              state.combo += 1;
+              if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+              state.score += 50;
+              playRestOkSfx();
+              showJudge('𝄽 精準休止 +50', 'rest');
+              updateHud();
+            } else {
+              n.missed = true;
+              n.mesh.visible = false;
+              state.combo = 0;
+              state.misses += 1;
+              state.shake = 0.22;
+              playMissSfx();
+              showJudge('MISS', 'miss');
+              updateHud();
+            }
+          }
+        }
+
+        if (songTime >= totalSec) endGame();
+      }
+
+      // Particle bursts
+      for (let i = bursts.length - 1; i >= 0; i--) {
+        const bp = bursts[i];
+        bp.life -= dt;
+        bp.mesh.position.x += bp.vx * dt;
+        bp.mesh.position.y += bp.vy * dt;
+        bp.mesh.position.z += bp.vz * dt;
+        bp.vy -= 18 * dt;
+        bp.mesh.rotation.x += dt * 7;
+        bp.mesh.scale.setScalar(Math.max(0.01, bp.life * 1.5));
+        if (bp.life <= 0) { scene.remove(bp.mesh); bursts.splice(i, 1); }
+      }
+
+      // Camera subtle sway + hit shake
+      let camX = state.surferX * 0.22;
+      let camY = 6.4;
+      if (state.shake > 0) {
+        camX += (Math.random() - 0.5) * state.shake * 1.1;
+        camY += (Math.random() - 0.5) * state.shake * 0.9;
+        state.shake = Math.max(0, state.shake - dt * 1.8);
+      }
+      camera.position.x += (camX - camera.position.x) * Math.min(1, dt * 8);
+      camera.position.y += (camY - camera.position.y) * Math.min(1, dt * 8);
+      camera.lookAt(state.surferX * 0.14, 0.5, -12);
+
+      renderer.render(scene, camera);
+    }
+
+    window.onload = function () {
+      onResize();
+      paintPlayerBadge();
+      updateBestBar();
+      updateHud();
+      state.rafId = requestAnimationFrame(animate);
+    };
+  })();
+  </script>
+</body>
+</html>
