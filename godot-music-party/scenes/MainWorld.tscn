@@ -1,0 +1,191 @@
+[gd_scene load_steps=17 format=3]
+
+[ext_resource type="Script" path="res://scripts/PlayerBean.gd" id="1_player"]
+[ext_resource type="Script" path="res://scripts/PartyArena.gd" id="2_arena"]
+[ext_resource type="Script" path="res://scripts/SweeperBar.gd" id="3_sweeper"]
+[ext_resource type="Script" path="res://scripts/MultiplayerSync.gd" id="4_sync"]
+
+[sub_resource type="ProceduralSkyMaterial" id="SkyMat_1"]
+sky_top_color = Color(0.45, 0.78, 0.99, 1)
+sky_horizon_color = Color(0.95, 0.88, 0.98, 1)
+ground_bottom_color = Color(0.65, 0.85, 0.99, 1)
+
+[sub_resource type="Sky" id="Sky_1"]
+sky_material = SubResource("SkyMat_1")
+
+[sub_resource type="Environment" id="Env_1"]
+background_mode = 2
+sky = SubResource("Sky_1")
+ambient_light_source = 3
+ambient_light_energy = 0.65
+
+[sub_resource type="CylinderShape3D" id="PlazaShape_1"]
+height = 2.0
+radius = 28.0
+
+[sub_resource type="StandardMaterial3D" id="PlazaMat_1"]
+albedo_color = Color(0.96, 0.95, 1.0, 1)
+roughness = 0.65
+
+[sub_resource type="CylinderMesh" id="PlazaMesh_1"]
+material = SubResource("PlazaMat_1")
+top_radius = 28.0
+bottom_radius = 25.0
+height = 2.0
+radial_segments = 48
+
+[sub_resource type="CapsuleShape3D" id="BeanCol_1"]
+radius = 0.6
+height = 1.6
+
+[sub_resource type="StandardMaterial3D" id="BeanBodyMat_1"]
+albedo_color = Color(0.96, 0.62, 0.04, 1)
+roughness = 0.4
+
+[sub_resource type="CapsuleMesh" id="BeanBodyMesh_1"]
+material = SubResource("BeanBodyMat_1")
+radius = 0.58
+height = 1.55
+
+[sub_resource type="StandardMaterial3D" id="SweeperMat_1"]
+albedo_color = Color(0.98, 0.8, 0.08, 1)
+roughness = 0.3
+
+[sub_resource type="BoxMesh" id="SweeperMesh_1"]
+material = SubResource("SweeperMat_1")
+size = Vector3(9.0, 0.5, 0.5)
+
+[sub_resource type="BoxShape3D" id="SweeperShape_1"]
+size = Vector3(9.0, 0.5, 0.5)
+
+[sub_resource type="StyleBoxFlat" id="PanelStyle_1"]
+bg_color = Color(1, 1, 1, 0.92)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.925, 0.282, 0.6, 1)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+content_margin_left = 14.0
+content_margin_top = 8.0
+content_margin_right = 14.0
+content_margin_bottom = 8.0
+
+[node name="MainWorld" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env_1")
+
+[node name="SunLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, -0.353, 0.353, 0, 0.707, 0.707, -0.5, -0.612, 0.612, 12, 24, 14)
+shadow_enabled = true
+
+[node name="CandyPlaza" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CandyPlaza"]
+shape = SubResource("PlazaShape_1")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="CandyPlaza"]
+mesh = SubResource("PlazaMesh_1")
+
+[node name="SweeperLeft" type="AnimatableBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13, 0.85, 8)
+script = ExtResource("3_sweeper")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="SweeperLeft"]
+mesh = SubResource("SweeperMesh_1")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SweeperLeft"]
+shape = SubResource("SweeperShape_1")
+
+[node name="PartyArena" type="Node3D" parent="."]
+script = ExtResource("2_arena")
+player_path = NodePath("../PlayerBean")
+
+[node name="MultiplayerSync" type="Node3D" parent="."]
+script = ExtResource("4_sync")
+player_path = NodePath("../PlayerBean")
+
+[node name="PlayerBean" type="CharacterBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 12)
+script = ExtResource("1_player")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PlayerBean"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+shape = SubResource("BeanCol_1")
+
+[node name="Visual" type="Node3D" parent="PlayerBean"]
+
+[node name="BeanMesh" type="MeshInstance3D" parent="PlayerBean/Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.82, 0)
+mesh = SubResource("BeanBodyMesh_1")
+
+[node name="CamPivot" type="Node3D" parent="PlayerBean"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+
+[node name="SpringArm3D" type="SpringArm3D" parent="PlayerBean/CamPivot"]
+transform = Transform3D(1, 0, 0, 0, 0.866, 0.5, 0, -0.5, 0.866, 0, 0, 0)
+spring_length = 12.0
+
+[node name="Camera3D" type="Camera3D" parent="PlayerBean/CamPivot/SpringArm3D"]
+current = true
+fov = 55.0
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="TopBar" type="PanelContainer" parent="HUD"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 14.0
+offset_top = 12.0
+offset_right = -14.0
+offset_bottom = 64.0
+theme_override_styles/panel = SubResource("PanelStyle_1")
+
+[node name="HBox" type="HBoxContainer" parent="HUD/TopBar"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="PlayerLabel" type="Label" parent="HUD/TopBar/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.06, 0.09, 0.16, 1)
+text = "👤 訪客柴犬"
+
+[node name="ScoreLabel" type="Label" parent="HUD/TopBar/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.06, 0.09, 0.16, 1)
+text = "🏆 分數：0｜🔥 連勝：0"
+
+[node name="StartPartyBtn" type="Button" parent="HUD/TopBar/HBox"]
+layout_mode = 2
+text = "🎪 開始地磚賽"
+
+[node name="QuestionPanel" type="PanelContainer" parent="HUD"]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -240.0
+offset_top = 74.0
+offset_right = 240.0
+offset_bottom = 142.0
+theme_override_styles/panel = SubResource("PanelStyle_1")
+
+[node name="VBox" type="VBoxContainer" parent="HUD/QuestionPanel"]
+layout_mode = 2
+
+[node name="QuestionLabel" type="Label" parent="HUD/QuestionPanel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.06, 0.09, 0.16, 1)
+text = "按右上角「🎪 開始地磚賽」體驗糖豆人音樂生存戰！"
+horizontal_alignment = 1
+
+[node name="TimerLabel" type="Label" parent="HUD/QuestionPanel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.74, 0.09, 0.36, 1)
+text = "WASD 移動 · 空白鍵跳躍 · Shift 飛撲 · 拖曳旋轉視角"
+horizontal_alignment = 1
