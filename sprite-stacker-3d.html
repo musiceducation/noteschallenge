@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sprite Stacking 3D 像素工坊 — 互動音樂學習站</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Noto Sans TC", sans-serif;
+      background: #0f172a; color: #f8fafc; min-height: 100vh;
+      display: flex; flex-direction: column;
+    }
+    header {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 18px; background: #1e293b; border-bottom: 1px solid #334155;
+      flex-wrap: wrap;
+    }
+    header h1 { font-size: 1.15rem; font-weight: 900; }
+    .btn {
+      padding: 8px 14px; border-radius: 10px; border: 1.5px solid #475569;
+      background: #334155; color: #fff; font: inherit; font-size: 0.84rem; font-weight: 800;
+      cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn.primary { background: linear-gradient(135deg, #06b6d4, #6366f1); border-color: transparent; }
+    .btn.active { background: #ec4899; border-color: #f472b6; }
+    .layout {
+      flex: 1; display: grid; grid-template-columns: 320px 1fr; gap: 14px; padding: 14px;
+    }
+    @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+    .panel {
+      background: #1e293b; border: 1px solid #334155; border-radius: 18px; padding: 14px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .panel h2 { font-size: 0.92rem; color: #38bdf8; font-weight: 900; }
+    .asset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .ctrl-row { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; color: #cbd5e1; }
+    .ctrl-row label { display: flex; justify-content: space-between; font-weight: 700; }
+    input[type="range"] { width: 100%; accent-color: #38bdf8; }
+    .stage-wrap {
+      background: radial-gradient(circle at center, #1e293b 0%, #0b1120 100%);
+      border: 1px solid #334155; border-radius: 18px; padding: 14px;
+      display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    canvas.turntable {
+      width: 100%; max-width: 540px; aspect-ratio: 1 / 1;
+      image-rendering: pixelated; image-rendering: crisp-edges;
+      border-radius: 14px; background: #0f172a; border: 1px solid #334155; cursor: grab;
+    }
+    .strip-box {
+      width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 12px;
+      padding: 10px; overflow-x: auto;
+    }
+    .strip-box small { display: block; color: #94a3b8; margin-bottom: 6px; font-weight: 700; }
+    canvas#stripCanvas { image-rendering: pixelated; height: 64px; background: repeating-conic-gradient(#1e293b 0% 25%, #0f172a 0% 50%) 50% / 16px 16px; }
+    .upload-box {
+      border: 2px dashed #475569; border-radius: 14px; padding: 10px; text-align: center;
+      font-size: 0.8rem; color: #94a3b8;
+    }
+    .upload-box input { margin-top: 6px; width: 100%; font-size: 0.78rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <a href="index.html" class="btn">← 返回大廳</a>
+      <h1>🧱 Sprite Stacking 偽 3D 像素工坊（全角色最佳化轉盤）</h1>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button type="button" class="btn primary" id="btnExportStrip">⬇ 匯出切片圖 PNG</button>
+      <button type="button" class="btn" id="btnExport16Dir">⬇ 匯出 16 方向精靈圖</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="panel">
+      <h2>1. 選擇 3D 遊戲角色／道具（4 視圖雕刻）</h2>
+      <div class="asset-grid" id="assetPicker">
+        <button type="button" class="btn active" data-asset="skier">🐕 柴犬滑雪家</button>
+        <button type="button" class="btn" data-asset="pianist">🎹 小柴犬鋼琴家</button>
+        <button type="button" class="btn" data-asset="dj">🎧 賽博柴犬 DJ</button>
+        <button type="button" class="btn" data-asset="snowman">☃️ 指揮帽雪人</button>
+        <button type="button" class="btn" data-asset="coin">⭐ 金色音符星</button>
+        <button type="button" class="btn" data-asset="ramp">💎 水晶跳台</button>
+      </div>
+
+      <h2>2. 視覺參數（依 Sprite Stacking 規範）</h2>
+      <div class="ctrl-row">
+        <label><span>俯仰擠壓 (squash)</span><b id="valSquash">0.75</b></label>
+        <input type="range" id="rngSquash" min="0.50" max="1.00" step="0.01" value="0.75" />
+      </div>
+      <div class="ctrl-row">
+        <label><span>切片層距 (spacing / 爆炸檢視)</span><b id="valSpacing">1.0</b></label>
+        <input type="range" id="rngSpacing" min="0.0" max="3.0" step="0.1" value="1.0" />
+      </div>
+      <div class="ctrl-row">
+        <label><span>整數像素倍率 (scale)</span><b id="valScale">7x</b></label>
+        <input type="range" id="rngScale" min="3" max="10" step="1" value="7" />
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="btn active" id="btnSpin">🔄 自動旋轉</button>
+        <button type="button" class="btn active" id="btnOutline">🖊 1px 外框</button>
+        <button type="button" class="btn active" id="btnShadow">🌑 投影陰影</button>
+      </div>
+
+      <h2>3. 匯入自訂 4 視圖 PNG（TOP / SIDE / FRONT / BACK）</h2>
+      <div class="upload-box">
+        <div>上傳 1×4 橫排白底四視圖 PNG，瀏覽器即時視覺外殼雕刻（Visual-Hull Carve）</div>
+        <input type="file" id="file4View" accept="image/png,image/jpeg,image/webp" />
+      </div>
+    </aside>
+
+    <main class="stage-wrap">
+      <canvas id="turntable" class="turntable" width="540" height="540"></canvas>
+      <div class="strip-box">
+        <small id="stripInfo">切片條（由左至右：底層 z=0 → 頂層 z=max）</small>
+        <canvas id="stripCanvas"></canvas>
+      </div>
+    </main>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    // Symmetric (w - 1) * 0.5 software rasterizer + 1px post-stack outline
+    const state = {
+      assetKey: 'skier',
+      squash: 0.75,
+      spacing: 1.0,
+      scale: 7,
+      turn: 0.55,
+      autoSpin: true,
+      outline: true,
+      shadow: true,
+      dragging: false,
+      lastX: 0,
+      slices: [], // array of { w, h, data: Uint8ClampedArray }
+      w: 32,
+      h: 32
+    };
+
+    function createBlankSlice(w, h) {
+      return new Uint8ClampedArray(w * h * 4);
+    }
+
+    function setPx(buf, w, h, x, y, rgba) {
+      const ix = Math.round(x), iy = Math.round(y);
+      if (ix < 0 || ix >= w || iy < 0 || iy >= h) return;
+      const i = (iy * w + ix) * 4;
+      buf[i] = rgba[0]; buf[i + 1] = rgba[1]; buf[i + 2] = rgba[2]; buf[i + 3] = rgba[3] ?? 255;
+    }
+
+    function fillRect(buf, w, h, x0, y0, rw, rh, rgba) {
+      for (let y = y0; y < y0 + rh; y++) {
+        for (let x = x0; x < x0 + rw; x++) setPx(buf, w, h, x, y, rgba);
+      }
+    }
+
+    function fillEllipse(buf, w, h, cx, cy, rx, ry, rgba) {
+      for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) {
+        for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+          const dx = (x - cx) / Math.max(0.5, rx);
+          const dy = (y - cy) / Math.max(0.5, ry);
+          if (dx * dx + dy * dy <= 1.0) setPx(buf, w, h, x, y, rgba);
+        }
+      }
+    }
+
+    // Build crisp procedural 3D voxel slice stacks for all 6 game assets
+    function buildAssetSlices(key) {
+      const w = 32, h = 32;
+      const slices = [];
+      const ORANGE = [245, 158, 11, 255];
+      const DARK_ORANGE = [217, 119, 6, 255];
+      const CREAM = [255, 251, 235, 255];
+      const DARK = [30, 41, 59, 255];
+      const RED = [239, 68, 68, 255];
+      const BLUE = [2, 132, 199, 255];
+      const CYAN = [56, 189, 248, 255];
+      const PURPLE = [124, 58, 237, 255];
+      const PINK = [236, 72, 153, 255];
+      const GOLD = [250, 204, 21, 255];
+      const GOLD_SHADE = [202, 138, 4, 255];
+      const WHITE = [248, 250, 252, 255];
+      const ICE = [165, 243, 252, 255];
+
+      const count = key === 'coin' ? 24 : key === 'snowman' ? 32 : 36;
+      const cx = (w - 1) * 0.5, cy = (h - 1) * 0.5;
+
+      for (let z = 0; z < count; z++) {
+        const b = createBlankSlice(w, h);
+        if (key === 'skier' || key === 'pianist' || key === 'dj') {
+          if (key === 'skier' && z < 3) {
+            // Note-painted snowboard
+            fillEllipse(b, w, h, cx, cy, 5.5, 12.5, BLUE);
+            if (z === 2) {
+              fillRect(b, w, h, 14, 7, 4, 3, GOLD);
+              fillRect(b, w, h, 14, 20, 4, 3, GOLD);
+            }
+          } else if (key === 'dj' && z < 4) {
+            // Neon dual-thruster hoverboard
+            fillEllipse(b, w, h, cx, cy, 6.0, 12.0, DARK);
+            if (z === 2 || z === 3) {
+              fillRect(b, w, h, 12, 6, 8, 18, CYAN);
+              fillRect(b, w, h, 10, 4, 3, 4, PINK);
+              fillRect(b, w, h, 19, 4, 3, 4, PINK);
+            }
+          } else if (z >= 3 && z < 10) {
+            // Legs
+            fillEllipse(b, w, h, cx - 3.2, cy + 1, 2.0, 2.5, CREAM);
+            fillEllipse(b, w, h, cx + 3.2, cy + 1, 2.0, 2.5, CREAM);
+          } else if (z >= 10 && z < 20) {
+            // Torso / Coat / Vest
+            const coat = key === 'pianist' ? PURPLE : key === 'dj' ? DARK : BLUE;
+            fillEllipse(b, w, h, cx, cy, 5.8, 5.2, coat);
+            fillRect(b, w, h, 13, 18, 6, 4, CREAM);
+            if (key === 'skier' && z >= 17) fillEllipse(b, w, h, cx, cy + 1, 6.2, 5.5, RED); // scarf
+            if (key === 'pianist' && z >= 18) fillRect(b, w, h, 13, 20, 6, 2, RED); // bow tie
+            if (key === 'dj' && z >= 15) fillRect(b, w, h, 10, 14, 12, 2, CYAN);
+          } else if (z >= 20 && z < 30) {
+            // Shiba head
+            fillEllipse(b, w, h, cx, cy, 5.6, 5.2, ORANGE);
+            if (z <= 25) fillEllipse(b, w, h, cx, cy + 3.6, 3.4, 2.2, CREAM); // muzzle
+            if (z === 24) fillRect(b, w, h, 15, 21, 2, 2, DARK); // nose
+            if (z === 26 || z === 27) {
+              fillRect(b, w, h, 12, 19, 2, 2, DARK);
+              fillRect(b, w, h, 18, 19, 2, 2, DARK);
+            }
+            if (key === 'skier' && z >= 27) fillRect(b, w, h, 10, 19, 12, 3, CYAN); // goggles
+            if (key === 'dj' && z >= 24 && z <= 28) {
+              fillRect(b, w, h, 9, 14, 2, 4, PINK);
+              fillRect(b, w, h, 21, 14, 2, 4, PINK);
+            }
+          } else if (z >= 30) {
+            // Pointy ears
+            const er = Math.max(1.0, 2.4 - (z - 30) * 0.4);
+            fillEllipse(b, w, h, cx - 3.6, cy - 0.5, er, er, DARK_ORANGE);
+            fillEllipse(b, w, h, cx + 3.6, cy - 0.5, er, er, DARK_ORANGE);
+            if (key === 'dj' && z === 31) fillRect(b, w, h, 10, 15, 12, 2, CYAN); // headphone band
+          }
+          // Tail
+          if (z >= 14 && z <= 22) {
+            fillEllipse(b, w, h, cx, cy - 6.5, 2.2, 2.2, z > 19 ? CREAM : ORANGE);
+          }
+        } else if (key === 'snowman') {
+          if (z < 14) {
+            const r = Math.sin((z / 14) * Math.PI) * 7.5 + 2.5;
+            fillEllipse(b, w, h, cx, cy, r, r, WHITE);
+          } else if (z < 17) {
+            fillEllipse(b, w, h, cx, cy, 5.6, 5.6, RED); // scarf
+          } else if (z < 25) {
+            const r = Math.sin(((z - 17) / 8) * Math.PI) * 5.2 + 2.0;
+            fillEllipse(b, w, h, cx, cy, r, r, WHITE);
+            if (z === 21) fillRect(b, w, h, 15, 21, 2, 4, ORANGE); // carrot nose
+          } else if (z === 25 || z === 26) {
+            fillEllipse(b, w, h, cx, cy, 6.2, 6.2, DARK); // hat brim
+          } else {
+            fillEllipse(b, w, h, cx, cy, 3.8, 3.8, z === 27 ? GOLD : DARK); // conductor hat
+          }
+        } else if (key === 'coin') {
+          const distFromMid = Math.abs(z - 11.5);
+          if (distFromMid < 9) {
+            const r = 9.5 - distFromMid * 0.45;
+            fillEllipse(b, w, h, cx, cy, r, 3.0, distFromMid > 6 ? GOLD_SHADE : GOLD);
+            if (z >= 8 && z <= 16) fillRect(b, w, h, 14, 14, 4, 3, CREAM);
+          }
+        } else if (key === 'ramp') {
+          const heightAtY = Math.floor((z / count) * 20);
+          for (let y = 6 + heightAtY; y < 27; y++) {
+            for (let x = 7; x < 25; x++) {
+              const isEdge = x === 7 || x === 24 || y === 26;
+              setPx(b, w, h, x, y, isEdge ? CYAN : ICE);
+            }
+          }
+        }
+        slices.push({ w, h, data: b });
+      }
+      return { w, h, slices };
+    }
+
+    // Visual-Hull 4-view PNG slicer in JS (TOP, SIDE, FRONT, BACK in 1x4 row)
+    function carve4ViewImage(img, targetSlices) {
+      const tmp = document.createElement('canvas');
+      tmp.width = img.width; tmp.height = img.height;
+      const tctx = tmp.getContext('2d');
+      tctx.drawImage(img, 0, 0);
+      const id = tctx.getImageData(0, 0, img.width, img.height);
+      const d = id.data;
+      const vw = Math.floor(img.width / 4);
+      const vh = img.height;
+      const S = targetSlices || 36;
+      const slices = [];
+
+      function sampleView(viewIdx, nx, ny) {
+        const vx = viewIdx * vw + Math.max(0, Math.min(vw - 1, Math.round(nx * (vw - 1))));
+        const vy = Math.max(0, Math.min(vh - 1, Math.round(ny * (vh - 1))));
+        const i = (vy * img.width + vx) * 4;
+        const r = d[i], g = d[i + 1], b = d[i + 2], a = d[i + 3];
+        const isBg = a < 128 || (r > 235 && g > 235 && b > 235);
+        return isBg ? null : [r, g, b, 255];
+      }
+
+      for (let z = 0; z < S; z++) {
+        const nz = 1 - z / Math.max(1, S - 1);
+        const buf = createBlankSlice(S, S);
+        for (let y = 0; y < S; y++) {
+          const ny = y / Math.max(1, S - 1);
+          for (let x = 0; x < S; x++) {
+            const nx = x / Math.max(1, S - 1);
+            const cTop = sampleView(0, nx, ny);
+            const cSide = sampleView(1, ny, nz);
+            const cFront = sampleView(2, nx, nz);
+            if (cTop && cSide && cFront) {
+              const col = z > S * 0.72 ? cTop : cFront;
+              setPx(buf, S, S, x, y, col);
+            }
+          }
+        }
+        slices.push({ w: S, h: S, data: buf });
+      }
+      return { w: S, h: S, slices };
+    }
+
+    function paintStripPreview() {
+      const sc = document.getElementById('stripCanvas');
+      const count = state.slices.length;
+      if (!count) return;
+      sc.width = state.w * count;
+      sc.height = state.h;
+      const ctx = sc.getContext('2d');
+      ctx.imageSmoothingEnabled = false;
+      state.slices.forEach((sl, z) => {
+        const img = new ImageData(new Uint8ClampedArray(sl.data), sl.w, sl.h);
+        ctx.putImageData(img, z * sl.w, 0);
+      });
+      document.getElementById('stripInfo').textContent = `切片條：${count} 層（每層 ${state.w}×${state.h} px，總寬 ${sc.width} px）`;
+    }
+
+    // 1x art-pixel software rasterizer with symmetric (w - 1) * 0.5 rotation centre
+    const artCanvas = document.createElement('canvas');
+    function renderTurnAngle(targetCtx, cw, ch, angle, scale) {
+      const count = state.slices.length;
+      if (!count) return;
+      const w = state.w, h = state.h;
+      const bufW = Math.ceil(w * 1.6);
+      const bufH = Math.ceil(h * 1.6 + count * Math.max(1, state.spacing) + 12);
+      if (artCanvas.width !== bufW || artCanvas.height !== bufH) {
+        artCanvas.width = bufW; artCanvas.height = bufH;
+      }
+      const actx = artCanvas.getContext('2d');
+      const out = actx.createImageData(bufW, bufH);
+      const od = out.data;
+
+      const cosA = Math.cos(-angle), sinA = Math.sin(-angle);
+      const cx = (w - 1) * 0.5, cy = (h - 1) * 0.5;
+      const dstCx = (bufW - 1) * 0.5;
+      const groundY = bufH - Math.ceil(h * 0.5) - 6;
+
+      // Ground shadow (projected slice footprint)
+      if (state.shadow) {
+        for (let z = 0; z < count; z += 2) {
+          const sl = state.slices[z];
+          const lift = Math.round(z * state.spacing * 0.35);
+          for (let sy = 0; sy < h; sy++) {
+            for (let sx = 0; sx < w; sx++) {
+              const si = (sy * w + sx) * 4;
+              if (sl.data[si + 3] < 128) continue;
+              const rx = sx - cx, ry = sy - cy;
+              const dx = Math.round(dstCx + (rx * Math.cos(angle) - ry * Math.sin(angle)) + 2 + z * 0.15);
+              const dy = Math.round(groundY + (rx * Math.sin(angle) + ry * Math.cos(angle)) * state.squash + 3 - lift);
+              if (dx >= 0 && dx < bufW && dy >= 0 && dy < bufH) {
+                const di = (dy * bufW + dx) * 4;
+                if (od[di + 3] === 0) { od[di] = 15; od[di + 1] = 23; od[di + 2] = 42; od[di + 3] = 110; }
+              }
+            }
+          }
+        }
+      }
+
+      // Render stacked slices bottom to top
+      for (let z = 0; z < count; z++) {
+        const sl = state.slices[z];
+        const liftY = groundY - Math.round(z * state.spacing);
+        const halfBox = Math.ceil(Math.max(w, h) * 0.75);
+        for (let oy = -halfBox; oy <= halfBox; oy++) {
+          const dy = liftY + oy;
+          if (dy < 0 || dy >= bufH) continue;
+          const uy = oy / state.squash;
+          for (let ox = -halfBox; ox <= halfBox; ox++) {
+            const dx = Math.round(dstCx + ox);
+            if (dx < 0 || dx >= bufW) continue;
+            const sx = Math.round(cx + ox * cosA - uy * sinA);
+            const sy = Math.round(cy + ox * sinA + uy * cosA);
+            if (sx < 0 || sx >= w || sy < 0 || sy >= h) continue;
+            const si = (sy * w + sx) * 4;
+            if (sl.data[si + 3] < 128) continue;
+            const di = (dy * bufW + dx) * 4;
+            od[di] = sl.data[si]; od[di + 1] = sl.data[si + 1]; od[di + 2] = sl.data[si + 2]; od[di + 3] = 255;
+          }
+        }
+      }
+
+      // Single 1px outer outline around finished stack
+      if (state.outline) {
+        const snap = new Uint8ClampedArray(od);
+        for (let y = 1; y < bufH - 1; y++) {
+          for (let x = 1; x < bufW - 1; x++) {
+            const i = (y * bufW + x) * 4;
+            if (snap[i + 3] >= 200) continue;
+            const hasNeighbor =
+              snap[((y - 1) * bufW + x) * 4 + 3] >= 200 ||
+              snap[((y + 1) * bufW + x) * 4 + 3] >= 200 ||
+              snap[(y * bufW + (x - 1)) * 4 + 3] >= 200 ||
+              snap[(y * bufW + (x + 1)) * 4 + 3] >= 200;
+            if (hasNeighbor) {
+              od[i] = 15; od[i + 1] = 23; od[i + 2] = 42; od[i + 3] = 255;
+            }
+          }
+        }
+      }
+
+      actx.putImageData(out, 0, 0);
+      targetCtx.imageSmoothingEnabled = false;
+      targetCtx.clearRect(0, 0, cw, ch);
+      const drawW = bufW * scale;
+      const drawH = bufH * scale;
+      const px = Math.round((cw - drawW) * 0.5);
+      const py = Math.round((ch - drawH) * 0.5);
+      targetCtx.drawImage(artCanvas, px, py, drawW, drawH);
+    }
+
+    function loadAsset(key) {
+      state.assetKey = key;
+      const built = buildAssetSlices(key);
+      state.w = built.w; state.h = built.h; state.slices = built.slices;
+      paintStripPreview();
+    }
+
+    // UI Controls
+    document.getElementById('assetPicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-asset]');
+      if (!btn) return;
+      document.querySelectorAll('#assetPicker .btn').forEach(b => b.classList.toggle('active', b === btn));
+      loadAsset(btn.dataset.asset);
+    });
+    document.getElementById('rngSquash').addEventListener('input', (e) => {
+      state.squash = Number(e.target.value);
+      document.getElementById('valSquash').textContent = state.squash.toFixed(2);
+    });
+    document.getElementById('rngSpacing').addEventListener('input', (e) => {
+      state.spacing = Number(e.target.value);
+      document.getElementById('valSpacing').textContent = state.spacing.toFixed(1);
+    });
+    document.getElementById('rngScale').addEventListener('input', (e) => {
+      state.scale = Number(e.target.value);
+      document.getElementById('valScale').textContent = state.scale + 'x';
+    });
+    document.getElementById('btnSpin').addEventListener('click', (e) => {
+      state.autoSpin = !state.autoSpin;
+      e.currentTarget.classList.toggle('active', state.autoSpin);
+    });
+    document.getElementById('btnOutline').addEventListener('click', (e) => {
+      state.outline = !state.outline;
+      e.currentTarget.classList.toggle('active', state.outline);
+    });
+    document.getElementById('btnShadow').addEventListener('click', (e) => {
+      state.shadow = !state.shadow;
+      e.currentTarget.classList.toggle('active', state.shadow);
+    });
+
+    const tt = document.getElementById('turntable');
+    const tctx = tt.getContext('2d');
+    tt.addEventListener('pointerdown', (e) => { state.dragging = true; state.lastX = e.clientX; });
+    window.addEventListener('pointermove', (e) => {
+      if (!state.dragging) return;
+      state.turn += (e.clientX - state.lastX) * 0.015;
+      state.lastX = e.clientX;
+    });
+    window.addEventListener('pointerup', () => { state.dragging = false; });
+
+    document.getElementById('file4View').addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const img = new Image();
+      img.onload = () => {
+        const carved = carve4ViewImage(img, 36);
+        state.w = carved.w; state.h = carved.h; state.slices = carved.slices;
+        paintStripPreview();
+      };
+      img.src = URL.createObjectURL(file);
+    });
+
+    document.getElementById('btnExportStrip').addEventListener('click', () => {
+      const a = document.createElement('a');
+      a.download = `${state.assetKey}-slices.png`;
+      a.href = document.getElementById('stripCanvas').toDataURL('image/png');
+      a.click();
+    });
+
+    document.getElementById('btnExport16Dir').addEventListener('click', () => {
+      const out = document.createElement('canvas');
+      const cell = 128;
+      out.width = cell * 16; out.height = cell;
+      const octx = out.getContext('2d');
+      for (let i = 0; i < 16; i++) {
+        const c = document.createElement('canvas');
+        c.width = cell; c.height = cell;
+        renderTurnAngle(c.getContext('2d'), cell, cell, (i / 16) * Math.PI * 2, 2);
+        octx.drawImage(c, i * cell, 0);
+      }
+      const a = document.createElement('a');
+      a.download = `${state.assetKey}-16dir.png`;
+      a.href = out.toDataURL('image/png');
+      a.click();
+    });
+
+    let last = 0;
+    function loop(now) {
+      requestAnimationFrame(loop);
+      const dt = Math.min(0.05, (now - (last || now)) / 1000);
+      last = now;
+      if (state.autoSpin && !state.dragging) state.turn += dt * 1.1;
+      renderTurnAngle(tctx, tt.width, tt.height, state.turn, state.scale);
+    }
+
+    loadAsset('skier');
+    requestAnimationFrame(loop);
+  })();
+  </script>
+</body>
+</html>
