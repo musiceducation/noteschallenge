@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>單人＋全班即時多人音樂闖關 3D — 互動音樂學習站</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;900&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vexflow@5.0.0/build/cjs/vexflow.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+    html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Inter', 'Noto Sans TC', sans-serif; background: #dbeafe; color: #0f172a; }
+    #stage { position: relative; width: 100vw; height: 100vh; overflow: hidden; touch-action: none; }
+    #glCanvas { display: block; width: 100%; height: 100%; }
+    #nameLayer { position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden; }
+    .name-tag { position: absolute; transform: translate(-50%, -100%); padding: 2px 8px; border-radius: 999px; background: rgba(15,23,42,0.78); color: #fff; font-size: 0.72rem; font-weight: 800; white-space: nowrap; }
+    .name-tag.me { background: rgba(2,132,199,0.92); border: 1.5px solid #fde047; }
+    .hidden { display: none !important; }
+    .hud-top { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 10; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; pointer-events: none; }
+    .hud-bar { pointer-events: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: rgba(255,255,255,0.93); backdrop-filter: blur(8px); padding: 7px 12px; border-radius: 16px; border: 2px solid #fff; box-shadow: 0 6px 18px rgba(15,23,42,0.12); font-size: 0.84rem; font-weight: 800; }
+    .hud-chip { padding: 3px 9px; border-radius: 999px; background: #e0f2fe; color: #0369a1; }
+    .btn { padding: 7px 12px; border-radius: 12px; border: 2px solid #e2e8f0; background: #fff; color: #0f172a; font: inherit; font-size: 0.84rem; font-weight: 800; cursor: pointer; text-decoration: none; }
+    .btn.primary { background: linear-gradient(135deg, #0284c7, #6366f1); color: #fff; border-color: transparent; }
+    .btn.active { background: #10b981; color: #fff; border-color: transparent; }
+    .mini-btn { padding: 3px 8px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 0.72rem; font-weight: 800; cursor: pointer; }
+    .mini-btn.danger { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+    .teacher-panel { position: absolute; top: 62px; right: 10px; z-index: 12; width: min(92vw, 310px); max-height: 75vh; overflow-y: auto; background: rgba(255,255,255,0.96); border-radius: 18px; padding: 12px; border: 2px solid #bae6fd; box-shadow: 0 12px 28px rgba(15,23,42,0.18); display: flex; flex-direction: column; gap: 8px; font-size: 0.82rem; }
+    .teacher-panel label { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-weight: 800; }
+    .teacher-panel select, .teacher-panel input { padding: 4px 8px; border-radius: 8px; border: 1.5px solid #cbd5e1; font: inherit; }
+    .p-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 6px; background: #f8fafc; border-radius: 8px; margin-top: 4px; }
+    .p-acts { display: flex; gap: 4px; align-items: center; }
+    .host-chip { font-size: 0.7rem; padding: 2px 6px; border-radius: 999px; background: #fef3c7; color: #92400e; font-weight: 900; }
+    .student-bar { position: absolute; bottom: 110px; left: 50%; transform: translateX(-50%); z-index: 12; }
+    .q-card { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 11; width: min(94vw, 390px); background: rgba(255,255,255,0.95); border: 2.5px solid #38bdf8; border-radius: 18px; padding: 8px 12px; text-align: center; box-shadow: 0 10px 24px rgba(14,116,144,0.2); }
+    .q-head { display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 2px; }
+    .q-status { font-size: 0.8rem; font-weight: 800; color: #334155; margin: 4px 0 6px; }
+    .spectator-banner { position: absolute; top: 64px; left: 50%; transform: translateX(-50%); z-index: 12; background: rgba(15,23,42,0.86); color: #fde047; padding: 8px 16px; border-radius: 999px; font-weight: 900; font-size: 0.86rem; }
+    .overlay { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 14px; background: rgba(15,23,42,0.42); backdrop-filter: blur(6px); }
+    .modal { width: min(94vw, 480px); max-height: 90vh; overflow-y: auto; background: #fff; border-radius: 24px; padding: 20px; text-align: center; box-shadow: 0 22px 54px rgba(15,23,42,0.3); }
+    .modal h1 { font-size: 1.42rem; font-weight: 900; margin-bottom: 6px; }
+    .modal p { font-size: 0.84rem; color: #475569; margin-bottom: 10px; line-height: 1.45; }
+    .field { width: 100%; padding: 9px 11px; border-radius: 12px; border: 1.5px solid #cbd5e1; font: inherit; font-weight: 700; margin-bottom: 8px; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+    .res-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.84rem; }
+    .res-table th, .res-table td { padding: 6px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+    .touch-bar { position: absolute; bottom: 14px; left: 14px; right: 14px; z-index: 10; display: flex; justify-content: space-between; align-items: flex-end; pointer-events: none; }
+    .joy-base { pointer-events: auto; width: 96px; height: 96px; border-radius: 50%; background: rgba(255,255,255,0.45); border: 2px solid #fff; display: flex; align-items: center; justify-content: center; touch-action: none; }
+    .joy-knob { width: 42px; height: 42px; border-radius: 50%; background: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+    .touch-acts { pointer-events: auto; display: flex; gap: 8px; }
+    .toast { position: absolute; top: 44%; left: 50%; transform: translate(-50%,-50%); z-index: 30; padding: 9px 20px; border-radius: 999px; color: #fff; font-weight: 900; font-size: 0.95rem; opacity: 0; pointer-events: none; transition: opacity 0.16s; }
+    .toast.show { opacity: 1; }
+    .toast.ok { background: #059669; }
+    .toast.err { background: #dc2626; }
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="glCanvas"></canvas>
+    <div id="nameLayer"></div>
+
+    <div class="hud-top">
+      <div class="hud-bar">
+        <span class="hud-chip">房碼：<b id="hudRoom">--</b></span>
+        <span id="hudPhase">等待大廳</span>
+        <span id="hudTimer">⏱ --</span>
+        <span id="hudProgress">關卡 0/4</span>
+        <span>得分：<b id="hudScore">0</b></span>
+      </div>
+      <div class="hud-bar">
+        <button type="button" class="btn" id="btnMute">🔊</button>
+        <button type="button" class="btn" id="btnLeave">離開房間</button>
+        <a href="index.html" class="btn">← 回主站</a>
+      </div>
+    </div>
+
+    <aside class="teacher-panel hidden" id="teacherPanel">
+      <b>👑 老師房間控制台</b>
+      <label>玩法模式 <select id="cfgMode"><option value="race">🏁 音樂地磚競速</option><option value="survival">🔥 音樂生存戰</option><option value="coop">🤝 全班合作任務</option><option value="team">⚔️ 紅藍分組對戰</option></select></label>
+      <label>音樂難度 <select id="cfgDiff"><option value="easy">容易（高音自然音）</option><option value="medium">中等（高＋低音譜號）</option><option value="hard">困難（含升降記號）</option></select></label>
+      <label>賽事回合 <select id="cfgRounds"><option value="1">單局（1 回合）</option><option value="2">2 回合</option><option value="3">3 回合</option></select></label>
+      <label>人數上限 <input type="number" id="cfgMax" min="2" max="45" value="40" style="width:72px;" /></label>
+      <div id="playerList"></div>
+      <button type="button" class="btn primary" id="btnStartMatch">▶ 開始關卡倒數</button>
+    </aside>
+
+    <div class="student-bar hidden" id="studentLobbyBar">
+      <button type="button" class="btn primary" id="btnReady" style="padding:12px 22px;font-size:1rem;">🙋 點擊準備</button>
+    </div>
+
+    <div class="spectator-banner hidden" id="spectatorBanner">👀 觀戰模式中（本局無法作答，下回合將自動參與）</div>
+
+    <div class="q-card hidden" id="questionCard">
+      <div class="q-head">
+        <span class="hud-chip" id="qBadge">第 1 關門</span>
+        <button type="button" class="mini-btn" id="btnHearNote">🔊 聽音提示</button>
+      </div>
+      <div id="qVexBox"></div>
+      <div class="q-status" id="qTileStatus">請移動並踩上其中一塊音名地磚</div>
+      <button type="button" class="btn primary" id="btnConfirmAns" style="width:100%;">✅ 確認並鎖定此地磚答案 (E / Enter)</button>
+    </div>
+
+    <div class="overlay hidden" id="briefingOverlay">
+      <div class="modal">
+        <h1 id="briefingTitle">關卡說明</h1>
+        <p id="briefingDesc"></p>
+        <div id="briefingCountdown" style="font-size:2.8rem;font-weight:900;color:#0284c7;">3</div>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="resultOverlay">
+      <div class="modal">
+        <h1 id="resultTitle">結算</h1>
+        <p id="resultSub"></p>
+        <table class="res-table"><thead><tr><th>名次</th><th>玩家</th><th>本關分</th><th>累積總分</th></tr></thead><tbody id="resultTable"></tbody></table>
+        <div id="resultHostActions" class="row2 hidden">
+          <button type="button" class="btn primary" id="btnNextRound">▶ 下一關</button>
+          <button type="button" class="btn primary hidden" id="btnRestartTourney">🔄 再開一場</button>
+          <button type="button" class="btn" id="btnBackLobby">🏠 返回大廳</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="entryOverlay">
+      <div class="modal">
+        <h1>🎵 單人＋全班即時多人音樂闖關 3D</h1>
+        <p>伺服器權威房間架構：支援競速、生存、合作、分組對戰與多回合賽制；單人練習獨立運行，不寫入多人榜。</p>
+        <input class="field" id="nickInput" placeholder="輸入暱稱（不傳送電郵或憑證）" maxlength="18" />
+        <input class="field" id="wsUrlInput" value="ws://127.0.0.1:8788/ws" placeholder="多人 WebSocket 伺服器位址" />
+        <div class="row2">
+          <button type="button" class="btn primary" id="btnCreateRoom">👑 老師建立房間</button>
+          <button type="button" class="btn" id="btnSoloPractice">🎯 單人練習模式</button>
+        </div>
+        <div class="row2" style="margin-top:10px;">
+          <input class="field" id="roomCodeInput" placeholder="輸入 6 碼房碼" maxlength="8" style="margin:0;text-transform:uppercase;" />
+          <button type="button" class="btn active" id="btnJoinRoom">🙋 學生加入房間</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="touch-bar">
+      <div class="joy-base" id="joyBase"><div class="joy-knob" id="joyKnob"></div></div>
+      <div class="touch-acts">
+        <button type="button" class="btn" id="btnJumpTouch" style="height:52px;">⬆️ 跳躍</button>
+        <button type="button" class="btn primary" id="btnConfirmTouch" style="height:52px;">✅ 鎖定答案</button>
+      </div>
+    </div>
+    <div class="toast" id="toastBanner"></div>
+  </div>
+  <script src="party-3d/transport.js"></script>
+  <script src="party-3d/music-vex.js"></script>
+  <script src="party-3d/scene-3d.js"></script>
+  <script src="party-3d/app.js"></script>
+</body>
+</html>

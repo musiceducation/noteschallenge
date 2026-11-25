@@ -131,7 +131,12 @@ for (const f of [
   "rhythm-surf-3d.html",
   "chord-island-3d.html",
   "world-3d.html",
-  "sprite-stacker-3d.html"
+  "sprite-stacker-3d.html",
+  "party-3d.html",
+  "party-3d/transport.js",
+  "party-3d/music-vex.js",
+  "party-3d/scene-3d.js",
+  "party-3d/app.js"
 ]) {
   const rootPath = path.join(root, f);
   const wwwPath = path.join(root, "www", f);
