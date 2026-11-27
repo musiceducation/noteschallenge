@@ -1862,7 +1862,20 @@
     // =========================================================================
     // 7. 50-PLAYER CROWD MANAGEMENT & PARTY SHOW STATE
     // =========================================================================
-    const myClientId = 'p_' + Math.random().toString(36).slice(2, 10) + '_' + Date.now().toString(36);
+    function getOrCreateWorldSession(key, prefix, len) {
+      try {
+        const existing = sessionStorage.getItem(key);
+        if (existing && existing.length >= len) return existing;
+        const fresh = prefix + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + Date.now().toString(36);
+        const val = fresh.slice(0, Math.max(len + 6, 24));
+        sessionStorage.setItem(key, val);
+        return val;
+      } catch (e) {
+        return (prefix + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + Date.now().toString(36)).slice(0, 28);
+      }
+    }
+    const myClientId = getOrCreateWorldSession('ncWorld3dClientId', 'p_', 12);
+    const myClientKey = getOrCreateWorldSession('ncWorld3dClientKey', 'k_', 18);
     const mySlotIndex = Logic.hashSeed(myClientId + myDisplayName) % 50;
     const initSpawn = Logic.computeSpawnSlot(mySlotIndex, 'tiles');
 
@@ -1885,7 +1898,7 @@
     const initRoom = (urlParams.get('room') || 'MUSIC1').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 12) || 'MUSIC1';
     const initMode = Logic.MODE_CONFIG[urlParams.get('mode')] ? urlParams.get('mode') : 'mix';
     const initTopic = Logic.TOPIC_META[urlParams.get('topic')] ? urlParams.get('topic') : 'mixed';
-    const initLevel = Logic.LEVEL_META[urlParams.get('level')] ? urlParams.get('level') : 'basic';
+    const initLevel = Logic.LEVEL_META[urlParams.get('level')] ? urlParams.get('level') : 'auto';
     const initCrowdParam = parseInt(urlParams.get('crowd') || '50', 10);
     const initCrowd = [0, 12, 30, 50].includes(initCrowdParam) ? initCrowdParam : 50;
     document.getElementById('roomCodeInput').value = initRoom;
@@ -1920,6 +1933,12 @@
       turntableAngle: 0,
       pendulumTime: 0,
       pendingSyncPush: false,
+      pendingRoundClaim: null,
+      serverPlayerId: myClientId,
+      isHost: true,
+      hasSyncedHost: false,
+      spectating: false,
+      kicked: false,
       clockOffsetMs: 0,
       activeRoundKey: '',
       activePhase: 'idle',
@@ -2041,9 +2060,16 @@
     }
 
     function addScore(basePts) {
+      if (state.spectating) {
+        showBanner('👀 本回合旁觀中，下一關自動加入計分！', 'info');
+        return 0;
+      }
       const mult = getScoreMultiplier();
-      const gain = basePts * mult;
+      const gain = Math.min(600, basePts * mult);
       state.score += gain;
+      if (state.activeRoundKey) {
+        state.pendingRoundClaim = { roundKey: state.activeRoundKey, points: gain, won: true };
+      }
       saveBestScore(state.score);
       document.getElementById('bestScoreBadge').textContent = `🏆 最高紀錄：${readBestScore()} 分`;
       return gain;
@@ -2359,6 +2385,10 @@
     // =========================================================================
     function applyQuickModeSwitch(nextMode) {
       if (!Logic.MODE_CONFIG[nextMode]) return;
+      if (state.hasSyncedHost && !state.isHost) {
+        showBanner('🔒 僅房間主持／老師可切換全房關卡', 'info');
+        return;
+      }
       unlockAudio();
       state.modeState = {
         mode: nextMode,
@@ -2688,20 +2718,24 @@
       unlockAudio();
       state.targetCrowd = pendingModalCrowd;
       reconcileBotPool();
-      state.modeState = {
-        mode: pendingModalMode,
-        topic: pendingModalTopic,
-        level: 'basic',
-        epochMs: Date.now() + state.clockOffsetMs,
-        seed: (Math.random() * 0xffffffff) >>> 0,
-        seq: (state.modeState.seq || 1) + 1
-      };
-      state.lastEscalationTier = 1;
-      state.activeRoundKey = '';
-      state.pendingSyncPush = true;
+      if (!state.hasSyncedHost || state.isHost) {
+        state.modeState = {
+          mode: pendingModalMode,
+          topic: pendingModalTopic,
+          level: 'auto',
+          epochMs: Date.now() + state.clockOffsetMs,
+          seed: (Math.random() * 0xffffffff) >>> 0,
+          seq: (state.modeState.seq || 1) + 1
+        };
+        state.lastEscalationTier = 1;
+        state.activeRoundKey = '';
+        state.pendingSyncPush = true;
+        showBanner(`🎮 已切換：${Logic.MODE_CONFIG[pendingModalMode].name}`, 'info');
+        pollWorldSync(false);
+      } else {
+        showBanner('👥 已更新本機人數設定（關卡由主持／老師同步切換）', 'info');
+      }
       document.getElementById('modeModal').classList.add('hidden');
-      showBanner(`🎮 已切換：${Logic.MODE_CONFIG[pendingModalMode].name}`, 'info');
-      pollWorldSync(false);
     });
 
     const fullBoardModal = document.getElementById('fullBoardModal');
@@ -2720,31 +2754,71 @@
     });
 
     // =========================================================================
-    // 9. 50-PLAYER ADAPTIVE MULTIPLAYER SYNC + DANCE/MOTION SYNC
+    // 9. 50-PLAYER ADAPTIVE MULTIPLAYER SYNC + SERVER-AUTHORITATIVE HOST CONTROLS
     // =========================================================================
+    let worldApiBase = '';
     let worldSyncApi = '';
+    let worldHostApi = '';
     fetch('auth-config.js').then(r => r.text()).then((txt) => {
       const m = txt.match(/authApiBase\s*:\s*['"]([^'"]+)['"]/);
-      if (m && m[1]) worldSyncApi = m[1].replace(/\/+$/, '') + '/world/sync';
+      if (m && m[1]) {
+        worldApiBase = m[1].replace(/\/+$/, '');
+        worldSyncApi = worldApiBase + '/world/sync';
+        worldHostApi = worldApiBase + '/world/host';
+      }
     }).catch(() => {});
+
+    function getWorldAuthHeaders() {
+      const headers = { 'Content-Type': 'application/json' };
+      try {
+        const tok = localStorage.getItem('ncWebGoogleSession') || '';
+        if (tok) headers.Authorization = 'Bearer ' + tok;
+      } catch (e) {}
+      return headers;
+    }
+
+    function escWorldHtml(str) {
+      return String(str == null ? '' : str).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    }
+
+    async function sendWorldHostAction(action, extra) {
+      if (!worldHostApi || !state.isHost) return;
+      try {
+        const room = (document.getElementById('roomCodeInput').value || 'MUSIC1').trim().toUpperCase() || 'MUSIC1';
+        const res = await fetch(worldHostApi, {
+          method: 'POST',
+          headers: getWorldAuthHeaders(),
+          body: JSON.stringify(Object.assign({ room, id: myClientId, clientKey: myClientKey, action }, extra || {}))
+        });
+        const data = await res.json().catch(() => null);
+        if (data && data.ok) {
+          if (action === 'kick') showBanner('🚫 已移出該玩家', 'info');
+          pollWorldSync(false);
+        }
+      } catch (e) {}
+    }
 
     let syncInFlight = false;
     let lastSyncMs = 0;
 
     async function pollWorldSync(isInitialJoin) {
-      if (!state.started || !worldSyncApi || syncInFlight) return;
+      if (!state.started || !worldSyncApi || syncInFlight || state.kicked) return;
       syncInFlight = true;
       lastSyncMs = performance.now();
       try {
         const room = (document.getElementById('roomCodeInput').value || 'MUSIC1').trim().toUpperCase() || 'MUSIC1';
         const payload = {
-          room, id: myClientId, name: player.name, skin: player.skin, hat: player.hat,
+          room, id: myClientId, clientKey: myClientKey, name: player.name, skin: player.skin, hat: player.hat,
           x: Number(player.x.toFixed(2)), y: Number(player.y.toFixed(2)), z: Number(player.z.toFixed(2)),
           vx: Number(player.vx.toFixed(2)), vz: Number(player.vz.toFixed(2)),
           yaw: Number(player.yaw.toFixed(2)), dive: player.diveTimer > 0,
           emote: player.emoteTimer > 0 ? player.emote : '',
           score: state.score, streak: state.streak
         };
+        const pendingClaim = state.pendingRoundClaim;
+        if (pendingClaim) {
+          payload.roundClaim = pendingClaim;
+        }
         if (state.pendingSyncPush) {
           payload.modeState = {
             mode: state.modeState.mode,
@@ -2768,13 +2842,22 @@
 
         const tSend = Date.now();
         const res = await fetch(worldSyncApi, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: getWorldAuthHeaders(),
           body: JSON.stringify(payload)
         });
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await res.json().catch(() => null);
         const tRecv = Date.now();
+        if (!res.ok) {
+          if (data && data.error === 'kicked') {
+            state.kicked = true;
+            showBanner('🚫 你已被房間主持移出', 'err');
+          }
+          return;
+        }
         if (!data || !data.ok) return;
+        if (pendingClaim && state.pendingRoundClaim === pendingClaim) {
+          state.pendingRoundClaim = null;
+        }
 
         if (typeof data.serverTime === 'number') {
           const rttHalf = (tRecv - tSend) * 0.5;
@@ -2782,29 +2865,50 @@
           state.clockOffsetMs = state.clockOffsetMs === 0 ? sampleOffset : (state.clockOffsetMs * 0.7 + sampleOffset * 0.3);
         }
 
+        if (data.self) {
+          const wasSpec = state.spectating;
+          state.hasSyncedHost = true;
+          state.isHost = !!data.self.isHost;
+          state.spectating = !!data.self.spectating;
+          if (data.self.id) state.serverPlayerId = data.self.id;
+          if (data.self.reconnected) {
+            state.score = Number(data.self.score) || 0;
+            state.streak = Number(data.self.streak) || 0;
+            showBanner('🔄 已重新連線並還原身分與分數！', 'ok');
+          } else if (typeof data.self.score === 'number' && data.self.score > state.score) {
+            state.score = data.self.score;
+          }
+          if (state.spectating && !wasSpec) {
+            showBanner('👀 已加入房間（本回合旁觀，下一關自動加入！）', 'info');
+          } else if (!state.spectating && wasSpec) {
+            showBanner('🎉 新回合開始，已正式加入競賽！', 'ok');
+          }
+        }
+
         if (data.modeState) {
           const rm = data.modeState;
-          const changed = rm.seq !== state.modeState.seq || rm.seed !== state.modeState.seed || rm.mode !== state.modeState.mode;
+          const changed = rm.seq !== state.modeState.seq || rm.seed !== state.modeState.seed || rm.mode !== state.modeState.mode || rm.epochMs !== state.modeState.epochMs;
           if (changed) {
-            const wasOther = rm.hostId && rm.hostId !== myClientId && rm.seq > state.modeState.seq;
+            const wasOther = rm.hostId && rm.hostId !== state.serverPlayerId && rm.hostId !== myClientId && rm.seq > state.modeState.seq;
             state.modeState = {
               mode: rm.mode || 'mix',
               topic: rm.topic || 'mixed',
-              level: rm.level || 'basic',
+              level: rm.level || 'auto',
               epochMs: rm.epochMs || Date.now(),
               seed: rm.seed || 12345,
               seq: rm.seq || 1
             };
             state.activeRoundKey = '';
             if (wasOther) {
-              showBanner(`📢 ${rm.hostName || '同學'} 切換了 ${Logic.MODE_CONFIG[state.modeState.mode]?.name || '新地形'}`, 'info');
+              showBanner(`📢 ${rm.hostName || '主持'} 切換了 ${Logic.MODE_CONFIG[state.modeState.mode]?.name || '新地形'}`, 'info');
             }
           }
         }
 
+        const selfId = state.serverPlayerId || myClientId;
         const seen = new Set();
         (data.players || []).forEach((p) => {
-          if (!p || !p.id || p.id === myClientId) return;
+          if (!p || !p.id || p.id === selfId || p.id === myClientId) return;
           seen.add(p.id);
           let rp = remotePlayers.get(p.id);
           if (!rp) {
@@ -2812,7 +2916,7 @@
             scene.add(model.root);
             rp = {
               id: p.id, name: p.name || '同學', skin: p.skin || 0x38bdf8, hat: p.hat || 'none',
-              score: p.score || 0, streak: p.streak || 0,
+              score: p.score || 0, streak: p.streak || 0, isHost: !!p.isHost, spectating: !!p.spectating,
               x: p.x || 0, y: p.y || 0, z: p.z || 12,
               tx: p.x || 0, ty: p.y || 0, tz: p.z || 12,
               rvx: p.vx || 0, rvz: p.vz || 0,
@@ -2827,6 +2931,7 @@
           rp.rvx = p.vx || 0; rp.rvz = p.vz || 0;
           rp.tyaw = p.yaw || 0;
           rp.dive = !!p.dive; rp.score = p.score || 0; rp.streak = p.streak || 0;
+          rp.isHost = !!p.isHost; rp.spectating = !!p.spectating;
           rp.model.aura.visible = rp.streak >= 3;
           if (p.emote !== rp.emote) {
             rp.emote = p.emote || '';
@@ -2851,31 +2956,39 @@
       } catch (e) {} finally { syncInFlight = false; }
     }
 
+    document.getElementById('fullBoardGrid').addEventListener('click', (e) => {
+      const btn = e.target && e.target.closest ? e.target.closest('[data-kick-id]') : null;
+      if (!btn || !state.isHost) return;
+      sendWorldHostAction('kick', { targetId: btn.getAttribute('data-kick-id') });
+    });
+
     function renderLeaderboards() {
-      const entries = [{ name: player.name, score: state.score, isMe: true }];
-      remotePlayers.forEach(rp => entries.push({ name: rp.name, score: rp.score || 0, isMe: false }));
-      bots.forEach(b => entries.push({ name: b.name, score: b.score || 0, isMe: false }));
+      const entries = [{ id: state.serverPlayerId, name: player.name, score: state.score, isMe: true, isRemote: false, isHost: state.isHost, spectating: state.spectating }];
+      remotePlayers.forEach(rp => entries.push({ id: rp.id, name: rp.name, score: rp.score || 0, isMe: false, isRemote: true, isHost: !!rp.isHost, spectating: !!rp.spectating }));
+      bots.forEach(b => entries.push({ id: '', name: b.name, score: b.score || 0, isMe: false, isRemote: false, isHost: false, spectating: false }));
       entries.sort((a, b) => b.score - a.score);
       state.leaderName = entries[0] && entries[0].score > 0 ? entries[0].name : '';
 
       const myRankIdx = entries.findIndex(e => e.isMe);
       let miniHtml = entries.slice(0, 6).map((e, i) => {
         const prefix = i === 0 && e.score > 0 ? '👑 ' : `${i + 1}. `;
-        return `<div class="board-row ${e.isMe ? 'me' : ''}"><span>${prefix}${e.name.slice(0, 8)}</span><span>${e.score}</span></div>`;
+        return `<div class="board-row ${e.isMe ? 'me' : ''}"><span>${prefix}${escWorldHtml(e.name.slice(0, 8))}</span><span>${e.score}</span></div>`;
       }).join('');
 
       if (myRankIdx >= 6) {
         const meEntry = entries[myRankIdx];
-        miniHtml += `<div class="board-row pinned-me"><span>#${myRankIdx + 1}/${entries.length} ${meEntry.name.slice(0, 6)}</span><span>${meEntry.score}</span></div>`;
+        miniHtml += `<div class="board-row pinned-me"><span>#${myRankIdx + 1}/${entries.length} ${escWorldHtml(meEntry.name.slice(0, 6))}</span><span>${meEntry.score}</span></div>`;
       }
       document.getElementById('boardRows').innerHTML = miniHtml;
 
       if (!fullBoardModal.classList.contains('hidden')) {
         const room = (document.getElementById('roomCodeInput').value || 'MUSIC1').trim().toUpperCase();
-        document.getElementById('fullBoardSub').textContent = `房間 ${room} · 同場共 ${entries.length} 位玩家`;
+        document.getElementById('fullBoardSub').textContent = `房間 ${room} · 同場共 ${entries.length} 位玩家${state.isHost ? '（你是主持）' : ''}`;
         document.getElementById('fullBoardGrid').innerHTML = entries.map((e, i) => {
           const prefix = i === 0 && e.score > 0 ? '👑 ' : `${i + 1}. `;
-          return `<div class="board-row ${e.isMe ? 'me' : ''}"><span>${prefix}${e.name}</span><span>${e.score} 分</span></div>`;
+          const tag = (e.isHost ? ' ⭐主持' : '') + (e.spectating ? ' 👀旁觀' : '');
+          const kickBtn = state.isHost && e.isRemote ? ` <button type="button" data-kick-id="${escWorldHtml(e.id)}" style="margin-left:6px;padding:2px 7px;border-radius:8px;border:0;background:#fee2e2;color:#b91c1c;font-weight:800;cursor:pointer;font-size:11px;">踢除</button>` : '';
+          return `<div class="board-row ${e.isMe ? 'me' : ''}"><span>${prefix}${escWorldHtml(e.name)}${tag}</span><span>${e.score} 分${kickBtn}</span></div>`;
         }).join('');
       }
     }

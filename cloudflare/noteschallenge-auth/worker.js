@@ -1397,9 +1397,186 @@ const LIVE_GAMES = {
   'aural-interval': 1,
   'note-name': 1,
   'rhythm': 1,
+  'rhythm-echo': 1,
   'terms': 1,
   'instrument': 1
 };
+
+export const RHYTHM_ECHO_WINDOWS = {
+  easy: { id: 'easy', label: '容易', bpm: 72, hitWindowMs: 240, perfectMs: 90 },
+  medium: { id: 'medium', label: '中等', bpm: 84, hitWindowMs: 180, perfectMs: 70 },
+  hard: { id: 'hard', label: '困難', bpm: 96, hitWindowMs: 135, perfectMs: 55 }
+};
+
+const RHYTHM_ECHO_METERS = { '2/4': 2, '3/4': 3, '4/4': 4 };
+const RHYTHM_ECHO_TOKENS = {
+  'ta-a-a-a': [{ q: 4, vex: 'w', rest: false }],
+  'ta-a-a': [{ q: 3, vex: 'hd', rest: false }],
+  'ta-a': [{ q: 2, vex: 'h', rest: false }],
+  'ta': [{ q: 1, vex: 'q', rest: false }],
+  'ti-ti': [{ q: 0.5, vex: '8', rest: false }, { q: 0.5, vex: '8', rest: false }],
+  'ti-ri-ti-ri': [
+    { q: 0.25, vex: '16', rest: false },
+    { q: 0.25, vex: '16', rest: false },
+    { q: 0.25, vex: '16', rest: false },
+    { q: 0.25, vex: '16', rest: false }
+  ],
+  'ti-ti-ri': [{ q: 0.5, vex: '8', rest: false }, { q: 0.25, vex: '16', rest: false }, { q: 0.25, vex: '16', rest: false }],
+  'ti-ri-ti': [{ q: 0.25, vex: '16', rest: false }, { q: 0.25, vex: '16', rest: false }, { q: 0.5, vex: '8', rest: false }],
+  'ri-ti-ri': [{ q: 0.25, vex: '16', rest: false }, { q: 0.5, vex: '8', rest: false }, { q: 0.25, vex: '16', rest: false }],
+  'ti': [{ q: 0.5, vex: '8', rest: false }],
+  'ri': [{ q: 0.25, vex: '16', rest: false }],
+  'r': [{ q: 1, vex: 'qr', rest: true }],
+  '休': [{ q: 1, vex: 'qr', rest: true }],
+  'rh': [{ q: 2, vex: 'hr', rest: true }]
+};
+
+function roundBeat(v) {
+  return Math.round(v * 1000) / 1000;
+}
+
+export function expandRhythmEchoBars(bars, meter) {
+  const meterBeats = RHYTHM_ECHO_METERS[meter];
+  if (!meterBeats || !Array.isArray(bars) || !bars.length || bars.length > 4) return null;
+  const events = [];
+  const normalizedBars = [];
+  for (let b = 0; b < bars.length; b++) {
+    const tokens = String(bars[b] || '').trim().split(/\s+/).filter(Boolean);
+    if (!tokens.length || tokens.length > 24) return null;
+    let pos = 0;
+    const barOut = [];
+    for (let i = 0; i < tokens.length; i++) {
+      const tok = tokens[i] === '休' ? 'r' : tokens[i].toLowerCase();
+      const spec = RHYTHM_ECHO_TOKENS[tok];
+      if (!spec) return null;
+      barOut.push(tok);
+      for (let j = 0; j < spec.length; j++) {
+        events.push({
+          bar: b,
+          beatInBar: roundBeat(pos),
+          startBeat: roundBeat(b * meterBeats + pos),
+          quarters: spec[j].q,
+          vex: spec[j].vex,
+          rest: spec[j].rest === true,
+          token: tok
+        });
+        pos = roundBeat(pos + spec[j].q);
+      }
+    }
+    if (Math.abs(pos - meterBeats) > 0.002) return null;
+    normalizedBars.push(barOut.join(' '));
+  }
+  const hasSound = events.some((ev) => !ev.rest);
+  if (!hasSound) return null;
+  return {
+    meter: meter,
+    meterBeats: meterBeats,
+    bars: normalizedBars,
+    totalBeats: meterBeats * normalizedBars.length,
+    events: events
+  };
+}
+
+export function expectedEchoOnsetsMs(render) {
+  const spec = plainObject(render);
+  const meter = RHYTHM_ECHO_METERS[spec.meter] ? spec.meter : '4/4';
+  const bpm = Math.max(50, Math.min(140, Math.round(Number(spec.bpm) || 84)));
+  const expanded = expandRhythmEchoBars(spec.bars, meter);
+  if (!expanded) return [];
+  const beatMs = 60000 / bpm;
+  return expanded.events
+    .filter((ev) => !ev.rest)
+    .map((ev) => Math.round(ev.startBeat * beatMs));
+}
+
+/**
+ * Server-authoritative Rhythm Echo grading.
+ * Compares submitted tap onsets (ms relative to tapStartAt) against expected onsets.
+ * Explicit per-difficulty windows (RHYTHM_ECHO_WINDOWS):
+ *   easy (容易): ±240ms (perfect ±90ms)
+ *   medium (中等): ±180ms (perfect ±70ms)
+ *   hard (困難): ±135ms (perfect ±55ms)
+ */
+export function gradeRhythmEcho(render, rawOnsets) {
+  const spec = plainObject(render);
+  const levelKey = RHYTHM_ECHO_WINDOWS[spec.level] ? spec.level : 'medium';
+  const win = RHYTHM_ECHO_WINDOWS[levelKey];
+  const expected = expectedEchoOnsetsMs(spec);
+  const taps = (Array.isArray(rawOnsets) ? rawOnsets : [])
+    .slice(0, 64)
+    .map((v) => Number(v))
+    .filter((v) => Number.isFinite(v) && v >= -600 && v <= 45000)
+    .sort((a, b) => a - b);
+
+  const usedTap = new Array(taps.length).fill(false);
+  const beats = [];
+  let hitCount = 0;
+  let perfectCount = 0;
+  let absErrSum = 0;
+
+  for (let i = 0; i < expected.length; i++) {
+    const targetMs = expected[i];
+    let bestIdx = -1;
+    let bestAbs = Infinity;
+    for (let j = 0; j < taps.length; j++) {
+      if (usedTap[j]) continue;
+      const diff = Math.abs(taps[j] - targetMs);
+      if (diff <= win.hitWindowMs && diff < bestAbs) {
+        bestAbs = diff;
+        bestIdx = j;
+      }
+    }
+    if (bestIdx >= 0) {
+      usedTap[bestIdx] = true;
+      const errMs = Math.round(taps[bestIdx] - targetMs);
+      const status = bestAbs <= win.perfectMs ? 'perfect' : 'good';
+      hitCount += 1;
+      if (status === 'perfect') perfectCount += 1;
+      absErrSum += bestAbs;
+      beats.push({ index: i, expectedMs: targetMs, tapMs: Math.round(taps[bestIdx]), errorMs: errMs, status: status });
+    } else {
+      beats.push({ index: i, expectedMs: targetMs, tapMs: null, errorMs: null, status: 'miss' });
+    }
+  }
+
+  const expectedCount = expected.length;
+  const missedCount = expectedCount - hitCount;
+  const extraCount = usedTap.filter((u) => !u).length;
+  const rawAcc = expectedCount > 0 ? ((hitCount - extraCount * 0.5) / expectedCount) * 100 : 0;
+  const accuracy = Math.max(0, Math.min(100, Math.round(rawAcc)));
+
+  let verdict = 'wrong';
+  if (expectedCount > 0 && missedCount === 0 && extraCount === 0) {
+    verdict = 'correct';
+  } else if (hitCount > 0 && accuracy >= 50) {
+    verdict = 'partial';
+  }
+
+  let points = 0;
+  if (verdict === 'correct') {
+    const meanAbs = hitCount > 0 ? absErrSum / hitCount : win.hitWindowMs;
+    const precision = Math.max(0, Math.min(1, 1 - meanAbs / Math.max(1, win.hitWindowMs)));
+    points = 750 + Math.round(250 * precision);
+  } else if (verdict === 'partial') {
+    points = Math.max(100, Math.round(600 * (accuracy / 100)));
+  }
+
+  return {
+    level: levelKey,
+    hitWindowMs: win.hitWindowMs,
+    perfectMs: win.perfectMs,
+    expectedCount: expectedCount,
+    hitCount: hitCount,
+    perfectCount: perfectCount,
+    missedCount: missedCount,
+    extraCount: extraCount,
+    accuracy: accuracy,
+    verdict: verdict,
+    correct: verdict === 'correct',
+    points: points,
+    beats: beats
+  };
+}
 
 function liveNameBlocked(name) {
   const n = text(name);
@@ -1456,6 +1633,25 @@ function cleanLiveRender(game, raw) {
     if (blank !== 0.25 && blank !== 0.5 && blank !== 1 && blank !== 2 && blank !== 4) return null;
     return { kind: 'rhythm', meter: '4/4', shown: shown, blankQuarters: blank };
   }
+  if (game === 'rhythm-echo') {
+    const meter = RHYTHM_ECHO_METERS[src.meter] ? src.meter : '4/4';
+    const level = RHYTHM_ECHO_WINDOWS[src.level] ? src.level : 'medium';
+    const defaultBpm = RHYTHM_ECHO_WINDOWS[level].bpm;
+    const bpm = Math.max(50, Math.min(140, Math.round(Number(src.bpm) || defaultBpm)));
+    const rawBars = Array.isArray(src.bars) ? src.bars : (typeof src.bar === 'string' ? [src.bar] : []);
+    const expanded = expandRhythmEchoBars(rawBars, meter);
+    if (!expanded) return null;
+    const countInBeats = Math.max(2, Math.min(4, Math.round(Number(src.countInBeats) || expanded.meterBeats)));
+    return {
+      kind: 'rhythm-echo',
+      meter: expanded.meter,
+      bpm: bpm,
+      level: level,
+      bars: expanded.bars,
+      countInBeats: countInBeats,
+      totalBeats: expanded.totalBeats
+    };
+  }
   if (game === 'instrument') {
     const image = text(src.image);
     if (!/^img\/instruments\/[A-Za-z0-9._-]+$/.test(image)) return null;
@@ -1489,6 +1685,21 @@ export function normalizeLiveQuiz(body) {
   const items = [];
   for (let i = 0; i < rawItems.length; i++) {
     const row = plainObject(rawItems[i]);
+    const isEcho = row.type === 'rhythm-echo' || (row.type === 'bank' && text(row.game) === 'rhythm-echo');
+    if (isEcho) {
+      const prompt = cleanLiveText(row.prompt || '先聽示範，再跟著節拍打出這段節奏！', 80);
+      const render = cleanLiveRender('rhythm-echo', row.render || row);
+      if (!prompt || !render) return { ok: false, error: 'bad_quiz' };
+      items.push({
+        type: 'bank',
+        game: 'rhythm-echo',
+        prompt: prompt,
+        choices: [],
+        correctId: '',
+        render: render
+      });
+      continue;
+    }
     const type = row.type === 'bank' ? 'bank' : (row.type === 'custom' ? 'custom' : '');
     const prompt = cleanLiveText(row.prompt, 80);
     const choices = cleanLiveChoices(row.choices);
@@ -1510,9 +1721,52 @@ export function normalizeLiveQuiz(body) {
   return { ok: true, quiz: { title: title, limitMs: limitMs, items: items } };
 }
 
+function isEchoItem(item) {
+  return !!(item && item.game === 'rhythm-echo' && item.render && item.render.kind === 'rhythm-echo');
+}
+
+function buildEchoTimeline(item, nowMs, skipDemo) {
+  const r = item.render;
+  const win = RHYTHM_ECHO_WINDOWS[r.level] || RHYTHM_ECHO_WINDOWS.medium;
+  const beatMs = 60000 / Math.max(50, Math.min(140, Number(r.bpm) || win.bpm));
+  const meterBeats = RHYTHM_ECHO_METERS[r.meter] || 4;
+  const countInBeats = Number(r.countInBeats) || meterBeats;
+  const totalBeats = Number(r.totalBeats) || ((Array.isArray(r.bars) ? r.bars.length : 1) * meterBeats);
+  const countInMs = Math.round(countInBeats * beatMs);
+  const patternMs = Math.round(totalBeats * beatMs);
+  const syncLeadMs = skipDemo ? 600 : 1200;
+  const demoStartAt = nowMs + syncLeadMs;
+  const demoEndsAt = skipDemo ? demoStartAt : (demoStartAt + countInMs + patternMs);
+  const tapCountInAt = demoEndsAt;
+  const tapStartAt = tapCountInAt + countInMs;
+  const tapEndsAt = tapStartAt + patternMs + win.hitWindowMs + 1600;
+  return {
+    demoStartAt: demoStartAt,
+    demoEndsAt: demoEndsAt,
+    tapCountInAt: tapCountInAt,
+    tapStartAt: tapStartAt,
+    tapEndsAt: tapEndsAt,
+    countInMs: countInMs,
+    patternMs: patternMs,
+    beatMs: Math.round(beatMs * 100) / 100,
+    hitWindowMs: win.hitWindowMs,
+    perfectMs: win.perfectMs,
+    skipDemo: !!skipDemo
+  };
+}
+
+function echoSubPhaseAt(tl, nowMs) {
+  if (!tl) return '';
+  if (nowMs < tl.demoStartAt) return 'prepare';
+  if (!tl.skipDemo && nowMs < tl.demoEndsAt) return 'demo';
+  if (nowMs < tl.tapStartAt) return 'count-in';
+  if (nowMs <= tl.tapEndsAt) return 'tap';
+  return 'closing';
+}
+
 export function blankLiveState(quiz, code, teacherSub, schoolId) {
   return {
-    v: 1,
+    v: 2,
     code: code,
     schoolId: schoolId,
     teacherSub: teacherSub,
@@ -1523,15 +1777,15 @@ export function blankLiveState(quiz, code, teacherSub, schoolId) {
     index: -1,
     questionStartedAt: 0,
     questionEndsAt: 0,
+    echoTimeline: null,
     items: quiz.items,
     players: [],
     answers: {}
   };
 }
 
-export function joinLiveState(state, player) {
+export function joinLiveState(state, player, opts) {
   if (!state || state.phase === 'done') return { ok: false, error: 'closed' };
-  if (!state || state.phase !== 'lobby') return { ok: false, error: 'started' };
   const role = player && player.role === 'code' ? 'code' : (player && player.role === 'student' ? 'student' : '');
   const name = cleanLiveText(player && player.name, 20);
   if (!player || !text(player.id) || !role || !name) return { ok: false, error: 'bad_student' };
@@ -1541,9 +1795,15 @@ export function joinLiveState(state, player) {
   if (existing) {
     existing.avatar = cleanLiveText(player.avatar, 16) || existing.avatar || '🎵';
     existing.signature = cleanLiveText(player.signature, 30);
-    return { ok: true };
+    return { ok: true, reconnected: true };
   }
-  if (state.players.length >= 40) return { ok: false, error: 'full' };
+  const hasEcho = Array.isArray(state.items) && state.items.some((it) => isEchoItem(it));
+  const allowSpectate = hasEcho || !!(opts && opts.allowSpectate === true);
+  if (state.phase !== 'lobby' && !allowSpectate) {
+    return { ok: false, error: 'started' };
+  }
+  if (state.players.length >= 50) return { ok: false, error: 'full' };
+  const spectatingUntilIndex = state.phase === 'lobby' ? -1 : (Number(state.index) + 1);
   state.players.push({
     id: id,
     name: name,
@@ -1554,9 +1814,11 @@ export function joinLiveState(state, player) {
     signature: cleanLiveText(player.signature, 30),
     role: role,
     official: role === 'student' && !liveNameBlocked(name),
-    score: 0
+    score: 0,
+    correctCount: 0,
+    spectatingUntilIndex: spectatingUntilIndex
   });
-  return { ok: true };
+  return { ok: true, spectating: spectatingUntilIndex > state.index };
 }
 
 function closeLiveQuestion(state, nowMs) {
@@ -1564,7 +1826,8 @@ function closeLiveQuestion(state, nowMs) {
   state.players.forEach((player) => {
     const row = bag[player.id];
     if (row && row.applied !== true) {
-      player.score += num(row.points);
+      player.score = num(player.score) + num(row.points);
+      if (row.correct === true) player.correctCount = num(player.correctCount) + 1;
       row.applied = true;
     }
   });
@@ -1573,10 +1836,18 @@ function closeLiveQuestion(state, nowMs) {
 }
 
 function openLiveQuestion(state, index, nowMs) {
+  const item = state.items[index];
   state.phase = 'question';
   state.index = index;
   state.questionStartedAt = nowMs;
-  state.questionEndsAt = nowMs + state.limitMs;
+  if (isEchoItem(item)) {
+    const tl = buildEchoTimeline(item, nowMs, false);
+    state.echoTimeline = tl;
+    state.questionEndsAt = tl.tapEndsAt;
+  } else {
+    state.echoTimeline = null;
+    state.questionEndsAt = nowMs + state.limitMs;
+  }
   if (!state.answers[String(index)]) state.answers[String(index)] = {};
 }
 
@@ -1592,8 +1863,9 @@ export function answerLiveState(state, playerId, choiceId, nowMs) {
   if (!state || state.phase !== 'question') return { ok: false, error: 'closed' };
   const player = state.players.find((row) => row.id === playerId);
   if (!player) return { ok: false, error: 'not_joined' };
+  if (num(player.spectatingUntilIndex) > state.index) return { ok: false, error: 'spectating' };
   const item = state.items[state.index];
-  if (!item) return { ok: false, error: 'closed' };
+  if (!item || isEchoItem(item)) return { ok: false, error: 'bad_choice' };
   const key = String(state.index);
   const bag = state.answers[key] || (state.answers[key] = {});
   if (bag[playerId]) return { ok: true, locked: true };
@@ -1612,9 +1884,54 @@ export function answerLiveState(state, playerId, choiceId, nowMs) {
   return { ok: true, locked: true };
 }
 
-export function advanceLiveState(state, nowMs) {
+export function tapLiveState(state, playerId, payload, nowMs) {
+  settleLiveState(state, nowMs);
+  if (!state || state.phase !== 'question') return { ok: false, error: 'closed' };
+  const player = state.players.find((row) => row.id === playerId);
+  if (!player) return { ok: false, error: 'not_joined' };
+  if (num(player.spectatingUntilIndex) > state.index) return { ok: false, error: 'spectating' };
+  const item = state.items[state.index];
+  const tl = state.echoTimeline;
+  if (!item || !isEchoItem(item) || !tl) return { ok: false, error: 'bad_choice' };
+  const key = String(state.index);
+  const bag = state.answers[key] || (state.answers[key] = {});
+  if (bag[playerId]) return { ok: true, locked: true, grade: bag[playerId].echo };
+  if (nowMs < tl.tapStartAt - tl.hitWindowMs) return { ok: false, error: 'too_early' };
+  if (nowMs > tl.tapEndsAt + 400) return { ok: false, error: 'closed' };
+
+  const src = plainObject(payload);
+  let onsets = [];
+  if (Array.isArray(src.onsets)) {
+    onsets = src.onsets.map((v) => Number(v));
+  } else if (Array.isArray(src.tapTimestamps)) {
+    onsets = src.tapTimestamps.map((ts) => Number(ts) - tl.tapStartAt);
+  }
+  const grade = gradeRhythmEcho(item.render, onsets);
+  bag[playerId] = {
+    kind: 'rhythm-echo',
+    submittedAt: nowMs,
+    correct: grade.correct,
+    verdict: grade.verdict,
+    points: grade.points,
+    echo: grade,
+    applied: false
+  };
+  return { ok: true, locked: true, grade: grade };
+}
+
+export function advanceLiveState(state, nowMs, action) {
   if (!state) return { ok: false, error: 'closed' };
   const was = state.phase;
+  const item = state.index >= 0 ? state.items[state.index] : null;
+  if (was === 'question' && isEchoItem(item) && (action === 'replay-demo' || action === 'start-tap')) {
+    const skipDemo = action === 'start-tap';
+    const tl = buildEchoTimeline(item, nowMs, skipDemo);
+    state.echoTimeline = tl;
+    state.questionStartedAt = nowMs;
+    state.questionEndsAt = tl.tapEndsAt;
+    if (action === 'replay-demo') state.answers[String(state.index)] = {};
+    return { ok: true, action: action };
+  }
   const settled = settleLiveState(state, nowMs);
   if (was === 'lobby') {
     if (!state.items.length) return { ok: false, error: 'empty' };
@@ -1637,7 +1954,27 @@ export function advanceLiveState(state, nowMs) {
   return { ok: false, error: 'done' };
 }
 
-function publicLivePlayer(player, viewerId) {
+function publicLivePlayer(player, viewerId, bag, state, isHostView, showAnswer) {
+  const row = bag ? bag[player.id] : null;
+  const isSpec = state.phase === 'question' && num(player.spectatingUntilIndex) > state.index;
+  const pendingPts = row && row.applied !== true ? num(row.points) : 0;
+  const pendingCorrect = row && row.applied !== true && row.correct === true ? 1 : 0;
+  const displayScore = (isHostView && state.phase === 'question') ? (num(player.score) + pendingPts) : num(player.score);
+  const displayCorrect = (isHostView && state.phase === 'question') ? (num(player.correctCount) + pendingCorrect) : num(player.correctCount);
+  let roundStatus = 'waiting';
+  if (state.phase === 'question') {
+    if (isSpec) roundStatus = 'spectating';
+    else if (row) {
+      if (isHostView) roundStatus = row.verdict || (row.correct ? 'correct' : 'wrong');
+      else roundStatus = 'submitted';
+    } else {
+      roundStatus = 'tapping';
+    }
+  } else if (showAnswer && row) {
+    roundStatus = row.verdict || (row.correct ? 'correct' : 'wrong');
+  } else if (showAnswer) {
+    roundStatus = isSpec ? 'spectating' : 'missed';
+  }
   return {
     name: text(player.name).slice(0, 20),
     grade: text(player.grade).slice(0, 8),
@@ -1645,7 +1982,10 @@ function publicLivePlayer(player, viewerId) {
     seat: text(player.seat).slice(0, 8),
     avatar: text(player.avatar).slice(0, 16) || '🎵',
     signature: text(player.signature).slice(0, 30),
-    score: num(player.score),
+    score: displayScore,
+    correctCount: displayCorrect,
+    roundStatus: roundStatus,
+    spectating: isSpec,
     you: player.id === viewerId
   };
 }
@@ -1658,16 +1998,39 @@ export function officialLiveBoard(state) {
     seat: text(player.seat).slice(0, 8),
     avatar: text(player.avatar).slice(0, 16) || '🎵',
     signature: text(player.signature).slice(0, 30),
-    score: num(player.score)
-  })).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'zh-Hant'));
+    score: num(player.score),
+    correctCount: num(player.correctCount)
+  })).sort((a, b) => b.score - a.score || b.correctCount - a.correctCount || a.name.localeCompare(b.name, 'zh-Hant'));
 }
 
-export function publicLiveState(state, viewerId, nowMs) {
+export function publicLiveState(state, viewerId, nowMs, opts) {
   const showAnswer = state.phase === 'reveal' || state.phase === 'done';
+  const isHostView = !!(opts && opts.host === true);
   const item = state.index >= 0 ? state.items[state.index] : null;
   const bag = state.answers[String(state.index)] || {};
   const mine = viewerId ? bag[viewerId] : null;
-  const players = state.players.slice().sort((a, b) => num(b.score) - num(a.score) || text(a.name).localeCompare(text(b.name), 'zh-Hant'));
+  const viewerPlayer = viewerId ? state.players.find((p) => p.id === viewerId) : null;
+  const spectating = !!(viewerPlayer && state.phase === 'question' && num(viewerPlayer.spectatingUntilIndex) > state.index);
+  const mappedPlayers = state.players.map((player) => publicLivePlayer(player, viewerId, bag, state, isHostView, showAnswer));
+  mappedPlayers.sort((a, b) => num(b.score) - num(a.score) || num(b.correctCount) - num(a.correctCount) || text(a.name).localeCompare(text(b.name), 'zh-Hant'));
+
+  let yourEcho = null;
+  if (mine && mine.echo) {
+    yourEcho = {
+      submitted: true,
+      verdict: mine.echo.verdict,
+      hitCount: mine.echo.hitCount,
+      expectedCount: mine.echo.expectedCount,
+      missedCount: mine.echo.missedCount,
+      extraCount: mine.echo.extraCount,
+      accuracy: mine.echo.accuracy
+    };
+    if (showAnswer) {
+      yourEcho.points = num(mine.points);
+      yourEcho.beats = mine.echo.beats;
+    }
+  }
+
   return {
     code: state.code,
     title: state.title,
@@ -1678,21 +2041,25 @@ export function publicLiveState(state, viewerId, nowMs) {
     total: state.items.length,
     questionStartedAt: state.phase === 'question' ? state.questionStartedAt : 0,
     questionEndsAt: state.phase === 'question' ? state.questionEndsAt : 0,
+    echoTimeline: state.phase === 'question' && isEchoItem(item) ? state.echoTimeline : null,
+    echoSubPhase: state.phase === 'question' && isEchoItem(item) ? echoSubPhaseAt(state.echoTimeline, nowMs) : '',
     question: item && state.phase !== 'lobby' ? {
       prompt: item.prompt,
       game: item.game || '',
       type: item.type,
       render: item.render || null,
-      choices: item.choices.map((choice) => {
+      choices: (item.choices || []).map((choice) => {
         const row = { id: choice.id, label: choice.label };
         if (showAnswer) row.correct = choice.id === item.correctId;
         return row;
       })
     } : null,
-    players: players.map((player) => publicLivePlayer(player, viewerId)),
+    players: mappedPlayers,
     answered: Object.keys(bag).length,
-    yourChoice: mine ? mine.choiceId : '',
+    yourChoice: mine ? (mine.choiceId || '') : '',
+    yourEcho: yourEcho,
     yourPoints: showAnswer && mine ? num(mine.points) : 0,
+    spectating: spectating,
     locked: !!(mine)
   };
 }
@@ -1771,9 +2138,10 @@ async function saveLiveResult(db, state, nowIso) {
 
 function liveViewResponse(state, actor, nowMs) {
   const viewerId = actor.player ? actor.player.id : '';
-  const body = publicLiveState(state, viewerId, nowMs);
+  const isHost = actor.teacher === true && actor.sub === state.teacherSub;
+  const body = publicLiveState(state, viewerId, nowMs, { host: isHost });
   body.ok = true;
-  body.host = actor.teacher === true && actor.sub === state.teacherSub;
+  body.host = isHost;
   if (body.host && state.phase === 'done') body.officialBoard = officialLiveBoard(state);
   return body;
 }
@@ -1849,7 +2217,7 @@ async function handleLiveQuiz(request, env, path, cors) {
       return jsonResponse(liveViewResponse(state, actor, nowMs), 200, cors);
     }
 
-    const roomMatch = /^\/live\/rooms\/([A-HJ-NP-Z2-9]{6})(?:\/(join|answer|advance))?$/.exec(path);
+    const roomMatch = /^\/live\/rooms\/([A-HJ-NP-Z2-9]{6})(?:\/(join|answer|tap|advance))?$/.exec(path);
     if (!roomMatch) return jsonResponse({ ok: false, error: 'not found' }, 404, cors);
     const code = roomMatch[1];
     const action = roomMatch[2] || '';
@@ -1868,7 +2236,8 @@ async function handleLiveQuiz(request, env, path, cors) {
       if (!actor.player) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
       let body = {};
       try { body = await readJson(request); } catch (e) { body = {}; }
-      const pickedAvatar = classAvatar(plainObject(body).avatar);
+      const safeBody = plainObject(body);
+      const pickedAvatar = classAvatar(safeBody.avatar);
       const joined = joinLiveState(state, {
         id: actor.player.id,
         name: actor.player.name,
@@ -1877,20 +2246,27 @@ async function handleLiveQuiz(request, env, path, cors) {
         seat: actor.player.seat,
         role: actor.player.role,
         avatar: pickedAvatar && pickedAvatar.indexOf('data:') !== 0 ? pickedAvatar : '🎵',
-        signature: plainObject(body).signature
-      });
+        signature: safeBody.signature
+      }, { allowSpectate: safeBody.spectate === true });
       if (!joined.ok) return jsonResponse({ ok: false, error: joined.error }, joined.error === 'bad_student' ? 403 : 409, cors);
       await writeLiveRoom(env.DB, state, nowIso);
       return jsonResponse(liveViewResponse(state, actor, nowMs), 200, cors);
     }
-    if (request.method === 'POST' && action === 'answer') {
+    if (request.method === 'POST' && (action === 'answer' || action === 'tap')) {
       if (!actor.player) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
       let body = {};
       try { body = await readJson(request); } catch (e) {
         return jsonResponse({ ok: false, error: 'invalid json' }, 400, cors);
       }
-      const result = answerLiveState(state, actor.player.id, cleanLiveText(body.choiceId, 48), nowMs);
-      if (!result.ok && result.error !== 'closed') return jsonResponse({ ok: false, error: result.error }, result.error === 'not_joined' ? 403 : 400, cors);
+      const safeBody = plainObject(body);
+      const useTap = action === 'tap' || Array.isArray(safeBody.onsets) || Array.isArray(safeBody.tapTimestamps);
+      const result = useTap
+        ? tapLiveState(state, actor.player.id, safeBody, nowMs)
+        : answerLiveState(state, actor.player.id, cleanLiveText(safeBody.choiceId, 48), nowMs);
+      if (!result.ok && result.error !== 'closed') {
+        const status = result.error === 'not_joined' || result.error === 'spectating' ? 403 : (result.error === 'too_early' ? 409 : 400);
+        return jsonResponse({ ok: false, error: result.error }, status, cors);
+      }
       await writeLiveRoom(env.DB, state, nowIso);
       if (!result.ok) {
         const closedView = liveViewResponse(state, actor, nowMs);
@@ -1902,7 +2278,10 @@ async function handleLiveQuiz(request, env, path, cors) {
     }
     if (request.method === 'POST' && action === 'advance') {
       if (!isHost) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
-      const result = advanceLiveState(state, nowMs);
+      let body = {};
+      try { body = await readJson(request); } catch (e) { body = {}; }
+      const subAction = text(plainObject(body).action);
+      const result = advanceLiveState(state, nowMs, subAction);
       if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 409, cors);
       await writeLiveRoom(env.DB, state, nowIso);
       if (result.finished) await saveLiveResult(env.DB, state, nowIso);
@@ -1924,9 +2303,6 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';
     try {
-      const world3d = await handleWorld3D(request, env, path, cors);
-      if (world3d) return world3d;
-
       if (!env || !env.DB || !env.JWT_SECRET) {
         return jsonResponse({ ok: false, error: 'server not configured' }, 500, cors);
       }
@@ -2135,6 +2511,9 @@ export default {
       const live = await handleLiveQuiz(request, env, path, cors);
       if (live) return live;
 
+      const world3d = await handleWorld3D(request, env, path, cors);
+      if (world3d) return world3d;
+
       return jsonResponse({ ok: false, error: 'not found' }, 404, cors);
     } catch (err) {
       console.error('[noteschallenge-auth]', err && err.message ? err.message : err);
@@ -2143,16 +2522,109 @@ export default {
   }
 };
 
-const WORLD_3D_ROOMS = new Map();
-const WORLD_3D_MODES = new Map();
+// =========================================================================
+// 3D Music Party World — Cross-Isolate D1-Backed Server-Authoritative Sync
+// Completely separate from /live/* classroom quizzes, Google Sheet, and radar.
+// =========================================================================
+export const WORLD_ACTIVE_TTL_MS = 18000;
+export const WORLD_RECONNECT_GRACE_MS = 60000;
+export const WORLD_RATE_LIMIT_MS = 120;
+const WORLD_KICK_TTL_MS = 120000;
+const WORLD_MAX_ROOM_PLAYERS = 64;
+
 const VALID_WORLD_MODES = new Set(['mix', 'free', 'tiles', 'piano', 'gates', 'turntable', 'freeze', 'crown']);
 const VALID_WORLD_TOPICS = new Set(['mixed', 'notes', 'rhythm', 'ear', 'terms']);
-const VALID_WORLD_LEVELS = new Set(['basic', 'advanced']);
+const VALID_WORLD_LEVELS = new Set(['auto', 'basic', 'advanced']);
 const VALID_WORLD_HATS = new Set(['none', 'headphones', 'crown', 'conductor', 'star']);
+const WORLD_MIX_ROTATION = ['tiles', 'piano', 'gates', 'turntable', 'crown'];
+const WORLD_MODE_TIMINGS = {
+  mix: { roundSec: 10.0, revealSec: 3.0 },
+  tiles: { roundSec: 8.5, revealSec: 2.8 },
+  piano: { roundSec: 9.5, revealSec: 2.8 },
+  gates: { roundSec: 9.5, revealSec: 2.8 },
+  turntable: { roundSec: 9.0, revealSec: 2.8 },
+  freeze: { roundSec: 8.0, revealSec: 2.8 },
+  crown: { roundSec: 16.0, revealSec: 3.5 },
+  free: { roundSec: 0, revealSec: 0 }
+};
+const WORLD_ESCALATION_TIERS = [
+  { tier: 1, label: 'Lv.1 熱身', speedMult: 1.0, timerFactor: 1.0, bpm: 120, poolMode: 'basic' },
+  { tier: 2, label: 'Lv.2 加速', speedMult: 1.2, timerFactor: 0.9, bpm: 128, poolMode: 'mixed' },
+  { tier: 3, label: 'Lv.3 疾風', speedMult: 1.4, timerFactor: 0.8, bpm: 138, poolMode: 'mixed' },
+  { tier: 4, label: 'Lv.4 狂飆', speedMult: 1.62, timerFactor: 0.72, bpm: 146, poolMode: 'advanced' },
+  { tier: 5, label: 'Lv.5 極限', speedMult: 1.85, timerFactor: 0.65, bpm: 156, poolMode: 'advanced' }
+];
 
-export function clearWorld3DRooms() {
-  WORLD_3D_ROOMS.clear();
-  WORLD_3D_MODES.clear();
+export function computeWorldRound(modeState, nowMs) {
+  const mode = (modeState && WORLD_MODE_TIMINGS[modeState.mode]) ? modeState.mode : 'free';
+  const cfg = WORLD_MODE_TIMINGS[mode];
+  if (mode === 'free') {
+    return {
+      mode: 'free',
+      effectiveMode: 'free',
+      phase: 'idle',
+      roundNum: 0,
+      showRound: 0,
+      showNumber: 1,
+      isFinale: false,
+      escalation: WORLD_ESCALATION_TIERS[0],
+      timeLeft: 0,
+      roundElapsedSec: 0,
+      roundSeed: 0,
+      roundKey: 'free'
+    };
+  }
+  const epochMs = Number(modeState && modeState.epochMs) || nowMs;
+  const baseSeed = (Number(modeState && modeState.seed) >>> 0) || 12345;
+  const seq = Number(modeState && modeState.seq) || 1;
+  const elapsed = Math.max(0, (nowMs - epochMs) / 1000);
+
+  let roundNum = 0;
+  let tCursor = 0;
+  const maxRamp = WORLD_ESCALATION_TIERS.length - 1;
+  while (roundNum < maxRamp) {
+    const escLoop = WORLD_ESCALATION_TIERS[roundNum];
+    const rDur = Math.max(4.5, Number((cfg.roundSec * escLoop.timerFactor).toFixed(2)));
+    const cDur = rDur + cfg.revealSec;
+    if (elapsed < tCursor + cDur) break;
+    tCursor += cDur;
+    roundNum++;
+  }
+  if (roundNum >= maxRamp) {
+    const maxEsc = WORLD_ESCALATION_TIERS[maxRamp];
+    const maxRDur = Math.max(4.5, Number((cfg.roundSec * maxEsc.timerFactor).toFixed(2)));
+    const maxCDur = maxRDur + cfg.revealSec;
+    const extra = Math.floor((elapsed - tCursor) / maxCDur);
+    roundNum += extra;
+    tCursor += extra * maxCDur;
+  }
+
+  const esc = WORLD_ESCALATION_TIERS[Math.min(maxRamp, roundNum)];
+  const activeRoundSec = Math.max(4.5, Number((cfg.roundSec * esc.timerFactor).toFixed(2)));
+  const cycleSec = activeRoundSec + cfg.revealSec;
+  const inCycle = Math.max(0, elapsed - tCursor);
+  const phase = inCycle < activeRoundSec ? 'countdown' : 'reveal';
+  const timeLeft = phase === 'countdown' ? (activeRoundSec - inCycle) : (cycleSec - inCycle);
+  const roundSeed = (baseSeed + Math.imul(roundNum + 1, 2654435761)) >>> 0;
+  const showRound = (roundNum % 5) + 1;
+  const showNumber = Math.floor(roundNum / 5) + 1;
+  const isFinale = showRound === 5;
+  const effectiveMode = mode === 'mix' ? WORLD_MIX_ROTATION[roundNum % WORLD_MIX_ROTATION.length] : mode;
+
+  return {
+    mode: mode,
+    effectiveMode: effectiveMode,
+    phase: phase,
+    roundNum: roundNum,
+    showRound: showRound,
+    showNumber: showNumber,
+    isFinale: isFinale,
+    escalation: esc,
+    timeLeft: Number(timeLeft.toFixed(2)),
+    roundElapsedSec: Number(inCycle.toFixed(2)),
+    roundSeed: roundSeed,
+    roundKey: seq + '_' + mode + '_' + roundNum
+  };
 }
 
 function clampCoord(v, min, max) {
@@ -2161,93 +2633,467 @@ function clampCoord(v, min, max) {
   return Math.max(min, Math.min(max, n));
 }
 
-async function handleWorld3D(request, env, path, cors) {
-  if (path !== '/world/sync' || request.method !== 'POST') return null;
-  let body = null;
-  try { body = await request.json(); } catch (e) { return jsonResponse({ ok: false, error: 'bad json' }, 400, cors); }
-  const roomId = String((body && body.room) || 'MUSIC1').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 16) || 'MUSIC1';
-  const pid = String((body && body.id) || '').trim().slice(0, 48);
-  if (!pid) return jsonResponse({ ok: false, error: 'missing id' }, 400, cors);
-  const now = Date.now();
+function cleanWorldRoomCode(raw) {
+  const code = String(raw || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 16);
+  return code.length >= 3 ? code : '';
+}
 
-  // Prune idle rooms and expired mode states (>5 min idle)
-  for (const [rKey, rMap] of WORLD_3D_ROOMS.entries()) {
-    for (const [k, v] of rMap.entries()) {
-      if (now - v.ts > 15000) rMap.delete(k);
-    }
-    if (rMap.size === 0 && rKey !== roomId) {
-      WORLD_3D_ROOMS.delete(rKey);
-      const ms = WORLD_3D_MODES.get(rKey);
-      if (ms && now - ms.ts > 300000) WORLD_3D_MODES.delete(rKey);
-    }
-  }
+function cleanWorldName(raw) {
+  const out = text(raw).replace(/[\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim();
+  if (!out || out.indexOf('@') !== -1) return '';
+  return out.slice(0, 24);
+}
 
-  let room = WORLD_3D_ROOMS.get(roomId);
-  if (!room) {
-    room = new Map();
-    WORLD_3D_ROOMS.set(roomId, room);
-  }
-  const MAX_ROOM_PLAYERS = 64; // Supports full 50-player party + teachers/reconnects
-  if (!room.has(pid) && room.size >= MAX_ROOM_PLAYERS) {
-    return jsonResponse({ ok: false, error: 'room full', maxPlayers: 50 }, 429, cors);
-  }
-
-  const rawHat = String((body && body.hat) || 'none').trim().toLowerCase();
-  const playerName = String((body && body.name) || '玩家').trim().slice(0, 24) || '玩家';
-  room.set(pid, {
-    id: pid,
-    name: playerName,
-    skin: Number(body && body.skin) || 0xf59e0b,
-    hat: VALID_WORLD_HATS.has(rawHat) ? rawHat : 'none',
-    x: clampCoord(body && body.x, -75, 75),
-    y: clampCoord(body && body.y, -30, 50),
-    z: clampCoord(body && body.z, -75, 75),
-    vx: Number(clampCoord(body && body.vx, -25, 25).toFixed(2)),
-    vz: Number(clampCoord(body && body.vz, -25, 25).toFixed(2)),
-    yaw: Number(clampCoord(body && body.yaw, -Math.PI * 4, Math.PI * 4).toFixed(2)),
-    dive: !!(body && body.dive),
-    emote: String((body && body.emote) || '').slice(0, 8),
-    score: Math.max(0, Math.min(999999, Math.floor(Number(body && body.score) || 0))),
-    streak: Math.max(0, Math.min(9999, Math.floor(Number(body && body.streak) || 0))),
-    ts: now
-  });
-
-  let currentMode = WORLD_3D_MODES.get(roomId);
-  if (currentMode) currentMode.ts = now;
-
-  if (body && body.modeState && typeof body.modeState === 'object') {
-    const ms = body.modeState;
-    const reqSeq = Math.max(1, Math.floor(Number(ms.seq) || 1));
-    const isExplicitSwitch = !!ms.resetEpoch;
-    if (!currentMode || (isExplicitSwitch && reqSeq > currentMode.seq)) {
-      const nextMode = VALID_WORLD_MODES.has(ms.mode) ? ms.mode : 'tiles';
-      const nextTopic = VALID_WORLD_TOPICS.has(ms.topic) ? ms.topic : 'mixed';
-      const nextLevel = VALID_WORLD_LEVELS.has(ms.level) ? ms.level : 'basic';
-      const nextSeed = (Math.floor(Number(ms.seed)) >>> 0) || ((now ^ 0x5a3c91) >>> 0);
-      currentMode = {
-        mode: nextMode,
-        topic: nextTopic,
-        level: nextLevel,
-        epochMs: now,
-        seed: nextSeed,
-        seq: currentMode ? Math.max(currentMode.seq + 1, reqSeq) : reqSeq,
-        hostId: pid,
-        hostName: playerName,
-        ts: now
+async function resolveWorldActor(request, env, body) {
+  const token = bearer(request);
+  if (token) {
+    const actor = await liveActor(request, env);
+    if (actor.error) return { error: actor.error };
+    if (actor.teacher) {
+      const userRow = await getUser(env.DB, actor.sub);
+      const tName = cleanWorldName(userRow && (userRow.student_name || userRow.name)) || '老師';
+      return {
+        authenticated: true,
+        teacher: true,
+        schoolId: actor.schoolId,
+        id: 'teacher:' + actor.sub,
+        clientKey: 'auth:' + actor.sub,
+        name: tName,
+        grade: '',
+        class: '',
+        seat: '',
+        avatar: '🎓'
       };
-      WORLD_3D_MODES.set(roomId, currentMode);
+    }
+    return {
+      authenticated: true,
+      teacher: false,
+      schoolId: actor.schoolId,
+      id: actor.player.id,
+      clientKey: 'auth:' + actor.player.id,
+      name: actor.player.name,
+      grade: actor.player.grade,
+      class: actor.player.class,
+      seat: actor.player.seat,
+      avatar: '🎵'
+    };
+  }
+  const pid = text(body && body.id).replace(/[^A-Za-z0-9:_-]/g, '').slice(0, 48);
+  const clientKey = text(body && body.clientKey).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
+  if (!pid || pid.length < 4) return { error: jsonResponse({ ok: false, error: 'missing_id' }, 400, corsHeaders(request)) };
+  if (!clientKey || clientKey.length < 12) return { error: jsonResponse({ ok: false, error: 'auth_or_key_required' }, 401, corsHeaders(request)) };
+  const name = cleanWorldName(body && body.name) || '玩家';
+  return {
+    authenticated: false,
+    teacher: false,
+    schoolId: 'public',
+    id: pid,
+    clientKey: clientKey,
+    name: name,
+    grade: cleanLiveText(body && body.grade, 8),
+    class: cleanLiveText(body && body.class, 8),
+    seat: cleanLiveText(body && body.seat, 8),
+    avatar: classAvatar(body && body.avatar) || '🎵'
+  };
+}
+
+async function readWorldRoom(db, code) {
+  const row = await db.prepare('SELECT code, school_id, host_id, state, updated_at FROM world_rooms WHERE code = ?').bind(code).first();
+  if (!row) return null;
+  let state = null;
+  try { state = JSON.parse(row.state); } catch (e) { state = null; }
+  if (!state || typeof state !== 'object') return null;
+  if (!state.players || typeof state.players !== 'object') state.players = {};
+  if (!state.disconnected || typeof state.disconnected !== 'object') state.disconnected = {};
+  if (!state.kicked || typeof state.kicked !== 'object') state.kicked = {};
+  return state;
+}
+
+async function writeWorldRoom(db, state, isNew, nowIso) {
+  const packed = JSON.stringify(state);
+  if (isNew) {
+    await db.prepare(
+      'INSERT INTO world_rooms (code, school_id, host_id, state, updated_at) VALUES (?, ?, ?, ?, ?)'
+    ).bind(state.code, state.schoolId, state.hostId, packed, nowIso).run();
+  } else {
+    await db.prepare(
+      'UPDATE world_rooms SET school_id = ?, host_id = ?, state = ?, updated_at = ? WHERE code = ?'
+    ).bind(state.schoolId, state.hostId, packed, nowIso, state.code).run();
+  }
+}
+
+function pruneWorldRoom(state, nowMs) {
+  for (const pid of Object.keys(state.players)) {
+    const p = state.players[pid];
+    if (!p || nowMs - num(p.ts) > WORLD_ACTIVE_TTL_MS) {
+      if (p) {
+        state.disconnected[pid] = {
+          id: p.id,
+          name: p.name,
+          grade: p.grade || '',
+          class: p.class || '',
+          seat: p.seat || '',
+          avatar: p.avatar || '🎵',
+          skin: p.skin,
+          hat: p.hat,
+          score: num(p.score),
+          streak: num(p.streak),
+          clientKey: p.clientKey,
+          awardedRounds: p.awardedRounds || {},
+          wasHost: state.hostId === pid,
+          disconnectedAt: nowMs
+        };
+      }
+      delete state.players[pid];
     }
   }
-
-  const players = [];
-  for (const p of room.values()) {
-    const item = {
-      id: p.id, name: p.name, skin: p.skin, hat: p.hat,
-      x: p.x, y: p.y, z: p.z, vx: p.vx, vz: p.vz, yaw: p.yaw,
-      dive: p.dive, emote: p.emote, score: p.score, streak: p.streak
-    };
-    players.push(item);
+  for (const pid of Object.keys(state.disconnected)) {
+    const d = state.disconnected[pid];
+    if (!d || nowMs - num(d.disconnectedAt) > WORLD_RECONNECT_GRACE_MS) {
+      delete state.disconnected[pid];
+    }
   }
-  return jsonResponse({ ok: true, room: roomId, maxPlayers: 50, serverTime: now, players, modeState: currentMode || null }, 200, cors);
+  for (const pid of Object.keys(state.kicked)) {
+    if (nowMs >= num(state.kicked[pid])) delete state.kicked[pid];
+  }
+  // If current host is neither active nor within reconnect grace, promote earliest active player
+  const hostAlive = Boolean(state.players[state.hostId] || state.disconnected[state.hostId]);
+  if (!hostAlive) {
+    const activeIds = Object.keys(state.players).sort((a, b) => num(state.players[a].joinedAt) - num(state.players[b].joinedAt));
+    if (activeIds.length) {
+      state.hostId = activeIds[0];
+      state.teacherHosted = state.players[activeIds[0]].teacher === true;
+      if (state.modeState) {
+        state.modeState.hostId = state.hostId;
+        state.modeState.hostName = state.players[activeIds[0]].name;
+      }
+    }
+  }
+}
+
+function publicWorldPlayers(state, currentRoundKey) {
+  return Object.keys(state.players).slice(0, 50).map((pid) => {
+    const p = state.players[pid];
+    const spectating = Boolean(p.spectateRoundKey && p.spectateRoundKey === currentRoundKey);
+    return {
+      id: p.id,
+      name: p.name,
+      grade: p.grade || '',
+      class: p.class || '',
+      seat: p.seat || '',
+      avatar: p.avatar || '🎵',
+      skin: p.skin,
+      hat: p.hat,
+      x: p.x,
+      y: p.y,
+      z: p.z,
+      vx: p.vx,
+      vz: p.vz,
+      yaw: p.yaw,
+      dive: !!p.dive,
+      emote: p.emote || '',
+      score: num(p.score),
+      streak: num(p.streak),
+      spectating: spectating,
+      isHost: p.id === state.hostId
+    };
+  });
+}
+
+function applyWorldModeSwitch(state, actor, ms, nowMs) {
+  const nextMode = VALID_WORLD_MODES.has(ms && ms.mode) ? ms.mode : (state.modeState ? state.modeState.mode : 'mix');
+  const nextTopic = VALID_WORLD_TOPICS.has(ms && ms.topic) ? ms.topic : (state.modeState ? state.modeState.topic : 'mixed');
+  const nextLevel = VALID_WORLD_LEVELS.has(ms && ms.level) ? ms.level : 'auto';
+  const nextSeed = (Math.floor(Number(ms && ms.seed)) >>> 0) || ((nowMs ^ 0x5a3c91) >>> 0);
+  const nextSeq = state.modeState ? (num(state.modeState.seq) + 1) : 1;
+  state.modeState = {
+    mode: nextMode,
+    topic: nextTopic,
+    level: nextLevel,
+    epochMs: nowMs,
+    seed: nextSeed,
+    seq: nextSeq,
+    hostId: actor.id,
+    hostName: actor.name,
+    ts: nowMs
+  };
+  // Clear spectating locks when switching to a brand new stage
+  Object.keys(state.players).forEach((pid) => {
+    state.players[pid].spectateRoundKey = '';
+  });
+}
+
+async function handleWorld3D(request, env, path, cors) {
+  if ((path !== '/world/sync' && path !== '/world/host') || request.method !== 'POST') return null;
+  const nowMs = clockMs(env);
+  const nowIso = new Date(nowMs).toISOString();
+  try {
+    let body = null;
+    try { body = await readJson(request); } catch (e) {
+      return jsonResponse({ ok: false, error: 'bad_json' }, 400, cors);
+    }
+    const safeBody = plainObject(body);
+    const roomId = cleanWorldRoomCode(safeBody.room);
+    if (!roomId) return jsonResponse({ ok: false, error: 'bad_room_code' }, 400, cors);
+
+    const actor = await resolveWorldActor(request, env, safeBody);
+    if (actor.error) return actor.error;
+
+    let state = await readWorldRoom(env.DB, roomId);
+    const isNew = !state;
+
+    if (path === '/world/host') {
+      if (!state) return jsonResponse({ ok: false, error: 'not_found' }, 404, cors);
+      pruneWorldRoom(state, nowMs);
+      const isHost = actor.id === state.hostId || (actor.teacher && state.schoolId === actor.schoolId);
+      const existingHost = state.players[state.hostId] || state.disconnected[state.hostId];
+      if (!isHost || (!actor.authenticated && existingHost && existingHost.clientKey !== actor.clientKey)) {
+        return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
+      }
+      if (actor.teacher) {
+        state.hostId = actor.id;
+        state.teacherHosted = true;
+      }
+      const action = text(safeBody.action);
+      if (action === 'switch_mode' || action === 'reset_round') {
+        applyWorldModeSwitch(state, actor, plainObject(safeBody.modeState), nowMs);
+      } else if (action === 'kick') {
+        const targetId = text(safeBody.targetId).slice(0, 80);
+        if (!targetId || targetId === actor.id) return jsonResponse({ ok: false, error: 'bad_target' }, 400, cors);
+        delete state.players[targetId];
+        delete state.disconnected[targetId];
+        state.kicked[targetId] = nowMs + WORLD_KICK_TTL_MS;
+      } else if (action === 'transfer_host') {
+        const targetId = text(safeBody.targetId).slice(0, 80);
+        if (!state.players[targetId]) return jsonResponse({ ok: false, error: 'not_found' }, 404, cors);
+        state.hostId = targetId;
+        state.teacherHosted = state.players[targetId].teacher === true;
+        if (state.modeState) {
+          state.modeState.hostId = targetId;
+          state.modeState.hostName = state.players[targetId].name;
+        }
+      } else {
+        return jsonResponse({ ok: false, error: 'bad_action' }, 400, cors);
+      }
+      await writeWorldRoom(env.DB, state, false, nowIso);
+      const roundInfo = computeWorldRound(state.modeState, nowMs);
+      return jsonResponse({
+        ok: true,
+        room: roomId,
+        maxPlayers: 50,
+        serverTime: nowMs,
+        hostId: state.hostId,
+        players: publicWorldPlayers(state, roundInfo.roundKey),
+        modeState: state.modeState,
+        roundInfo: roundInfo
+      }, 200, cors);
+    }
+
+    // POST /world/sync
+    if (isNew) {
+      const initMs = plainObject(safeBody.modeState);
+      state = {
+        v: 2,
+        code: roomId,
+        schoolId: actor.schoolId,
+        hostId: actor.id,
+        teacherHosted: actor.teacher === true,
+        modeState: {
+          mode: VALID_WORLD_MODES.has(initMs.mode) ? initMs.mode : 'mix',
+          topic: VALID_WORLD_TOPICS.has(initMs.topic) ? initMs.topic : 'mixed',
+          level: VALID_WORLD_LEVELS.has(initMs.level) ? initMs.level : 'auto',
+          epochMs: nowMs,
+          seed: (Math.floor(Number(initMs.seed)) >>> 0) || ((nowMs ^ 0x5a3c91) >>> 0),
+          seq: 1,
+          hostId: actor.id,
+          hostName: actor.name,
+          ts: nowMs
+        },
+        players: {},
+        disconnected: {},
+        kicked: {}
+      };
+    } else {
+      pruneWorldRoom(state, nowMs);
+      if (state.kicked[actor.id] && nowMs < num(state.kicked[actor.id])) {
+        return jsonResponse({ ok: false, error: 'kicked' }, 403, cors);
+      }
+      if (state.teacherHosted && state.schoolId !== 'public' && actor.authenticated && actor.schoolId !== state.schoolId) {
+        return jsonResponse({ ok: false, error: 'wrong_school' }, 403, cors);
+      }
+      if (actor.teacher && (state.schoolId === 'public' || state.schoolId === actor.schoolId)) {
+        state.schoolId = actor.schoolId;
+        state.hostId = actor.id;
+        state.teacherHosted = true;
+        if (state.modeState) {
+          state.modeState.hostId = actor.id;
+          state.modeState.hostName = actor.name;
+        }
+      }
+    }
+
+    const roundInfoBefore = computeWorldRound(state.modeState, nowMs);
+    const existing = state.players[actor.id];
+    const returning = !existing ? state.disconnected[actor.id] : null;
+
+    if (existing && !actor.authenticated && existing.clientKey !== actor.clientKey) {
+      return jsonResponse({ ok: false, error: 'id_conflict' }, 403, cors);
+    }
+    if (returning && !actor.authenticated && returning.clientKey !== actor.clientKey) {
+      return jsonResponse({ ok: false, error: 'id_conflict' }, 403, cors);
+    }
+    if (existing && nowMs - num(existing.ts) < WORLD_RATE_LIMIT_MS && !(safeBody.modeState && safeBody.modeState.resetEpoch) && !safeBody.roundClaim) {
+      return jsonResponse({
+        ok: true,
+        throttled: true,
+        room: roomId,
+        maxPlayers: 50,
+        serverTime: nowMs,
+        hostId: state.hostId,
+        self: {
+          id: existing.id,
+          score: num(existing.score),
+          streak: num(existing.streak),
+          isHost: existing.id === state.hostId,
+          spectating: Boolean(existing.spectateRoundKey && existing.spectateRoundKey === roundInfoBefore.roundKey),
+          reconnected: false
+        },
+        players: publicWorldPlayers(state, roundInfoBefore.roundKey),
+        modeState: state.modeState,
+        roundInfo: roundInfoBefore
+      }, 200, cors);
+    }
+
+    if (!existing && !returning && Object.keys(state.players).length >= WORLD_MAX_ROOM_PLAYERS) {
+      return jsonResponse({ ok: false, error: 'room_full', maxPlayers: 50 }, 429, cors);
+    }
+
+    const rawHat = text(safeBody.hat).toLowerCase();
+    const hat = VALID_WORLD_HATS.has(rawHat) ? rawHat : (existing ? existing.hat : (returning ? returning.hat : 'none'));
+    const skin = Number(safeBody.skin) || (existing ? existing.skin : (returning ? returning.skin : 0xf59e0b));
+    let reconnected = false;
+    let pRecord = existing;
+
+    if (!pRecord && returning) {
+      reconnected = true;
+      pRecord = {
+        id: actor.id,
+        name: actor.name,
+        grade: actor.grade,
+        class: actor.class,
+        seat: actor.seat,
+        avatar: actor.avatar,
+        teacher: actor.teacher === true,
+        clientKey: actor.clientKey,
+        skin: skin,
+        hat: hat,
+        score: num(returning.score),
+        streak: num(returning.streak),
+        awardedRounds: returning.awardedRounds || {},
+        spectateRoundKey: '',
+        joinedAt: nowMs,
+        ts: nowMs
+      };
+      if (returning.wasHost && !state.teacherHosted) {
+        state.hostId = actor.id;
+      }
+      delete state.disconnected[actor.id];
+    } else if (!pRecord) {
+      const joinedMidRound = !isNew && state.modeState && state.modeState.mode !== 'free' &&
+        (roundInfoBefore.phase === 'reveal' || (roundInfoBefore.phase === 'countdown' && roundInfoBefore.roundElapsedSec > 2.5));
+      pRecord = {
+        id: actor.id,
+        name: actor.name,
+        grade: actor.grade,
+        class: actor.class,
+        seat: actor.seat,
+        avatar: actor.avatar,
+        teacher: actor.teacher === true,
+        clientKey: actor.clientKey,
+        skin: skin,
+        hat: hat,
+        score: 0,
+        streak: 0,
+        awardedRounds: {},
+        spectateRoundKey: joinedMidRound ? roundInfoBefore.roundKey : '',
+        joinedAt: nowMs,
+        ts: nowMs
+      };
+    }
+
+    // Update position / velocity / visual emote
+    pRecord.name = actor.name;
+    pRecord.skin = skin;
+    pRecord.hat = hat;
+    pRecord.x = clampCoord(safeBody.x, -75, 75);
+    pRecord.y = clampCoord(safeBody.y, -30, 50);
+    pRecord.z = clampCoord(safeBody.z, -75, 75);
+    pRecord.vx = Number(clampCoord(safeBody.vx, -25, 25).toFixed(2));
+    pRecord.vz = Number(clampCoord(safeBody.vz, -25, 25).toFixed(2));
+    pRecord.yaw = Number(clampCoord(safeBody.yaw, -Math.PI * 4, Math.PI * 4).toFixed(2));
+    pRecord.dive = !!safeBody.dive;
+    pRecord.emote = text(safeBody.emote).slice(0, 8);
+    pRecord.ts = nowMs;
+
+    // Clear spectate flag once the round advances past the joined-mid-round key
+    if (pRecord.spectateRoundKey && pRecord.spectateRoundKey !== roundInfoBefore.roundKey) {
+      pRecord.spectateRoundKey = '';
+    }
+
+    // Server-authoritative deduplicated round score claim
+    if (safeBody.roundClaim && typeof safeBody.roundClaim === 'object') {
+      const claim = plainObject(safeBody.roundClaim);
+      const rKey = text(claim.roundKey).slice(0, 40);
+      const isSpectatingThis = Boolean(pRecord.spectateRoundKey && pRecord.spectateRoundKey === rKey);
+      if (rKey && !isSpectatingThis && !pRecord.awardedRounds[rKey]) {
+        const pts = Math.max(0, Math.min(600, Math.floor(Number(claim.points) || 0)));
+        const won = claim.won === true && pts > 0;
+        pRecord.awardedRounds[rKey] = pts;
+        // Keep last 40 round keys bounded
+        const rKeys = Object.keys(pRecord.awardedRounds);
+        if (rKeys.length > 40) delete pRecord.awardedRounds[rKeys[0]];
+        if (won) {
+          pRecord.score = Math.min(999999, num(pRecord.score) + pts);
+          pRecord.streak = Math.min(9999, num(pRecord.streak) + 1);
+        } else {
+          pRecord.streak = 0;
+        }
+      }
+    }
+
+    state.players[actor.id] = pRecord;
+
+    // Host-only mode switch via /world/sync (skip on initial room creation since modeState was just initialized)
+    const isHost = actor.id === state.hostId;
+    if (!isNew && isHost && safeBody.modeState && typeof safeBody.modeState === 'object' && safeBody.modeState.resetEpoch === true) {
+      applyWorldModeSwitch(state, actor, plainObject(safeBody.modeState), nowMs);
+    }
+
+    await writeWorldRoom(env.DB, state, isNew, nowIso);
+    const roundInfo = computeWorldRound(state.modeState, nowMs);
+    return jsonResponse({
+      ok: true,
+      room: roomId,
+      maxPlayers: 50,
+      serverTime: nowMs,
+      hostId: state.hostId,
+      self: {
+        id: pRecord.id,
+        score: num(pRecord.score),
+        streak: num(pRecord.streak),
+        isHost: pRecord.id === state.hostId,
+        spectating: Boolean(pRecord.spectateRoundKey && pRecord.spectateRoundKey === roundInfo.roundKey),
+        reconnected: reconnected
+      },
+      players: publicWorldPlayers(state, roundInfo.roundKey),
+      modeState: state.modeState,
+      roundInfo: roundInfo
+    }, 200, cors);
+  } catch (err) {
+    console.error('[noteschallenge-auth]', err && err.message ? err.message : err);
+    const message = String(err && err.message ? err.message : err);
+    if (/no such table/i.test(message)) return migration(cors);
+    return jsonResponse({ ok: false, error: 'server error' }, 500, cors);
+  }
 }
 

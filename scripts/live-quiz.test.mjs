@@ -3,15 +3,19 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
 import worker, {
+  RHYTHM_ECHO_WINDOWS,
   advanceLiveState,
   answerLiveState,
   blankLiveState,
+  expectedEchoOnsetsMs,
+  gradeRhythmEcho,
   joinLiveState,
   normalizeLiveQuiz,
   officialLiveBoard,
   publicLiveState,
   scoreLivePoints,
-  signSessionToken
+  signSessionToken,
+  tapLiveState
 } from '../cloudflare/noteschallenge-auth/worker.js';
 
 const SECRET = 'test-secret-test-secret-test-secret';
@@ -416,4 +420,204 @@ test('bank builders cover the classroom games and the device record drops test n
   const remembered = JSON.parse(storage.value);
   assert.equal(storage.key, 'ncLiveOfficial.v1');
   assert.deepEqual(remembered[0].board.map((row) => row.name), ['陳同學']);
+});
+
+test('rhythm-echo hit windows are locked for 容易/中等/困難 and grade exact, missed, extra, and clock-calibrated taps', () => {
+  // Explicit ms windows locked per difficulty
+  assert.deepEqual(
+    {
+      easy: [RHYTHM_ECHO_WINDOWS.easy.label, RHYTHM_ECHO_WINDOWS.easy.hitWindowMs, RHYTHM_ECHO_WINDOWS.easy.perfectMs],
+      medium: [RHYTHM_ECHO_WINDOWS.medium.label, RHYTHM_ECHO_WINDOWS.medium.hitWindowMs, RHYTHM_ECHO_WINDOWS.medium.perfectMs],
+      hard: [RHYTHM_ECHO_WINDOWS.hard.label, RHYTHM_ECHO_WINDOWS.hard.hitWindowMs, RHYTHM_ECHO_WINDOWS.hard.perfectMs]
+    },
+    {
+      easy: ['容易', 240, 90],
+      medium: ['中等', 180, 70],
+      hard: ['困難', 135, 55]
+    }
+  );
+
+  // 4/4 at 60 BPM => 1000ms per beat: ta (0), ti-ti (1000, 1500), ta (2000), r (rest at 3000)
+  const specMed = { kind: 'rhythm-echo', meter: '4/4', bpm: 60, level: 'medium', bars: ['ta ti-ti ta r'] };
+  const expected = expectedEchoOnsetsMs(specMed);
+  assert.deepEqual(expected, [0, 1000, 1500, 2000]);
+
+  // Perfect / within window => verdict='correct', high points
+  const exact = gradeRhythmEcho(specMed, [15, 980, 1520, 2010]);
+  assert.equal(exact.verdict, 'correct');
+  assert.equal(exact.correct, true);
+  assert.equal(exact.missedCount, 0);
+  assert.equal(exact.extraCount, 0);
+  assert.ok(exact.points >= 900 && exact.points <= 1000);
+
+  // Missed one beat => partial (3/4 = 75%)
+  const missed = gradeRhythmEcho(specMed, [0, 1000, 2000]);
+  assert.equal(missed.verdict, 'partial');
+  assert.equal(missed.correct, false);
+  assert.equal(missed.missedCount, 1);
+  assert.equal(missed.hitCount, 3);
+  assert.ok(missed.points > 0 && missed.points < 750);
+
+  // Extra taps penalize accuracy and prevent full 'correct'
+  const extra = gradeRhythmEcho(specMed, [0, 450, 1000, 1500, 2000, 2600]);
+  assert.equal(extra.extraCount, 2);
+  assert.equal(extra.correct, false);
+  assert.equal(extra.verdict, 'partial');
+
+  // Hard window (±135ms) rejects a 170ms drift that easy (±240ms) accepts
+  const specEasy = Object.assign({}, specMed, { level: 'easy' });
+  const specHard = Object.assign({}, specMed, { level: 'hard' });
+  const drifted = [170, 1170, 1670, 2170];
+  assert.equal(gradeRhythmEcho(specEasy, drifted).verdict, 'correct');
+  assert.equal(gradeRhythmEcho(specHard, drifted).verdict, 'wrong');
+
+  // Verify client LiveQuiz.gradeRhythmEcho matches server worker.js identically
+  const context = { console };
+  vm.createContext(context);
+  for (const file of ['rhythm-levels.js', 'live-quiz.js']) {
+    vm.runInContext(fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8'), context, { filename: file });
+  }
+  assert.deepEqual(JSON.parse(JSON.stringify(context.LiveQuiz.gradeRhythmEcho(specMed, [15, 980, 1520, 2010]))), exact);
+  assert.deepEqual(JSON.parse(JSON.stringify(context.LiveQuiz.gradeRhythmEcho(specMed, [0, 1000, 2000]))), missed);
+  const built = context.LiveQuiz.buildRhythmEcho({ level: 'medium', meter: '4/4', barCount: 2 }, () => 0.4);
+  assert.equal(built.game, 'rhythm-echo');
+  assert.equal(built.render.bars.length, 2);
+});
+
+test('worker /live/* rhythm-echo vertical slice: synced timeline, clock-calibrated taps, live teacher ranking, latecomer spectate, reconnect, and projection UI', async () => {
+  const db = memoryDb();
+  const baseNow = Date.now();
+  const env = { DB: db, JWT_SECRET: SECRET, EXTRA_ALLOWED_EMAILS: 'teacher.allow@gmail.com', NOW: baseNow };
+
+  db.users.set('teacher-sub', { sub: 'teacher-sub', email: 'teacher.allow@gmail.com', name: '陳老師', student_name: '陳老師', grade: '', class: '' });
+  db.users.set('s1-sub', { sub: 's1-sub', email: 's1@school.edu.hk', name: '阿明', student_name: '阿明', grade: '2', class: 'A' });
+  db.users.set('s2-sub', { sub: 's2-sub', email: 's2@school.edu.hk', name: '小晴', student_name: '小晴', grade: '2', class: 'A' });
+  db.users.set('s3-sub', { sub: 's3-sub', email: 's3@school.edu.hk', name: '遲到生', student_name: '遲到生', grade: '2', class: 'A' });
+  db.roster.set('s1@school.edu.hk', { email: 's1@school.edu.hk', grade: '2', class: 'A', student_name: '阿明', seat: '1' });
+  db.roster.set('s2@school.edu.hk', { email: 's2@school.edu.hk', grade: '2', class: 'A', student_name: '小晴', seat: '2' });
+  db.roster.set('s3@school.edu.hk', { email: 's3@school.edu.hk', grade: '2', class: 'A', student_name: '遲到生', seat: '3' });
+
+  const teacher = await signSessionToken({ sub: 'teacher-sub', email: 'teacher.allow@gmail.com' }, SECRET, baseNow);
+  const s1 = await signSessionToken({ sub: 's1-sub', email: 's1@school.edu.hk' }, SECRET, baseNow);
+  const s2 = await signSessionToken({ sub: 's2-sub', email: 's2@school.edu.hk' }, SECRET, baseNow);
+  const s3 = await signSessionToken({ sub: 's3-sub', email: 's3@school.edu.hk' }, SECRET, baseNow);
+
+  async function hit(token, method, path, body) {
+    const res = await worker.fetch(new Request('https://auth.example' + path, {
+      method,
+      headers: { Authorization: 'Bearer ' + token, Origin: 'http://127.0.0.1:4173', 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined
+    }), env);
+    return { status: res.status, data: await res.json() };
+  }
+
+  const echoQuiz = {
+    title: '課堂節奏跟打',
+    limitMs: 20000,
+    items: [
+      { type: 'rhythm-echo', meter: '4/4', bpm: 60, level: 'easy', bars: ['ta ti-ti ta ta'] },
+      { type: 'rhythm-echo', meter: '3/4', bpm: 84, level: 'medium', bars: ['ta ti-ti ta', 'ta ta-a'] }
+    ]
+  };
+  const saved = await hit(teacher, 'POST', '/live/quizzes', echoQuiz);
+  assert.equal(saved.status, 200);
+  assert.equal(saved.data.quiz.items[0].game, 'rhythm-echo');
+
+  const room = await hit(teacher, 'POST', '/live/rooms', { quizId: saved.data.quiz.id });
+  const code = room.data.code;
+  assert.equal((await hit(s1, 'POST', `/live/rooms/${code}/join`, { avatar: '🥁' })).status, 200);
+  assert.equal((await hit(s2, 'POST', `/live/rooms/${code}/join`, { avatar: '🎹' })).status, 200);
+
+  // Start Q0: everyone receives identical synchronized timeline
+  const q0 = await hit(teacher, 'POST', `/live/rooms/${code}/advance`, {});
+  assert.equal(q0.data.phase, 'question');
+  assert.ok(q0.data.echoTimeline);
+  const tl = q0.data.echoTimeline;
+
+  // Early tap during demo is rejected (409 too_early)
+  env.NOW = tl.demoStartAt + 500;
+  const early = await hit(s1, 'POST', `/live/rooms/${code}/tap`, { onsets: [0, 1000, 1500, 2000, 3000] });
+  assert.equal(early.status, 409);
+  assert.equal(early.data.error, 'too_early');
+
+  // Latecomer s3 joins mid-Q0 -> allowed as spectator, cannot submit Q0
+  const late = await hit(s3, 'POST', `/live/rooms/${code}/join`, { avatar: '🎺' });
+  assert.equal(late.status, 200);
+  assert.equal(late.data.spectating, true);
+
+  // s1 reconnects mid-Q0 -> preserves single identity without duplicating row
+  const rejoin = await hit(s1, 'POST', `/live/rooms/${code}/join`, { avatar: '🥁' });
+  assert.equal(rejoin.status, 200);
+  assert.equal(rejoin.data.players.length, 3);
+
+  // Move into tap window: s1 submits clock-calibrated absolute tapTimestamps (simulating +3500ms drifted client corrected by serverNow offset!)
+  env.NOW = tl.tapStartAt + 3500;
+  const clientClockOffset = 3500;
+  const rawDrifted = [0, 1000, 1500, 2000, 3000].map((rel) => (tl.tapStartAt + rel) + clientClockOffset);
+  const calibrated = rawDrifted.map((ts) => ts - clientClockOffset);
+  const tap1 = await hit(s1, 'POST', `/live/rooms/${code}/tap`, { tapTimestamps: calibrated });
+  assert.equal(tap1.status, 200);
+  assert.equal(tap1.data.yourEcho.verdict, 'correct');
+  assert.equal(tap1.data.yourEcho.beats, undefined, 'beat details stay hidden until teacher reveal');
+  assert.equal(JSON.stringify(tap1.data).includes('@'), false);
+
+  // Spectator s3 trying to tap Q0 gets 403 spectating
+  const specTap = await hit(s3, 'POST', `/live/rooms/${code}/tap`, { onsets: [0, 1000, 1500, 2000, 3000] });
+  assert.equal(specTap.status, 403);
+  assert.equal(specTap.data.error, 'spectating');
+
+  // s2 misses two beats => partial/wrong
+  const tap2 = await hit(s2, 'POST', `/live/rooms/${code}/tap`, { onsets: [0, 1000, 2000] });
+  assert.equal(tap2.status, 200);
+  assert.equal(tap2.data.yourEcho.verdict, 'partial');
+
+  // Teacher's live projection view sees instant rankings (#1 阿明) and live status grid
+  const hostLive = await hit(teacher, 'GET', `/live/rooms/${code}`);
+  assert.equal(hostLive.data.players[0].name, '阿明');
+  assert.equal(hostLive.data.players[0].roundStatus, 'correct');
+  assert.equal(hostLive.data.players.find((p) => p.name === '小晴').roundStatus, 'partial');
+  assert.equal(hostLive.data.players.find((p) => p.name === '遲到生').roundStatus, 'spectating');
+
+  // Teacher reveals Q0 -> per-beat details appear for s1 and scores lock permanently
+  const rev = await hit(teacher, 'POST', `/live/rooms/${code}/advance`, {});
+  assert.equal(rev.data.phase, 'reveal');
+  const s1Rev = await hit(s1, 'GET', `/live/rooms/${code}`);
+  assert.equal(s1Rev.data.yourEcho.beats.length, 5);
+  assert.equal(s1Rev.data.players[0].score, 1000);
+  assert.equal(s1Rev.data.players[0].correctCount, 1);
+
+  // Advance to Q1 -> latecomer s3 is no longer spectating and can tap!
+  const q1 = await hit(teacher, 'POST', `/live/rooms/${code}/advance`, {});
+  assert.equal(q1.data.index, 1);
+  env.NOW = q1.data.echoTimeline.tapStartAt + 4000;
+  const s3Q1 = await hit(s3, 'POST', `/live/rooms/${code}/tap`, {
+    onsets: expectedEchoOnsetsMs(q1.data.question.render)
+  });
+  assert.equal(s3Q1.status, 200);
+  assert.equal(s3Q1.data.spectating, false);
+  assert.equal(s3Q1.data.yourEcho.verdict, 'correct');
+
+  // Verify projection & student HTML render cleanly (no tap pad during demo, giant tap pad during tap)
+  const context = { console };
+  vm.createContext(context);
+  for (const file of ['rhythm-levels.js', 'live-quiz.js']) {
+    vm.runInContext(fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8'), context, { filename: file });
+  }
+  const projHtml = context.LiveQuiz.renderRoom(hostLive.data, { host: true, projection: true, offset: 0 });
+  assert.match(projHtml, /lq-proj-split/);
+  assert.match(projHtml, /data-live-rhythm-echo/);
+  assert.match(projHtml, /lq-roster-grid/);
+
+  const demoStudentHtml = context.LiveQuiz.renderRoom(
+    Object.assign({}, q0.data, { host: false, echoSubPhase: 'demo', echoTimeline: null }),
+    { host: false, offset: 0 }
+  );
+  assert.match(demoStudentHtml, /lq-demo-shield/);
+  assert.equal(demoStudentHtml.includes('lq-tap-pad'), false, 'no tap pad during demo');
+
+  const tapStudentHtml = context.LiveQuiz.renderRoom(
+    Object.assign({}, q0.data, { host: false, echoSubPhase: 'tap', echoTimeline: null }),
+    { host: false, offset: 0 }
+  );
+  assert.match(tapStudentHtml, /lq-tap-pad/);
 });

@@ -33,8 +33,10 @@ database_id = "688d6340-51fc-4959-8499-c1892d6b4e70"
 # Live classroom quizzes add live_quizzes, live_rooms, and live_results.
 # Apply once before a deploy that includes those routes:
 #   npx wrangler d1 execute noteschallenge-auth --remote --file=migrate-live-quiz.sql
+# 3D Music Party World rooms (/world/*) add world_rooms for cross-isolate persistence:
+#   npx wrangler d1 execute noteschallenge-auth --remote --file=migrate-world-3d.sql
 # Deploy from this directory only when the owner says so:
 #   npx wrangler deploy
-# Keep the existing d1, secret_text, and plain_text bindings.
+# Keep the existing d1, secret_text, and plain_text bindings (keep_bindings).
 # Do not change ALLOWED_EMAIL_DOMAINS, JWT_SECRET, or EXTRA_ALLOWED_EMAILS.
 # Do not set NOW. Do not set compatibility_date to "now" or Date.now().

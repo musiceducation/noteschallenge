@@ -133,8 +133,7 @@ for (const f of [
   "rhythm-surf-3d.html",
   "chord-island-3d.html",
   "world-3d-logic.js",
-  "world-3d.html",
-  "sprite-stacker-3d.html"
+  "world-3d.html"
 ]) {
   const rootPath = path.join(root, f);
   const wwwPath = path.join(root, "www", f);
@@ -143,5 +142,16 @@ for (const f of [
   }
 }
 console.log("ok", "root <-> www parity");
+
+for (const removed of [
+  "sprite-stacker-3d.html",
+  "www/sprite-stacker-3d.html",
+  "godot-music-party/scripts/SpriteStackProp.gd"
+]) {
+  if (fs.existsSync(path.join(root, removed))) {
+    fail(`removed sprite-stacking asset still exists: ${removed}`);
+  }
+}
+console.log("ok", "sprite-stacking removed");
 
 console.log("build: done");
