@@ -2589,7 +2589,9 @@ const WORLD_DEFAULT_CODES = new Set(['MUSIC1', 'MUSIC', 'PARTY', 'LOBBY', 'DEFAU
 const VALID_WORLD_MODES = new Set(['mix', 'free', 'tiles', 'piano', 'gates', 'turntable', 'freeze', 'crown']);
 const VALID_WORLD_TOPICS = new Set(['mixed', 'notes', 'rhythm', 'ear', 'terms']);
 const VALID_WORLD_LEVELS = new Set(['auto', 'basic', 'advanced']);
-const VALID_WORLD_HATS = new Set(['none', 'headphones', 'crown', 'conductor', 'star']);
+const VALID_WORLD_HATS = new Set(['none', 'headphones', 'crown', 'conductor', 'star', 'note']);
+const VALID_WORLD_PATTERNS = new Set(['solid', 'stripes', 'dots', 'star']);
+const VALID_WORLD_FACES = new Set(['happy', 'cool', 'star', 'wink']);
 const WORLD_MIX_ROTATION = ['tiles', 'piano', 'gates', 'turntable', 'crown'];
 const WORLD_MODE_TIMINGS = {
   mix: { roundSec: 10.0, revealSec: 3.0 },
@@ -3225,6 +3227,8 @@ function publicWorldPlayersList(playerRows, roomState, currentRoundKey, nowMs) {
       avatar: p.avatar || '🎵',
       skin: p.skin,
       hat: p.hat,
+      pattern: p.pattern || 'solid',
+      face: p.face || 'happy',
       x: p.x,
       y: p.y,
       z: p.z,
@@ -3404,6 +3408,8 @@ async function handleWorld3D(request, env, path, cors) {
 
     // Step 2: Update ONLY this player's row in world_players with version CAS
     const rawHat = text(safeBody.hat).toLowerCase();
+    const rawPattern = text(safeBody.pattern).toLowerCase();
+    const rawFace = text(safeBody.face).toLowerCase();
     const playerOutcome = await mutateWorldPlayerCas(env.DB, storageCode, actor.id, nowIso, (rec) => {
       const existing = rec ? rec.player : null;
       const withinGrace = existing && (nowMs - num(existing.ts) <= WORLD_ACTIVE_TTL_MS + WORLD_RECONNECT_GRACE_MS);
@@ -3418,6 +3424,8 @@ async function handleWorld3D(request, env, path, cors) {
       }
 
       const hat = VALID_WORLD_HATS.has(rawHat) ? rawHat : (existing && withinGrace ? existing.hat : 'none');
+      const pattern = VALID_WORLD_PATTERNS.has(rawPattern) ? rawPattern : (existing && withinGrace && existing.pattern ? existing.pattern : 'solid');
+      const face = VALID_WORLD_FACES.has(rawFace) ? rawFace : (existing && withinGrace && existing.face ? existing.face : 'happy');
       const skin = Number(safeBody.skin) || (existing && withinGrace ? existing.skin : 0xf59e0b);
       let pRecord;
 
@@ -3441,6 +3449,8 @@ async function handleWorld3D(request, env, path, cors) {
           clientKey: actor.clientKey,
           skin: skin,
           hat: hat,
+          pattern: pattern,
+          face: face,
           score: 0,
           streak: 0,
           awardedRounds: {},
@@ -3457,6 +3467,8 @@ async function handleWorld3D(request, env, path, cors) {
       pRecord.avatar = actor.avatar;
       pRecord.skin = skin;
       pRecord.hat = hat;
+      pRecord.pattern = pattern;
+      pRecord.face = face;
       if (safeBody.x !== undefined) pRecord.x = clampCoord(safeBody.x, -75, 75);
       else if (pRecord.x === undefined) pRecord.x = 0;
       if (safeBody.y !== undefined) pRecord.y = clampCoord(safeBody.y, -30, 50);

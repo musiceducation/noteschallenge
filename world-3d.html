@@ -488,11 +488,233 @@
       .seg-grid-4 { grid-template-columns: repeat(2, 1fr); }
       .prompt-wrap { top: max(84px, calc(env(safe-area-inset-top) + 78px)); }
     }
+
+    /* ── Fall Guys Live 3D Stage Lobby, Wardrobe Turntable & Cinematic Transitions ── */
+    body.in-lobby .hud-top,
+    body.in-lobby .board-mini,
+    body.in-lobby .touch-controls,
+    body.in-lobby .prompt-wrap {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Fast Musical Boot Splash */
+    .boot-splash {
+      position: absolute; inset: 0; z-index: 60;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+      background: linear-gradient(160deg, #0ea5e9 0%, #38bdf8 55%, #fef08a 100%);
+      color: #0f172a;
+      transition: opacity 0.36s ease, visibility 0.36s ease;
+    }
+    .boot-splash.done { opacity: 0; visibility: hidden; pointer-events: none; }
+    .boot-notes { display: flex; gap: 14px; font-size: 2.4rem; }
+    .boot-notes span { display: inline-block; animation: fg-hop 0.6s ease-in-out infinite alternate; }
+    .boot-notes span:nth-child(2) { animation-delay: 0.14s; }
+    .boot-notes span:nth-child(3) { animation-delay: 0.28s; }
+    .boot-title { font-size: clamp(1.35rem, 3.2vw, 2rem); font-weight: 900; color: #ffffff; text-shadow: 0 3px 14px rgba(15, 23, 42, 0.22); letter-spacing: 0.02em; }
+    .boot-bar { width: min(260px, 72vw); height: 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.45); overflow: hidden; padding: 2px; }
+    .boot-bar-fill { height: 100%; width: 100%; border-radius: 999px; background: linear-gradient(90deg, #ec4899 0%, #facc15 100%); animation: fg-load 0.55s ease-out forwards; transform-origin: left; }
+    @keyframes fg-hop { from { transform: translateY(0) scale(1); } to { transform: translateY(-14px) scale(1.12); } }
+    @keyframes fg-load { from { transform: scaleX(0.12); } to { transform: scaleX(1); } }
+
+    /* Live 3D Stage Shell (Transparent over WebGL canvas so 3D bean is interactive!) */
+    .fg-stage {
+      position: absolute; inset: 0; z-index: 25;
+      pointer-events: none;
+      display: flex; flex-direction: column; justify-content: space-between;
+      padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+      transition: opacity 0.28s ease;
+    }
+    .fg-stage.hidden { display: none; }
+
+    .fg-topbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+      pointer-events: none;
+    }
+    .fg-id-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; pointer-events: auto; }
+    .fg-nav-tabs {
+      pointer-events: auto;
+      display: inline-flex; align-items: center; gap: 5px;
+      background: rgba(15, 23, 42, 0.78);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      padding: 5px; border-radius: 999px;
+      border: 1.5px solid rgba(255, 255, 255, 0.32);
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.24);
+    }
+    .fg-tab {
+      border: 0; border-radius: 999px; padding: 8px 16px;
+      background: transparent; color: rgba(255, 255, 255, 0.88);
+      font: inherit; font-size: 0.86rem; font-weight: 900;
+      cursor: pointer; touch-action: manipulation; white-space: nowrap;
+      transition: background 0.14s ease, color 0.14s ease, transform 0.1s ease;
+    }
+    .fg-tab:hover { background: rgba(255, 255, 255, 0.15); color: #fff; }
+    .fg-tab.active {
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      color: var(--ink-900);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .fg-middle {
+      flex: 1; min-height: 0;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      padding: 10px 0; pointer-events: none;
+    }
+    .fg-hero-col {
+      flex: 1; height: 100%;
+      display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start;
+      pointer-events: none;
+    }
+    .fg-brand-tag {
+      background: rgba(255, 255, 255, 0.84);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border: 1.5px solid rgba(255, 255, 255, 0.94);
+      border-radius: 20px; padding: 10px 16px;
+      box-shadow: 0 12px 26px rgba(15, 23, 42, 0.12);
+      max-width: 340px;
+    }
+    .fg-brand-tag h1 { font-size: clamp(1.08rem, 2.2vw, 1.38rem); font-weight: 900; color: var(--ink-900); line-height: 1.18; }
+    .fg-brand-tag p { font-size: 0.74rem; color: var(--ink-700); font-weight: 700; margin-top: 3px; line-height: 1.38; }
+    .fg-spin-hint {
+      pointer-events: auto;
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(15, 23, 42, 0.7); color: #ffffff;
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      padding: 7px 14px; border-radius: 999px;
+      font-size: 0.76rem; font-weight: 800;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      cursor: pointer;
+    }
+    .fg-spin-hint:hover { background: rgba(15, 23, 42, 0.86); }
+
+    .fg-side-panel {
+      pointer-events: auto;
+      width: min(410px, 46vw);
+      max-height: calc(100vh - 178px);
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+      border: 1.5px solid rgba(255, 255, 255, 0.96);
+      border-radius: 26px; padding: 16px 18px;
+      box-shadow: 0 22px 52px rgba(15, 23, 42, 0.2), inset 0 1px 0 #ffffff;
+    }
+    .fg-panel-pane { display: none; }
+    .fg-panel-pane.active { display: block; }
+    .fg-pane-title { font-size: 1rem; font-weight: 900; color: var(--ink-900); margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .fg-pane-sub { font-size: 0.75rem; color: var(--ink-500); font-weight: 700; margin-bottom: 10px; line-height: 1.4; }
+
+    .fg-swatch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .fg-swatch {
+      display: flex; align-items: center; justify-content: center; gap: 5px;
+      padding: 8px 6px; border-radius: 12px;
+      border: 1.5px solid #e2e8f0; background: #ffffff; color: var(--ink-700);
+      font: inherit; font-size: 0.74rem; font-weight: 800; cursor: pointer; touch-action: manipulation;
+      transition: transform 0.1s ease, border-color 0.12s ease, background 0.12s ease;
+    }
+    .fg-swatch:hover { background: #f8fafc; transform: translateY(-1px); }
+    .fg-swatch.active { background: var(--ink-900); border-color: var(--ink-900); color: #ffffff; box-shadow: 0 4px 10px rgba(15, 23, 42, 0.18); }
+    .fg-dot { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid rgba(15, 23, 42, 0.22); flex-shrink: 0; }
+
+    .fg-qr-box {
+      display: none; margin-top: 10px; padding: 10px;
+      border-radius: 16px; background: #ffffff; border: 1.5px solid #e2e8f0;
+      text-align: center;
+    }
+    .fg-qr-box.show { display: block; }
+    .fg-qr-box img { width: 148px; height: 148px; border-radius: 10px; display: block; margin: 0 auto 6px; }
+    .fg-qr-box small { font-size: 0.72rem; color: var(--ink-500); font-weight: 700; }
+
+    .fg-show-summary {
+      margin-top: 10px; padding: 10px 12px; border-radius: 15px;
+      background: linear-gradient(135deg, #fff1f2 0%, #fef3c7 100%);
+      border: 1.5px solid rgba(236, 72, 153, 0.25);
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      font-size: 0.77rem; font-weight: 800; color: var(--ink-900);
+    }
+    .fg-link-btn {
+      border: 0; background: #ffffff; color: var(--brand-pink-dark);
+      padding: 5px 10px; border-radius: 999px; font: inherit; font-size: 0.72rem; font-weight: 900;
+      cursor: pointer; white-space: nowrap; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+    }
+
+    .fg-bottom-bar {
+      display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;
+      pointer-events: none;
+    }
+    .fg-play-btn {
+      pointer-events: auto;
+      padding: 15px 32px; border-radius: 22px; border: 3px solid #ffffff;
+      background: linear-gradient(180deg, #fde047 0%, #f59e0b 55%, #ea580c 100%);
+      color: #ffffff; font: inherit; font-size: clamp(1.06rem, 2.2vw, 1.32rem); font-weight: 900;
+      letter-spacing: 0.03em; text-shadow: 0 2px 0 rgba(124, 45, 18, 0.55);
+      box-shadow: 0 7px 0 #9a3412, 0 18px 36px rgba(234, 88, 12, 0.38);
+      cursor: pointer; touch-action: manipulation;
+      transform: skewX(-6deg);
+      transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.14s ease;
+    }
+    .fg-play-btn span { display: inline-block; transform: skewX(6deg); }
+    .fg-play-btn:hover { filter: brightness(1.05); transform: skewX(-6deg) translateY(-2px); }
+    .fg-play-btn:active { transform: skewX(-6deg) translateY(4px); box-shadow: 0 3px 0 #9a3412; }
+
+    /* Fall Guys Stage Flyover Ribbon & 3-2-1-GO Splash */
+    .stage-intro-banner {
+      position: absolute; top: 18%; left: 50%; transform: translate(-50%, -24px) skewX(-6deg) scale(0.92);
+      z-index: 22; pointer-events: none; opacity: 0;
+      background: linear-gradient(135deg, #ec4899 0%, #f59e0b 100%);
+      border: 3px solid #ffffff; border-radius: 22px;
+      padding: 12px 28px; text-align: center; color: #ffffff;
+      box-shadow: 0 20px 44px rgba(15, 23, 42, 0.32);
+      transition: opacity 0.24s ease, transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+      max-width: min(92vw, 520px);
+    }
+    .stage-intro-banner.show { opacity: 1; transform: translate(-50%, 0) skewX(-6deg) scale(1); }
+    .stage-intro-banner > div { transform: skewX(6deg); }
+    .stage-intro-kicker { font-size: 0.74rem; font-weight: 900; letter-spacing: 0.08em; opacity: 0.92; text-transform: uppercase; }
+    .stage-intro-title { font-size: clamp(1.2rem, 3.2vw, 1.75rem); font-weight: 900; text-shadow: 0 2px 6px rgba(15, 23, 42, 0.24); margin: 2px 0; }
+    .stage-intro-tip { font-size: 0.78rem; font-weight: 800; opacity: 0.95; }
+
+    .countdown-splash {
+      position: absolute; top: 44%; left: 50%; transform: translate(-50%, -50%) scale(0.5);
+      z-index: 23; pointer-events: none; opacity: 0;
+      font-size: clamp(3.4rem, 11vw, 6.2rem); font-weight: 900; color: #fde047;
+      -webkit-text-stroke: 3px #0f172a;
+      text-shadow: 0 10px 28px rgba(15, 23, 42, 0.42);
+      transition: opacity 0.16s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .countdown-splash.show { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
+    .countdown-splash.go { color: #4ade80; }
+
+    @media (max-width: 860px) {
+      .fg-middle { flex-direction: column; align-items: stretch; justify-content: flex-end; gap: 8px; }
+      .fg-hero-col { flex: 0 0 auto; align-items: center; }
+      .fg-brand-tag { display: none; }
+      .fg-side-panel { width: 100%; max-height: 44vh; padding: 13px 14px; }
+      .fg-bottom-bar { justify-content: center; }
+      .fg-play-btn { width: 100%; padding: 13px 20px; }
+      .fg-swatch-grid { grid-template-columns: repeat(4, 1fr); }
+    }
   </style>
 </head>
-<body>
+<body class="in-lobby">
   <div id="gameStage">
     <canvas id="glCanvas"></canvas>
+
+    <!-- Fast Musical Boot Splash -->
+    <div class="boot-splash" id="bootSplash" aria-live="polite">
+      <div class="boot-notes"><span>♪</span><span>♫</span><span>♬</span></div>
+      <div class="boot-title">🎪 糖豆人音樂派對世界 3D</div>
+      <div class="boot-bar"><div class="boot-bar-fill"></div></div>
+    </div>
+
+    <!-- Stage Flyover Intro Banner & 3-2-1-GO Splash -->
+    <div class="stage-intro-banner" id="stageIntroBanner" aria-live="polite">
+      <div>
+        <div class="stage-intro-kicker" id="stageIntroKicker">第 1 / 5 關 · LV.1 熱身</div>
+        <div class="stage-intro-title" id="stageIntroTitle">🟦 蜂巢地磚生存戰</div>
+        <div class="stage-intro-tip" id="stageIntroTip">聽題目跳上正確答案地磚，錯磚將墜入雲海！</div>
+      </div>
+    </div>
+    <div class="countdown-splash" id="countdownSplash" aria-live="assertive">3</div>
 
     <!-- Top HUD -->
     <header class="hud-top">
@@ -507,8 +729,9 @@
         <span class="topic-tag" id="topicBadge">🎵 綜合音樂</span>
       </div>
       <div class="hud-actions">
-        <button type="button" class="icon-btn btn-host-panel" id="btnOpenModeSwitcher">🎮 關卡／主題設定</button>
-        <button type="button" class="icon-btn bgm-on" id="btnBgm" title="120BPM 派對木琴律動開關">🎵 節拍</button>
+        <button type="button" class="icon-btn btn-host-panel" id="btnOpenModeSwitcher">🎮 關卡設定</button>
+        <button type="button" class="icon-btn" id="btnOpenLobby" title="返回 3D 試身台換裝或切換房間">👕 換裝／大廳</button>
+        <button type="button" class="icon-btn bgm-on" id="btnBgm" title="派對木琴律動開關">🎵 節拍</button>
         <button type="button" class="icon-btn" id="btnNameMode" title="切換 50 人名牌顯示範圍">🏷️ 附近</button>
         <button type="button" class="icon-btn" id="btnCamPreset" title="切換視角高度">🎥 標準</button>
         <button type="button" class="icon-btn" id="btnMute" title="全部音效開關">🔊</button>
@@ -607,77 +830,159 @@
       </div>
     </div>
 
-    <!-- Start Lobby Modal -->
-    <div class="overlay" id="startOverlay">
-      <div class="modal">
-        <h1>🎪 糖豆人音樂派對世界 3D（六大地形·50人場）</h1>
-        <p class="lead">全新 <b>巨型雙層鋼琴階梯、黑膠離心轉盤、峽谷擺錘跑道、金字塔皇冠山</b> 六大立體地形！搭配搖擺跑姿、超人飛撲、音波推推與 4 種 3D 舞步！</p>
-        <div class="status-row">
+    <!-- Fall Guys Live 3D Stage Lobby (3D Bean Interactive in Background!) -->
+    <div class="fg-stage" id="startOverlay">
+      <div class="fg-topbar">
+        <div class="fg-id-group">
           <div class="best-bar" id="playerBadge">👤 讀取學生身份中...</div>
           <div class="best-bar" id="bestScoreBadge">🏆 最高紀錄：0 分</div>
         </div>
-
-        <div class="picker-label"><span>1. 糖豆柴犬配色 &amp; 3D 音樂頭飾</span></div>
-        <div class="seg-grid-5" id="skinPicker">
-          <button type="button" class="seg-btn active" data-skin="0xf59e0b">🐕 柴犬橘</button>
-          <button type="button" class="seg-btn" data-skin="0xf472b6">🍓 草莓粉</button>
-          <button type="button" class="seg-btn" data-skin="0x38bdf8">🫐 晴空藍</button>
-          <button type="button" class="seg-btn" data-skin="0xa855f7">🍇 葡萄紫</button>
-          <button type="button" class="seg-btn" data-skin="0x10b981">🍏 薄荷綠</button>
+        <nav class="fg-nav-tabs" id="fgLobbyTabs" role="tablist" aria-label="派對大廳分頁">
+          <button type="button" class="fg-tab active" data-fgtab="lobby" role="tab" aria-selected="true">🎪 派對大廳</button>
+          <button type="button" class="fg-tab" data-fgtab="wardrobe" role="tab" aria-selected="false">👕 換裝衣櫃</button>
+          <button type="button" class="fg-tab" data-fgtab="show" role="tab" aria-selected="false">🗺️ 關卡節目</button>
+        </nav>
+        <div class="fg-id-group">
+          <a href="index.html" class="icon-btn" title="返回音樂大廳">← 主頁</a>
         </div>
-        <div class="seg-grid-5" id="hatPicker" style="margin-top:5px;">
-          <button type="button" class="seg-btn active" data-hat="headphones">🎧 耳機</button>
-          <button type="button" class="seg-btn" data-hat="crown">👑 小皇冠</button>
-          <button type="button" class="seg-btn" data-hat="conductor">🎩 指揮帽</button>
-          <button type="button" class="seg-btn" data-hat="star">🌟 星光</button>
-          <button type="button" class="seg-btn" data-hat="none">🐕 無頭飾</button>
-        </div>
+      </div>
 
-        <div class="picker-label"><span>2. 選擇初始派對地形關卡（進場後底部快捷列可一鍵切換）</span></div>
-        <div class="mode-grid" id="lobbyModePicker">
-          <button type="button" class="mode-card-btn span-full active" data-mode="mix">
-            <strong>🎡 綜藝五關皇冠秀（推薦！5 關連續體驗 5 種不同立體地形）</strong>
-            <span>蜂巢地磚 → 13鍵巨型鋼琴 → 峽谷擺錘音門 → 黑膠離心轉盤 → 決賽金字塔皇冠山！</span>
-          </button>
-          <button type="button" class="mode-card-btn" data-mode="piano">
-            <strong>🎹 巨型琴鍵階梯賽（新地形！）</strong>
-            <span>跳上白鍵一階與升降號黑鍵高階，錯鍵沉入雲海！</span>
-          </button>
-          <button type="button" class="mode-card-btn" data-mode="turntable">
-            <strong>💿 黑膠轉盤離心戰（新地形！）</strong>
-            <span>地面隨黑膠唱片旋轉帶動玩家，逆風留在正確扇區！</span>
-          </button>
-          <button type="button" class="mode-card-btn" data-mode="gates">
-            <strong>🚪 峽谷擺錘音門衝關</strong>
-            <span>閃避空中搖擺節拍大槌＋踩加速帶撞破正確拱門！</span>
-          </button>
-          <button type="button" class="mode-card-btn" data-mode="crown">
-            <strong>👑 金字塔皇冠山丘</strong>
-            <span>跳上三層階梯黃金金字塔頂端加冕＋收集雙環音球！</span>
-          </button>
-          <button type="button" class="mode-card-btn" data-mode="tiles">
-            <strong>🟦 蜂巢地磚生存戰</strong>
-            <span>3×3 巨型高空懸浮答案牌地磚，踩踏即時發聲！</span>
-          </button>
-          <button type="button" class="mode-card-btn" data-mode="freeze">
-            <strong>🥁 四島彩虹橋搶位戰</strong>
-            <span>跨越十字彩虹橋與旋轉棒，登上正確的浮空鼓島！</span>
+      <div class="fg-middle">
+        <div class="fg-hero-col">
+          <div class="fg-brand-tag">
+            <h1>🎪 糖豆人音樂派對 3D</h1>
+            <p>50 人即時同場 · 五大立體音樂地形 · 越玩越快自動升級！</p>
+          </div>
+          <button type="button" class="fg-spin-hint" id="btnSpinHop">
+            <span>👆 左右拖曳 360° 旋轉人物 · 點一下試跳揮手</span>
           </button>
         </div>
 
-        <div class="picker-label"><span>3. 房間代碼 &amp; 同場人數規模（真人加入自動替補至上限 50 人）</span></div>
-        <div class="room-row">
-          <input type="text" id="roomCodeInput" class="room-input" value="" placeholder="輸入或自動產生房間代碼" maxlength="12" aria-label="房間代碼" />
-          <button type="button" class="share-btn" id="btnShareLobby">🔗 複製 50 人房連結</button>
-        </div>
-        <div class="seg-grid-4" id="crowdPicker" style="margin-top:7px;">
-          <button type="button" class="seg-btn active" data-crowd="50">🏟️ 50人滿場</button>
-          <button type="button" class="seg-btn" data-crowd="30">🎪 30人全班</button>
-          <button type="button" class="seg-btn" data-crowd="12">🤖 12人小組</button>
-          <button type="button" class="seg-btn" data-crowd="0">👤 僅真人(上限50)</button>
-        </div>
+        <aside class="fg-side-panel" aria-label="大廳設定面板">
+          <!-- Tab 1: Lobby & Room Creation / Join -->
+          <div class="fg-panel-pane active" data-fgpane="lobby">
+            <div class="fg-pane-title">
+              <span>🚪 派對房間（開房／輸入房號）</span>
+              <button type="button" class="fg-link-btn" id="btnNewRoom">🎲 開新房</button>
+            </div>
+            <p class="fg-pane-sub">老師開房後分享連結或 QR Code，全班 iPad 一鍵跳進同一房間（課室房已受帳號保護）。</p>
+            <div class="room-row">
+              <input type="text" id="roomCodeInput" class="room-input" value="" placeholder="6碼房號" maxlength="12" aria-label="房間代碼" />
+              <button type="button" class="share-btn" id="btnShareLobby">🔗 複製連結</button>
+              <button type="button" class="share-btn" id="btnToggleQr">📱 QR</button>
+            </div>
+            <div class="fg-qr-box" id="lobbyQrWrap">
+              <img id="lobbyQrImg" alt="掃碼加入 3D 派對房間" />
+              <small>用 iPad 相機掃碼，免打房號直接入場</small>
+            </div>
 
-        <button type="button" class="primary-btn" id="btnEnterWorld">▶ 跳進 50 人 3D 音樂派對世界！</button>
+            <div class="picker-label"><span>👥 同場人數規模（真人加入自動替補至 50 人）</span></div>
+            <div class="seg-grid-4" id="crowdPicker">
+              <button type="button" class="seg-btn active" data-crowd="50">🏟️ 50人</button>
+              <button type="button" class="seg-btn" data-crowd="30">🎪 30人</button>
+              <button type="button" class="seg-btn" data-crowd="12">🤖 12人</button>
+              <button type="button" class="seg-btn" data-crowd="0">👤 僅真人</button>
+            </div>
+
+            <div class="fg-show-summary">
+              <span id="lobbyModeSummary">🎡 綜藝五關皇冠秀（自動加速）</span>
+              <button type="button" class="fg-link-btn" id="btnGoShowTab">切換關卡 →</button>
+            </div>
+          </div>
+
+          <!-- Tab 2: Live 360° Character Wardrobe -->
+          <div class="fg-panel-pane" data-fgpane="wardrobe">
+            <div class="fg-pane-title"><span>👕 糖豆造型衣櫃（即時 3D 試穿）</span></div>
+            <p class="fg-pane-sub">配色、花紋、頭飾與表情會自動儲存，並即時同步給同房 50 位同學！</p>
+
+            <div class="picker-label"><span>1. 糖豆主色</span></div>
+            <div class="fg-swatch-grid" id="skinPicker">
+              <button type="button" class="fg-swatch active" data-skin="0xf59e0b"><i class="fg-dot" style="background:#f59e0b"></i>柴犬橘</button>
+              <button type="button" class="fg-swatch" data-skin="0xf472b6"><i class="fg-dot" style="background:#f472b6"></i>草莓粉</button>
+              <button type="button" class="fg-swatch" data-skin="0x38bdf8"><i class="fg-dot" style="background:#38bdf8"></i>晴空藍</button>
+              <button type="button" class="fg-swatch" data-skin="0xa855f7"><i class="fg-dot" style="background:#a855f7"></i>葡萄紫</button>
+              <button type="button" class="fg-swatch" data-skin="0x10b981"><i class="fg-dot" style="background:#10b981"></i>薄荷綠</button>
+              <button type="button" class="fg-swatch" data-skin="0xfacc15"><i class="fg-dot" style="background:#facc15"></i>芒果黃</button>
+              <button type="button" class="fg-swatch" data-skin="0xfb7185"><i class="fg-dot" style="background:#fb7185"></i>珊瑚紅</button>
+              <button type="button" class="fg-swatch" data-skin="0xf8fafc"><i class="fg-dot" style="background:#f8fafc"></i>雲朵白</button>
+            </div>
+
+            <div class="picker-label"><span>2. 身體花紋</span></div>
+            <div class="seg-grid-4" id="patternPicker">
+              <button type="button" class="seg-btn active" data-pattern="solid">✨ 純色</button>
+              <button type="button" class="seg-btn" data-pattern="stripes">🦓 條紋</button>
+              <button type="button" class="seg-btn" data-pattern="dots">🫧 波點</button>
+              <button type="button" class="seg-btn" data-pattern="star">🌟 星光</button>
+            </div>
+
+            <div class="picker-label"><span>3. 3D 音樂頭飾</span></div>
+            <div class="seg-grid-3" id="hatPicker">
+              <button type="button" class="seg-btn active" data-hat="headphones">🎧 耳機</button>
+              <button type="button" class="seg-btn" data-hat="crown">👑 皇冠</button>
+              <button type="button" class="seg-btn" data-hat="conductor">🎩 指揮帽</button>
+              <button type="button" class="seg-btn" data-hat="star">🌟 星光</button>
+              <button type="button" class="seg-btn" data-hat="note">🎵 音符</button>
+              <button type="button" class="seg-btn" data-hat="none">🐕 無頭飾</button>
+            </div>
+
+            <div class="picker-label"><span>4. 表情臉譜</span></div>
+            <div class="seg-grid-4" id="facePicker">
+              <button type="button" class="seg-btn active" data-face="happy">😊 笑眼</button>
+              <button type="button" class="seg-btn" data-face="cool">😎 墨鏡</button>
+              <button type="button" class="seg-btn" data-face="star">🤩 星眼</button>
+              <button type="button" class="seg-btn" data-face="wink">😉 眨眼</button>
+            </div>
+
+            <div class="picker-label"><span>5. 慶祝舞步試跳</span></div>
+            <div class="seg-grid-4" id="dancePreviewPicker">
+              <button type="button" class="seg-btn" data-dance="1">🎵 芭蕾</button>
+              <button type="button" class="seg-btn" data-dance="2">🔥 搖滾</button>
+              <button type="button" class="seg-btn" data-dance="3">🎉 後空翻</button>
+              <button type="button" class="seg-btn" data-dance="4">👋 揮手</button>
+            </div>
+          </div>
+
+          <!-- Tab 3: Show & Arena Selector -->
+          <div class="fg-panel-pane" data-fgpane="show">
+            <div class="fg-pane-title"><span>🗺️ 選擇派對節目與立體地形</span></div>
+            <p class="fg-pane-sub">無需手動選難度：每回合自動越跑越快、題目自動升級，進場後底部亦可一鍵切換！</p>
+            <div class="mode-grid" id="lobbyModePicker">
+              <button type="button" class="mode-card-btn span-full active" data-mode="mix">
+                <strong>🎡 綜藝五關皇冠秀（推薦！5 關連續飛越 5 種地形）</strong>
+                <span>蜂巢磚 → 13鍵鋼琴 → 擺錘音門 → 黑膠轉盤 → 決賽金字塔皇冠山！</span>
+              </button>
+              <button type="button" class="mode-card-btn" data-mode="piano">
+                <strong>🎹 巨型琴鍵階梯賽</strong>
+                <span>白鍵一階＋升降黑鍵高階，錯鍵沉入雲海！</span>
+              </button>
+              <button type="button" class="mode-card-btn" data-mode="turntable">
+                <strong>💿 黑膠轉盤離心戰</strong>
+                <span>地面旋轉帶動位移，逆風搶佔正確扇區！</span>
+              </button>
+              <button type="button" class="mode-card-btn" data-mode="gates">
+                <strong>🚪 峽谷擺錘音門衝關</strong>
+                <span>閃避搖擺節拍大槌＋加速帶撞破拱門！</span>
+              </button>
+              <button type="button" class="mode-card-btn" data-mode="crown">
+                <strong>👑 金字塔皇冠山丘</strong>
+                <span>跳上三層黃金金字塔加冕＋收集音球！</span>
+              </button>
+              <button type="button" class="mode-card-btn" data-mode="tiles">
+                <strong>🟦 蜂巢地磚生存戰</strong>
+                <span>3×3 高空懸浮答案牌地磚，踩踏發聲！</span>
+              </button>
+              <button type="button" class="mode-card-btn" data-mode="freeze">
+                <strong>🥁 四島彩虹橋搶位戰</strong>
+                <span>跨越十字彩虹橋與旋轉棒，登上浮空鼓島！</span>
+              </button>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div class="fg-bottom-bar">
+        <div></div>
+        <button type="button" class="fg-play-btn" id="btnEnterWorld"><span>▶ 開始派對！跳進 3D 舞台</span></button>
       </div>
     </div>
 
@@ -1158,10 +1463,56 @@
     };
 
     const COAT_MAT_POOL = new Map();
-    function getCoatMat(hex) {
-      const key = Number(hex) || 0xf59e0b;
+    function makePatternCoatTex(hex, pattern) {
+      const c = document.createElement('canvas');
+      c.width = 128; c.height = 128;
+      const ctx = c.getContext('2d');
+      const baseCss = '#' + (Number(hex) || 0xf59e0b).toString(16).padStart(6, '0');
+      ctx.fillStyle = baseCss;
+      ctx.fillRect(0, 0, 128, 128);
+      if (pattern === 'stripes') {
+        ctx.fillStyle = 'rgba(255,255,255,0.34)';
+        for (let y = 0; y < 128; y += 26) ctx.fillRect(0, y, 128, 11);
+      } else if (pattern === 'dots') {
+        ctx.fillStyle = 'rgba(255,255,255,0.42)';
+        for (let y = 14; y < 128; y += 30) {
+          for (let x = 14; x < 128; x += 30) {
+            ctx.beginPath();
+            ctx.arc(x + ((y / 30) % 2) * 14, y, 7.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      } else if (pattern === 'star') {
+        const g = ctx.createLinearGradient(0, 0, 0, 128);
+        g.addColorStop(0, 'rgba(255,255,255,0.42)');
+        g.addColorStop(0.55, 'rgba(255,255,255,0.0)');
+        g.addColorStop(1, 'rgba(15,23,42,0.18)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, 128, 128);
+        ctx.fillStyle = 'rgba(254,240,138,0.88)';
+        ctx.font = 'bold 26px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('★', 32, 34);
+        ctx.fillText('✦', 94, 46);
+        ctx.fillText('★', 66, 92);
+        ctx.fillText('✦', 24, 102);
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.userData = { keepTex: true };
+      return tex;
+    }
+    function getCoatMat(hex, pattern) {
+      const colorNum = Number(hex) || 0xf59e0b;
+      const pat = (pattern === 'stripes' || pattern === 'dots' || pattern === 'star') ? pattern : 'solid';
+      const key = colorNum + '_' + pat;
       if (!COAT_MAT_POOL.has(key)) {
-        COAT_MAT_POOL.set(key, regMat(new THREE.MeshStandardMaterial({ color: key, roughness: 0.34, metalness: 0.06 })));
+        const mat = pat === 'solid'
+          ? new THREE.MeshStandardMaterial({ color: colorNum, roughness: 0.34, metalness: 0.06 })
+          : new THREE.MeshStandardMaterial({ map: makePatternCoatTex(colorNum, pat), roughness: 0.32, metalness: 0.08 });
+        COAT_MAT_POOL.set(key, regMat(mat));
       }
       return COAT_MAT_POOL.get(key);
     }
@@ -1217,6 +1568,36 @@
         const orb = new THREE.Mesh(GEO.starOrb, MAT.star);
         orb.position.y = 2.32;
         g.add(stem, orb);
+      } else if (hatType === 'note') {
+        const stem = new THREE.Mesh(GEO.starStem, MAT.pink);
+        stem.position.set(0.05, 2.18, 0);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), MAT.pink);
+        head.scale.set(1.2, 0.9, 0.9);
+        head.position.set(-0.04, 2.02, 0);
+        const flag = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.08, 0.06), MAT.gold);
+        flag.position.set(0.16, 2.34, 0);
+        flag.rotation.z = -0.35;
+        g.add(stem, head, flag);
+      }
+      return g;
+    }
+
+    function buildFaceOverlay(faceType) {
+      const g = new THREE.Group();
+      if (faceType === 'cool') {
+        const lensL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.08), MAT.dark);
+        lensL.position.set(-0.17, 1.42, 0.54);
+        const lensR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.08), MAT.dark);
+        lensR.position.set(0.17, 1.42, 0.54);
+        const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.06), MAT.gold);
+        bridge.position.set(0, 1.44, 0.55);
+        g.add(lensL, lensR, bridge);
+      } else if (faceType === 'star') {
+        const starL = new THREE.Mesh(new THREE.OctahedronGeometry(0.09, 0), MAT.star);
+        starL.position.set(-0.17, 1.42, 0.52);
+        const starR = new THREE.Mesh(new THREE.OctahedronGeometry(0.09, 0), MAT.star);
+        starR.position.set(0.17, 1.42, 0.52);
+        g.add(starL, starR);
       }
       return g;
     }
@@ -1240,12 +1621,15 @@
       return sp;
     }
 
-    function createBeanCharacter(skinHex, name, isMe, hatType) {
+    function createBeanCharacter(skinHex, name, isMe, hatType, patternType, faceType) {
       const root = new THREE.Group();
       const bodyGroup = new THREE.Group();
       root.add(bodyGroup);
 
-      let coatMat = getCoatMat(skinHex);
+      let curSkin = Number(skinHex) || 0xf59e0b;
+      let curPattern = patternType || 'solid';
+      let curFace = faceType || 'happy';
+      let coatMat = getCoatMat(curSkin, curPattern);
 
       const blob = new THREE.Mesh(GEO.blobShadow, MAT.blobShadow);
       blob.rotation.x = -Math.PI / 2;
@@ -1304,6 +1688,10 @@
       let hatGroup = buildHatMesh(hatType || 'none');
       bodyGroup.add(hatGroup);
 
+      let faceOverlay = buildFaceOverlay(curFace);
+      bodyGroup.add(faceOverlay);
+      if (curFace === 'wink') eyeR.scale.set(1.2, 0.25, 1);
+
       const aura = new THREE.Mesh(GEO.aura, MAT.aura);
       aura.rotation.x = Math.PI / 2;
       aura.position.y = 0.12;
@@ -1321,12 +1709,39 @@
       emoteSprite.visible = false;
       root.add(emoteSprite);
 
+      function applyCoat() {
+        coatMat = getCoatMat(curSkin, curPattern);
+        coatParts.forEach(p => { p.material = coatMat; });
+      }
+
       return {
         root, bodyGroup, blob, armL, armR, earL, earR, footL, footR, aura, nameSprite, emoteSprite,
         hatType: hatType || 'none',
+        patternType: curPattern,
+        faceType: curFace,
         setSkin(hex) {
-          coatMat = getCoatMat(hex);
-          coatParts.forEach(p => { p.material = coatMat; });
+          curSkin = Number(hex) || 0xf59e0b;
+          applyCoat();
+        },
+        setPattern(nextPat) {
+          const norm = nextPat || 'solid';
+          if (curPattern === norm) return;
+          curPattern = norm;
+          this.patternType = norm;
+          applyCoat();
+        },
+        setFace(nextFace) {
+          const norm = nextFace || 'happy';
+          if (curFace === norm) return;
+          curFace = norm;
+          this.faceType = norm;
+          bodyGroup.remove(faceOverlay);
+          disposeObject3D(faceOverlay);
+          faceOverlay = buildFaceOverlay(norm);
+          bodyGroup.add(faceOverlay);
+          eyeL.visible = norm !== 'star';
+          eyeR.visible = norm !== 'star';
+          eyeR.scale.set(norm === 'wink' ? 1.2 : 1, norm === 'wink' ? 0.25 : 1, 1);
         },
         setHat(nextHat) {
           if (this.hatType === nextHat) return;
@@ -1338,6 +1753,31 @@
         }
       };
     }
+
+    // Glowing Fall Guys 3D Showcase Podium (visible in Lobby & Wardrobe!)
+    const lobbyPodiumGroup = new THREE.Group();
+    const podBase = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.35, 2.75, 0.42, 36),
+      new THREE.MeshStandardMaterial({ color: 0xec4899, emissive: 0x9d174d, emissiveIntensity: 0.22, roughness: 0.28 })
+    );
+    podBase.position.y = 0.21;
+    podBase.receiveShadow = true;
+    const podTop = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.15, 2.15, 0.08, 36),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x38bdf8, emissiveIntensity: 0.18, roughness: 0.22 })
+    );
+    podTop.position.y = 0.43;
+    const podRing = new THREE.Mesh(new THREE.TorusGeometry(2.38, 0.11, 10, 48), MAT.gold);
+    podRing.rotation.x = Math.PI / 2;
+    podRing.position.y = 0.42;
+    lobbyPodiumGroup.add(podBase, podTop, podRing);
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      const orb = new THREE.Mesh(new THREE.OctahedronGeometry(0.18, 0), MAT.star);
+      orb.position.set(Math.cos(a) * 2.7, 1.0 + (i % 2) * 0.45, Math.sin(a) * 2.7);
+      lobbyPodiumGroup.add(orb);
+    }
+    scene.add(lobbyPodiumGroup);
 
     // =========================================================================
     // 5. CHECKERED SKY STADIUM, SHOCKWAVE POOL, PARTICLES & PERIMETER PROPS
@@ -1924,15 +2364,39 @@
     const mySlotIndex = Logic.hashSeed(myClientId + myDisplayName) % 50;
     const initSpawn = Logic.computeSpawnSlot(mySlotIndex, 'tiles');
 
+    const WARDROBE_KEY = 'ncWorld3dWardrobeV1';
+    function readSavedWardrobe() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(WARDROBE_KEY) || '{}');
+        return {
+          skin: Number(raw.skin) || 0xf59e0b,
+          hat: typeof raw.hat === 'string' ? raw.hat : 'headphones',
+          pattern: typeof raw.pattern === 'string' ? raw.pattern : 'solid',
+          face: typeof raw.face === 'string' ? raw.face : 'happy'
+        };
+      } catch (e) {
+        return { skin: 0xf59e0b, hat: 'headphones', pattern: 'solid', face: 'happy' };
+      }
+    }
+    function saveWardrobe() {
+      try {
+        localStorage.setItem(WARDROBE_KEY, JSON.stringify({
+          skin: player.skin, hat: player.hat, pattern: player.pattern, face: player.face
+        }));
+      } catch (e) {}
+    }
+    const savedLook = readSavedWardrobe();
+
     const player = {
-      id: myClientId, name: myDisplayName, isMe: true, skin: 0xf59e0b, hat: 'headphones',
-      x: initSpawn.x, y: 0, z: initSpawn.z, vx: 0, vy: 0, vz: 0, yaw: initSpawn.yaw,
+      id: myClientId, name: myDisplayName, isMe: true,
+      skin: savedLook.skin, hat: savedLook.hat, pattern: savedLook.pattern, face: savedLook.face,
+      x: 0, y: 0.46, z: 0, vx: 0, vy: 0, vz: 0, yaw: 0,
       diveTimer: 0, tumbleTimer: 0, boopCooldown: 0, boostCooldown: 0,
       coyoteTimer: 0, jumpBufferTimer: 0,
-      danceType: 0, danceTimer: 0,
+      danceType: 4, danceTimer: 1.6,
       lastStandingLabel: '',
       squashY: 1, emote: '', emoteTimer: 0,
-      model: createBeanCharacter(0xf59e0b, myDisplayName, true, 'headphones')
+      model: createBeanCharacter(savedLook.skin, myDisplayName, true, savedLook.hat, savedLook.pattern, savedLook.face)
     };
     player.model.root.position.set(player.x, player.y, player.z);
     scene.add(player.model.root);
@@ -1983,6 +2447,14 @@
 
     const state = {
       started: false,
+      hasEnteredOnce: false,
+      lobbyTab: 'lobby',
+      lobbySpinYaw: 0.25,
+      flyoverTimer: 0,
+      flyoverTotal: 1.75,
+      lastFlyoverMode: '',
+      camShake: 0,
+      feverSparkleTimer: 0,
       targetCrowd: initCrowd,
       modeState: {
         mode: initMode,
@@ -2241,7 +2713,59 @@
       });
     }
 
+    const STAGE_INTRO_TIPS = {
+      tiles: '跳上正確答案高空地磚，錯誤地磚會直接墜落雲海！',
+      piano: '跳上對應白鍵或二層黑鍵，踩錯琴鍵將沉沒！',
+      gates: '閃避擺錘大槌、踩加速帶撞破正確音樂拱門！',
+      turntable: '地面隨黑膠唱片旋轉帶動位移，逆風搶佔正確扇區！',
+      freeze: '跨越十字彩虹橋與旋轉棒，登上正確浮空鼓島！',
+      crown: '攀上三層黃金金字塔頂端加冕，並收集藍色音符球！',
+      free: '自由探索十鍵彩虹鋼琴橋、彈跳鼓與三大音樂傳送門！'
+    };
+    let stageIntroTimer = 0;
+    function triggerStageFlyover(roundInfo, withCountdown) {
+      const eff = roundInfo.effectiveMode || state.effectiveMode;
+      const mCfg = Logic.MODE_CONFIG[eff] || Logic.MODE_CONFIG.tiles;
+      const esc = roundInfo.escalation || state.escalation || Logic.ESCALATION_TIERS[0];
+      const kickerPrefix = state.modeState.mode === 'mix' ? `第 ${roundInfo.showRound || 1} / 5 關 · ` : '';
+      document.getElementById('stageIntroKicker').textContent = `${kickerPrefix}${esc.label}${roundInfo.isFinale ? ' · 👑 決賽雙倍分' : ''}`;
+      document.getElementById('stageIntroTitle').textContent = mCfg.name;
+      document.getElementById('stageIntroTip').textContent = STAGE_INTRO_TIPS[eff] || STAGE_INTRO_TIPS.tiles;
+      const bannerEl = document.getElementById('stageIntroBanner');
+      bannerEl.classList.add('show');
+      clearTimeout(stageIntroTimer);
+      stageIntroTimer = setTimeout(() => bannerEl.classList.remove('show'), 2100);
+      state.flyoverTotal = 1.65;
+      state.flyoverTimer = 1.65;
+      state.lastFlyoverMode = eff;
+      if (withCountdown) runCountdownSplash();
+    }
+
+    let countdownTimers = [];
+    function runCountdownSplash() {
+      countdownTimers.forEach(clearTimeout);
+      countdownTimers = [];
+      const el = document.getElementById('countdownSplash');
+      const steps = [
+        { txt: '3', freq: 523.25, delay: 120, go: false },
+        { txt: '2', freq: 587.33, delay: 620, go: false },
+        { txt: '1', freq: 659.25, delay: 1120, go: false },
+        { txt: '衝呀！', freq: 1046.5, delay: 1600, go: true }
+      ];
+      steps.forEach((st) => {
+        countdownTimers.push(setTimeout(() => {
+          el.textContent = st.txt;
+          el.classList.toggle('go', st.go);
+          el.classList.add('show');
+          playTone(st.freq, st.go ? 0.24 : 0.12, st.go ? 'triangle' : 'sine', 0.14, 0);
+          if (st.go) spawnBurst(player.x, player.y + 1.4, player.z, 18);
+          countdownTimers.push(setTimeout(() => el.classList.remove('show'), st.go ? 520 : 380));
+        }, st.delay));
+      });
+    }
+
     function enterNewSyncedRound(roundInfo) {
+      const prevEff = state.effectiveMode;
       state.effectiveMode = roundInfo.effectiveMode;
       state.showRound = roundInfo.showRound;
       state.showNumber = roundInfo.showNumber;
@@ -2261,6 +2785,7 @@
         promptWrap.classList.add('is-hidden');
         drawMiniStaff(null);
         state.currentChallenge = null;
+        if (state.lastFlyoverMode !== 'free') triggerStageFlyover(roundInfo, false);
         return;
       }
 
@@ -2283,18 +2808,19 @@
       drawMiniStaff(ch);
       playQuestionAudio(ch);
 
+      const layoutChanged = state.lastFlyoverMode !== state.effectiveMode || prevEff !== state.effectiveMode;
       if (state.effectiveMode === 'tiles') {
         buildTilesArena(ch.options, ch.ans);
       } else if (state.effectiveMode === 'piano') {
         if (roundInfo.phase === 'countdown') {
           const sp = Logic.computeSpawnSlot(mySlotIndex, 'piano');
-          player.x = sp.x; player.z = sp.z; player.y = 0; player.vx = 0; player.vz = 0; player.yaw = sp.yaw;
+          player.x = sp.x; player.z = sp.z; player.y = layoutChanged ? 6.5 : 0.4; player.vx = 0; player.vy = 0; player.vz = 0; player.yaw = sp.yaw;
         }
         buildPianoStageArena(ch.targetKeyId);
       } else if (state.effectiveMode === 'gates') {
         if (roundInfo.phase === 'countdown') {
           const sp = Logic.computeSpawnSlot(mySlotIndex, 'gates');
-          player.x = sp.x; player.z = sp.z; player.y = 0; player.vx = 0; player.vz = 0; player.yaw = sp.yaw;
+          player.x = sp.x; player.z = sp.z; player.y = layoutChanged ? 6.5 : 0.4; player.vx = 0; player.vy = 0; player.vz = 0; player.yaw = sp.yaw;
         }
         buildGatesArena(ch.options, ch.ans);
       } else if (state.effectiveMode === 'turntable') {
@@ -2303,6 +2829,9 @@
         buildFreezeZonesArena(ch.options, ch.ans);
       } else if (state.effectiveMode === 'crown') {
         buildCrownArena(ch.orbs);
+      }
+      if (layoutChanged) {
+        triggerStageFlyover(roundInfo, false);
       }
       assignBotTargetsForChallenge(ch);
     }
@@ -2557,8 +3086,12 @@
         return;
       }
       if (!state.camDragging) return;
-      state.targetCamYaw += (e.clientX - state.lastDragX) * 0.008;
-      state.camPitch = Math.max(0.22, Math.min(1.15, state.camPitch + (e.clientY - state.lastDragY) * 0.005));
+      if (!state.started) {
+        state.lobbySpinYaw += (e.clientX - state.lastDragX) * 0.014;
+      } else {
+        state.targetCamYaw += (e.clientX - state.lastDragX) * 0.008;
+        state.camPitch = Math.max(0.22, Math.min(1.15, state.camPitch + (e.clientY - state.lastDragY) * 0.005));
+      }
       state.lastDragX = e.clientX;
       state.lastDragY = e.clientY;
     });
@@ -2715,7 +3248,7 @@
       if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') state.keys.d = false;
     });
 
-    function copyRoomInviteLink() {
+    function buildRoomInviteUrl() {
       const room = getActiveRoomCode();
       const u = new URL(window.location.href);
       u.searchParams.set('room', room);
@@ -2723,8 +3256,22 @@
       u.searchParams.set('topic', state.modeState.topic);
       u.searchParams.set('level', state.modeState.level);
       u.searchParams.set('crowd', String(state.targetCrowd));
+      return { room, url: u.toString() };
+    }
+    function refreshLobbyQr() {
+      const wrap = document.getElementById('lobbyQrWrap');
+      if (!wrap || !wrap.classList.contains('show')) return;
+      const { url } = buildRoomInviteUrl();
+      const img = document.getElementById('lobbyQrImg');
+      if (img) {
+        img.onerror = () => { wrap.classList.remove('show'); };
+        img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=8&data=' + encodeURIComponent(url);
+      }
+    }
+    function copyRoomInviteLink() {
+      const { room, url } = buildRoomInviteUrl();
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(u.toString()).then(() => showBanner(`🔗 已複製 50 人房間 ${room} 連結！`, 'info')).catch(() => {});
+        navigator.clipboard.writeText(url).then(() => showBanner(`🔗 已複製 50 人房間 ${room} 連結！`, 'info')).catch(() => {});
       } else {
         showBanner(`房間代碼：${room}`, 'info');
       }
@@ -2732,26 +3279,129 @@
     document.getElementById('btnShareLobby').addEventListener('click', copyRoomInviteLink);
     document.getElementById('btnCopyRoomMini').addEventListener('click', copyRoomInviteLink);
 
+    function celebrateWardrobeChange(danceType) {
+      unlockAudio();
+      player.squashY = 1.28;
+      player.danceType = danceType || 4;
+      player.danceTimer = 1.4;
+      spawnBurst(player.x, player.y + 1.5, player.z, 12);
+      playTone(783.99, 0.1, 'triangle', 0.1, 0);
+      playTone(1046.5, 0.13, 'sine', 0.09, 0.05);
+      saveWardrobe();
+    }
+
+    function setLobbyTab(tabName) {
+      state.lobbyTab = tabName || 'lobby';
+      document.querySelectorAll('#fgLobbyTabs .fg-tab').forEach((btn) => {
+        const on = btn.dataset.fgtab === state.lobbyTab;
+        btn.classList.toggle('active', on);
+        btn.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      document.querySelectorAll('[data-fgpane]').forEach((pane) => {
+        pane.classList.toggle('active', pane.dataset.fgpane === state.lobbyTab);
+      });
+    }
+    document.getElementById('fgLobbyTabs').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-fgtab]');
+      if (!btn) return;
+      unlockAudio();
+      setLobbyTab(btn.dataset.fgtab);
+    });
+    document.getElementById('btnGoShowTab').addEventListener('click', () => setLobbyTab('show'));
+    document.getElementById('btnSpinHop').addEventListener('click', () => {
+      celebrateWardrobeChange((Math.floor(Math.random() * 4)) + 1);
+    });
+
+    document.getElementById('btnNewRoom').addEventListener('click', () => {
+      unlockAudio();
+      const fresh = makeFreshWorldRoomCode();
+      document.getElementById('roomCodeInput').value = fresh;
+      document.getElementById('roomTagMini').textContent = fresh;
+      try { sessionStorage.setItem('ncWorld3dRoomCode', fresh); } catch (e) {}
+      refreshLobbyQr();
+      showBanner(`🎲 已開啟新房間：${fresh}`, 'info');
+    });
+    document.getElementById('btnToggleQr').addEventListener('click', () => {
+      const wrap = document.getElementById('lobbyQrWrap');
+      wrap.classList.toggle('show');
+      refreshLobbyQr();
+    });
+    document.getElementById('roomCodeInput').addEventListener('input', () => {
+      refreshLobbyQr();
+    });
+
+    function syncWardrobeSelectionUI() {
+      document.querySelectorAll('#skinPicker .fg-swatch').forEach((b) => {
+        b.classList.toggle('active', parseInt(b.dataset.skin, 16) === player.skin);
+      });
+      document.querySelectorAll('#patternPicker .seg-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.pattern === player.pattern);
+      });
+      document.querySelectorAll('#hatPicker .seg-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.hat === player.hat);
+      });
+      document.querySelectorAll('#facePicker .seg-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.face === player.face);
+      });
+    }
+    syncWardrobeSelectionUI();
+
     document.getElementById('skinPicker').addEventListener('click', (e) => {
       const btn = e.target.closest('[data-skin]');
       if (!btn) return;
-      document.querySelectorAll('#skinPicker .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
       player.skin = parseInt(btn.dataset.skin, 16);
       player.model.setSkin(player.skin);
+      syncWardrobeSelectionUI();
+      celebrateWardrobeChange(4);
+    });
+    document.getElementById('patternPicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-pattern]');
+      if (!btn) return;
+      player.pattern = btn.dataset.pattern;
+      player.model.setPattern(player.pattern);
+      syncWardrobeSelectionUI();
+      celebrateWardrobeChange(1);
     });
     document.getElementById('hatPicker').addEventListener('click', (e) => {
       const btn = e.target.closest('[data-hat]');
       if (!btn) return;
-      document.querySelectorAll('#hatPicker .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
       player.hat = btn.dataset.hat;
       player.model.setHat(player.hat);
+      syncWardrobeSelectionUI();
+      celebrateWardrobeChange(3);
     });
+    document.getElementById('facePicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-face]');
+      if (!btn) return;
+      player.face = btn.dataset.face;
+      player.model.setFace(player.face);
+      syncWardrobeSelectionUI();
+      celebrateWardrobeChange(4);
+    });
+    document.getElementById('dancePreviewPicker').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-dance]');
+      if (!btn) return;
+      const dNum = parseInt(btn.dataset.dance, 10) || 1;
+      const preset = DANCE_PRESETS[(dNum - 1) % DANCE_PRESETS.length];
+      showCharacterEmote(player.model, preset.icon);
+      player.emoteTimer = 2.0;
+      celebrateWardrobeChange(dNum);
+    });
+
+    function syncLobbyModeSummary() {
+      const mCfg = Logic.MODE_CONFIG[state.modeState.mode] || Logic.MODE_CONFIG.mix;
+      const el = document.getElementById('lobbyModeSummary');
+      if (el) el.textContent = `${mCfg.name}（自動加速）`;
+    }
+    syncLobbyModeSummary();
+
     document.getElementById('lobbyModePicker').addEventListener('click', (e) => {
       const btn = e.target.closest('[data-mode]');
       if (!btn) return;
       state.modeState.mode = btn.dataset.mode;
       document.querySelectorAll('#lobbyModePicker .mode-card-btn').forEach(b => b.classList.toggle('active', b === btn));
       syncQuickDockSelection();
+      syncLobbyModeSummary();
     });
     document.getElementById('crowdPicker').addEventListener('click', (e) => {
       const btn = e.target.closest('[data-crowd]');
@@ -2760,20 +3410,44 @@
       document.querySelectorAll('#crowdPicker .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
     });
 
+    function returnToLobbyShowcase(tab) {
+      state.started = false;
+      document.body.classList.add('in-lobby');
+      lobbyPodiumGroup.visible = true;
+      clearModeArena();
+      player.x = 0; player.y = 0.46; player.z = 0;
+      player.vx = 0; player.vy = 0; player.vz = 0;
+      player.danceType = 4; player.danceTimer = 1.6;
+      setLobbyTab(tab || 'wardrobe');
+      document.getElementById('startOverlay').classList.remove('hidden');
+    }
+    document.getElementById('btnOpenLobby').addEventListener('click', () => returnToLobbyShowcase('wardrobe'));
+
     document.getElementById('btnEnterWorld').addEventListener('click', () => {
       unlockAudio();
       const room = getActiveRoomCode();
       document.getElementById('roomCodeInput').value = room;
       document.getElementById('roomTagMini').textContent = room;
+      const firstLaunch = !state.hasEnteredOnce;
+      state.hasEnteredOnce = true;
       state.modeState.epochMs = Date.now() + state.clockOffsetMs;
       state.modeState.seed = Logic.hashSeed(room + '_' + Date.now());
       state.started = true;
       state.kicked = false;
       state.authBlocked = false;
       state.activeRoundKey = '';
+      state.lastFlyoverMode = '';
+      lobbyPodiumGroup.visible = false;
+      document.body.classList.remove('in-lobby');
       document.getElementById('startOverlay').classList.add('hidden');
+      // Fall Guys Cloud-Drop Spawn!
+      const sp = Logic.computeSpawnSlot(mySlotIndex, state.modeState.mode === 'mix' ? 'tiles' : state.modeState.mode);
+      player.x = sp.x; player.y = 7.2; player.z = sp.z;
+      player.vx = 0; player.vy = 0; player.vz = 0; player.yaw = sp.yaw;
+      player.danceTimer = 0;
       reconcileBotPool();
       renderLeaderboards();
+      if (firstLaunch) runCountdownSplash();
       pollWorldSync(true);
     });
 
@@ -2907,7 +3581,8 @@
       try {
         const room = getActiveRoomCode();
         const payload = {
-          room, id: myClientId, clientKey: myClientKey, name: player.name, skin: player.skin, hat: player.hat,
+          room, id: myClientId, clientKey: myClientKey, name: player.name,
+          skin: player.skin, hat: player.hat, pattern: player.pattern, face: player.face,
           x: Number(player.x.toFixed(2)), y: Number(player.y.toFixed(2)), z: Number(player.z.toFixed(2)),
           vx: Number(player.vx.toFixed(2)), vz: Number(player.vz.toFixed(2)),
           yaw: Number(player.yaw.toFixed(2)), dive: player.diveTimer > 0,
@@ -3017,12 +3692,14 @@
           seen.add(p.id);
           let rp = remotePlayers.get(p.id);
           if (!rp) {
-            const model = createBeanCharacter(p.skin || 0x38bdf8, p.name || '同學', false, p.hat || 'none');
+            const model = createBeanCharacter(p.skin || 0x38bdf8, p.name || '同學', false, p.hat || 'none', p.pattern || 'solid', p.face || 'happy');
             scene.add(model.root);
+            spawnBurst(p.x || 0, 1.5, p.z || 12, 10);
             rp = {
               id: p.id, name: p.name || '同學', skin: p.skin || 0x38bdf8, hat: p.hat || 'none',
+              pattern: p.pattern || 'solid', face: p.face || 'happy',
               score: p.score || 0, streak: p.streak || 0, isHost: !!p.isHost, spectating: !!p.spectating,
-              x: p.x || 0, y: p.y || 0, z: p.z || 12,
+              x: p.x || 0, y: 8.5, z: p.z || 12,
               tx: p.x || 0, ty: p.y || 0, tz: p.z || 12,
               rvx: p.vx || 0, rvz: p.vz || 0,
               yaw: p.yaw || 0, tyaw: p.yaw || 0,
@@ -3032,6 +3709,8 @@
           }
           if (p.skin && p.skin !== rp.skin) { rp.skin = p.skin; rp.model.setSkin(p.skin); }
           if (p.hat && p.hat !== rp.hat) { rp.hat = p.hat; rp.model.setHat(p.hat); }
+          if (p.pattern && p.pattern !== rp.pattern) { rp.pattern = p.pattern; rp.model.setPattern(p.pattern); }
+          if (p.face && p.face !== rp.face) { rp.face = p.face; rp.model.setFace(p.face); }
           rp.tx = p.x || 0; rp.ty = p.y || 0; rp.tz = p.z || 12;
           rp.rvx = p.vx || 0; rp.rvz = p.vz || 0;
           rp.tyaw = p.yaw || 0;
@@ -3644,6 +4323,7 @@
             player.vy = Math.max(player.vy, 6.8);
             player.tumbleTimer = 0.52;
             player.squashY = 0.72;
+            state.camShake = Math.max(state.camShake, 0.26);
             sfxBounce();
           }
         });
@@ -3656,6 +4336,7 @@
               player.vz = -22.5;
               player.yaw = Math.PI;
               player.squashY = 1.25;
+              state.camShake = Math.max(state.camShake, 0.14);
               sfxBoost();
               spawnBurst(player.x, 0.3, player.z, 10);
             }
@@ -3669,6 +4350,7 @@
               player.vz = nz * 15.5;
               player.vy = 4.8;
               bm.hitAnim = 1;
+              state.camShake = Math.max(state.camShake, 0.22);
               sfxBounce();
             }
           });
@@ -3678,6 +4360,7 @@
               player.vz = 8.0;
               player.vy = 7.5;
               player.tumbleTimer = 0.58;
+              state.camShake = Math.max(state.camShake, 0.3);
               sfxBounce();
             }
           });
@@ -3702,6 +4385,7 @@
                   }
                 } else {
                   player.vz = 15.0; player.vy = 5.4;
+                  state.camShake = Math.max(state.camShake, 0.2);
                   sfxFail(); showBanner('💥 這道門推不開！換另一道！', 'err');
                 }
               }
@@ -3740,11 +4424,22 @@
               } else {
                 state.streak = 0;
                 state.score = Math.max(0, state.score - 30);
+                state.camShake = Math.max(state.camShake, 0.18);
                 sfxFail(); showBanner(`❌ 誤觸干擾音 ${orb.label}！-30 分`, 'err');
               }
               updateHudBadges();
             }
           });
+        }
+
+        // Fever Combo Speed Sparkle Trail (Streak >= 3)
+        const mySpeed = Math.hypot(player.vx, player.vz);
+        if (state.streak >= 3 && mySpeed > 4.5) {
+          state.feverSparkleTimer -= dt;
+          if (state.feverSparkleTimer <= 0) {
+            state.feverSparkleTimer = 0.16;
+            spawnBurst(player.x, player.y + 0.35, player.z, 2);
+          }
         }
 
         let nearPortal = null;
@@ -3760,7 +4455,20 @@
           ppEl.classList.remove('show');
         }
 
-        animateBeanModel(player, dt, Math.hypot(player.vx, player.vz), player.diveTimer > 0, now, 0, groundY);
+        animateBeanModel(player, dt, mySpeed, player.diveTimer > 0, now, 0, groundY);
+      } else {
+        // Live 3D Showcase Podium Animation in Fall Guys Lobby & Wardrobe!
+        lobbyPodiumGroup.visible = true;
+        lobbyPodiumGroup.rotation.y += dt * 0.42;
+        if (!state.camDragging) state.lobbySpinYaw += dt * 0.18;
+        player.x = 0; player.y = 0.46; player.z = 0;
+        player.yaw = state.lobbySpinYaw;
+        if (player.danceTimer > 0) player.danceTimer = Math.max(0, player.danceTimer - dt);
+        if (player.emoteTimer > 0) {
+          player.emoteTimer -= dt;
+          if (player.emoteTimer <= 0) showCharacterEmote(player.model, '');
+        }
+        animateBeanModel(player, dt, 0, false, now, 0, 0.46);
       }
 
       // Lifelike 49 AI Classmates (Jumping onto Piano Black Keys, Pyramid Tiers & Sweepers!)
@@ -3865,15 +4573,55 @@
         animateBeanModel(rp, dt, Math.hypot(vx, vz), rp.dive, now, id.charCodeAt(2) || 0, rpGround);
       });
 
-      const camX = player.x + Math.sin(state.camYaw) * Math.cos(state.camPitch) * state.camDist;
-      const camY = Math.max(1.2, player.y + 1.6 + Math.sin(state.camPitch) * state.camDist);
-      const camZ = player.z + Math.cos(state.camYaw) * Math.cos(state.camPitch) * state.camDist;
-      _camVec.set(camX, camY, camZ);
-      _lookVec.set(player.x, player.y + 1.3, player.z);
-      camera.position.lerp(_camVec, Math.min(1, dt * 12));
-      camera.lookAt(_lookVec);
+      // Camera Director: 1) Lobby 360° Showcase, 2) Stage Flyover Sweep, 3) Gameplay Follow + Shake
+      if (!state.started) {
+        const isWide = window.innerWidth > 860;
+        const isWardrobe = state.lobbyTab === 'wardrobe';
+        const dist = isWardrobe ? 5.6 : 7.0;
+        const offsetX = isWide ? (isWardrobe ? 1.55 : 1.35) : 0;
+        const camY = isWardrobe ? 2.55 : 3.05;
+        _camVec.set(offsetX, camY, dist);
+        _lookVec.set(offsetX, isWide ? 1.65 : 1.05, 0);
+        camera.position.lerp(_camVec, Math.min(1, dt * 7));
+        camera.lookAt(_lookVec);
+      } else {
+        let camX = player.x + Math.sin(state.camYaw) * Math.cos(state.camPitch) * state.camDist;
+        let camY = Math.max(1.2, player.y + 1.6 + Math.sin(state.camPitch) * state.camDist);
+        let camZ = player.z + Math.cos(state.camYaw) * Math.cos(state.camPitch) * state.camDist;
+
+        if (state.flyoverTimer > 0) {
+          state.flyoverTimer = Math.max(0, state.flyoverTimer - dt);
+          const p = state.flyoverTimer / Math.max(0.1, state.flyoverTotal);
+          const ease = p * p * (3 - 2 * p);
+          const sweepAngle = ease * 1.45;
+          const flyX = Math.sin(sweepAngle) * 32;
+          const flyY = 23 + ease * 8;
+          const flyZ = Math.cos(sweepAngle) * 32;
+          camX = camX * (1 - ease) + flyX * ease;
+          camY = camY * (1 - ease) + flyY * ease;
+          camZ = camZ * (1 - ease) + flyZ * ease;
+        }
+
+        if (state.camShake > 0) {
+          state.camShake = Math.max(0, state.camShake - dt * 1.35);
+          const mag = state.camShake * 0.7;
+          camX += (Math.random() - 0.5) * mag;
+          camY += (Math.random() - 0.5) * mag;
+        }
+
+        _camVec.set(camX, camY, camZ);
+        _lookVec.set(player.x, player.y + 1.3, player.z);
+        camera.position.lerp(_camVec, Math.min(1, dt * 11));
+        camera.lookAt(_lookVec);
+      }
 
       renderer.render(scene, camera);
+
+      if (!window.__ncWorldBootDone) {
+        window.__ncWorldBootDone = true;
+        const splash = document.getElementById('bootSplash');
+        if (splash) setTimeout(() => splash.classList.add('done'), 420);
+      }
     }
     requestAnimationFrame(animate);
   })();

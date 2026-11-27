@@ -512,13 +512,17 @@ test('/world/sync enforces server-authoritative scoring, teacher classroom auth 
   assert.equal(otherSchoolBlocked.status, 403);
   assert.equal(otherSchoolBlocked.data.error, 'wrong_school');
 
-  // Same-school student joins CLASS50 -> allowed
+  // Same-school student joins CLASS50 with custom wardrobe (pattern + face + note hat) -> allowed & synced
   const rS1 = await post(envB, '/world/sync', {
-    room: 'CLASS50', skin: 0x38bdf8, hat: 'headphones', x: 3, y: 0, z: 4
+    room: 'CLASS50', skin: 0x38bdf8, hat: 'note', pattern: 'star', face: 'cool', x: 3, y: 0, z: 4
   }, s1Tok);
   assert.equal(rS1.status, 200);
   assert.equal(rS1.data.self.isHost, false);
   assert.equal(rS1.data.self.spectating, false);
+  const syncedS1 = rS1.data.players.find((p) => p.id === 'user:s1-sub');
+  assert.equal(syncedS1.hat, 'note');
+  assert.equal(syncedS1.pattern, 'star');
+  assert.equal(syncedS1.face, 'cool');
 
   // Non-host cannot switch mode (403)
   const badSwitch = await post(envB, '/world/host', {
@@ -632,6 +636,12 @@ test('world-3d.html and shiba-slide-3d.html inline scripts parse cleanly, Sprite
     assert.equal(html.includes('submitScoreToGAS'), false, `${file} must not upload to Google Sheet`);
     assert.equal(html.includes('AbilityRadar'), false, `${file} must not write to ability radar`);
     assert.equal(html.includes('MUSIC1'), false, `${file} should not default to hardcoded global MUSIC1 room`);
+    assert.match(html, /\bid="fgLobbyTabs"/);
+    assert.match(html, /\bid="patternPicker"/);
+    assert.match(html, /\bid="facePicker"/);
+    assert.match(html, /\bid="stageIntroBanner"/);
+    assert.match(html, /\bid="countdownSplash"/);
+    assert.match(html, /\bid="bootSplash"/);
     const inline = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]).join('\n');
     assert.ok(inline.length > 1000, `${file} inline script present`);
     assert.doesNotThrow(() => new Function(inline), `${file} inline script syntax`);
