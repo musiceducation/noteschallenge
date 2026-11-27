@@ -2582,6 +2582,8 @@ export const WORLD_RECONNECT_GRACE_MS = 60000;
 export const WORLD_RATE_LIMIT_MS = 120;
 export const WORLD_ROOM_IDLE_TTL_MS = 30 * 60 * 1000;
 export const WORLD_PUBLIC_IDLE_TTL_MS = 15 * 60 * 1000;
+export const WORLD_HIT_COOLDOWN_MS = 750;
+export const WORLD_BONK_IMMUNITY_MS = 1400;
 const WORLD_KICK_TTL_MS = 120000;
 const WORLD_MAX_ROOM_PLAYERS = 64;
 const WORLD_DEFAULT_CODES = new Set(['MUSIC1', 'MUSIC', 'PARTY', 'LOBBY', 'DEFAULT']);
@@ -3236,6 +3238,7 @@ function publicWorldPlayersList(playerRows, roomState, currentRoundKey, nowMs) {
       vz: p.vz,
       yaw: p.yaw,
       dive: !!p.dive,
+      bonked: Boolean(p.bonkedAt && (nowMs - num(p.bonkedAt) < 650)),
       emote: p.emote || '',
       score: num(p.score),
       streak: num(p.streak),
@@ -3419,7 +3422,7 @@ async function handleWorld3D(request, env, path, cors) {
         return { ok: false, error: 'id_conflict', status: 403, write: false };
       }
 
-      if (existing && !isReconnect && (nowMs - num(existing.ts) < WORLD_RATE_LIMIT_MS) && !safeBody.roundClaim) {
+      if (existing && !isReconnect && (nowMs - num(existing.ts) < WORLD_RATE_LIMIT_MS) && !safeBody.roundClaim && !safeBody.hitEvent) {
         return { ok: true, throttled: true, reconnected: false, player: existing, write: false };
       }
 
@@ -3491,17 +3494,96 @@ async function handleWorld3D(request, env, path, cors) {
         pRecord.spectateRoundKey = '';
       }
 
+      // Deliver and clear any pending knockback bonk from another player
+      let deliveredBonk = null;
+      if (pRecord.pendingBonk && typeof pRecord.pendingBonk === 'object') {
+        if (nowMs - num(pRecord.pendingBonk.ts) <= 3000) {
+          deliveredBonk = pRecord.pendingBonk;
+        }
+        pRecord.pendingBonk = null;
+      }
+
+      // Rate-limit player-to-player hitEvent (active players only)
+      let hitAllowed = false;
+      const isSpectatingNow = Boolean(pRecord.spectateRoundKey && pRecord.spectateRoundKey === roundInfo.roundKey);
+      if (!isSpectatingNow && safeBody.hitEvent && typeof safeBody.hitEvent === 'object') {
+        if (nowMs - num(pRecord.lastHitAt) >= WORLD_HIT_COOLDOWN_MS) {
+          pRecord.lastHitAt = nowMs;
+          hitAllowed = true;
+        }
+      }
+
       // Server-authoritative round scoring (never trusts client points/won!)
       let claimResult = null;
       if (safeBody.roundClaim && typeof safeBody.roundClaim === 'object') {
         claimResult = evaluateWorldRoundClaim(roomState.modeState, roundInfo, pRecord, safeBody.roundClaim);
       }
 
-      return { ok: true, throttled: false, reconnected: isReconnect, claimResult: claimResult, player: pRecord, write: true };
+      return {
+        ok: true,
+        throttled: false,
+        reconnected: isReconnect,
+        claimResult: claimResult,
+        deliveredBonk: deliveredBonk,
+        hitAllowed: hitAllowed,
+        player: pRecord,
+        write: true
+      };
     });
 
     if (!playerOutcome.ok) {
       return jsonResponse({ ok: false, error: playerOutcome.error }, playerOutcome.status || 400, cors);
+    }
+
+    const me = playerOutcome.player;
+
+    // Step 2b: Apply server-validated playful knockback to nearby targets via per-player CAS
+    let appliedHitCount = 0;
+    if (playerOutcome.hitAllowed && safeBody.hitEvent && typeof safeBody.hitEvent === 'object') {
+      const ev = plainObject(safeBody.hitEvent);
+      const kind = ev.kind === 'dive' ? 'dive' : 'boop';
+      const maxRange = kind === 'dive' ? 3.8 : 5.6;
+      const power = kind === 'dive' ? 16.0 : 12.5;
+      const hitId = text(ev.id).slice(0, 40) || ('hit_' + nowMs + '_' + me.id.slice(-4));
+      const rawTargets = Array.isArray(ev.targetIds) ? ev.targetIds : [];
+      const uniqTargets = [];
+      for (let i = 0; i < rawTargets.length && uniqTargets.length < 6; i++) {
+        const tid = text(rawTargets[i]).slice(0, 64);
+        if (tid && tid !== me.id && !uniqTargets.includes(tid)) uniqTargets.push(tid);
+      }
+      for (let i = 0; i < uniqTargets.length; i++) {
+        const tid = uniqTargets[i];
+        const bonkRes = await mutateWorldPlayerCas(env.DB, storageCode, tid, nowIso, (tRec) => {
+          if (!tRec || !tRec.player) return { ok: false, write: false };
+          const target = tRec.player;
+          if (nowMs - num(target.ts) > WORLD_ACTIVE_TTL_MS) return { ok: false, write: false };
+          if (nowMs < num(target.bonkImmuneUntil)) return { ok: false, write: false };
+          const dx = num(target.x) - num(me.x);
+          const dz = num(target.z) - num(me.z);
+          const dist = Math.hypot(dx, dz);
+          if (dist > maxRange) return { ok: false, write: false };
+          let nx = dist > 0.05 ? (dx / dist) : Math.sin(num(me.yaw));
+          let nz = dist > 0.05 ? (dz / dist) : Math.cos(num(me.yaw));
+          const mag = Math.hypot(nx, nz) || 1;
+          nx /= mag;
+          nz /= mag;
+          const nextTarget = Object.assign({}, target);
+          nextTarget.pendingBonk = {
+            id: hitId,
+            byId: me.id,
+            byName: me.name,
+            vx: Number((nx * power).toFixed(2)),
+            vz: Number((nz * power).toFixed(2)),
+            vy: kind === 'dive' ? 7.2 : 6.2,
+            kind: kind,
+            ts: nowMs
+          };
+          nextTarget.bonkImmuneUntil = nowMs + WORLD_BONK_IMMUNITY_MS;
+          nextTarget.bonkedAt = nowMs;
+          return { ok: true, hit: true, player: nextTarget, write: true };
+        });
+        if (bonkRes && bonkRes.hit) appliedHitCount += 1;
+      }
     }
 
     // Re-read fresh room player list (includes all concurrent peers!)
@@ -3514,7 +3596,6 @@ async function handleWorld3D(request, env, path, cors) {
       }
     }
 
-    const me = playerOutcome.player;
     return jsonResponse({
       ok: true,
       throttled: !!playerOutcome.throttled,
@@ -3529,7 +3610,9 @@ async function handleWorld3D(request, env, path, cors) {
         isHost: me.id === roomState.hostId,
         spectating: Boolean(me.spectateRoundKey && me.spectateRoundKey === roundInfo.roundKey),
         reconnected: !!playerOutcome.reconnected,
-        lastClaim: playerOutcome.claimResult || null
+        lastClaim: playerOutcome.claimResult || null,
+        bonk: playerOutcome.deliveredBonk || null,
+        lastHitCount: appliedHitCount
       },
       players: publicWorldPlayersList(freshRows, roomState, roundInfo.roundKey, nowMs),
       modeState: roomState.modeState,

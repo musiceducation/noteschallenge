@@ -803,7 +803,7 @@
           <button type="button" class="layout-chip" data-qmode="crown">👑 金字塔山</button>
           <button type="button" class="layout-chip" data-qmode="free">🎪 樂園</button>
         </div>
-        <div class="ctrl-hint">WASD 跑動 · Space 跳躍 · Shift 飛撲 · F 音波推推 · R 3D舞步 · 拖曳旋轉視角</div>
+        <div class="ctrl-hint">WASD 跑動 · Space 跳躍 · Shift 飛撲撞飛 · F 拍飛推人 · R 3D舞步 · 拖曳旋轉視角</div>
       </div>
 
       <div class="arcade-pad" aria-label="動作按鈕盤">
@@ -812,15 +812,15 @@
           <span class="ico" id="danceBtnIcon">💃</span>
           <span class="lbl">舞步</span>
         </button>
-        <button type="button" class="arc-btn btn-boop" id="btnWaveBoop" title="釋放音樂音波震開周圍並吸取音符球 (F)">
+        <button type="button" class="arc-btn btn-boop" id="btnWaveBoop" title="拍飛推開周圍玩家並吸取音符球 (F)">
           <span class="kbd">F</span>
-          <span class="ico">🔊</span>
-          <span class="lbl">音波推</span>
+          <span class="ico">💥</span>
+          <span class="lbl">拍飛推</span>
         </button>
-        <button type="button" class="arc-btn btn-dive" id="btnDive" title="超人飛撲衝刺 (Shift)">
+        <button type="button" class="arc-btn btn-dive" id="btnDive" title="超人飛撲衝撞其他玩家 (Shift)">
           <span class="kbd">Shift</span>
           <span class="ico">💨</span>
-          <span class="lbl">飛撲</span>
+          <span class="lbl">飛撲撞</span>
         </button>
         <button type="button" class="arc-btn btn-jump" id="btnJump" title="彈跳起飛 (Space)">
           <span class="kbd">Space</span>
@@ -2474,6 +2474,9 @@
       pendulumTime: 0,
       pendingSyncPush: false,
       pendingRoundClaims: [],
+      pendingHitEvent: null,
+      diveHitCooldown: 0,
+      seenBonkIds: new Set(),
       crownClaimedRound: '',
       serverPlayerId: myClientId,
       isHost: true,
@@ -3160,34 +3163,124 @@
       sfxDive();
     }
 
-    // NEW ACTION BUTTON: Musical Soundwave Boop (F)
+    function queuePlayerHitEvent(kind, targetIds) {
+      if (!targetIds || !targetIds.length || state.spectating) return;
+      state.pendingHitEvent = {
+        id: kind + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        kind,
+        targetIds: targetIds.slice(0, 6)
+      };
+      if (worldSyncApi && !syncInFlight) pollWorldSync(false);
+    }
+
+    // ACTION BUTTON: Musical Soundwave Boop / Bonk Push (F)
     function doSoundwaveBoop() {
       if (!state.started || player.boopCooldown > 0) return;
-      player.boopCooldown = 1.1;
-      player.squashY = 1.24;
-      spawnShockRing(player.x, player.y + 0.65, player.z, 0xfacc15, 4.6, false);
+      player.boopCooldown = 0.95;
+      player.squashY = 1.28;
+      spawnShockRing(player.x, player.y + 0.65, player.z, 0xfacc15, 5.2, false);
       sfxBoop();
       flashArcadeBtn('btnWaveBoop');
 
-      // Gentle friendly hop-boop to nearby bots & magnetic orb pull!
+      let hitNames = [];
+      // Knock back nearby AI classmates with comical 360° ragdoll tumble!
       bots.forEach((b) => {
         const dx = b.x - player.x, dz = b.z - player.z;
         const d = Math.hypot(dx, dz);
-        if (d > 0.01 && d < 3.8) {
-          b.vx += (dx / d) * 9.5;
-          b.vz += (dz / d) * 9.5;
-          b.vy = Math.max(b.vy, 4.8);
-          b.tumbleTimer = 0.35;
+        if (d > 0.01 && d < 4.6 && Math.abs(b.y - player.y) < 2.2) {
+          b.vx += (dx / d) * 14.5;
+          b.vz += (dz / d) * 14.5;
+          b.vy = Math.max(b.vy, 6.4);
+          b.tumbleTimer = 0.62;
+          b.squashY = 0.68;
+          spawnBurst(b.x, b.y + 1.1, b.z, 8);
+          showCharacterEmote(b.model, '💫');
+          b.emoteTimer = 1.0;
+          hitNames.push(b.name);
         }
       });
+
+      // Knock back nearby REAL multiplayer peers & sync via /world/sync!
+      const realTargets = [];
+      remotePlayers.forEach((rp) => {
+        const dx = rp.x - player.x, dz = rp.z - player.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 4.9 && Math.abs(rp.y - player.y) < 2.4) {
+          realTargets.push(rp.id);
+          rp.tumbleTimer = 0.6;
+          rp.squashY = 0.68;
+          spawnBurst(rp.x, rp.y + 1.1, rp.z, 10);
+          showCharacterEmote(rp.model, '💫');
+          hitNames.push(rp.name);
+        }
+      });
+      if (realTargets.length) queuePlayerHitEvent('boop', realTargets);
+
+      if (hitNames.length) {
+        state.camShake = Math.max(state.camShake, 0.18);
+        sfxBounce();
+        const label = hitNames.length === 1 ? `💥 拍飛了 ${hitNames[0]}！` : `💥 一記音波拍飛了 ${hitNames.length} 位玩家！`;
+        showBanner(label, 'info');
+      }
+
       arenaOrbs.forEach((orb) => {
-        if (orb.active && orb.good && Math.hypot(orb.x - player.x, orb.z - player.z) < 4.5) {
+        if (orb.active && orb.good && Math.hypot(orb.x - player.x, orb.z - player.z) < 4.8) {
           orb.x += (player.x - orb.x) * 0.65;
           orb.z += (player.z - orb.z) * 0.65;
           orb.mesh.position.x = orb.x;
           orb.mesh.position.z = orb.z;
         }
       });
+    }
+
+    // Belly-Dive Tackle: Flying into bots or real peers launches them spinning!
+    function checkDiveTackle() {
+      if (player.diveTimer <= 0 || state.diveHitCooldown > 0) return;
+      const fwdX = Math.sin(player.yaw);
+      const fwdZ = Math.cos(player.yaw);
+      let firstHitName = '';
+      const realTargets = [];
+
+      for (let i = 0; i < bots.length; i++) {
+        const b = bots[i];
+        const dx = b.x - player.x, dz = b.z - player.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 1.85 && Math.abs(b.y - player.y) < 1.8 && b.tumbleTimer <= 0.1) {
+          const nx = d > 0.05 ? (dx / d) : fwdX;
+          const nz = d > 0.05 ? (dz / d) : fwdZ;
+          b.vx = nx * 16.5;
+          b.vz = nz * 16.5;
+          b.vy = 7.2;
+          b.tumbleTimer = 0.68;
+          b.squashY = 0.65;
+          spawnBurst(b.x, b.y + 1.0, b.z, 12);
+          showCharacterEmote(b.model, '💥');
+          b.emoteTimer = 1.1;
+          if (!firstHitName) firstHitName = b.name;
+        }
+      }
+
+      remotePlayers.forEach((rp) => {
+        const dx = rp.x - player.x, dz = rp.z - player.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 2.15 && Math.abs(rp.y - player.y) < 2.0) {
+          realTargets.push(rp.id);
+          rp.tumbleTimer = 0.65;
+          rp.squashY = 0.65;
+          spawnBurst(rp.x, rp.y + 1.0, rp.z, 14);
+          showCharacterEmote(rp.model, '💥');
+          if (!firstHitName) firstHitName = rp.name;
+        }
+      });
+
+      if (realTargets.length) queuePlayerHitEvent('dive', realTargets);
+      if (firstHitName) {
+        state.diveHitCooldown = 0.45;
+        state.camShake = Math.max(state.camShake, 0.24);
+        sfxBounce();
+        spawnShockRing(player.x, player.y + 0.8, player.z, 0xf472b6, 3.2, false);
+        showBanner(`💨 飛撲撞飛 ${firstHitName}！`, 'info');
+      }
     }
 
     // NEW MOTION BUTTON: 4 Full-Body 3D Dances (R)
@@ -3592,6 +3685,10 @@
         if (pendingClaim) {
           payload.roundClaim = pendingClaim;
         }
+        const pendingHit = state.pendingHitEvent;
+        if (pendingHit) {
+          payload.hitEvent = pendingHit;
+        }
         if (state.pendingSyncPush) {
           payload.modeState = {
             mode: state.modeState.mode,
@@ -3637,6 +3734,9 @@
         if (pendingClaim && state.pendingRoundClaims[0] === pendingClaim) {
           state.pendingRoundClaims.shift();
         }
+        if (pendingHit && state.pendingHitEvent === pendingHit) {
+          state.pendingHitEvent = null;
+        }
 
         if (typeof data.serverTime === 'number') {
           const rttHalf = (tRecv - tSend) * 0.5;
@@ -3657,6 +3757,24 @@
           } else if (state.pendingRoundClaims.length === 0 && typeof data.self.score === 'number') {
             state.score = Number(data.self.score) || 0;
             if (typeof data.self.streak === 'number') state.streak = Number(data.self.streak) || 0;
+          }
+          if (data.self.bonk && data.self.bonk.id && !state.seenBonkIds.has(data.self.bonk.id)) {
+            const bk = data.self.bonk;
+            state.seenBonkIds.add(bk.id);
+            if (state.seenBonkIds.size > 40) {
+              const firstId = state.seenBonkIds.values().next().value;
+              state.seenBonkIds.delete(firstId);
+            }
+            player.vx += Number(bk.vx) || 0;
+            player.vz += Number(bk.vz) || 0;
+            player.vy = Math.max(player.vy, Number(bk.vy) || 6.2);
+            player.tumbleTimer = 0.62;
+            player.squashY = 0.66;
+            state.camShake = Math.max(state.camShake, 0.34);
+            spawnShockRing(player.x, player.y + 0.8, player.z, 0xf43f5e, 3.6, false);
+            spawnBurst(player.x, player.y + 1.1, player.z, 14);
+            sfxBounce();
+            showBanner(`💥 被 ${bk.byName || '同學'} 撞飛啦！`, 'err');
           }
           if (state.spectating && !wasSpec) {
             showBanner('👀 已加入房間（本回合旁觀，下一關自動加入！）', 'info');
@@ -3715,6 +3833,7 @@
           rp.rvx = p.vx || 0; rp.rvz = p.vz || 0;
           rp.tyaw = p.yaw || 0;
           rp.dive = !!p.dive; rp.score = p.score || 0; rp.streak = p.streak || 0;
+          if (p.bonked && rp.tumbleTimer <= 0.1) rp.tumbleTimer = 0.55;
           rp.isHost = !!p.isHost; rp.spectating = !!p.spectating;
           rp.model.aura.visible = rp.streak >= 3;
           if (p.emote !== rp.emote) {
@@ -4224,6 +4343,7 @@
 
         if (player.boopCooldown > 0) player.boopCooldown -= dt;
         if (player.boostCooldown > 0) player.boostCooldown -= dt;
+        if (state.diveHitCooldown > 0) state.diveHitCooldown = Math.max(0, state.diveHitCooldown - dt);
         if (player.tumbleTimer > 0) player.tumbleTimer = Math.max(0, player.tumbleTimer - dt);
         if (player.danceTimer > 0) player.danceTimer = Math.max(0, player.danceTimer - dt);
 
@@ -4241,6 +4361,7 @@
           player.diveTimer -= dt;
           player.vx *= Math.pow(0.24, dt);
           player.vz *= Math.pow(0.24, dt);
+          checkDiveTackle();
         } else if (player.tumbleTimer > 0) {
           player.vx *= Math.pow(0.35, dt);
           player.vz *= Math.pow(0.35, dt);
@@ -4561,6 +4682,7 @@
 
       remotePlayers.forEach((rp, id) => {
         if (rp.danceTimer > 0) rp.danceTimer = Math.max(0, rp.danceTimer - dt);
+        if (rp.tumbleTimer > 0) rp.tumbleTimer = Math.max(0, rp.tumbleTimer - dt);
         rp.tx += rp.rvx * dt * 0.45;
         rp.tz += rp.rvz * dt * 0.45;
         const vx = (rp.tx - rp.x) * 8 + rp.rvx * 0.5;

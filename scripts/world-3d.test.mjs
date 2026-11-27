@@ -4,6 +4,8 @@ import test from 'node:test';
 import vm from 'node:vm';
 import worker, {
   WORLD_ACTIVE_TTL_MS,
+  WORLD_BONK_IMMUNITY_MS,
+  WORLD_HIT_COOLDOWN_MS,
   WORLD_PUBLIC_IDLE_TTL_MS,
   WORLD_RECONNECT_GRACE_MS,
   WORLD_ROOM_IDLE_TTL_MS,
@@ -664,3 +666,68 @@ test('world-3d.html and shiba-slide-3d.html inline scripts parse cleanly, Sprite
     assert.deepEqual(missing, [], `${file} missing DOM IDs`);
   }
 });
+
+test('/world/sync player-to-player bonk validates distance, delivers one-time knockback via CAS, and enforces cooldown + immunity', async () => {
+  const sharedDb = createSharedWorldD1();
+  const baseNow = Date.now();
+  const env = { DB: sharedDb, JWT_SECRET: SECRET, NOW: baseNow };
+
+  async function post(body) {
+    const res = await worker.fetch(new Request('https://auth.example.com/world/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:8080' },
+      body: JSON.stringify(body)
+    }), env);
+    return { status: res.status, data: await res.json() };
+  }
+
+  // Three players enter BONK99: A at (0,0), B nearby at (2,0), C far away at (20,0)
+  assert.equal((await post({ room: 'BONK99', id: 'p_bonk_a', clientKey: 'key_bonk_player_aaaa', name: '柴犬A', x: 0, z: 0 })).status, 200);
+  assert.equal((await post({ room: 'BONK99', id: 'p_bonk_b', clientKey: 'key_bonk_player_bbbb', name: '柴犬B', x: 2, z: 0 })).status, 200);
+  assert.equal((await post({ room: 'BONK99', id: 'p_bonk_c', clientKey: 'key_bonk_player_cccc', name: '柴犬C', x: 20, z: 0 })).status, 200);
+
+  // A tries to boop both B (in range) and C (out of range)
+  env.NOW = baseNow + 1000;
+  const hit1 = await post({
+    room: 'BONK99', id: 'p_bonk_a', clientKey: 'key_bonk_player_aaaa', name: '柴犬A', x: 0, z: 0,
+    hitEvent: { id: 'boop_1', kind: 'boop', targetIds: ['p_bonk_b', 'p_bonk_c'] }
+  });
+  assert.equal(hit1.status, 200);
+  assert.equal(hit1.data.self.lastHitCount, 1, 'only nearby B is hit; far-away C is rejected');
+
+  // B receives knockback in +x direction once, then cleared on next poll
+  env.NOW = baseNow + 1200;
+  const bRecv = await post({ room: 'BONK99', id: 'p_bonk_b', clientKey: 'key_bonk_player_bbbb', name: '柴犬B', x: 2, z: 0 });
+  assert.ok(bRecv.data.self.bonk, 'B receives bonk payload');
+  assert.equal(bRecv.data.self.bonk.byName, '柴犬A');
+  assert.ok(bRecv.data.self.bonk.vx > 10, 'knockback pushes B away in +x');
+  assert.equal(bRecv.data.self.bonk.vy, 6.2);
+
+  env.NOW = baseNow + 1400;
+  const bNext = await post({ room: 'BONK99', id: 'p_bonk_b', clientKey: 'key_bonk_player_bbbb', name: '柴犬B', x: 3, z: 0 });
+  assert.equal(bNext.data.self.bonk, null, 'bonk is cleared after one-time delivery');
+
+  // C received nothing
+  const cRecv = await post({ room: 'BONK99', id: 'p_bonk_c', clientKey: 'key_bonk_player_cccc', name: '柴犬C', x: 20, z: 0 });
+  assert.equal(cRecv.data.self.bonk, null);
+
+  // Rapid repeat hit inside attacker cooldown / target immunity is blocked (anti-stun-lock)
+  env.NOW = baseNow + 1000 + WORLD_HIT_COOLDOWN_MS + 100; // past attacker cooldown, STILL inside B's immunity (1400ms)
+  const hitImmune = await post({
+    room: 'BONK99', id: 'p_bonk_a', clientKey: 'key_bonk_player_aaaa', name: '柴犬A', x: 2, z: 0,
+    hitEvent: { id: 'dive_2', kind: 'dive', targetIds: ['p_bonk_b'] }
+  });
+  assert.equal(hitImmune.data.self.lastHitCount, 0, 'B is protected by post-hit immunity');
+
+  // After immunity expires, dive tackle succeeds with stronger power
+  env.NOW = baseNow + 1000 + WORLD_BONK_IMMUNITY_MS + WORLD_HIT_COOLDOWN_MS + 200;
+  const hitAfter = await post({
+    room: 'BONK99', id: 'p_bonk_a', clientKey: 'key_bonk_player_aaaa', name: '柴犬A', x: 2, z: 0,
+    hitEvent: { id: 'dive_3', kind: 'dive', targetIds: ['p_bonk_b'] }
+  });
+  assert.equal(hitAfter.data.self.lastHitCount, 1);
+  const bDive = await post({ room: 'BONK99', id: 'p_bonk_b', clientKey: 'key_bonk_player_bbbb', name: '柴犬B', x: 3, z: 0 });
+  assert.equal(bDive.data.self.bonk.kind, 'dive');
+  assert.ok(bDive.data.self.bonk.vx >= 15.5, 'dive tackle applies stronger knockback');
+});
+
