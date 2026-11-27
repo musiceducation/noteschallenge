@@ -2114,17 +2114,46 @@ async function liveActor(request, env) {
   };
 }
 
-async function readLiveRoom(db, code) {
+async function readLiveRoomRecord(db, code) {
   const row = await db.prepare('SELECT code, school_id, teacher_sub, quiz_id, state, updated_at FROM live_rooms WHERE code = ?').bind(code).first();
   if (!row) return null;
   let state = null;
   try { state = JSON.parse(row.state); } catch (e) { state = null; }
   if (!state || !Array.isArray(state.items) || !Array.isArray(state.players)) return null;
-  return state;
+  return { raw: String(row.state), state: state };
 }
 
-async function writeLiveRoom(db, state, nowIso) {
-  await db.prepare('UPDATE live_rooms SET state = ?, updated_at = ? WHERE code = ?').bind(JSON.stringify(state), nowIso, state.code).run();
+function casSucceeded(res) {
+  if (!res || res.success === false) return false;
+  if (res.meta && typeof res.meta.changes === 'number') return res.meta.changes > 0;
+  return true;
+}
+
+async function casYield(attempt) {
+  if (attempt <= 0) return;
+  await new Promise((resolve) => setTimeout(resolve, Math.min(25, 2 + attempt * 2)));
+}
+
+async function mutateLiveRoom(db, code, nowIso, mutator) {
+  const MAX_RETRIES = 20;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const rec = await readLiveRoomRecord(db, code);
+    if (!rec) return { ok: false, error: 'not_found', status: 404 };
+    const outcome = mutator(rec.state);
+    if (!outcome || outcome.write !== true) {
+      return Object.assign({ state: rec.state }, outcome || { ok: true });
+    }
+    rec.state.rev = num(rec.state.rev) + 1;
+    const nextRaw = JSON.stringify(rec.state);
+    const res = await db.prepare(
+      'UPDATE live_rooms SET state = ?, updated_at = ? WHERE code = ? AND state = ?'
+    ).bind(nextRaw, nowIso, code, rec.raw).run();
+    if (casSucceeded(res)) {
+      return Object.assign({ state: rec.state, retries: attempt }, outcome);
+    }
+    await casYield(attempt + 1);
+  }
+  return { ok: false, error: 'busy', status: 409 };
 }
 
 async function saveLiveResult(db, state, nowIso) {
@@ -2211,6 +2240,7 @@ async function handleLiveQuiz(request, env, path, cors) {
         limitMs: Number(row.limit_ms) || 20000,
         items: items
       }, code, actor.sub, actor.schoolId);
+      state.rev = 1;
       await env.DB.prepare(
         'INSERT INTO live_rooms (code, school_id, teacher_sub, quiz_id, state, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
       ).bind(code, actor.schoolId, actor.sub, row.id, JSON.stringify(state), nowIso).run();
@@ -2221,16 +2251,19 @@ async function handleLiveQuiz(request, env, path, cors) {
     if (!roomMatch) return jsonResponse({ ok: false, error: 'not found' }, 404, cors);
     const code = roomMatch[1];
     const action = roomMatch[2] || '';
-    const state = await readLiveRoom(env.DB, code);
-    if (!state || text(state.schoolId) !== actor.schoolId) return jsonResponse({ ok: false, error: 'not_found' }, 404, cors);
-    const isHost = actor.teacher === true && actor.sub === state.teacherSub;
 
     if (request.method === 'GET' && !action) {
-      if (!isHost && !state.players.some((player) => actor.player && player.id === actor.player.id)) {
-        return jsonResponse({ ok: false, error: 'not_joined' }, 403, cors);
-      }
-      if (settleLiveState(state, nowMs)) await writeLiveRoom(env.DB, state, nowIso);
-      return jsonResponse(liveViewResponse(state, actor, nowMs), 200, cors);
+      const outcome = await mutateLiveRoom(env.DB, code, nowIso, (state) => {
+        if (text(state.schoolId) !== actor.schoolId) return { ok: false, error: 'not_found', status: 404, write: false };
+        const isHost = actor.teacher === true && actor.sub === state.teacherSub;
+        if (!isHost && !state.players.some((player) => actor.player && player.id === actor.player.id)) {
+          return { ok: false, error: 'not_joined', status: 403, write: false };
+        }
+        const settled = settleLiveState(state, nowMs);
+        return { ok: true, write: settled };
+      });
+      if (!outcome.ok) return jsonResponse({ ok: false, error: outcome.error }, outcome.status || 400, cors);
+      return jsonResponse(liveViewResponse(outcome.state, actor, nowMs), 200, cors);
     }
     if (request.method === 'POST' && action === 'join') {
       if (!actor.player) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
@@ -2238,19 +2271,25 @@ async function handleLiveQuiz(request, env, path, cors) {
       try { body = await readJson(request); } catch (e) { body = {}; }
       const safeBody = plainObject(body);
       const pickedAvatar = classAvatar(safeBody.avatar);
-      const joined = joinLiveState(state, {
-        id: actor.player.id,
-        name: actor.player.name,
-        grade: actor.player.grade,
-        class: actor.player.class,
-        seat: actor.player.seat,
-        role: actor.player.role,
-        avatar: pickedAvatar && pickedAvatar.indexOf('data:') !== 0 ? pickedAvatar : '🎵',
-        signature: safeBody.signature
-      }, { allowSpectate: safeBody.spectate === true });
-      if (!joined.ok) return jsonResponse({ ok: false, error: joined.error }, joined.error === 'bad_student' ? 403 : 409, cors);
-      await writeLiveRoom(env.DB, state, nowIso);
-      return jsonResponse(liveViewResponse(state, actor, nowMs), 200, cors);
+      const outcome = await mutateLiveRoom(env.DB, code, nowIso, (state) => {
+        if (text(state.schoolId) !== actor.schoolId) return { ok: false, error: 'not_found', status: 404, write: false };
+        const joined = joinLiveState(state, {
+          id: actor.player.id,
+          name: actor.player.name,
+          grade: actor.player.grade,
+          class: actor.player.class,
+          seat: actor.player.seat,
+          role: actor.player.role,
+          avatar: pickedAvatar && pickedAvatar.indexOf('data:') !== 0 ? pickedAvatar : '🎵',
+          signature: safeBody.signature
+        }, { allowSpectate: safeBody.spectate === true });
+        if (!joined.ok) {
+          return { ok: false, error: joined.error, status: joined.error === 'bad_student' ? 403 : 409, write: false };
+        }
+        return { ok: true, write: true };
+      });
+      if (!outcome.ok) return jsonResponse({ ok: false, error: outcome.error }, outcome.status || 409, cors);
+      return jsonResponse(liveViewResponse(outcome.state, actor, nowMs), 200, cors);
     }
     if (request.method === 'POST' && (action === 'answer' || action === 'tap')) {
       if (!actor.player) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
@@ -2260,32 +2299,42 @@ async function handleLiveQuiz(request, env, path, cors) {
       }
       const safeBody = plainObject(body);
       const useTap = action === 'tap' || Array.isArray(safeBody.onsets) || Array.isArray(safeBody.tapTimestamps);
-      const result = useTap
-        ? tapLiveState(state, actor.player.id, safeBody, nowMs)
-        : answerLiveState(state, actor.player.id, cleanLiveText(safeBody.choiceId, 48), nowMs);
-      if (!result.ok && result.error !== 'closed') {
-        const status = result.error === 'not_joined' || result.error === 'spectating' ? 403 : (result.error === 'too_early' ? 409 : 400);
-        return jsonResponse({ ok: false, error: result.error }, status, cors);
-      }
-      await writeLiveRoom(env.DB, state, nowIso);
-      if (!result.ok) {
-        const closedView = liveViewResponse(state, actor, nowMs);
+      const outcome = await mutateLiveRoom(env.DB, code, nowIso, (state) => {
+        if (text(state.schoolId) !== actor.schoolId) return { ok: false, error: 'not_found', status: 404, write: false };
+        const wasPhase = state.phase;
+        const result = useTap
+          ? tapLiveState(state, actor.player.id, safeBody, nowMs)
+          : answerLiveState(state, actor.player.id, cleanLiveText(safeBody.choiceId, 48), nowMs);
+        if (!result.ok && result.error !== 'closed') {
+          const status = result.error === 'not_joined' || result.error === 'spectating' ? 403 : (result.error === 'too_early' ? 409 : 400);
+          return { ok: false, error: result.error, status: status, write: false };
+        }
+        return { ok: result.ok, closed: !result.ok, write: result.ok || state.phase !== wasPhase };
+      });
+      if (!outcome.ok && !outcome.closed) return jsonResponse({ ok: false, error: outcome.error }, outcome.status || 400, cors);
+      if (outcome.closed) {
+        const closedView = liveViewResponse(outcome.state, actor, nowMs);
         closedView.ok = false;
         closedView.error = 'closed';
         return jsonResponse(closedView, 409, cors);
       }
-      return jsonResponse(liveViewResponse(state, actor, nowMs), 200, cors);
+      return jsonResponse(liveViewResponse(outcome.state, actor, nowMs), 200, cors);
     }
     if (request.method === 'POST' && action === 'advance') {
-      if (!isHost) return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
       let body = {};
       try { body = await readJson(request); } catch (e) { body = {}; }
       const subAction = text(plainObject(body).action);
-      const result = advanceLiveState(state, nowMs, subAction);
-      if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 409, cors);
-      await writeLiveRoom(env.DB, state, nowIso);
-      if (result.finished) await saveLiveResult(env.DB, state, nowIso);
-      return jsonResponse(liveViewResponse(state, actor, nowMs), 200, cors);
+      const outcome = await mutateLiveRoom(env.DB, code, nowIso, (state) => {
+        if (text(state.schoolId) !== actor.schoolId) return { ok: false, error: 'not_found', status: 404, write: false };
+        const isHost = actor.teacher === true && actor.sub === state.teacherSub;
+        if (!isHost) return { ok: false, error: 'forbidden', status: 403, write: false };
+        const result = advanceLiveState(state, nowMs, subAction);
+        if (!result.ok) return { ok: false, error: result.error, status: 409, write: false };
+        return { ok: true, finished: !!result.finished, write: true };
+      });
+      if (!outcome.ok) return jsonResponse({ ok: false, error: outcome.error }, outcome.status || 409, cors);
+      if (outcome.finished) await saveLiveResult(env.DB, outcome.state, nowIso);
+      return jsonResponse(liveViewResponse(outcome.state, actor, nowMs), 200, cors);
     }
     return jsonResponse({ ok: false, error: 'not found' }, 404, cors);
   } catch (err) {
@@ -2524,13 +2573,18 @@ export default {
 
 // =========================================================================
 // 3D Music Party World — Cross-Isolate D1-Backed Server-Authoritative Sync
+// Uses versioned CAS on world_rooms + per-player versioned CAS on world_players
+// so concurrent requests never overwrite each other's positions, scores, or claims.
 // Completely separate from /live/* classroom quizzes, Google Sheet, and radar.
 // =========================================================================
 export const WORLD_ACTIVE_TTL_MS = 18000;
 export const WORLD_RECONNECT_GRACE_MS = 60000;
 export const WORLD_RATE_LIMIT_MS = 120;
+export const WORLD_ROOM_IDLE_TTL_MS = 30 * 60 * 1000;
+export const WORLD_PUBLIC_IDLE_TTL_MS = 15 * 60 * 1000;
 const WORLD_KICK_TTL_MS = 120000;
 const WORLD_MAX_ROOM_PLAYERS = 64;
+const WORLD_DEFAULT_CODES = new Set(['MUSIC1', 'MUSIC', 'PARTY', 'LOBBY', 'DEFAULT']);
 
 const VALID_WORLD_MODES = new Set(['mix', 'free', 'tiles', 'piano', 'gates', 'turntable', 'freeze', 'crown']);
 const VALID_WORLD_TOPICS = new Set(['mixed', 'notes', 'rhythm', 'ear', 'terms']);
@@ -2550,10 +2604,196 @@ const WORLD_MODE_TIMINGS = {
 const WORLD_ESCALATION_TIERS = [
   { tier: 1, label: 'Lv.1 熱身', speedMult: 1.0, timerFactor: 1.0, bpm: 120, poolMode: 'basic' },
   { tier: 2, label: 'Lv.2 加速', speedMult: 1.2, timerFactor: 0.9, bpm: 128, poolMode: 'mixed' },
-  { tier: 3, label: 'Lv.3 疾風', speedMult: 1.4, timerFactor: 0.8, bpm: 138, poolMode: 'mixed' },
-  { tier: 4, label: 'Lv.4 狂飆', speedMult: 1.62, timerFactor: 0.72, bpm: 146, poolMode: 'advanced' },
-  { tier: 5, label: 'Lv.5 極限', speedMult: 1.85, timerFactor: 0.65, bpm: 156, poolMode: 'advanced' }
+  { tier: 3, label: 'Lv.3 進階', speedMult: 1.4, timerFactor: 0.8, bpm: 136, poolMode: 'mixed' },
+  { tier: 4, label: 'Lv.4 極速', speedMult: 1.62, timerFactor: 0.72, bpm: 146, poolMode: 'advanced' },
+  { tier: 5, label: 'Lv.5 巔峰🔥', speedMult: 1.85, timerFactor: 0.65, bpm: 156, poolMode: 'advanced' }
 ];
+const WORLD_MODE_BASE_POINTS = {
+  tiles: 150,
+  piano: 165,
+  gates: 170,
+  turntable: 165,
+  freeze: 160,
+  crown: 220
+};
+
+// Deterministic challenge mirror of world-3d-logic.js for server-authoritative scoring
+const WORLD_PIANO_KEYS = [
+  { id: 'C4', label: 'C4 (Do)' }, { id: 'D4', label: 'D4 (Re)' }, { id: 'E4', label: 'E4 (Mi)' },
+  { id: 'F4', label: 'F4 (Fa)' }, { id: 'G4', label: 'G4 (Sol)' }, { id: 'A4', label: 'A4 (La)' },
+  { id: 'B4', label: 'B4 (Si)' }, { id: 'C5', label: 'C5 (高Do)' },
+  { id: 'C#4', label: 'C♯4 / D♭4' }, { id: 'Eb4', label: 'E♭4 / D♯4' },
+  { id: 'F#4', label: 'F♯4 / G♭4' }, { id: 'G#4', label: 'G♯4 / A♭4' }, { id: 'Bb4', label: 'B♭4 / A♯4' }
+];
+const WORLD_PIANO_BANK = [
+  { level: 'basic', keyId: 'C4' }, { level: 'basic', keyId: 'E4' }, { level: 'basic', keyId: 'F4' },
+  { level: 'basic', keyId: 'G4' }, { level: 'basic', keyId: 'A4' }, { level: 'basic', keyId: 'B4' },
+  { level: 'basic', keyId: 'C5' }, { level: 'basic', keyId: 'G4' },
+  { level: 'advanced', keyId: 'F#4' }, { level: 'advanced', keyId: 'Bb4' },
+  { level: 'advanced', keyId: 'Eb4' }, { level: 'advanced', keyId: 'C#4' }, { level: 'advanced', keyId: 'C4' }
+];
+const WORLD_QUESTION_BANK = {
+  notes: [
+    { level: 'basic', ans: 'C4 (Do)', pool: ['C4 (Do)', 'D4 (Re)', 'E4 (Mi)', 'F4 (Fa)', 'G4 (Sol)', 'A4 (La)', 'B4 (Si)', 'C5', 'D5'] },
+    { level: 'basic', ans: 'D4 (Re)', pool: ['C4 (Do)', 'D4 (Re)', 'E4 (Mi)', 'F4 (Fa)', 'G4 (Sol)', 'A4 (La)', 'B4 (Si)', 'C5', 'E5'] },
+    { level: 'basic', ans: 'E4 (Mi)', pool: ['C4 (Do)', 'D4 (Re)', 'E4 (Mi)', 'F4 (Fa)', 'G4 (Sol)', 'A4 (La)', 'B4 (Si)', 'C5', 'F5'] },
+    { level: 'basic', ans: 'F4 (Fa)', pool: ['C4 (Do)', 'D4 (Re)', 'E4 (Mi)', 'F4 (Fa)', 'G4 (Sol)', 'A4 (La)', 'B4 (Si)', 'C5', 'D5'] },
+    { level: 'basic', ans: 'G4 (Sol)', pool: ['C4 (Do)', 'D4 (Re)', 'E4 (Mi)', 'F4 (Fa)', 'G4 (Sol)', 'A4 (La)', 'B4 (Si)', 'C5', 'E5'] },
+    { level: 'basic', ans: 'A4 (La)', pool: ['C4 (Do)', 'D4 (Re)', 'E4 (Mi)', 'F4 (Fa)', 'G4 (Sol)', 'A4 (La)', 'B4 (Si)', 'C5', 'F5'] },
+    { level: 'basic', ans: 'B4 (Si)', pool: ['C4 (Do)', 'D4 (Re)', 'E4 (Mi)', 'F4 (Fa)', 'G4 (Sol)', 'A4 (La)', 'B4 (Si)', 'C5', 'D5'] },
+    { level: 'basic', ans: 'C5 (Do)', pool: ['C4 (Do)', 'D4 (Re)', 'E4 (Mi)', 'F4 (Fa)', 'G4 (Sol)', 'A4 (La)', 'B4 (Si)', 'C5 (Do)', 'E5'] },
+    { level: 'basic', ans: 'E5 (Mi)', pool: ['E5 (Mi)', 'D5 (Re)', 'C5 (Do)', 'F5 (Fa)', 'G4 (Sol)', 'A4 (La)', 'B4 (Si)', 'F4', 'D4'] },
+    { level: 'advanced', ans: 'C3 (Do)', pool: ['C3 (Do)', 'A2 (La)', 'B2 (Si)', 'D3 (Re)', 'E3 (Mi)', 'F3 (Fa)', 'G3 (Sol)', 'G2', 'A3'] },
+    { level: 'advanced', ans: 'F3 (Fa)', pool: ['F3 (Fa)', 'D3 (Re)', 'E3 (Mi)', 'G3 (Sol)', 'A3 (La)', 'C3 (Do)', 'B2 (Si)', 'G2', 'C4'] },
+    { level: 'advanced', ans: 'C4 (中央C)', pool: ['C4 (中央C)', 'A3 (La)', 'B3 (Si)', 'G3 (Sol)', 'F3 (Fa)', 'D4 (Re)', 'E3 (Mi)', 'D3', 'G2'] },
+    { level: 'advanced', ans: 'F♯4', pool: ['F♯4', 'F♭4', 'G♯4', 'E♯4', 'C♯5', 'B♭4', 'D♯4', 'A♯4', 'G4'] },
+    { level: 'advanced', ans: 'B♭4', pool: ['B♭4', 'B♯4', 'E♭4', 'A♭4', 'D♭5', 'F♯4', 'G♭4', 'C5', 'A4'] },
+    { level: 'advanced', ans: 'F♯', pool: ['F♯', 'B♭', 'C♯', 'E♭', 'G♯', 'A♭', 'D♯', '無升降', 'F♭'] },
+    { level: 'advanced', ans: 'B♭', pool: ['B♭', 'F♯', 'E♭', 'C♯', 'A♭', 'G♯', 'D♭', '無升降', 'B♯'] }
+  ],
+  rhythm: [
+    { level: 'basic', ans: '1 拍', pool: ['1 拍', '2 拍', '4 拍', '0.5 拍', '3 拍', '1.5 拍', '0.25 拍', '6 拍', '8 拍'] },
+    { level: 'basic', ans: '2 拍', pool: ['2 拍', '1 拍', '4 拍', '0.5 拍', '3 拍', '1.5 拍', '0.25 拍', '6 拍', '8 拍'] },
+    { level: 'basic', ans: '4 拍', pool: ['4 拍', '2 拍', '1 拍', '0.5 拍', '3 拍', '1.5 拍', '6 拍', '8 拍', '0.25 拍'] },
+    { level: 'basic', ans: '3 拍', pool: ['3 拍', '2 拍', '4 拍', '1.5 拍', '1 拍', '0.5 拍', '2.5 拍', '6 拍', '0.75 拍'] },
+    { level: 'basic', ans: '0.5 拍', pool: ['0.5 拍', '1 拍', '2 拍', '0.25 拍', '1.5 拍', '3 拍', '4 拍', '0.75 拍', '6 拍'] },
+    { level: 'basic', ans: '3/4 拍', pool: ['3/4 拍', '2/4 拍', '4/4 拍', '6/8 拍', '2/2 拍', '5/4 拍', '7/8 拍', '12/8 拍', '9/8 拍'] },
+    { level: 'basic', ans: '2/4 拍', pool: ['2/4 拍', '3/4 拍', '6/8 拍', '9/8 拍', '5/4 拍', '7/8 拍', '3/8 拍', '12/8 拍', '3/2 拍'] },
+    { level: 'advanced', ans: '0.25 拍', pool: ['0.25 拍', '0.5 拍', '1 拍', '0.75 拍', '1.5 拍', '2 拍', '0.125 拍', '3 拍', '4 拍'] },
+    { level: 'advanced', ans: '1.5 拍', pool: ['1.5 拍', '1 拍', '2 拍', '2.5 拍', '3 拍', '0.75 拍', '0.5 拍', '4 拍', '1.25 拍'] },
+    { level: 'advanced', ans: '複二拍子', pool: ['複二拍子', '單三拍子', '單二拍子', '複三拍子', '單四拍子', '混合拍子', '自由拍', '複四拍子', '切分拍'] },
+    { level: 'advanced', ans: '1 拍', pool: ['1 拍', '1.5 拍', '2 拍', '3 拍', '0.5 拍', '0.75 拍', '4 拍', '2.5 拍', '6 拍'] }
+  ],
+  ear: [
+    { level: 'basic', ans: '大三和弦 Major', pool: ['大三和弦 Major', '小三和弦 Minor', '減三和弦 Dim', '增三和弦 Aug', '純五度 P5', '純八度 P8', '大二度 M2', '小二度 m2', '純四度 P4'] },
+    { level: 'basic', ans: '小三和弦 Minor', pool: ['小三和弦 Minor', '大三和弦 Major', '減三和弦 Dim', '增三和弦 Aug', '純五度 P5', '純八度 P8', '大二度 M2', '小二度 m2', '純四度 P4'] },
+    { level: 'basic', ans: '純八度 P8', pool: ['純八度 P8', '純五度 P5', '大三度 M3', '小三度 m3', '純四度 P4', '大二度 M2', '大六度 M6', '大七度 M7', '同度 P1'] },
+    { level: 'basic', ans: '純五度 P5', pool: ['純五度 P5', '純八度 P8', '大三度 M3', '小三度 m3', '純四度 P4', '大二度 M2', '大六度 M6', '小二度 m2', '大七度 M7'] },
+    { level: 'basic', ans: '大三度 M3', pool: ['大三度 M3', '小三度 m3', '純五度 P5', '純四度 P4', '純八度 P8', '大二度 M2', '小二度 m2', '大六度 M6', '小七度 m7'] },
+    { level: 'advanced', ans: '小三度 m3', pool: ['小三度 m3', '大三度 M3', '純四度 P4', '純五度 P5', '大二度 M2', '小二度 m2', '純八度 P8', '大六度 M6', '增四度 A4'] },
+    { level: 'advanced', ans: '減三和弦 Dim', pool: ['減三和弦 Dim', '增三和弦 Aug', '大三和弦 Major', '小三和弦 Minor', '屬七和弦 Dom7', '大七和弦 Maj7', '純五度 P5', '純四度 P4', '掛留和弦'] },
+    { level: 'advanced', ans: '屬七和弦 Dom7', pool: ['屬七和弦 Dom7', '大三和弦 Major', '小三和弦 Minor', '減三和弦 Dim', '增三和弦 Aug', '純八度 P8', '純五度 P5', '小二度 m2', '空五度和弦'] },
+    { level: 'advanced', ans: '純四度 P4', pool: ['純四度 P4', '純五度 P5', '大三度 M3', '小三度 m3', '大六度 M6', '純八度 P8', '小二度 m2', '大二度 M2', '大七度 M7'] }
+  ],
+  terms: [
+    { level: 'basic', ans: 'f (Forte)', pool: ['f (Forte)', 'p (Piano)', 'pp', 'mp', 'mf', 'ff', 'cresc.', 'dim.', 'rit.'] },
+    { level: 'basic', ans: 'p (Piano)', pool: ['p (Piano)', 'f (Forte)', 'ff', 'mf', 'mp', 'pp', 'cresc.', 'accel.', 'sfz'] },
+    { level: 'basic', ans: 'pp', pool: ['pp', 'p', 'mp', 'mf', 'f', 'ff', 'sfz', 'cresc.', 'fp'] },
+    { level: 'basic', ans: 'Allegro', pool: ['Allegro', 'Adagio', 'Andante', 'Moderato', 'Largo', 'Ritardando', 'Legato', 'Staccato', 'Fermata'] },
+    { level: 'basic', ans: 'Andante', pool: ['Andante', 'Allegro', 'Presto', 'Largo', 'Vivace', 'Ritardando', 'Accelerando', 'Forte', 'Piano'] },
+    { level: 'basic', ans: 'cresc.', pool: ['cresc.', 'dim.', 'rit.', 'accel.', 'stacc.', 'legato', 'pp', 'ff', 'D.C.'] },
+    { level: 'basic', ans: '♯', pool: ['♯', '♭', '♮', '𝄐', '𝄋', '𝄞', '𝄢', '𝄀', '𝄂'] },
+    { level: 'advanced', ans: 'rit.', pool: ['rit.', 'accel.', 'cresc.', 'dim.', 'a tempo', 'vivace', 'presto', 'sfz', 'legato'] },
+    { level: 'advanced', ans: 'Presto', pool: ['Presto', 'Andante', 'Adagio', 'Moderato', 'Largo', 'Grave', 'Lento', 'Sostenuto', 'Cantabile'] },
+    { level: 'advanced', ans: 'Staccato 斷奏', pool: ['Staccato 斷奏', 'Legato 連奏', 'Tenuto 保持音', 'Accent 重音', 'Fermata 延長', 'Tremolo 震音', 'Glissando 滑音', 'Pizzicato 撥奏', 'Arco 拉奏'] },
+    { level: 'advanced', ans: '♮', pool: ['♮', '♯', '♭', '𝄐', '𝄪', '𝄫', '𝄞', '𝄢', '𝄋'] }
+  ]
+};
+const WORLD_CROWN_BANK = [
+  { level: 'basic', targets: ['C4 (Do)', 'E4 (Mi)', 'G4 (Sol)', 'C5', 'E5', 'G5', 'Do'], decoys: ['F♯4', 'B♭4', 'D♭', 'A♭', 'C♯', 'G♯', 'F4'] },
+  { level: 'basic', targets: ['mf', 'f', 'ff', 'sfz', 'f (強)', 'ff (極強)', 'cresc.'], decoys: ['pp', 'p', 'mp', 'dim.', 'rit.', 'p (弱)', 'pp (極弱)'] },
+  { level: 'basic', targets: ['♩ (1拍)', '𝅗𝅥 (2拍)', '𝅝 (4拍)', '𝅗𝅥. (3拍)', '♩', '𝅗𝅥', '𝅝'], decoys: ['♪ (0.5拍)', '𝅘𝅥𝅯 (0.25拍)', '𝄾 (休止)', '♭', '♯', '♪', '𝅘𝅥𝅯'] },
+  { level: 'basic', targets: ['G4 (Sol)', 'B4 (Si)', 'D4 (Re)', 'G5', 'B3', 'D5', 'Sol'], decoys: ['F♮', 'C♯', 'E♭', 'A♭', 'C4', 'F4', 'B♭4'] },
+  { level: 'advanced', targets: ['A4 (La)', 'C4 (Do)', 'E4 (Mi)', 'A3', 'C5', 'E5', 'La'], decoys: ['C♯', 'G♯', 'F♯4', 'B♭4', 'D♯', 'F4', 'B4'] },
+  { level: 'advanced', targets: ['G4', 'B4', 'D5', 'F5', 'G3', 'B3', 'F4'], decoys: ['F♯4', 'C♯', 'E♭', 'A♭', 'C5', 'E4', 'B♭4'] },
+  { level: 'advanced', targets: ['Allegro', 'Vivace', 'Presto', 'Allegretto', '快板', '急板', '活潑地'], decoys: ['Largo', 'Adagio', 'Grave', 'Lento', '廣板', '慢板', '行板'] },
+  { level: 'advanced', targets: ['Do (宮)', 'Re (商)', 'Mi (角)', 'Sol (徵)', 'La (羽)', '宮', '徵'], decoys: ['Fa (清角)', 'Si (變宮)', 'F♯4', 'B♭4', 'E♭', 'A♭', 'C♯'] }
+];
+
+function createWorldRng(seed) {
+  let a = (Number(seed) >>> 0) || 1;
+  return function () {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffleWorldRng(list, rng) {
+  const arr = list.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const tmp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = tmp;
+  }
+  return arr;
+}
+
+function filterWorldDiff(items, levelOrTier) {
+  if (typeof levelOrTier === 'number') {
+    if (levelOrTier <= 1) {
+      const b = items.filter((it) => it.level === 'basic');
+      return b.length ? b : items;
+    }
+    if (levelOrTier >= 4) {
+      const a = items.filter((it) => it.level === 'advanced');
+      return a.length ? a : items;
+    }
+    return items;
+  }
+  if (levelOrTier === 'advanced') return items;
+  const bOnly = items.filter((it) => it.level === 'basic');
+  return bOnly.length ? bOnly : items;
+}
+
+export function resolveWorldChallenge(effectiveMode, topic, levelOrTier, roundSeed) {
+  const rng = createWorldRng(roundSeed || 1);
+  const normTopic = VALID_WORLD_TOPICS.has(topic) ? topic : 'mixed';
+  const diffArg = typeof levelOrTier === 'number' ? levelOrTier : (levelOrTier === 'basic' || levelOrTier === 'advanced' ? levelOrTier : 1);
+
+  if (effectiveMode === 'piano') {
+    const pPool = filterWorldDiff(WORLD_PIANO_BANK, diffArg);
+    const pq = pPool[Math.floor(rng() * pPool.length)];
+    const keyDef = WORLD_PIANO_KEYS.find((k) => k.id === pq.keyId) || WORLD_PIANO_KEYS[0];
+    return {
+      mode: 'piano',
+      ans: keyDef.label,
+      targetKeyId: keyDef.id,
+      options: WORLD_PIANO_KEYS.map((k) => k.label),
+      correctIndex: WORLD_PIANO_KEYS.findIndex((k) => k.id === keyDef.id)
+    };
+  }
+
+  if (effectiveMode === 'crown') {
+    const cPool = filterWorldDiff(WORLD_CROWN_BANK, diffArg);
+    const ch = cPool[Math.floor(rng() * cPool.length)];
+    const rawOrbs = [];
+    ch.targets.slice(0, 7).forEach((t) => rawOrbs.push({ label: t, good: true }));
+    ch.decoys.slice(0, 7).forEach((d) => rawOrbs.push({ label: d, good: false }));
+    const orbs = shuffleWorldRng(rawOrbs, rng).map((item) => {
+      rng(); // Consume exact same angle jitter draw as world-3d-logic.js
+      return { label: item.label, good: item.good };
+    });
+    return { mode: 'crown', orbs: orbs };
+  }
+
+  let bank = [];
+  if (normTopic === 'mixed') {
+    bank = bank.concat(
+      filterWorldDiff(WORLD_QUESTION_BANK.notes, diffArg),
+      filterWorldDiff(WORLD_QUESTION_BANK.rhythm, diffArg),
+      filterWorldDiff(WORLD_QUESTION_BANK.ear, diffArg),
+      filterWorldDiff(WORLD_QUESTION_BANK.terms, diffArg)
+    );
+  } else {
+    bank = filterWorldDiff(WORLD_QUESTION_BANK[normTopic] || WORLD_QUESTION_BANK.notes, diffArg);
+  }
+
+  const q = bank[Math.floor(rng() * bank.length)];
+  const distractors = shuffleWorldRng(q.pool.filter((opt) => opt !== q.ans), rng);
+  const optionCount = (effectiveMode === 'gates' || effectiveMode === 'freeze' || effectiveMode === 'turntable') ? 4 : 9;
+  const chosen = [q.ans].concat(distractors.slice(0, optionCount - 1));
+  while (chosen.length < optionCount) chosen.push('♪');
+  const options = shuffleWorldRng(chosen, rng);
+  return {
+    mode: effectiveMode,
+    ans: q.ans,
+    options: options,
+    correctIndex: options.indexOf(q.ans)
+  };
+}
 
 export function computeWorldRound(modeState, nowMs) {
   const mode = (modeState && WORLD_MODE_TIMINGS[modeState.mode]) ? modeState.mode : 'free';
@@ -2627,6 +2867,106 @@ export function computeWorldRound(modeState, nowMs) {
   };
 }
 
+function buildRoundDescriptor(modeState, roundNum) {
+  const mode = (modeState && WORLD_MODE_TIMINGS[modeState.mode]) ? modeState.mode : 'free';
+  const baseSeed = (Number(modeState && modeState.seed) >>> 0) || 12345;
+  const seq = Number(modeState && modeState.seq) || 1;
+  const esc = WORLD_ESCALATION_TIERS[Math.min(WORLD_ESCALATION_TIERS.length - 1, Math.max(0, roundNum))];
+  const showRound = (roundNum % 5) + 1;
+  return {
+    mode: mode,
+    effectiveMode: mode === 'mix' ? WORLD_MIX_ROTATION[roundNum % WORLD_MIX_ROTATION.length] : mode,
+    roundNum: roundNum,
+    isFinale: showRound === 5,
+    escalation: esc,
+    roundSeed: (baseSeed + Math.imul(roundNum + 1, 2654435761)) >>> 0,
+    roundKey: seq + '_' + mode + '_' + roundNum
+  };
+}
+
+/**
+ * Server-authoritative round scoring.
+ * Never trusts client-supplied `points` or `won`.
+ * `roundClaim.roundKey` is used ONLY for round identification & idempotent deduplication.
+ */
+export function evaluateWorldRoundClaim(modeState, currentRound, pRecord, rawClaim) {
+  if (!modeState || modeState.mode === 'free' || !currentRound || !rawClaim || typeof rawClaim !== 'object') {
+    return { applied: false, points: 0, won: false };
+  }
+  const claim = plainObject(rawClaim);
+  const baseKey = text(claim.roundKey).slice(0, 40);
+  if (!baseKey) return { applied: false, points: 0, won: false };
+
+  // Match against current round, or immediately preceding round if within 3s rollover grace
+  let targetRound = null;
+  if (baseKey === currentRound.roundKey) {
+    targetRound = currentRound;
+  } else if (currentRound.roundNum > 0 && currentRound.roundElapsedSec <= 3.0) {
+    const prev = buildRoundDescriptor(modeState, currentRound.roundNum - 1);
+    if (baseKey === prev.roundKey) targetRound = prev;
+  }
+  if (!targetRound) return { applied: false, points: 0, won: false, reason: 'stale_round' };
+  if (pRecord.spectateRoundKey && pRecord.spectateRoundKey === targetRound.roundKey) {
+    return { applied: false, points: 0, won: false, reason: 'spectating' };
+  }
+
+  const dedupKey = claim.orbIndex != null
+    ? (targetRound.roundKey + ':orb_' + Math.floor(Number(claim.orbIndex)))
+    : targetRound.roundKey;
+  if (!pRecord.awardedRounds || typeof pRecord.awardedRounds !== 'object') pRecord.awardedRounds = {};
+  if (pRecord.awardedRounds[dedupKey] !== undefined) {
+    return { applied: false, points: 0, won: false, reason: 'duplicate' };
+  }
+
+  const ch = resolveWorldChallenge(targetRound.effectiveMode, modeState.topic, targetRound.escalation.tier, targetRound.roundSeed);
+  let won = false;
+  let basePts = WORLD_MODE_BASE_POINTS[targetRound.effectiveMode] || 150;
+
+  if (targetRound.effectiveMode === 'piano') {
+    const keyId = text(claim.keyId);
+    const ans = text(claim.answer);
+    won = Boolean((keyId && keyId === ch.targetKeyId) || (ans && ans === ch.ans));
+  } else if (targetRound.effectiveMode === 'crown') {
+    if (claim.orbIndex != null) {
+      const idx = Math.floor(Number(claim.orbIndex));
+      won = Boolean(ch.orbs && ch.orbs[idx] && ch.orbs[idx].good === true);
+      basePts = 65;
+    } else if (claim.reachedCrown === true) {
+      const cx = clampCoord(pRecord.x, -75, 75);
+      const cz = clampCoord(pRecord.z, -75, 75);
+      const cy = clampCoord(pRecord.y, -30, 50);
+      won = Math.hypot(cx, cz) <= 6.5 && cy >= 1.2;
+      basePts = 220;
+    }
+  } else if (targetRound.effectiveMode === 'turntable') {
+    const sector = claim.sector != null ? Math.floor(Number(claim.sector)) : -1;
+    const ans = text(claim.answer);
+    won = Boolean((sector >= 0 && sector === ch.correctIndex) || (ans && ans === ch.ans));
+  } else {
+    // tiles, gates, freeze
+    const optIdx = claim.optionIndex != null ? Math.floor(Number(claim.optionIndex)) : -1;
+    const ans = text(claim.answer);
+    won = Boolean((optIdx >= 0 && optIdx === ch.correctIndex) || (ans && ans === ch.ans));
+  }
+
+  const nextStreak = won ? Math.min(9999, num(pRecord.streak) + 1) : 0;
+  const streakMult = nextStreak >= 5 ? 3 : (nextStreak >= 3 ? 2 : 1);
+  const finaleMult = targetRound.isFinale ? 2 : 1;
+  const points = won ? Math.min(600, basePts * streakMult * finaleMult) : 0;
+
+  pRecord.awardedRounds[dedupKey] = points;
+  const keys = Object.keys(pRecord.awardedRounds);
+  if (keys.length > 48) delete pRecord.awardedRounds[keys[0]];
+
+  if (won) {
+    pRecord.score = Math.min(999999, num(pRecord.score) + points);
+    pRecord.streak = nextStreak;
+  } else if (claim.orbIndex == null) {
+    pRecord.streak = 0;
+  }
+  return { applied: true, points: points, won: won };
+}
+
 function clampCoord(v, min, max) {
   const n = Number(v);
   if (!Number.isFinite(n)) return 0;
@@ -2636,6 +2976,14 @@ function clampCoord(v, min, max) {
 function cleanWorldRoomCode(raw) {
   const code = String(raw || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 16);
   return code.length >= 3 ? code : '';
+}
+
+function worldStorageCode(roomCode, actor) {
+  // Default/shared room codes (like MUSIC1) are always scoped per school or public so they never leak across classrooms
+  if (WORLD_DEFAULT_CODES.has(roomCode)) {
+    return (actor && actor.authenticated && actor.schoolId ? ('s:' + actor.schoolId) : 'pub') + ':' + roomCode;
+  }
+  return roomCode;
 }
 
 function cleanWorldName(raw) {
@@ -2697,107 +3045,81 @@ async function resolveWorldActor(request, env, body) {
   };
 }
 
-async function readWorldRoom(db, code) {
-  const row = await db.prepare('SELECT code, school_id, host_id, state, updated_at FROM world_rooms WHERE code = ?').bind(code).first();
+async function readWorldRoomRow(db, storageCode) {
+  const row = await db.prepare('SELECT code, school_id, host_id, version, state, updated_at FROM world_rooms WHERE code = ?').bind(storageCode).first();
   if (!row) return null;
   let state = null;
   try { state = JSON.parse(row.state); } catch (e) { state = null; }
   if (!state || typeof state !== 'object') return null;
-  if (!state.players || typeof state.players !== 'object') state.players = {};
-  if (!state.disconnected || typeof state.disconnected !== 'object') state.disconnected = {};
   if (!state.kicked || typeof state.kicked !== 'object') state.kicked = {};
-  return state;
+  return { version: Math.max(1, num(row.version) || 1), state: state };
 }
 
-async function writeWorldRoom(db, state, isNew, nowIso) {
-  const packed = JSON.stringify(state);
-  if (isNew) {
-    await db.prepare(
-      'INSERT INTO world_rooms (code, school_id, host_id, state, updated_at) VALUES (?, ?, ?, ?, ?)'
-    ).bind(state.code, state.schoolId, state.hostId, packed, nowIso).run();
-  } else {
-    await db.prepare(
-      'UPDATE world_rooms SET school_id = ?, host_id = ?, state = ?, updated_at = ? WHERE code = ?'
-    ).bind(state.schoolId, state.hostId, packed, nowIso, state.code).run();
+async function readWorldPlayers(db, storageCode) {
+  const loaded = await db.prepare('SELECT player_id, version, state FROM world_players WHERE room_code = ?').bind(storageCode).all();
+  const rows = (loaded && loaded.results) || [];
+  const out = [];
+  for (let i = 0; i < rows.length; i++) {
+    try {
+      const p = JSON.parse(rows[i].state);
+      if (p && p.id) out.push({ version: Math.max(1, num(rows[i].version) || 1), player: p });
+    } catch (e) {}
   }
+  return out;
 }
 
-function pruneWorldRoom(state, nowMs) {
-  for (const pid of Object.keys(state.players)) {
-    const p = state.players[pid];
-    if (!p || nowMs - num(p.ts) > WORLD_ACTIVE_TTL_MS) {
-      if (p) {
-        state.disconnected[pid] = {
-          id: p.id,
-          name: p.name,
-          grade: p.grade || '',
-          class: p.class || '',
-          seat: p.seat || '',
-          avatar: p.avatar || '🎵',
-          skin: p.skin,
-          hat: p.hat,
-          score: num(p.score),
-          streak: num(p.streak),
-          clientKey: p.clientKey,
-          awardedRounds: p.awardedRounds || {},
-          wasHost: state.hostId === pid,
-          disconnectedAt: nowMs
-        };
-      }
-      delete state.players[pid];
-    }
-  }
-  for (const pid of Object.keys(state.disconnected)) {
-    const d = state.disconnected[pid];
-    if (!d || nowMs - num(d.disconnectedAt) > WORLD_RECONNECT_GRACE_MS) {
-      delete state.disconnected[pid];
-    }
-  }
-  for (const pid of Object.keys(state.kicked)) {
-    if (nowMs >= num(state.kicked[pid])) delete state.kicked[pid];
-  }
-  // If current host is neither active nor within reconnect grace, promote earliest active player
-  const hostAlive = Boolean(state.players[state.hostId] || state.disconnected[state.hostId]);
-  if (!hostAlive) {
-    const activeIds = Object.keys(state.players).sort((a, b) => num(state.players[a].joinedAt) - num(state.players[b].joinedAt));
-    if (activeIds.length) {
-      state.hostId = activeIds[0];
-      state.teacherHosted = state.players[activeIds[0]].teacher === true;
-      if (state.modeState) {
-        state.modeState.hostId = state.hostId;
-        state.modeState.hostName = state.players[activeIds[0]].name;
-      }
-    }
-  }
+async function readSingleWorldPlayer(db, storageCode, playerId) {
+  const row = await db.prepare('SELECT player_id, version, state FROM world_players WHERE room_code = ? AND player_id = ?').bind(storageCode, playerId).first();
+  if (!row) return null;
+  try {
+    const p = JSON.parse(row.state);
+    if (p && p.id) return { version: Math.max(1, num(row.version) || 1), player: p };
+  } catch (e) {}
+  return null;
 }
 
-function publicWorldPlayers(state, currentRoundKey) {
-  return Object.keys(state.players).slice(0, 50).map((pid) => {
-    const p = state.players[pid];
-    const spectating = Boolean(p.spectateRoundKey && p.spectateRoundKey === currentRoundKey);
-    return {
-      id: p.id,
-      name: p.name,
-      grade: p.grade || '',
-      class: p.class || '',
-      seat: p.seat || '',
-      avatar: p.avatar || '🎵',
-      skin: p.skin,
-      hat: p.hat,
-      x: p.x,
-      y: p.y,
-      z: p.z,
-      vx: p.vx,
-      vz: p.vz,
-      yaw: p.yaw,
-      dive: !!p.dive,
-      emote: p.emote || '',
-      score: num(p.score),
-      streak: num(p.streak),
-      spectating: spectating,
-      isHost: p.id === state.hostId
-    };
-  });
+async function deleteWorldPlayer(db, storageCode, playerId) {
+  await db.prepare('DELETE FROM world_players WHERE room_code = ? AND player_id = ?').bind(storageCode, playerId).run();
+}
+
+async function clearWorldRoomPlayers(db, storageCode) {
+  await db.prepare('DELETE FROM world_players WHERE room_code = ?').bind(storageCode).run();
+}
+
+function isWorldRoomExpired(state, nowMs) {
+  if (!state) return true;
+  const ttl = state.schoolId === 'public' ? WORLD_PUBLIC_IDLE_TTL_MS : WORLD_ROOM_IDLE_TTL_MS;
+  const exp = num(state.expiresAt) || (num(state.lastActivityAt) + ttl);
+  return exp > 0 && nowMs > exp;
+}
+
+function createFreshRoomState(storageCode, displayCode, actor, initMs, nowMs) {
+  const ttl = actor.schoolId === 'public' ? WORLD_PUBLIC_IDLE_TTL_MS : WORLD_ROOM_IDLE_TTL_MS;
+  return {
+    v: 3,
+    storageCode: storageCode,
+    code: displayCode,
+    schoolId: actor.schoolId,
+    hostId: actor.id,
+    hostClientKey: actor.clientKey,
+    teacherHosted: actor.teacher === true,
+    requireAuth: actor.teacher === true,
+    createdAt: nowMs,
+    lastActivityAt: nowMs,
+    expiresAt: nowMs + ttl,
+    modeState: {
+      mode: VALID_WORLD_MODES.has(initMs.mode) ? initMs.mode : 'mix',
+      topic: VALID_WORLD_TOPICS.has(initMs.topic) ? initMs.topic : 'mixed',
+      level: VALID_WORLD_LEVELS.has(initMs.level) ? initMs.level : 'auto',
+      epochMs: nowMs,
+      seed: (Math.floor(Number(initMs.seed)) >>> 0) || ((nowMs ^ 0x5a3c91) >>> 0),
+      seq: 1,
+      hostId: actor.id,
+      hostName: actor.name,
+      ts: nowMs
+    },
+    kicked: {}
+  };
 }
 
 function applyWorldModeSwitch(state, actor, ms, nowMs) {
@@ -2817,10 +3139,107 @@ function applyWorldModeSwitch(state, actor, ms, nowMs) {
     hostName: actor.name,
     ts: nowMs
   };
-  // Clear spectating locks when switching to a brand new stage
-  Object.keys(state.players).forEach((pid) => {
-    state.players[pid].spectateRoundKey = '';
-  });
+  const ttl = state.schoolId === 'public' ? WORLD_PUBLIC_IDLE_TTL_MS : WORLD_ROOM_IDLE_TTL_MS;
+  state.lastActivityAt = nowMs;
+  state.expiresAt = nowMs + ttl;
+}
+
+async function mutateWorldRoomCas(db, storageCode, nowIso, mutator) {
+  const MAX_RETRIES = 12;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const rec = await readWorldRoomRow(db, storageCode);
+    const outcome = await mutator(rec);
+    if (!outcome || outcome.write !== true) {
+      return Object.assign({ state: rec ? rec.state : null, version: rec ? rec.version : 0 }, outcome || { ok: true });
+    }
+    const nextState = outcome.state;
+    if (outcome.isNew) {
+      try {
+        await db.prepare(
+          'INSERT INTO world_rooms (code, school_id, host_id, version, state, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+        ).bind(storageCode, nextState.schoolId, nextState.hostId, 1, JSON.stringify(nextState), nowIso).run();
+        return Object.assign({ state: nextState, version: 1, retries: attempt }, outcome);
+      } catch (err) {
+        // Concurrent INSERT race: retry against newly created row
+        await casYield(attempt + 1);
+        continue;
+      }
+    }
+    const nextVer = rec.version + 1;
+    const res = await db.prepare(
+      'UPDATE world_rooms SET school_id = ?, host_id = ?, version = ?, state = ?, updated_at = ? WHERE code = ? AND version = ?'
+    ).bind(nextState.schoolId, nextState.hostId, nextVer, JSON.stringify(nextState), nowIso, storageCode, rec.version).run();
+    if (casSucceeded(res)) {
+      return Object.assign({ state: nextState, version: nextVer, retries: attempt }, outcome);
+    }
+    await casYield(attempt + 1);
+  }
+  return { ok: false, error: 'busy', status: 409 };
+}
+
+async function mutateWorldPlayerCas(db, storageCode, playerId, nowIso, mutator) {
+  const MAX_RETRIES = 12;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const rec = await readSingleWorldPlayer(db, storageCode, playerId);
+    const outcome = mutator(rec);
+    if (!outcome || outcome.write !== true) {
+      return Object.assign({ player: rec ? rec.player : null }, outcome || { ok: true });
+    }
+    const nextPlayer = outcome.player;
+    if (!rec) {
+      try {
+        await db.prepare(
+          'INSERT INTO world_players (room_code, player_id, version, state, updated_at) VALUES (?, ?, ?, ?, ?)'
+        ).bind(storageCode, playerId, 1, JSON.stringify(nextPlayer), nowIso).run();
+        return Object.assign({ player: nextPlayer, version: 1, retries: attempt }, outcome);
+      } catch (err) {
+        // Concurrent INSERT race for same player: retry via UPDATE CAS
+        await casYield(attempt + 1);
+        continue;
+      }
+    }
+    const nextVer = rec.version + 1;
+    const res = await db.prepare(
+      'UPDATE world_players SET version = ?, state = ?, updated_at = ? WHERE room_code = ? AND player_id = ? AND version = ?'
+    ).bind(nextVer, JSON.stringify(nextPlayer), nowIso, storageCode, playerId, rec.version).run();
+    if (casSucceeded(res)) {
+      return Object.assign({ player: nextPlayer, version: nextVer, retries: attempt }, outcome);
+    }
+    await casYield(attempt + 1);
+  }
+  return { ok: false, error: 'busy', status: 409 };
+}
+
+function publicWorldPlayersList(playerRows, roomState, currentRoundKey, nowMs) {
+  const active = [];
+  for (let i = 0; i < playerRows.length; i++) {
+    const p = playerRows[i].player;
+    if (!p || nowMs - num(p.ts) > WORLD_ACTIVE_TTL_MS) continue;
+    const spectating = Boolean(p.spectateRoundKey && p.spectateRoundKey === currentRoundKey);
+    active.push({
+      id: p.id,
+      name: p.name,
+      grade: p.grade || '',
+      class: p.class || '',
+      seat: p.seat || '',
+      avatar: p.avatar || '🎵',
+      skin: p.skin,
+      hat: p.hat,
+      x: p.x,
+      y: p.y,
+      z: p.z,
+      vx: p.vx,
+      vz: p.vz,
+      yaw: p.yaw,
+      dive: !!p.dive,
+      emote: p.emote || '',
+      score: num(p.score),
+      streak: num(p.streak),
+      spectating: spectating,
+      isHost: p.id === roomState.hostId
+    });
+  }
+  return active.slice(0, 50);
 }
 
 async function handleWorld3D(request, env, path, cors) {
@@ -2833,260 +3252,275 @@ async function handleWorld3D(request, env, path, cors) {
       return jsonResponse({ ok: false, error: 'bad_json' }, 400, cors);
     }
     const safeBody = plainObject(body);
-    const roomId = cleanWorldRoomCode(safeBody.room);
-    if (!roomId) return jsonResponse({ ok: false, error: 'bad_room_code' }, 400, cors);
+    const displayRoom = cleanWorldRoomCode(safeBody.room);
+    if (!displayRoom) return jsonResponse({ ok: false, error: 'bad_room_code' }, 400, cors);
 
     const actor = await resolveWorldActor(request, env, safeBody);
     if (actor.error) return actor.error;
 
-    let state = await readWorldRoom(env.DB, roomId);
-    const isNew = !state;
+    const storageCode = worldStorageCode(displayRoom, actor);
 
     if (path === '/world/host') {
-      if (!state) return jsonResponse({ ok: false, error: 'not_found' }, 404, cors);
-      pruneWorldRoom(state, nowMs);
-      const isHost = actor.id === state.hostId || (actor.teacher && state.schoolId === actor.schoolId);
-      const existingHost = state.players[state.hostId] || state.disconnected[state.hostId];
-      if (!isHost || (!actor.authenticated && existingHost && existingHost.clientKey !== actor.clientKey)) {
-        return jsonResponse({ ok: false, error: 'forbidden' }, 403, cors);
-      }
-      if (actor.teacher) {
-        state.hostId = actor.id;
-        state.teacherHosted = true;
-      }
       const action = text(safeBody.action);
-      if (action === 'switch_mode' || action === 'reset_round') {
-        applyWorldModeSwitch(state, actor, plainObject(safeBody.modeState), nowMs);
-      } else if (action === 'kick') {
-        const targetId = text(safeBody.targetId).slice(0, 80);
-        if (!targetId || targetId === actor.id) return jsonResponse({ ok: false, error: 'bad_target' }, 400, cors);
-        delete state.players[targetId];
-        delete state.disconnected[targetId];
-        state.kicked[targetId] = nowMs + WORLD_KICK_TTL_MS;
-      } else if (action === 'transfer_host') {
-        const targetId = text(safeBody.targetId).slice(0, 80);
-        if (!state.players[targetId]) return jsonResponse({ ok: false, error: 'not_found' }, 404, cors);
-        state.hostId = targetId;
-        state.teacherHosted = state.players[targetId].teacher === true;
-        if (state.modeState) {
-          state.modeState.hostId = targetId;
-          state.modeState.hostName = state.players[targetId].name;
+      const targetId = text(safeBody.targetId).slice(0, 80);
+      const roomOutcome = await mutateWorldRoomCas(env.DB, storageCode, nowIso, async (rec) => {
+        if (!rec || isWorldRoomExpired(rec.state, nowMs)) {
+          return { ok: false, error: 'not_found', status: 404, write: false };
         }
-      } else {
-        return jsonResponse({ ok: false, error: 'bad_action' }, 400, cors);
+        const st = rec.state;
+        const isTeacherHost = actor.teacher && (st.schoolId === actor.schoolId || st.schoolId === 'public');
+        const isCurrentHost = actor.id === st.hostId && (actor.authenticated || st.hostClientKey === actor.clientKey);
+        if (!isTeacherHost && !isCurrentHost) {
+          return { ok: false, error: 'forbidden', status: 403, write: false };
+        }
+        if (actor.teacher) {
+          st.schoolId = actor.schoolId;
+          st.hostId = actor.id;
+          st.hostClientKey = actor.clientKey;
+          st.teacherHosted = true;
+          st.requireAuth = true;
+        }
+        if (action === 'switch_mode' || action === 'reset_round') {
+          applyWorldModeSwitch(st, actor, plainObject(safeBody.modeState), nowMs);
+        } else if (action === 'kick') {
+          if (!targetId || targetId === actor.id) return { ok: false, error: 'bad_target', status: 400, write: false };
+          st.kicked[targetId] = nowMs + WORLD_KICK_TTL_MS;
+        } else if (action === 'transfer_host') {
+          if (!targetId) return { ok: false, error: 'bad_target', status: 400, write: false };
+          const targetRec = await readSingleWorldPlayer(env.DB, storageCode, targetId);
+          if (!targetRec) return { ok: false, error: 'not_found', status: 404, write: false };
+          st.hostId = targetId;
+          st.hostClientKey = targetRec.player.clientKey;
+          st.teacherHosted = targetRec.player.teacher === true;
+          if (st.modeState) {
+            st.modeState.hostId = targetId;
+            st.modeState.hostName = targetRec.player.name;
+          }
+        } else {
+          return { ok: false, error: 'bad_action', status: 400, write: false };
+        }
+        return { ok: true, state: st, write: true };
+      });
+      if (!roomOutcome.ok) return jsonResponse({ ok: false, error: roomOutcome.error }, roomOutcome.status || 400, cors);
+      if (action === 'kick' && targetId) {
+        await deleteWorldPlayer(env.DB, storageCode, targetId);
       }
-      await writeWorldRoom(env.DB, state, false, nowIso);
-      const roundInfo = computeWorldRound(state.modeState, nowMs);
+      const roundInfo = computeWorldRound(roomOutcome.state.modeState, nowMs);
+      const playerRows = await readWorldPlayers(env.DB, storageCode);
       return jsonResponse({
         ok: true,
-        room: roomId,
+        room: displayRoom,
         maxPlayers: 50,
         serverTime: nowMs,
-        hostId: state.hostId,
-        players: publicWorldPlayers(state, roundInfo.roundKey),
-        modeState: state.modeState,
+        hostId: roomOutcome.state.hostId,
+        players: publicWorldPlayersList(playerRows, roomOutcome.state, roundInfo.roundKey, nowMs),
+        modeState: roomOutcome.state.modeState,
         roundInfo: roundInfo
       }, 200, cors);
     }
 
-    // POST /world/sync
-    if (isNew) {
-      const initMs = plainObject(safeBody.modeState);
-      state = {
-        v: 2,
-        code: roomId,
-        schoolId: actor.schoolId,
-        hostId: actor.id,
-        teacherHosted: actor.teacher === true,
-        modeState: {
-          mode: VALID_WORLD_MODES.has(initMs.mode) ? initMs.mode : 'mix',
-          topic: VALID_WORLD_TOPICS.has(initMs.topic) ? initMs.topic : 'mixed',
-          level: VALID_WORLD_LEVELS.has(initMs.level) ? initMs.level : 'auto',
-          epochMs: nowMs,
-          seed: (Math.floor(Number(initMs.seed)) >>> 0) || ((nowMs ^ 0x5a3c91) >>> 0),
-          seq: 1,
-          hostId: actor.id,
-          hostName: actor.name,
-          ts: nowMs
-        },
-        players: {},
-        disconnected: {},
-        kicked: {}
-      };
-    } else {
-      pruneWorldRoom(state, nowMs);
-      if (state.kicked[actor.id] && nowMs < num(state.kicked[actor.id])) {
-        return jsonResponse({ ok: false, error: 'kicked' }, 403, cors);
+    // POST /world/sync — Step 1: Ensure / validate room row with version CAS
+    const initMs = plainObject(safeBody.modeState);
+    const roomOutcome = await mutateWorldRoomCas(env.DB, storageCode, nowIso, async (rec) => {
+      if (!rec) {
+        const fresh = createFreshRoomState(storageCode, displayRoom, actor, initMs, nowMs);
+        return { ok: true, isNew: true, wasReset: false, state: fresh, write: true };
       }
-      if (state.teacherHosted && state.schoolId !== 'public' && actor.authenticated && actor.schoolId !== state.schoolId) {
-        return jsonResponse({ ok: false, error: 'wrong_school' }, 403, cors);
+      const st = rec.state;
+      // Expire idle rooms cleanly so default rooms like MUSIC1 never persist indefinitely
+      if (isWorldRoomExpired(st, nowMs)) {
+        const fresh = createFreshRoomState(storageCode, displayRoom, actor, initMs, nowMs);
+        return { ok: true, isNew: false, wasReset: true, state: fresh, write: true };
       }
-      if (actor.teacher && (state.schoolId === 'public' || state.schoolId === actor.schoolId)) {
-        state.schoolId = actor.schoolId;
-        state.hostId = actor.id;
-        state.teacherHosted = true;
-        if (state.modeState) {
-          state.modeState.hostId = actor.id;
-          state.modeState.hostName = actor.name;
+      // Teacher-hosted rooms STRICTLY block unauthenticated guests and other schools
+      if (st.requireAuth || st.teacherHosted) {
+        if (!actor.authenticated) {
+          return { ok: false, error: 'classroom_auth_required', status: 401, write: false };
+        }
+        if (st.schoolId !== 'public' && actor.schoolId !== st.schoolId) {
+          return { ok: false, error: 'wrong_school', status: 403, write: false };
         }
       }
+      if (st.kicked && st.kicked[actor.id] && nowMs < num(st.kicked[actor.id])) {
+        return { ok: false, error: 'kicked', status: 403, write: false };
+      }
+
+      let dirty = false;
+      // Clean expired kicks
+      if (st.kicked) {
+        for (const kId of Object.keys(st.kicked)) {
+          if (nowMs >= num(st.kicked[kId])) {
+            delete st.kicked[kId];
+            dirty = true;
+          }
+        }
+      }
+      // Teacher joining their school's room claims host & locks auth requirement
+      if (actor.teacher && (st.schoolId === 'public' || st.schoolId === actor.schoolId) && (st.hostId !== actor.id || !st.teacherHosted)) {
+        st.schoolId = actor.schoolId;
+        st.hostId = actor.id;
+        st.hostClientKey = actor.clientKey;
+        st.teacherHosted = true;
+        st.requireAuth = true;
+        if (st.modeState) {
+          st.modeState.hostId = actor.id;
+          st.modeState.hostName = actor.name;
+        }
+        dirty = true;
+      }
+      // Host-only mode switch via /world/sync
+      const isHost = actor.id === st.hostId && (actor.authenticated || st.hostClientKey === actor.clientKey);
+      if (isHost && safeBody.modeState && typeof safeBody.modeState === 'object' && safeBody.modeState.resetEpoch === true) {
+        applyWorldModeSwitch(st, actor, plainObject(safeBody.modeState), nowMs);
+        dirty = true;
+      }
+      // Refresh room expiry periodically (>60s since lastActivityAt) without causing write contention on every heartbeat
+      const ttl = st.schoolId === 'public' ? WORLD_PUBLIC_IDLE_TTL_MS : WORLD_ROOM_IDLE_TTL_MS;
+      if (nowMs - num(st.lastActivityAt) > 60000) {
+        st.lastActivityAt = nowMs;
+        st.expiresAt = nowMs + ttl;
+        dirty = true;
+      }
+      return { ok: true, isNew: false, wasReset: false, state: st, write: dirty };
+    });
+
+    if (!roomOutcome.ok) {
+      return jsonResponse({ ok: false, error: roomOutcome.error }, roomOutcome.status || 400, cors);
+    }
+    if (roomOutcome.wasReset) {
+      await clearWorldRoomPlayers(env.DB, storageCode);
     }
 
-    const roundInfoBefore = computeWorldRound(state.modeState, nowMs);
-    const existing = state.players[actor.id];
-    const returning = !existing ? state.disconnected[actor.id] : null;
+    const roomState = roomOutcome.state;
+    const roundInfo = computeWorldRound(roomState.modeState, nowMs);
 
-    if (existing && !actor.authenticated && existing.clientKey !== actor.clientKey) {
-      return jsonResponse({ ok: false, error: 'id_conflict' }, 403, cors);
-    }
-    if (returning && !actor.authenticated && returning.clientKey !== actor.clientKey) {
-      return jsonResponse({ ok: false, error: 'id_conflict' }, 403, cors);
-    }
-    if (existing && nowMs - num(existing.ts) < WORLD_RATE_LIMIT_MS && !(safeBody.modeState && safeBody.modeState.resetEpoch) && !safeBody.roundClaim) {
-      return jsonResponse({
-        ok: true,
-        throttled: true,
-        room: roomId,
-        maxPlayers: 50,
-        serverTime: nowMs,
-        hostId: state.hostId,
-        self: {
-          id: existing.id,
-          score: num(existing.score),
-          streak: num(existing.streak),
-          isHost: existing.id === state.hostId,
-          spectating: Boolean(existing.spectateRoundKey && existing.spectateRoundKey === roundInfoBefore.roundKey),
-          reconnected: false
-        },
-        players: publicWorldPlayers(state, roundInfoBefore.roundKey),
-        modeState: state.modeState,
-        roundInfo: roundInfoBefore
-      }, 200, cors);
-    }
-
-    if (!existing && !returning && Object.keys(state.players).length >= WORLD_MAX_ROOM_PLAYERS) {
+    // Check active player count for brand-new join capacity
+    const preRows = await readWorldPlayers(env.DB, storageCode);
+    const activeCount = preRows.filter((r) => nowMs - num(r.player.ts) <= WORLD_ACTIVE_TTL_MS).length;
+    const alreadyExists = preRows.some((r) => r.player.id === actor.id);
+    if (!alreadyExists && activeCount >= WORLD_MAX_ROOM_PLAYERS) {
       return jsonResponse({ ok: false, error: 'room_full', maxPlayers: 50 }, 429, cors);
     }
 
+    // Step 2: Update ONLY this player's row in world_players with version CAS
     const rawHat = text(safeBody.hat).toLowerCase();
-    const hat = VALID_WORLD_HATS.has(rawHat) ? rawHat : (existing ? existing.hat : (returning ? returning.hat : 'none'));
-    const skin = Number(safeBody.skin) || (existing ? existing.skin : (returning ? returning.skin : 0xf59e0b));
-    let reconnected = false;
-    let pRecord = existing;
+    const playerOutcome = await mutateWorldPlayerCas(env.DB, storageCode, actor.id, nowIso, (rec) => {
+      const existing = rec ? rec.player : null;
+      const withinGrace = existing && (nowMs - num(existing.ts) <= WORLD_ACTIVE_TTL_MS + WORLD_RECONNECT_GRACE_MS);
+      const isReconnect = Boolean(existing && withinGrace && (nowMs - num(existing.ts) > WORLD_ACTIVE_TTL_MS));
 
-    if (!pRecord && returning) {
-      reconnected = true;
-      pRecord = {
-        id: actor.id,
-        name: actor.name,
-        grade: actor.grade,
-        class: actor.class,
-        seat: actor.seat,
-        avatar: actor.avatar,
-        teacher: actor.teacher === true,
-        clientKey: actor.clientKey,
-        skin: skin,
-        hat: hat,
-        score: num(returning.score),
-        streak: num(returning.streak),
-        awardedRounds: returning.awardedRounds || {},
-        spectateRoundKey: '',
-        joinedAt: nowMs,
-        ts: nowMs
-      };
-      if (returning.wasHost && !state.teacherHosted) {
-        state.hostId = actor.id;
+      if (existing && withinGrace && !actor.authenticated && existing.clientKey !== actor.clientKey) {
+        return { ok: false, error: 'id_conflict', status: 403, write: false };
       }
-      delete state.disconnected[actor.id];
-    } else if (!pRecord) {
-      const joinedMidRound = !isNew && state.modeState && state.modeState.mode !== 'free' &&
-        (roundInfoBefore.phase === 'reveal' || (roundInfoBefore.phase === 'countdown' && roundInfoBefore.roundElapsedSec > 2.5));
-      pRecord = {
-        id: actor.id,
-        name: actor.name,
-        grade: actor.grade,
-        class: actor.class,
-        seat: actor.seat,
-        avatar: actor.avatar,
-        teacher: actor.teacher === true,
-        clientKey: actor.clientKey,
-        skin: skin,
-        hat: hat,
-        score: 0,
-        streak: 0,
-        awardedRounds: {},
-        spectateRoundKey: joinedMidRound ? roundInfoBefore.roundKey : '',
-        joinedAt: nowMs,
-        ts: nowMs
-      };
-    }
 
-    // Update position / velocity / visual emote
-    pRecord.name = actor.name;
-    pRecord.skin = skin;
-    pRecord.hat = hat;
-    pRecord.x = clampCoord(safeBody.x, -75, 75);
-    pRecord.y = clampCoord(safeBody.y, -30, 50);
-    pRecord.z = clampCoord(safeBody.z, -75, 75);
-    pRecord.vx = Number(clampCoord(safeBody.vx, -25, 25).toFixed(2));
-    pRecord.vz = Number(clampCoord(safeBody.vz, -25, 25).toFixed(2));
-    pRecord.yaw = Number(clampCoord(safeBody.yaw, -Math.PI * 4, Math.PI * 4).toFixed(2));
-    pRecord.dive = !!safeBody.dive;
-    pRecord.emote = text(safeBody.emote).slice(0, 8);
-    pRecord.ts = nowMs;
+      if (existing && !isReconnect && (nowMs - num(existing.ts) < WORLD_RATE_LIMIT_MS) && !safeBody.roundClaim) {
+        return { ok: true, throttled: true, reconnected: false, player: existing, write: false };
+      }
 
-    // Clear spectate flag once the round advances past the joined-mid-round key
-    if (pRecord.spectateRoundKey && pRecord.spectateRoundKey !== roundInfoBefore.roundKey) {
-      pRecord.spectateRoundKey = '';
-    }
+      const hat = VALID_WORLD_HATS.has(rawHat) ? rawHat : (existing && withinGrace ? existing.hat : 'none');
+      const skin = Number(safeBody.skin) || (existing && withinGrace ? existing.skin : 0xf59e0b);
+      let pRecord;
 
-    // Server-authoritative deduplicated round score claim
-    if (safeBody.roundClaim && typeof safeBody.roundClaim === 'object') {
-      const claim = plainObject(safeBody.roundClaim);
-      const rKey = text(claim.roundKey).slice(0, 40);
-      const isSpectatingThis = Boolean(pRecord.spectateRoundKey && pRecord.spectateRoundKey === rKey);
-      if (rKey && !isSpectatingThis && !pRecord.awardedRounds[rKey]) {
-        const pts = Math.max(0, Math.min(600, Math.floor(Number(claim.points) || 0)));
-        const won = claim.won === true && pts > 0;
-        pRecord.awardedRounds[rKey] = pts;
-        // Keep last 40 round keys bounded
-        const rKeys = Object.keys(pRecord.awardedRounds);
-        if (rKeys.length > 40) delete pRecord.awardedRounds[rKeys[0]];
-        if (won) {
-          pRecord.score = Math.min(999999, num(pRecord.score) + pts);
-          pRecord.streak = Math.min(9999, num(pRecord.streak) + 1);
-        } else {
-          pRecord.streak = 0;
+      if (existing && withinGrace) {
+        pRecord = Object.assign({}, existing);
+        pRecord.awardedRounds = Object.assign({}, existing.awardedRounds || {});
+        if (isReconnect) {
+          pRecord.spectateRoundKey = '';
         }
+      } else {
+        const joinedMidRound = !roomOutcome.isNew && roomState.modeState && roomState.modeState.mode !== 'free' &&
+          (roundInfo.phase === 'reveal' || (roundInfo.phase === 'countdown' && roundInfo.roundElapsedSec > 2.5));
+        pRecord = {
+          id: actor.id,
+          name: actor.name,
+          grade: actor.grade,
+          class: actor.class,
+          seat: actor.seat,
+          avatar: actor.avatar,
+          teacher: actor.teacher === true,
+          clientKey: actor.clientKey,
+          skin: skin,
+          hat: hat,
+          score: 0,
+          streak: 0,
+          awardedRounds: {},
+          spectateRoundKey: joinedMidRound ? roundInfo.roundKey : '',
+          joinedAt: nowMs,
+          ts: nowMs
+        };
+      }
+
+      pRecord.name = actor.name;
+      pRecord.grade = actor.grade;
+      pRecord.class = actor.class;
+      pRecord.seat = actor.seat;
+      pRecord.avatar = actor.avatar;
+      pRecord.skin = skin;
+      pRecord.hat = hat;
+      if (safeBody.x !== undefined) pRecord.x = clampCoord(safeBody.x, -75, 75);
+      else if (pRecord.x === undefined) pRecord.x = 0;
+      if (safeBody.y !== undefined) pRecord.y = clampCoord(safeBody.y, -30, 50);
+      else if (pRecord.y === undefined) pRecord.y = 0;
+      if (safeBody.z !== undefined) pRecord.z = clampCoord(safeBody.z, -75, 75);
+      else if (pRecord.z === undefined) pRecord.z = 0;
+      if (safeBody.vx !== undefined) pRecord.vx = Number(clampCoord(safeBody.vx, -25, 25).toFixed(2));
+      else if (pRecord.vx === undefined) pRecord.vx = 0;
+      if (safeBody.vz !== undefined) pRecord.vz = Number(clampCoord(safeBody.vz, -25, 25).toFixed(2));
+      else if (pRecord.vz === undefined) pRecord.vz = 0;
+      if (safeBody.yaw !== undefined) pRecord.yaw = Number(clampCoord(safeBody.yaw, -Math.PI * 4, Math.PI * 4).toFixed(2));
+      else if (pRecord.yaw === undefined) pRecord.yaw = 0;
+      if (safeBody.dive !== undefined) pRecord.dive = !!safeBody.dive;
+      else if (pRecord.dive === undefined) pRecord.dive = false;
+      if (safeBody.emote !== undefined) pRecord.emote = text(safeBody.emote).slice(0, 8);
+      else if (pRecord.emote === undefined) pRecord.emote = '';
+      pRecord.ts = nowMs;
+
+      if (pRecord.spectateRoundKey && pRecord.spectateRoundKey !== roundInfo.roundKey) {
+        pRecord.spectateRoundKey = '';
+      }
+
+      // Server-authoritative round scoring (never trusts client points/won!)
+      let claimResult = null;
+      if (safeBody.roundClaim && typeof safeBody.roundClaim === 'object') {
+        claimResult = evaluateWorldRoundClaim(roomState.modeState, roundInfo, pRecord, safeBody.roundClaim);
+      }
+
+      return { ok: true, throttled: false, reconnected: isReconnect, claimResult: claimResult, player: pRecord, write: true };
+    });
+
+    if (!playerOutcome.ok) {
+      return jsonResponse({ ok: false, error: playerOutcome.error }, playerOutcome.status || 400, cors);
+    }
+
+    // Re-read fresh room player list (includes all concurrent peers!)
+    const freshRows = await readWorldPlayers(env.DB, storageCode);
+    // Clean up stale player rows expired beyond grace period (opportunistic hygiene)
+    for (let i = 0; i < freshRows.length; i++) {
+      const rp = freshRows[i].player;
+      if (nowMs - num(rp.ts) > WORLD_ACTIVE_TTL_MS + WORLD_RECONNECT_GRACE_MS) {
+        await deleteWorldPlayer(env.DB, storageCode, rp.id);
       }
     }
 
-    state.players[actor.id] = pRecord;
-
-    // Host-only mode switch via /world/sync (skip on initial room creation since modeState was just initialized)
-    const isHost = actor.id === state.hostId;
-    if (!isNew && isHost && safeBody.modeState && typeof safeBody.modeState === 'object' && safeBody.modeState.resetEpoch === true) {
-      applyWorldModeSwitch(state, actor, plainObject(safeBody.modeState), nowMs);
-    }
-
-    await writeWorldRoom(env.DB, state, isNew, nowIso);
-    const roundInfo = computeWorldRound(state.modeState, nowMs);
+    const me = playerOutcome.player;
     return jsonResponse({
       ok: true,
-      room: roomId,
+      throttled: !!playerOutcome.throttled,
+      room: displayRoom,
       maxPlayers: 50,
       serverTime: nowMs,
-      hostId: state.hostId,
+      hostId: roomState.hostId,
       self: {
-        id: pRecord.id,
-        score: num(pRecord.score),
-        streak: num(pRecord.streak),
-        isHost: pRecord.id === state.hostId,
-        spectating: Boolean(pRecord.spectateRoundKey && pRecord.spectateRoundKey === roundInfo.roundKey),
-        reconnected: reconnected
+        id: me.id,
+        score: num(me.score),
+        streak: num(me.streak),
+        isHost: me.id === roomState.hostId,
+        spectating: Boolean(me.spectateRoundKey && me.spectateRoundKey === roundInfo.roundKey),
+        reconnected: !!playerOutcome.reconnected,
+        lastClaim: playerOutcome.claimResult || null
       },
-      players: publicWorldPlayers(state, roundInfo.roundKey),
-      modeState: state.modeState,
+      players: publicWorldPlayersList(freshRows, roomState, roundInfo.roundKey, nowMs),
+      modeState: roomState.modeState,
       roundInfo: roundInfo
     }, 200, cors);
   } catch (err) {

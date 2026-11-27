@@ -21,10 +21,12 @@ import worker, {
 const SECRET = 'test-secret-test-secret-test-secret';
 const LIVE_TABLES = ['live_results', 'live_quizzes', 'live_rooms', 'school_domains'];
 
-function classroomBag(compact, bags) {
+function classroomBag(compact, bags, opts) {
   const table = LIVE_TABLES.find((name) => compact.includes(name));
   if (!table) return null;
   const rows = bags[table];
+  const stats = opts && opts.stats;
+  const onOp = opts && opts.onOp;
   function wherePairs(sql, args, from) {
     const part = sql.includes(' WHERE ') ? sql.split(' WHERE ')[1] : '';
     const names = [];
@@ -42,7 +44,7 @@ function classroomBag(compact, bags) {
       const row = {};
       cols.forEach((col, index) => { row[col] = args[index]; });
       rows.push(row);
-      return;
+      return 1;
     }
     if (compact.startsWith('UPDATE')) {
       const setSql = compact.split(' SET ')[1].split(' WHERE ')[0];
@@ -51,11 +53,16 @@ function classroomBag(compact, bags) {
       let match;
       while ((match = re.exec(setSql))) setNames.push(match[1]);
       const pairs = wherePairs(compact, args, setNames.length);
+      let changed = 0;
       rows.forEach((row) => {
         if (!same(row, pairs)) return;
         setNames.forEach((name, index) => { row[name] = args[index]; });
+        changed += 1;
       });
+      if (changed === 0 && stats && table === 'live_rooms') stats.casConflicts += 1;
+      return changed;
     }
+    return 0;
   }
   return {
     async all() {
@@ -70,25 +77,31 @@ function classroomBag(compact, bags) {
         async first() {
           const pairs = wherePairs(compact, args, 0);
           const found = rows.find((row) => same(row, pairs));
-          return found ? Object.assign({}, found) : null;
+          const snap = found ? Object.assign({}, found) : null;
+          if (onOp) await onOp('first', table, compact, args);
+          return snap;
         },
         async run() {
-          apply(args);
-          return { success: true };
+          if (onOp) await onOp('run', table, compact, args);
+          const changes = apply(args);
+          return { success: true, meta: { changes } };
         }
       };
     }
   };
 }
 
-function memoryDb() {
+function memoryDb(opts = {}) {
   const users = new Map();
   const roster = new Map();
   const bags = { school_domains: [], live_quizzes: [], live_rooms: [], live_results: [] };
+  const stats = { casConflicts: 0 };
+  const bagOpts = { stats, onOp: opts.onOp || null };
   return {
     bags,
     users,
     roster,
+    stats,
     prepare(sql) {
       const compact = sql.replace(/\s+/g, ' ').trim();
       if (compact.includes('FROM users')) {
@@ -97,7 +110,7 @@ function memoryDb() {
       if (compact.includes('FROM roster')) {
         return { bind(...args) { return { async first() { return roster.get(String(args[0] || '').toLowerCase()) || null; } }; } };
       }
-      const bag = classroomBag(compact, bags);
+      const bag = classroomBag(compact, bags, bagOpts);
       if (!bag) throw new Error('unexpected sql ' + compact);
       return bag;
     }
@@ -621,3 +634,110 @@ test('worker /live/* rhythm-echo vertical slice: synced timeline, clock-calibrat
   );
   assert.match(tapStudentHtml, /lq-tap-pad/);
 });
+
+test('worker /live/* CAS prevents dropped submissions when 6 students submit /tap and /answer concurrently', async () => {
+  let gateRelease = null;
+  let gatePromise = null;
+  let gateTarget = 0;
+  let gateCount = 0;
+  function armSelectBarrier(n) {
+    gateTarget = n;
+    gateCount = 0;
+    gatePromise = new Promise((resolve) => { gateRelease = resolve; });
+  }
+  function clearBarrier() {
+    gateTarget = 0;
+    gatePromise = null;
+    gateRelease = null;
+  }
+
+  const db = memoryDb({
+    async onOp(kind, table, compact) {
+      if (gateTarget > 0 && kind === 'first' && table === 'live_rooms' && compact.startsWith('SELECT')) {
+        gateCount += 1;
+        if (gateCount <= gateTarget) {
+          if (gateCount === gateTarget) gateRelease();
+          await gatePromise;
+        }
+      }
+    }
+  });
+
+  const baseNow = Date.now();
+  const env = { DB: db, JWT_SECRET: SECRET, EXTRA_ALLOWED_EMAILS: 'teacher.allow@gmail.com', NOW: baseNow };
+  db.users.set('teacher-sub', { sub: 'teacher-sub', email: 'teacher.allow@gmail.com', name: '陳老師', student_name: '陳老師', grade: '', class: '' });
+  const teacher = await signSessionToken({ sub: 'teacher-sub', email: 'teacher.allow@gmail.com' }, SECRET, baseNow);
+
+  const studentTokens = [];
+  for (let i = 1; i <= 6; i++) {
+    const sub = `conc-s-${i}`;
+    const email = `conc${i}@school.edu.hk`;
+    db.users.set(sub, { sub, email, name: `同學${i}`, student_name: `同學${i}`, grade: '3', class: 'A' });
+    db.roster.set(email, { email, grade: '3', class: 'A', student_name: `同學${i}`, seat: String(i) });
+    studentTokens.push(await signSessionToken({ sub, email }, SECRET, baseNow));
+  }
+
+  async function hit(token, method, path, body) {
+    const res = await worker.fetch(new Request('https://auth.example' + path, {
+      method,
+      headers: { Authorization: 'Bearer ' + token, Origin: 'http://127.0.0.1:4173', 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined
+    }), env);
+    return { status: res.status, data: await res.json() };
+  }
+
+  const saved = await hit(teacher, 'POST', '/live/quizzes', {
+    title: '並發壓測',
+    limitMs: 20000,
+    items: [
+      { type: 'rhythm-echo', meter: '4/4', bpm: 60, level: 'easy', bars: ['ta ti-ti ta ta'] },
+      custom
+    ]
+  });
+  const room = await hit(teacher, 'POST', '/live/rooms', { quizId: saved.data.quiz.id });
+  const code = room.data.code;
+
+  // All 6 students join concurrently with forced SELECT barrier
+  armSelectBarrier(6);
+  const joins = await Promise.all(studentTokens.map((tok) => hit(tok, 'POST', `/live/rooms/${code}/join`, { avatar: '🥁' })));
+  clearBarrier();
+  joins.forEach((r) => assert.equal(r.status, 200));
+  assert.ok(db.stats.casConflicts >= 5, 'concurrent /join must hit CAS conflicts and retry cleanly');
+
+  const q0 = await hit(teacher, 'POST', `/live/rooms/${code}/advance`, {});
+  assert.equal(q0.data.players.length, 6, 'all 6 concurrently joined students preserved');
+
+  // All 6 students submit /tap simultaneously while holding all 6 SELECTs at the same snapshot
+  env.NOW = q0.data.echoTimeline.tapStartAt + 3500;
+  const conflictsBeforeTap = db.stats.casConflicts;
+  armSelectBarrier(6);
+  const taps = await Promise.all(studentTokens.map((tok, idx) =>
+    hit(tok, 'POST', `/live/rooms/${code}/tap`, {
+      onsets: idx % 2 === 0 ? [0, 1000, 1500, 2000, 3000] : [0, 1000, 2000]
+    })
+  ));
+  clearBarrier();
+  taps.forEach((r) => assert.equal(r.status, 200));
+  assert.ok(db.stats.casConflicts > conflictsBeforeTap, 'concurrent /tap must trigger CAS retries');
+
+  const rev0 = await hit(teacher, 'POST', `/live/rooms/${code}/advance`, {});
+  assert.equal(rev0.data.answered, 6, 'ALL 6 concurrent rhythm-echo /tap submissions preserved without drops');
+  assert.equal(rev0.data.players.filter((p) => p.score > 0).length, 6);
+  assert.equal(rev0.data.players.filter((p) => p.correctCount === 1).length, 3);
+
+  // Move to Q1 (multiple-choice) and fire all 6 /answer requests concurrently
+  const q1 = await hit(teacher, 'POST', `/live/rooms/${code}/advance`, {});
+  assert.equal(q1.data.index, 1);
+  const conflictsBeforeAns = db.stats.casConflicts;
+  armSelectBarrier(6);
+  const answers = await Promise.all(studentTokens.map((tok) =>
+    hit(tok, 'POST', `/live/rooms/${code}/answer`, { choiceId: 'c1' })
+  ));
+  clearBarrier();
+  answers.forEach((r) => assert.equal(r.status, 200));
+  assert.ok(db.stats.casConflicts > conflictsBeforeAns, 'concurrent /answer must trigger CAS retries');
+
+  const rev1 = await hit(teacher, 'POST', `/live/rooms/${code}/advance`, {});
+  assert.equal(rev1.data.answered, 6, 'ALL 6 concurrent /answer submissions preserved without drops');
+});
+

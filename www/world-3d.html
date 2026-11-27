@@ -474,7 +474,7 @@
     <!-- Live Leaderboard -->
     <aside class="board-mini" id="boardMini" aria-label="房間即時排行榜">
       <div class="board-mini-head">
-        <span>🏆 <b id="roomTagMini">MUSIC1</b></span>
+        <span>🏆 <b id="roomTagMini">---</b></span>
         <button type="button" class="mini-btn" id="btnCopyRoomMini" title="複製課堂邀請連結">🔗 邀請</button>
       </div>
       <div id="boardRows"></div>
@@ -622,7 +622,7 @@
 
         <div class="picker-label"><span>3. 房間代碼 &amp; 同場人數規模（真人加入自動替補至上限 50 人）</span></div>
         <div class="room-row">
-          <input type="text" id="roomCodeInput" class="room-input" value="MUSIC1" maxlength="12" aria-label="房間代碼" />
+          <input type="text" id="roomCodeInput" class="room-input" value="" placeholder="輸入或自動產生房間代碼" maxlength="12" aria-label="房間代碼" />
           <button type="button" class="share-btn" id="btnShareLobby">🔗 複製 50 人房連結</button>
         </div>
         <div class="seg-grid-4" id="crowdPicker" style="margin-top:7px;">
@@ -704,7 +704,7 @@
     <div class="overlay hidden" id="fullBoardModal">
       <div class="modal">
         <h2>🏆 全場即時排行榜（最多 50 人）</h2>
-        <p class="lead" id="fullBoardSub">房間 MUSIC1 · 即時分數統計</p>
+        <p class="lead" id="fullBoardSub">房間即時分數統計</p>
         <div class="standings-grid" id="fullBoardGrid"></div>
         <button type="button" class="secondary-btn" id="btnCloseFullBoard">關閉排行榜</button>
       </div>
@@ -1895,13 +1895,36 @@
     const remotePlayers = new Map();
     const bots = [];
 
-    const initRoom = (urlParams.get('room') || 'MUSIC1').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 12) || 'MUSIC1';
+    function makeFreshWorldRoomCode() {
+      const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let out = '';
+      for (let i = 0; i < 6; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+      return out;
+    }
+    function getOrCreateSessionRoomCode() {
+      try {
+        const saved = (sessionStorage.getItem('ncWorld3dRoomCode') || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 12);
+        if (saved.length >= 4) return saved;
+        const fresh = makeFreshWorldRoomCode();
+        sessionStorage.setItem('ncWorld3dRoomCode', fresh);
+        return fresh;
+      } catch (e) {
+        return makeFreshWorldRoomCode();
+      }
+    }
+    const urlRoom = (urlParams.get('room') || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 12);
+    const initRoom = urlRoom.length >= 3 ? urlRoom : getOrCreateSessionRoomCode();
+    function getActiveRoomCode() {
+      const val = (document.getElementById('roomCodeInput').value || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 12);
+      return val.length >= 3 ? val : initRoom;
+    }
     const initMode = Logic.MODE_CONFIG[urlParams.get('mode')] ? urlParams.get('mode') : 'mix';
     const initTopic = Logic.TOPIC_META[urlParams.get('topic')] ? urlParams.get('topic') : 'mixed';
     const initLevel = Logic.LEVEL_META[urlParams.get('level')] ? urlParams.get('level') : 'auto';
     const initCrowdParam = parseInt(urlParams.get('crowd') || '50', 10);
     const initCrowd = [0, 12, 30, 50].includes(initCrowdParam) ? initCrowdParam : 50;
     document.getElementById('roomCodeInput').value = initRoom;
+    document.getElementById('roomTagMini').textContent = initRoom;
 
     const CAM_PRESETS = [
       { label: '🎥 標準', pitch: 0.55, dist: 19.5 },
@@ -1933,12 +1956,14 @@
       turntableAngle: 0,
       pendulumTime: 0,
       pendingSyncPush: false,
-      pendingRoundClaim: null,
+      pendingRoundClaims: [],
+      crownClaimedRound: '',
       serverPlayerId: myClientId,
       isHost: true,
       hasSyncedHost: false,
       spectating: false,
       kicked: false,
+      authBlocked: false,
       clockOffsetMs: 0,
       activeRoundKey: '',
       activePhase: 'idle',
@@ -2059,6 +2084,13 @@
       return streakMult * (state.isFinale ? 2 : 1);
     }
 
+    function queueRoundClaim(claim) {
+      if (state.spectating || !state.activeRoundKey || !claim || typeof claim !== 'object') return;
+      const entry = Object.assign({ roundKey: state.activeRoundKey }, claim);
+      if (state.pendingRoundClaims.length >= 12) state.pendingRoundClaims.shift();
+      state.pendingRoundClaims.push(entry);
+    }
+
     function addScore(basePts) {
       if (state.spectating) {
         showBanner('👀 本回合旁觀中，下一關自動加入計分！', 'info');
@@ -2067,9 +2099,6 @@
       const mult = getScoreMultiplier();
       const gain = Math.min(600, basePts * mult);
       state.score += gain;
-      if (state.activeRoundKey) {
-        state.pendingRoundClaim = { roundKey: state.activeRoundKey, points: gain, won: true };
-      }
       saveBestScore(state.score);
       document.getElementById('bestScoreBadge').textContent = `🏆 最高紀錄：${readBestScore()} 分`;
       return gain;
@@ -2260,8 +2289,15 @@
 
       if (eff === 'tiles') {
         let playerSafe = false;
+        let standingTileIdx = -1;
+        let standingTileLabel = '';
         const halfHit = METRICS.tileSize * 0.54;
-        arenaTiles.forEach((tile) => {
+        arenaTiles.forEach((tile, idx) => {
+          const onThis = Math.abs(player.x - tile.x) <= halfHit && Math.abs(player.z - tile.z) <= halfHit && player.y >= -0.6;
+          if (onThis) {
+            standingTileIdx = idx;
+            standingTileLabel = tile.label;
+          }
           if (!tile.isCorrect) {
             tile.dropped = true;
             tile.sign.visible = false;
@@ -2269,9 +2305,10 @@
             tile.sideMat.color.setHex(0x10b981);
             tile.sideMat.emissive.setHex(0x059669);
             tile.sideMat.emissiveIntensity = 0.45;
-            if (Math.abs(player.x - tile.x) <= halfHit && Math.abs(player.z - tile.z) <= halfHit && player.y >= -0.6) playerSafe = true;
+            if (onThis) playerSafe = true;
           }
         });
+        queueRoundClaim({ optionIndex: standingTileIdx, answer: standingTileLabel });
         bots.forEach((b) => {
           const onRight = arenaTiles.some(t => t.isCorrect && Math.abs(b.x - t.x) <= halfHit && Math.abs(b.z - t.z) <= halfHit);
           if (onRight) b.score += 150 * finaleMult;
@@ -2288,7 +2325,9 @@
         }
       } else if (eff === 'piano') {
         const myKey = findStandingPianoKey(player.x, player.z);
-        const playerSafe = !!(myKey && myKey.isCorrect && player.y >= myKey.topY - 0.35);
+        const onValidHeight = !!(myKey && player.y >= myKey.topY - 0.35);
+        const playerSafe = !!(onValidHeight && myKey.isCorrect);
+        queueRoundClaim({ keyId: onValidHeight ? myKey.id : '', answer: onValidHeight ? myKey.label : '' });
         arenaPianoStage.forEach((k) => {
           if (!k.isCorrect) {
             k.sunk = true;
@@ -2322,6 +2361,7 @@
           }
         });
         if (!state.gateScoredThisRound) {
+          queueRoundClaim({ optionIndex: -1, answer: '' });
           state.streak = 0; sfxFail();
           showBanner(`⏱ 時間到！正確音門：${ch.ans}`, 'err');
         } else {
@@ -2330,6 +2370,10 @@
       } else if (eff === 'turntable' && turntableObj) {
         const pTurn = Logic.computeTurntableState(player.x, player.z, state.turntableAngle);
         const playerSafe = pTurn.onTurntable && pTurn.sector === turntableObj.correctSector;
+        queueRoundClaim({
+          sector: pTurn.onTurntable ? pTurn.sector : -1,
+          answer: (pTurn.onTurntable && turntableObj.options[pTurn.sector]) ? turntableObj.options[pTurn.sector] : ''
+        });
         bots.forEach((b) => {
           const bt = Logic.computeTurntableState(b.x, b.z, state.turntableAngle);
           if (bt.onTurntable && bt.sector === turntableObj.correctSector) b.score += 160 * finaleMult;
@@ -2346,14 +2390,22 @@
         }
       } else if (eff === 'freeze') {
         let playerSafe = false;
-        arenaZones.forEach((z) => {
+        let standingZoneIdx = -1;
+        let standingZoneLabel = '';
+        arenaZones.forEach((z, idx) => {
+          const inZone = Math.hypot(player.x - z.x, player.z - z.z) <= z.radius + 0.4;
+          if (inZone) {
+            standingZoneIdx = idx;
+            standingZoneLabel = z.label;
+          }
           if (z.isCorrect) {
             z.padMat.color.setHex(0x10b981);
             z.padMat.emissive.setHex(0x10b981);
             z.padMat.emissiveIntensity = 0.6;
-            if (Math.hypot(player.x - z.x, player.z - z.z) <= z.radius + 0.4) playerSafe = true;
+            if (inZone) playerSafe = true;
           }
         });
+        queueRoundClaim({ optionIndex: standingZoneIdx, answer: standingZoneLabel });
         bots.forEach((b) => {
           const onRight = arenaZones.some(z => z.isCorrect && Math.hypot(b.x - z.x, b.z - z.z) <= z.radius + 0.4);
           if (onRight) b.score += 150 * finaleMult;
@@ -2619,7 +2671,7 @@
     });
 
     function copyRoomInviteLink() {
-      const room = (document.getElementById('roomCodeInput').value || 'MUSIC1').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '') || 'MUSIC1';
+      const room = getActiveRoomCode();
       const u = new URL(window.location.href);
       u.searchParams.set('room', room);
       u.searchParams.set('mode', state.modeState.mode);
@@ -2665,12 +2717,14 @@
 
     document.getElementById('btnEnterWorld').addEventListener('click', () => {
       unlockAudio();
-      const room = (document.getElementById('roomCodeInput').value || 'MUSIC1').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '') || 'MUSIC1';
+      const room = getActiveRoomCode();
       document.getElementById('roomCodeInput').value = room;
       document.getElementById('roomTagMini').textContent = room;
       state.modeState.epochMs = Date.now() + state.clockOffsetMs;
       state.modeState.seed = Logic.hashSeed(room + '_' + Date.now());
       state.started = true;
+      state.kicked = false;
+      state.authBlocked = false;
       state.activeRoundKey = '';
       document.getElementById('startOverlay').classList.add('hidden');
       reconcileBotPool();
@@ -2784,7 +2838,7 @@
     async function sendWorldHostAction(action, extra) {
       if (!worldHostApi || !state.isHost) return;
       try {
-        const room = (document.getElementById('roomCodeInput').value || 'MUSIC1').trim().toUpperCase() || 'MUSIC1';
+        const room = getActiveRoomCode();
         const res = await fetch(worldHostApi, {
           method: 'POST',
           headers: getWorldAuthHeaders(),
@@ -2802,20 +2856,19 @@
     let lastSyncMs = 0;
 
     async function pollWorldSync(isInitialJoin) {
-      if (!state.started || !worldSyncApi || syncInFlight || state.kicked) return;
+      if (!state.started || !worldSyncApi || syncInFlight || state.kicked || state.authBlocked) return;
       syncInFlight = true;
       lastSyncMs = performance.now();
       try {
-        const room = (document.getElementById('roomCodeInput').value || 'MUSIC1').trim().toUpperCase() || 'MUSIC1';
+        const room = getActiveRoomCode();
         const payload = {
           room, id: myClientId, clientKey: myClientKey, name: player.name, skin: player.skin, hat: player.hat,
           x: Number(player.x.toFixed(2)), y: Number(player.y.toFixed(2)), z: Number(player.z.toFixed(2)),
           vx: Number(player.vx.toFixed(2)), vz: Number(player.vz.toFixed(2)),
           yaw: Number(player.yaw.toFixed(2)), dive: player.diveTimer > 0,
-          emote: player.emoteTimer > 0 ? player.emote : '',
-          score: state.score, streak: state.streak
+          emote: player.emoteTimer > 0 ? player.emote : ''
         };
-        const pendingClaim = state.pendingRoundClaim;
+        const pendingClaim = state.pendingRoundClaims.length ? state.pendingRoundClaims[0] : null;
         if (pendingClaim) {
           payload.roundClaim = pendingClaim;
         }
@@ -2851,12 +2904,18 @@
           if (data && data.error === 'kicked') {
             state.kicked = true;
             showBanner('🚫 你已被房間主持移出', 'err');
+          } else if (data && data.error === 'classroom_auth_required') {
+            state.authBlocked = true;
+            showBanner('🔒 此為老師課室房間，請先回主頁登入課堂帳號！', 'err');
+          } else if (data && data.error === 'wrong_school') {
+            state.authBlocked = true;
+            showBanner('🔒 此房間屬於其他學校課室，無法加入！', 'err');
           }
           return;
         }
         if (!data || !data.ok) return;
-        if (pendingClaim && state.pendingRoundClaim === pendingClaim) {
-          state.pendingRoundClaim = null;
+        if (pendingClaim && state.pendingRoundClaims[0] === pendingClaim) {
+          state.pendingRoundClaims.shift();
         }
 
         if (typeof data.serverTime === 'number') {
@@ -2875,8 +2934,9 @@
             state.score = Number(data.self.score) || 0;
             state.streak = Number(data.self.streak) || 0;
             showBanner('🔄 已重新連線並還原身分與分數！', 'ok');
-          } else if (typeof data.self.score === 'number' && data.self.score > state.score) {
-            state.score = data.self.score;
+          } else if (state.pendingRoundClaims.length === 0 && typeof data.self.score === 'number') {
+            state.score = Number(data.self.score) || 0;
+            if (typeof data.self.streak === 'number') state.streak = Number(data.self.streak) || 0;
           }
           if (state.spectating && !wasSpec) {
             showBanner('👀 已加入房間（本回合旁觀，下一關自動加入！）', 'info');
@@ -2982,7 +3042,7 @@
       document.getElementById('boardRows').innerHTML = miniHtml;
 
       if (!fullBoardModal.classList.contains('hidden')) {
-        const room = (document.getElementById('roomCodeInput').value || 'MUSIC1').trim().toUpperCase();
+        const room = getActiveRoomCode();
         document.getElementById('fullBoardSub').textContent = `房間 ${room} · 同場共 ${entries.length} 位玩家${state.isHost ? '（你是主持）' : ''}`;
         document.getElementById('fullBoardGrid').innerHTML = entries.map((e, i) => {
           const prefix = i === 0 && e.score > 0 ? '👑 ' : `${i + 1}. `;
@@ -3577,7 +3637,7 @@
             }
           });
           if (state.activePhase === 'countdown') {
-            arenaGates.forEach((gate) => {
+            arenaGates.forEach((gate, gateIdx) => {
               if (Math.abs(player.x - gate.x) < gate.halfDoorW && Math.abs(player.z - gate.z) < 0.95 && player.y < 3.8) {
                 if (gate.isCorrect) {
                   if (!gate.opened) {
@@ -3589,8 +3649,8 @@
                     state.gateScoredThisRound = true;
                     state.gateFinishOrder += 1;
                     state.streak += 1;
-                    const speedBonus = state.gateFinishOrder === 1 ? 80 : Math.round(rInfo.timeLeft * 12);
-                    const gain = addScore(170 + speedBonus);
+                    queueRoundClaim({ optionIndex: gateIdx, answer: gate.label });
+                    const gain = addScore(170);
                     sfxOk();
                     showBanner(`🚪 衝破正確音門！+${gain} 分`, 'ok');
                     updateHudBadges();
@@ -3607,6 +3667,10 @@
         // 3-Tier Crown Pyramid Scoring & Dual-Ring Orbs
         if (state.effectiveMode === 'crown' && state.activePhase === 'countdown') {
           const crDist = Math.hypot(player.x, player.z);
+          if (crownStageObj && crDist <= 6.5 && player.y >= 1.2 && state.crownClaimedRound !== state.activeRoundKey) {
+            state.crownClaimedRound = state.activeRoundKey;
+            queueRoundClaim({ reachedCrown: true });
+          }
           if (crownStageObj && crDist <= crownStageObj.radius && player.y <= 2.6) {
             state.crownTick += dt;
             if (state.crownTick >= 1.0) {
@@ -3617,12 +3681,13 @@
               updateHudBadges();
             }
           }
-          arenaOrbs.forEach((orb) => {
+          arenaOrbs.forEach((orb, orbIdx) => {
             if (orb.active && Math.hypot(player.x - orb.x, player.z - orb.z) < 1.48 && player.y < 2.5) {
               orb.active = false; orb.mesh.visible = false; orb.respawn = 2.4;
               if (orb.good) {
                 state.streak += 1;
-                const gain = addScore(90);
+                queueRoundClaim({ orbIndex: orbIdx });
+                const gain = addScore(65);
                 playTone(orb.freq, 0.18, 'triangle', 0.14, 0);
                 playTone(orb.freq * 1.5, 0.16, 'sine', 0.11, 0.06);
                 spawnBurst(orb.x, 1.2, orb.z, 14);
