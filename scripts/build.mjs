@@ -91,6 +91,8 @@ for (const f of [
   "www/aural-quality.js",
   "live-quiz.js",
   "www/live-quiz.js",
+  "world-3d-logic.js",
+  "www/world-3d-logic.js",
   "cloudflare/noteschallenge-auth/worker.js"
 ]) checkJs(f);
 for (const f of ["data/instrument-bank.json", "data/instrument-structure.json"]) checkJson(f);
@@ -130,6 +132,7 @@ for (const f of [
   "shiba-slide-3d.html",
   "rhythm-surf-3d.html",
   "chord-island-3d.html",
+  "world-3d-logic.js",
   "world-3d.html",
   "sprite-stacker-3d.html"
 ]) {

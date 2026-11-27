@@ -57,21 +57,25 @@
     .icon-btn:active { transform: scale(0.92); }
     .back-home-btn { font-size: 0.84rem; padding: 0 12px; }
 
-    /* Compact Floating Question Card */
+    /* Compact Translucent Floating Question Card */
     .prompt-wrap {
-      position: absolute; top: 58px; left: 50%; transform: translateX(-50%);
-      z-index: 10; pointer-events: none; width: min(94vw, 430px);
+      position: absolute; top: 46px; left: 50%; transform: translateX(-50%);
+      z-index: 10; pointer-events: none; width: min(92vw, 410px);
       transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    @media (min-width: 1080px) {
+      .prompt-wrap { top: 8px; }
     }
     .prompt-wrap.is-hidden { opacity: 0; transform: translateX(-50%) translateY(-10px); }
     .prompt-card {
-      pointer-events: auto;
-      background: rgba(255, 255, 255, 0.92);
-      backdrop-filter: blur(10px);
-      border: 2.5px solid #a855f7;
-      border-radius: 18px;
-      padding: 6px 12px 7px;
-      box-shadow: 0 10px 24px rgba(109, 40, 217, 0.18);
+      pointer-events: none;
+      background: rgba(255, 255, 255, 0.56);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border: 1.5px solid rgba(168, 85, 247, 0.52);
+      border-radius: 16px;
+      padding: 5px 11px 6px;
+      box-shadow: 0 6px 18px rgba(109, 40, 217, 0.12);
       text-align: center;
       position: relative;
     }
@@ -79,26 +83,27 @@
       display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 1px; flex-wrap: wrap;
     }
     .prompt-badge {
-      display: inline-block; font-size: 0.7rem; font-weight: 900;
-      padding: 2px 9px; border-radius: 999px;
-      background: #f3e8ff; color: #7e22ce;
+      display: inline-block; font-size: 0.68rem; font-weight: 900;
+      padding: 2px 8px; border-radius: 999px;
+      background: rgba(243, 232, 255, 0.88); color: #7e22ce;
     }
     .hear-btn {
-      border: none; border-radius: 999px; padding: 2px 9px;
-      background: #fef3c7; color: #b45309; font: inherit; font-size: 0.7rem; font-weight: 900;
+      pointer-events: auto;
+      border: none; border-radius: 999px; padding: 2px 8px;
+      background: rgba(254, 243, 199, 0.92); color: #b45309; font: inherit; font-size: 0.68rem; font-weight: 900;
       cursor: pointer; transition: transform 0.1s ease;
     }
     .hear-btn:active { transform: scale(0.94); }
-    .prompt-title { font-size: 1.05rem; font-weight: 900; color: #0f172a; line-height: 1.22; }
-    .prompt-sub { font-size: 0.74rem; color: #475569; margin-top: 1px; font-weight: 700; }
+    .prompt-title { font-size: 0.96rem; font-weight: 900; color: #0f172a; line-height: 1.2; text-shadow: 0 1px 4px rgba(255,255,255,0.88); }
+    .prompt-sub { font-size: 0.7rem; color: #334155; margin-top: 1px; font-weight: 700; text-shadow: 0 1px 3px rgba(255,255,255,0.84); }
     .selected-chips {
-      display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 4px; flex-wrap: wrap;
+      display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 3px; flex-wrap: wrap;
     }
     .note-chip {
-      padding: 3px 10px; border-radius: 999px; font-size: 0.76rem; font-weight: 900;
-      background: #ede9fe; color: #5b21b6; border: 1.5px solid #c4b5fd;
+      padding: 2px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 900;
+      background: rgba(237, 233, 254, 0.9); color: #5b21b6; border: 1.5px solid #c4b5fd;
     }
-    .note-chip.empty { background: #f8fafc; color: #94a3b8; border-style: dashed; border-color: #cbd5e1; }
+    .note-chip.empty { background: rgba(248, 250, 252, 0.75); color: #64748b; border-style: dashed; border-color: #cbd5e1; }
 
     /* Feedback Banner */
     .fx-banner {
@@ -211,7 +216,7 @@
     @media (max-width: 640px) {
       .ctrl-hint { display: none; }
       .hud-pill { padding: 6px 10px; gap: 8px; }
-      .prompt-wrap { top: 60px; }
+      .prompt-wrap { top: 46px; }
     }
   </style>
 </head>

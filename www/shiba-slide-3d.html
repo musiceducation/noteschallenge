@@ -65,41 +65,53 @@
     .icon-btn:active { transform: scale(0.92); }
     .back-home-btn { font-size: 0.84rem; padding: 0 12px; }
 
-    /* Compact Floating Question Card */
+    /* Compact Translucent Floating Question Card */
     .prompt-wrap {
-      position: absolute; top: 66px; left: 50%; transform: translateX(-50%);
-      z-index: 10; pointer-events: none; width: min(92vw, 390px);
+      position: absolute; top: 48px; left: 50%; transform: translateX(-50%);
+      z-index: 10; pointer-events: none; width: min(92vw, 430px);
       transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    @media (min-width: 1080px) {
+      .prompt-wrap { top: 8px; }
     }
     .prompt-wrap.is-hidden { opacity: 0; transform: translateX(-50%) translateY(-10px); }
     .prompt-card {
-      pointer-events: auto;
-      background: rgba(255, 255, 255, 0.94);
-      backdrop-filter: blur(12px);
-      border: 3px solid #38bdf8;
-      border-radius: 20px;
-      padding: 8px 14px 10px;
-      box-shadow: 0 12px 28px rgba(14, 116, 144, 0.22);
+      pointer-events: none;
+      background: rgba(255, 255, 255, 0.54);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border: 1.5px solid rgba(56, 189, 248, 0.52);
+      border-radius: 16px;
+      padding: 5px 12px 6px;
+      box-shadow: 0 6px 18px rgba(14, 116, 144, 0.12);
       text-align: center;
       position: relative;
     }
+    .prompt-body {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .prompt-text-col {
+      display: flex; flex-direction: column; align-items: center; min-width: 0;
+    }
     .prompt-head {
-      display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 2px;
+      display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 1px; flex-wrap: wrap;
     }
     .prompt-badge {
-      display: inline-block; font-size: 0.72rem; font-weight: 900;
-      padding: 2px 10px; border-radius: 999px;
-      background: #e0f2fe; color: #0369a1;
+      display: inline-block; font-size: 0.68rem; font-weight: 900;
+      padding: 2px 8px; border-radius: 999px;
+      background: rgba(224, 242, 254, 0.85); color: #0369a1;
     }
     .hear-btn {
-      border: none; border-radius: 999px; padding: 2px 10px;
-      background: #fef3c7; color: #b45309; font: inherit; font-size: 0.72rem; font-weight: 900;
+      pointer-events: auto;
+      border: none; border-radius: 999px; padding: 2px 8px;
+      background: rgba(254, 243, 199, 0.9); color: #b45309; font: inherit; font-size: 0.68rem; font-weight: 900;
       cursor: pointer; transition: transform 0.1s ease;
     }
     .hear-btn:active { transform: scale(0.94); }
-    .prompt-title { font-size: 1.18rem; font-weight: 900; color: #0f172a; line-height: 1.28; }
-    .prompt-sub { font-size: 0.78rem; color: #475569; margin-top: 2px; font-weight: 700; }
-    .staff-svg { width: 210px; height: 76px; display: block; margin: 2px auto 0; }
+    .prompt-title { font-size: 0.96rem; font-weight: 900; color: #0f172a; line-height: 1.2; text-shadow: 0 1px 4px rgba(255,255,255,0.88); }
+    .prompt-sub { font-size: 0.7rem; color: #334155; margin-top: 1px; font-weight: 800; text-shadow: 0 1px 3px rgba(255,255,255,0.85); }
+    #promptVisual:empty { display: none; }
+    .staff-svg { width: 146px; height: 54px; display: block; margin: 0 auto; }
 
     /* Feedback Banner */
     .fx-banner {
@@ -209,8 +221,8 @@
     .mixer-styles .seg-btn { padding: 6px 4px; font-size: 0.72rem; }
     @media (max-width: 640px) {
       .ctrl-hint { display: none; }
-      .hud-pill { padding: 6px 10px; gap: 8px; }
-      .prompt-wrap { top: 60px; }
+      .hud-pill { padding: 5px 9px; gap: 7px; }
+      .prompt-wrap { top: 48px; }
     }
   </style>
 </head>
@@ -226,6 +238,7 @@
         <div class="hud-stat"><small>星星</small><span id="hudStars">0</span></div>
         <div class="hud-hearts" id="hudHearts" aria-label="生命值">❤️❤️❤️</div>
         <span class="zone-pill" id="zoneBadge">❄️ 雪松森林</span>
+        <span class="zone-pill" id="speedBadge" style="background:linear-gradient(135deg,#f59e0b,#ef4444);">⚡ Lv.1 · 1.0×</span>
         <span class="fever-pill" id="feverBadge">✨ FEVER 2×</span>
       </div>
       <div class="hud-actions">
@@ -255,13 +268,17 @@
     <!-- Floating Question Prompt -->
     <div class="prompt-wrap is-hidden" id="promptWrap">
       <div class="prompt-card">
-        <div class="prompt-head">
-          <span class="prompt-badge" id="promptBadge">音名識辨 · 第 1 題</span>
-          <button type="button" class="hear-btn" id="btnHearNote" style="display:none;">🔊 聽音提示</button>
+        <div class="prompt-body">
+          <div id="promptVisual"></div>
+          <div class="prompt-text-col">
+            <div class="prompt-head">
+              <span class="prompt-badge" id="promptBadge">音名識辨 · 第 1 題</span>
+              <button type="button" class="hear-btn" id="btnHearNote" style="display:none;">🔊 聽音提示</button>
+            </div>
+            <div class="prompt-title" id="promptTitle">滑進正確的音名閘門！</div>
+            <div class="prompt-sub" id="promptSub"></div>
+          </div>
         </div>
-        <div class="prompt-title" id="promptTitle">滑進正確的音名閘門！</div>
-        <div id="promptVisual"></div>
-        <div class="prompt-sub" id="promptSub"></div>
       </div>
     </div>
 
@@ -283,9 +300,9 @@
     <!-- Start / Pause Modal -->
     <div class="overlay" id="startOverlay">
       <div class="modal">
-        <span class="modal-tag">3D 旗艦模式 · 地形＋音訊粒子升級</span>
+        <span class="modal-tag">3D 動態加速模式 · 越滑越快越刺激</span>
         <h1>🐕 柴犬雪地音符滑行 3D</h1>
-        <p class="lead">3 大動態地形（雪松森林 → 冰晶峽谷 → 極光星海）、音符跳台與加速冰帶，搭配即時音訊頻譜光柱與 3D 音符粒子爆發！</p>
+        <p class="lead">無需自選難度！滑行速度會隨關卡<b>越來越快</b>，題目與巡邏雪人障礙也會<b>自動升級</b>，挑戰雪松森林 → 冰晶峽谷 → 極光星海！</p>
         <div class="best-bar" id="bestBar">🏆 本機最高分：0</div>
         <div class="best-bar" id="playerBadge" style="background:#e0f2fe;color:#0369a1;display:block;">👤 讀取學生身份中...</div>
 
@@ -299,18 +316,11 @@
 
         <div class="picker-label">2. 挑戰玩法</div>
         <div class="seg-grid seg-grid-2" id="modePicker">
-          <button type="button" class="seg-btn active" data-mode="sprint10">🎯 10 題衝刺（課堂推薦）</button>
-          <button type="button" class="seg-btn" data-mode="endless">♾️ 無盡雪道（3 條命）</button>
+          <button type="button" class="seg-btn active" data-mode="sprint10">🎯 10 題衝刺（自動加速）</button>
+          <button type="button" class="seg-btn" data-mode="endless">♾️ 無盡雪道（極限加速）</button>
         </div>
 
-        <div class="picker-label">3. 滑行速度</div>
-        <div class="seg-grid" id="speedPicker">
-          <button type="button" class="seg-btn" data-speed="easy">🐢 輕鬆</button>
-          <button type="button" class="seg-btn active" data-speed="normal">🐕 標準</button>
-          <button type="button" class="seg-btn" data-speed="fast">⚡ 極速</button>
-        </div>
-
-        <div class="picker-label">4. 背景音樂曲風</div>
+        <div class="picker-label">3. 背景音樂曲風</div>
         <div class="seg-grid" id="bgmStylePicker">
           <button type="button" class="seg-btn active" data-bgm-style="winterPop">❄️ 冬季電音</button>
           <button type="button" class="seg-btn" data-bgm-style="musicBox">✨ 八音盒</button>
@@ -412,38 +422,53 @@
       return a;
     }
 
-    function buildQuestion(topic) {
+    function getSlideDiffTier(waveIdx) {
+      const n = Math.max(1, waveIdx || 1);
+      if (n <= 2) return 1;
+      if (n <= 5) return 2;
+      if (n <= 8) return 3;
+      return 4;
+    }
+
+    function pickByTier(bank, tier, slices) {
+      const range = slices[Math.min(slices.length - 1, Math.max(0, tier - 1))];
+      const pool = bank.slice(range[0], range[1]);
+      return pool[Math.floor(Math.random() * pool.length)] || bank[0];
+    }
+
+    function buildQuestion(topic, waveIdx) {
+      const tier = getSlideDiffTier(waveIdx);
       if (topic === 'notes') {
-        const item = NOTE_BANK[Math.floor(Math.random() * NOTE_BANK.length)];
+        const item = pickByTier(NOTE_BANK, tier, [[0, 5], [0, 7], [3, 10], [5, NOTE_BANK.length]]);
         const wrong = shuffle(ALL_LETTERS.filter(l => l !== item.label)).slice(0, 2);
         return {
-          topic: 'notes', badge: '🎼 音名識辨', title: '滑進這個音的音名閘門！', sub: '高音譜號',
+          topic: 'notes', badge: `🎼 音名識辨 Lv.${tier}`, title: '滑進這個音的音名閘門！', sub: '高音譜號',
           note: item, answer: item.label, explain: item.name, freq: item.freq,
           choices: shuffle([item.label, wrong[0], wrong[1]])
         };
       }
       if (topic === 'keysig') {
-        const item = KEYSIG_BANK[Math.floor(Math.random() * KEYSIG_BANK.length)];
+        const item = pickByTier(KEYSIG_BANK, tier, [[0, 3], [0, 5], [2, 7], [4, KEYSIG_BANK.length]]);
         const wrong = shuffle(ALL_KEYSIGS.filter(k => k !== item.name)).slice(0, 2);
         return {
-          topic: 'keysig', badge: '🔑 調號辨別', title: '這是哪一個大調？', sub: '觀察高音譜號旁的升降記號',
+          topic: 'keysig', badge: `🔑 調號辨別 Lv.${tier}`, title: '這是哪一個大調？', sub: '觀察高音譜號旁的升降記號',
           keysig: item, answer: item.name, explain: `${item.name}（${item.desc}）`, freq: item.freq,
           choices: shuffle([item.name, wrong[0], wrong[1]])
         };
       }
       if (topic === 'terms') {
-        const item = TERM_BANK[Math.floor(Math.random() * TERM_BANK.length)];
+        const item = pickByTier(TERM_BANK, tier, [[0, 4], [0, 8], [4, 11], [6, TERM_BANK.length]]);
         const wrong = shuffle(item.pool.filter(x => x !== item.ans)).slice(0, 2);
         return {
-          topic: 'terms', badge: '📖 音樂術語', title: item.prompt, sub: '滑進正確中文意思閘門',
+          topic: 'terms', badge: `📖 音樂術語 Lv.${tier}`, title: item.prompt, sub: '滑進正確中文意思閘門',
           answer: item.ans, explain: `${item.prompt} ＝ ${item.ans}`, freq: 523.25,
           choices: shuffle([item.ans, wrong[0], wrong[1]])
         };
       }
-      const item = COMPOSER_BANK[Math.floor(Math.random() * COMPOSER_BANK.length)];
+      const item = pickByTier(COMPOSER_BANK, tier, [[0, 4], [0, 7], [3, 9], [5, COMPOSER_BANK.length]]);
       const wrong = shuffle(ALL_COMPOSERS.filter(x => x !== item.ans)).slice(0, 2);
       return {
-        topic: 'composers', badge: '🎻 西方音樂家', title: item.prompt, sub: item.sub,
+        topic: 'composers', badge: `🎻 西方音樂家 Lv.${tier}`, title: item.prompt, sub: item.sub,
         answer: item.ans, explain: `${item.prompt} — ${item.ans}`, freq: 587.33,
         choices: shuffle([item.ans, wrong[0], wrong[1]])
       };
@@ -472,21 +497,21 @@
         voice.draw(ctx, stave);
         const svg = container.querySelector('svg');
         if (svg) {
-          svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-          svg.style.width = '220px';
-          svg.style.height = '96px';
+          svg.setAttribute('viewBox', `6 12 ${w - 12} ${h - 24}`);
+          svg.style.width = '144px';
+          svg.style.height = '54px';
           svg.style.display = 'block';
-          svg.style.margin = '2px auto 0';
+          svg.style.margin = '0 auto';
         }
       } catch (e) {
-        container.innerHTML = `<div style="padding:12px;font-weight:900;color:#0284c7;">${note.name}</div>`;
+        container.innerHTML = `<div style="padding:6px;font-weight:900;color:#0284c7;">${note.name}</div>`;
       }
     }
 
     function renderVexKeysig(container, ks) {
       const VF = typeof VexFlow !== 'undefined' ? VexFlow : null;
       if (!VF || !VF.Renderer) {
-        container.innerHTML = `<div style="padding:12px;font-weight:900;color:#0284c7;">${ks.desc}</div>`;
+        container.innerHTML = `<div style="padding:6px;font-weight:900;color:#0284c7;">${ks.desc}</div>`;
         return;
       }
       try {
@@ -500,14 +525,14 @@
         stave.setContext(ctx).draw();
         const svg = container.querySelector('svg');
         if (svg) {
-          svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-          svg.style.width = '220px';
-          svg.style.height = '92px';
+          svg.setAttribute('viewBox', `6 8 ${w - 12} ${h - 20}`);
+          svg.style.width = '144px';
+          svg.style.height = '52px';
           svg.style.display = 'block';
-          svg.style.margin = '2px auto 0';
+          svg.style.margin = '0 auto';
         }
       } catch (e) {
-        container.innerHTML = `<div style="padding:12px;font-weight:900;color:#0284c7;">${ks.desc}</div>`;
+        container.innerHTML = `<div style="padding:6px;font-weight:900;color:#0284c7;">${ks.desc}</div>`;
       }
     }
 
@@ -664,7 +689,9 @@
     function tickShibaBgm() {
       if (!audioCtx || !state.running || state.paused || muted || !bgmEnabled) return;
       const style = SHIBA_STYLES[audioPrefs.style] || SHIBA_STYLES.winterPop;
-      const stepDur = 60 / style.bpm / 2;
+      const speedRatio = state.baseSpeed ? Math.max(1, state.speed / state.baseSpeed) : 1;
+      const dynamicBpm = style.bpm * (1 + Math.min(0.32, (speedRatio - 1) * 0.35));
+      const stepDur = 60 / dynamicBpm / 2;
       if (nextBgmTime < audioCtx.currentTime) nextBgmTime = audioCtx.currentTime + 0.03;
       while (nextBgmTime < audioCtx.currentTime + 0.14) {
         const s = bgmStep % 32;
@@ -1351,14 +1378,28 @@
         }
       }
 
+      const tier = getSlideDiffTier(state.totalCount + 1);
       const sm = glbTemplates.snowman ? glbTemplates.snowman.clone() : createSnowman();
       sm.position.set(obsLane, 0, zStart + 14.5);
       scene.add(sm);
       activeObstacles.push({
         mesh: sm, hit: false, baseX: obsLane,
-        patrolAmp: state.zoneIdx >= 1 ? 1.15 : 0,
-        patrolPhase: Math.random() * Math.PI * 2
+        patrolAmp: (tier >= 2 || state.zoneIdx >= 1) ? (0.85 + tier * 0.18) : 0,
+        patrolPhase: Math.random() * Math.PI * 2,
+        patrolSpeed: 2.0 + tier * 0.45
       });
+
+      if (tier >= 3) {
+        const sm2 = glbTemplates.snowman ? glbTemplates.snowman.clone() : createSnowman();
+        sm2.position.set(bonusLane, 0, zStart + 20.5);
+        scene.add(sm2);
+        activeObstacles.push({
+          mesh: sm2, hit: false, baseX: bonusLane,
+          patrolAmp: tier >= 4 ? 1.15 : 0.75,
+          patrolPhase: Math.random() * Math.PI * 2,
+          patrolSpeed: 2.2 + tier * 0.4
+        });
+      }
 
       const sideCoin = spawnCoinMesh();
       sideCoin.position.set(bonusLane, 0.9, zStart + 12);
@@ -1366,10 +1407,12 @@
       activeCoins.push({ mesh: sideCoin, taken: false, baseY: 0.9 });
     }
 
-    const SPEED_PRESETS = { easy: 14, normal: 18.5, fast: 23.5 };
+    const BASE_AUTO_SPEED = 15.5;
+    const MAX_AUTO_SPEED = 34.0;
     const state = {
-      running: false, paused: false, topic: 'notes', mode: 'sprint10', speedKey: 'normal',
-      baseSpeed: 18.5, speed: 18.5, score: 0, combo: 0, maxCombo: 0, stars: 0, zoneIdx: 0,
+      running: false, paused: false, topic: 'notes', mode: 'sprint10',
+      baseSpeed: BASE_AUTO_SPEED, speed: BASE_AUTO_SPEED, diffTier: 1,
+      score: 0, combo: 0, maxCombo: 0, stars: 0, zoneIdx: 0,
       correctCount: 0, totalCount: 0, lives: 3, shibaX: 0, targetX: 0, shibaY: 0, vy: 0,
       shake: 0, boostTimer: 0, activeGate: null, mistakes: [],
       keys: { left: false, right: false }, dragActive: false, dragLastX: 0, rafId: 0, lastTime: 0
@@ -1391,6 +1434,7 @@
     const hudStars = document.getElementById('hudStars');
     const hudHearts = document.getElementById('hudHearts');
     const zoneBadge = document.getElementById('zoneBadge');
+    const speedBadge = document.getElementById('speedBadge');
     const feverBadge = document.getElementById('feverBadge');
     const bestBar = document.getElementById('bestBar');
     const promptWrap = document.getElementById('promptWrap');
@@ -1414,6 +1458,17 @@
         hudHearts.textContent = `🏁 ${state.totalCount}/10`;
       } else {
         hudHearts.textContent = '❤️'.repeat(Math.max(0, state.lives)) + '🖤'.repeat(Math.max(0, 3 - state.lives));
+      }
+      const nextTier = state.running ? getSlideDiffTier(state.totalCount + 1) : 1;
+      if (nextTier > state.diffTier && state.running && state.totalCount > 0) {
+        state.diffTier = nextTier;
+        showBanner(`⚡ 加速升級 Lv.${nextTier}！難度提高！`, true);
+      } else if (!state.running) {
+        state.diffTier = 1;
+      }
+      if (speedBadge) {
+        const speedMult = (state.speed / BASE_AUTO_SPEED).toFixed(1);
+        speedBadge.textContent = `⚡ Lv.${state.diffTier} · ${speedMult}×`;
       }
       const nextZone = !state.running ? 0 : (state.combo >= 6 ? 2 : Math.floor(state.totalCount / 3) % 3);
       if (nextZone !== state.zoneIdx) {
@@ -1471,7 +1526,7 @@
         state.activeGate.gates.forEach(g => g.signTex.dispose());
         scene.remove(state.activeGate.row);
       }
-      const q = buildQuestion(state.topic);
+      const q = buildQuestion(state.topic, state.totalCount + 1);
       state.activeGate = createGateRow(q, -58);
       paintQuestion(q, state.totalCount + 1);
       spawnTrackExtras(-58);
@@ -1481,8 +1536,9 @@
       unlockAudio();
       clearWorldEntities();
       state.running = true; state.paused = false;
-      state.baseSpeed = SPEED_PRESETS[state.speedKey] || 18.5;
-      state.speed = state.baseSpeed;
+      state.baseSpeed = BASE_AUTO_SPEED;
+      state.speed = BASE_AUTO_SPEED;
+      state.diffTier = 1;
       state.score = 0; state.combo = 0; state.maxCombo = 0; state.stars = 0; state.zoneIdx = 0;
       state.correctCount = 0; state.totalCount = 0; state.lives = 3;
       state.shibaX = 0; state.targetX = 0; state.shibaY = 0; state.vy = 0;
@@ -1495,7 +1551,6 @@
     }
 
     const TOPIC_LABELS = { notes: '音名識辨', keysig: '調號辨別', terms: '音樂術語', composers: '西方音樂家' };
-    const SPEED_LABELS = { easy: 'Easy', normal: 'Normal', fast: 'Hard' };
 
     function readStoredStudent() {
       try {
@@ -1584,7 +1639,7 @@
       document.getElementById('resCorrect').textContent = `${state.correctCount}/${state.totalCount} (${acc}%)`;
       document.getElementById('resCombo').textContent = String(state.maxCombo);
       document.getElementById('resultTitle').textContent = acc >= 90 ? '雪地音樂大師！🏆' : '滑行挑戰完成！🎉';
-      document.getElementById('resultSub').textContent = `收集 ${state.stars} 顆星星 · 最高紀錄 ${readBest(state.topic)} 分`;
+      document.getElementById('resultSub').textContent = `最高達 Lv.${state.diffTier} (${(state.speed / BASE_AUTO_SPEED).toFixed(1)}×) · 收集 ${state.stars} 顆星星 · 最高紀錄 ${readBest(state.topic)} 分`;
       const rev = document.getElementById('resReview');
       if (state.mistakes.length) {
         rev.style.display = 'block';
@@ -1592,8 +1647,8 @@
       } else {
         rev.style.display = 'none';
       }
-      const modeLabel = (TOPIC_LABELS[state.topic] || state.topic) + '·' + (SPEED_LABELS[state.speedKey] || 'Normal');
-      submit3DRank('shiba3d', state.score, acc, state.maxCombo, modeLabel, SPEED_LABELS[state.speedKey] || 'Normal');
+      const modeLabel = (TOPIC_LABELS[state.topic] || state.topic) + '·自動加速';
+      submit3DRank('shiba3d', state.score, acc, state.maxCombo, modeLabel, 'Auto');
       resultOverlay.classList.remove('hidden');
     }
 
@@ -1615,12 +1670,6 @@
       if (!btn) return;
       state.mode = btn.dataset.mode;
       document.querySelectorAll('#modePicker .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
-    });
-    document.getElementById('speedPicker').addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-speed]');
-      if (!btn) return;
-      state.speedKey = btn.dataset.speed;
-      document.querySelectorAll('#speedPicker .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
     });
     btnHearNote.addEventListener('click', () => {
       unlockAudio();
@@ -1983,7 +2032,7 @@
           const o = activeObstacles[i];
           o.mesh.position.z += activeSpeed * dt;
           if (o.patrolAmp > 0) {
-            o.mesh.position.x = o.baseX + Math.sin(t * 2.4 + o.patrolPhase) * o.patrolAmp;
+            o.mesh.position.x = o.baseX + Math.sin(t * (o.patrolSpeed || 2.4) + o.patrolPhase) * o.patrolAmp;
           }
           if (!o.hit && state.shibaY < 1.2 && Math.abs(o.mesh.position.z - 2.2) < 1.1 && Math.abs(o.mesh.position.x - state.shibaX) < 1.15) {
             o.hit = true; state.combo = 0; state.shake = 0.35; sfxWrong();
@@ -2012,13 +2061,14 @@
               const mult = state.combo >= 3 ? 2 : 1;
               const gain = (100 + state.combo * 20) * mult;
               state.score += gain; state.boostTimer = 0.7;
-              state.speed = Math.min(state.baseSpeed + 7, state.speed + 0.35);
+              state.speed = Math.min(MAX_AUTO_SPEED, state.speed + 1.25);
               sfxCorrect(ag.question.freq, state.combo >= 3);
               spawnBurst(state.shibaX, 1.4, 2.2, state.combo >= 3 ? 0xfacc15 : 0x34d399, 22);
               spawnNoteBurst(state.shibaX, 1.8, 2.2, state.combo >= 3 ? 0xf472b6 : 0x34d399, 10);
               showBanner(state.combo >= 3 ? `🔥 FEVER 2×！+${gain} 分` : `✨ 答對！+${gain} 分`, true);
             } else {
               state.combo = 0;
+              state.speed = Math.min(MAX_AUTO_SPEED, state.speed + 0.55);
               if (state.mode === 'endless') state.lives -= 1;
               state.shake = 0.45;
               state.mistakes.push(`${ag.question.explain}（你選了 ${picked.choice}）`);

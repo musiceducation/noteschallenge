@@ -1924,6 +1924,9 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';
     try {
+      const world3d = await handleWorld3D(request, env, path, cors);
+      if (world3d) return world3d;
+
       if (!env || !env.DB || !env.JWT_SECRET) {
         return jsonResponse({ ok: false, error: 'server not configured' }, 500, cors);
       }
@@ -2132,9 +2135,6 @@ export default {
       const live = await handleLiveQuiz(request, env, path, cors);
       if (live) return live;
 
-      const world3d = await handleWorld3D(request, env, path, cors);
-      if (world3d) return world3d;
-
       return jsonResponse({ ok: false, error: 'not found' }, 404, cors);
     } catch (err) {
       console.error('[noteschallenge-auth]', err && err.message ? err.message : err);
@@ -2144,6 +2144,23 @@ export default {
 };
 
 const WORLD_3D_ROOMS = new Map();
+const WORLD_3D_MODES = new Map();
+const VALID_WORLD_MODES = new Set(['mix', 'free', 'tiles', 'piano', 'gates', 'turntable', 'freeze', 'crown']);
+const VALID_WORLD_TOPICS = new Set(['mixed', 'notes', 'rhythm', 'ear', 'terms']);
+const VALID_WORLD_LEVELS = new Set(['basic', 'advanced']);
+const VALID_WORLD_HATS = new Set(['none', 'headphones', 'crown', 'conductor', 'star']);
+
+export function clearWorld3DRooms() {
+  WORLD_3D_ROOMS.clear();
+  WORLD_3D_MODES.clear();
+}
+
+function clampCoord(v, min, max) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(min, Math.min(max, n));
+}
+
 async function handleWorld3D(request, env, path, cors) {
   if (path !== '/world/sync' || request.method !== 'POST') return null;
   let body = null;
@@ -2152,34 +2169,85 @@ async function handleWorld3D(request, env, path, cors) {
   const pid = String((body && body.id) || '').trim().slice(0, 48);
   if (!pid) return jsonResponse({ ok: false, error: 'missing id' }, 400, cors);
   const now = Date.now();
+
+  // Prune idle rooms and expired mode states (>5 min idle)
+  for (const [rKey, rMap] of WORLD_3D_ROOMS.entries()) {
+    for (const [k, v] of rMap.entries()) {
+      if (now - v.ts > 15000) rMap.delete(k);
+    }
+    if (rMap.size === 0 && rKey !== roomId) {
+      WORLD_3D_ROOMS.delete(rKey);
+      const ms = WORLD_3D_MODES.get(rKey);
+      if (ms && now - ms.ts > 300000) WORLD_3D_MODES.delete(rKey);
+    }
+  }
+
   let room = WORLD_3D_ROOMS.get(roomId);
   if (!room) {
     room = new Map();
     WORLD_3D_ROOMS.set(roomId, room);
   }
-  // Prune stale players (>15s idle)
-  for (const [k, v] of room.entries()) {
-    if (now - v.ts > 15000) room.delete(k);
+  const MAX_ROOM_PLAYERS = 64; // Supports full 50-player party + teachers/reconnects
+  if (!room.has(pid) && room.size >= MAX_ROOM_PLAYERS) {
+    return jsonResponse({ ok: false, error: 'room full', maxPlayers: 50 }, 429, cors);
   }
-  // Cap room at 60 players
-  if (!room.has(pid) && room.size >= 60) {
-    return jsonResponse({ ok: false, error: 'room full' }, 429, cors);
-  }
+
+  const rawHat = String((body && body.hat) || 'none').trim().toLowerCase();
+  const playerName = String((body && body.name) || '玩家').trim().slice(0, 24) || '玩家';
   room.set(pid, {
     id: pid,
-    name: String((body && body.name) || '玩家').trim().slice(0, 24),
+    name: playerName,
     skin: Number(body && body.skin) || 0xf59e0b,
-    x: Number(body && body.x) || 0,
-    y: Number(body && body.y) || 0,
-    z: Number(body && body.z) || 0,
-    yaw: Number(body && body.yaw) || 0,
+    hat: VALID_WORLD_HATS.has(rawHat) ? rawHat : 'none',
+    x: clampCoord(body && body.x, -75, 75),
+    y: clampCoord(body && body.y, -30, 50),
+    z: clampCoord(body && body.z, -75, 75),
+    vx: Number(clampCoord(body && body.vx, -25, 25).toFixed(2)),
+    vz: Number(clampCoord(body && body.vz, -25, 25).toFixed(2)),
+    yaw: Number(clampCoord(body && body.yaw, -Math.PI * 4, Math.PI * 4).toFixed(2)),
     dive: !!(body && body.dive),
     emote: String((body && body.emote) || '').slice(0, 8),
+    score: Math.max(0, Math.min(999999, Math.floor(Number(body && body.score) || 0))),
+    streak: Math.max(0, Math.min(9999, Math.floor(Number(body && body.streak) || 0))),
     ts: now
   });
+
+  let currentMode = WORLD_3D_MODES.get(roomId);
+  if (currentMode) currentMode.ts = now;
+
+  if (body && body.modeState && typeof body.modeState === 'object') {
+    const ms = body.modeState;
+    const reqSeq = Math.max(1, Math.floor(Number(ms.seq) || 1));
+    const isExplicitSwitch = !!ms.resetEpoch;
+    if (!currentMode || (isExplicitSwitch && reqSeq > currentMode.seq)) {
+      const nextMode = VALID_WORLD_MODES.has(ms.mode) ? ms.mode : 'tiles';
+      const nextTopic = VALID_WORLD_TOPICS.has(ms.topic) ? ms.topic : 'mixed';
+      const nextLevel = VALID_WORLD_LEVELS.has(ms.level) ? ms.level : 'basic';
+      const nextSeed = (Math.floor(Number(ms.seed)) >>> 0) || ((now ^ 0x5a3c91) >>> 0);
+      currentMode = {
+        mode: nextMode,
+        topic: nextTopic,
+        level: nextLevel,
+        epochMs: now,
+        seed: nextSeed,
+        seq: currentMode ? Math.max(currentMode.seq + 1, reqSeq) : reqSeq,
+        hostId: pid,
+        hostName: playerName,
+        ts: now
+      };
+      WORLD_3D_MODES.set(roomId, currentMode);
+    }
+  }
+
   const players = [];
   for (const p of room.values()) {
-    players.push({ id: p.id, name: p.name, skin: p.skin, x: p.x, y: p.y, z: p.z, yaw: p.yaw, dive: p.dive, emote: p.emote });
+    const item = {
+      id: p.id, name: p.name, skin: p.skin, hat: p.hat,
+      x: p.x, y: p.y, z: p.z, vx: p.vx, vz: p.vz, yaw: p.yaw,
+      dive: p.dive, emote: p.emote, score: p.score, streak: p.streak
+    };
+    players.push(item);
   }
-  return jsonResponse({ ok: true, room: roomId, serverTime: now, players }, 200, cors);
+  return jsonResponse({ ok: true, room: roomId, maxPlayers: 50, serverTime: now, players, modeState: currentMode || null }, 200, cors);
 }
+
