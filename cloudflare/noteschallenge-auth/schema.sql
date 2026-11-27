@@ -156,3 +156,25 @@ CREATE TABLE IF NOT EXISTS presence_log (
   screen TEXT,
   at TEXT NOT NULL
 );
+
+-- Cross-isolate 3D Music Party World rooms (/world/*). Separate from /live/*, Google Sheet, and radar.
+-- Existing databases: wrangler d1 execute noteschallenge-auth --remote --file=migrate-world-3d.sql
+CREATE TABLE IF NOT EXISTS world_rooms (
+  code TEXT PRIMARY KEY,
+  school_id TEXT NOT NULL,
+  host_id TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  state TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS world_players (
+  room_code TEXT NOT NULL,
+  player_id TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  state TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (room_code, player_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_world_players_room ON world_players (room_code);
