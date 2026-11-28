@@ -1204,7 +1204,7 @@
       const step = c.width / cells;
       for (let y = 0; y < cells; y++) {
         for (let x = 0; x < cells; x++) {
-          ctx.fillStyle = (x + y) % 2 === 0 ? '#34d399' : '#2dd4bf';
+          ctx.fillStyle = (x + y) % 2 === 0 ? '#34d399' : '#86efac';
           ctx.fillRect(x * step, y * step, step, step);
         }
       }
@@ -1399,17 +1399,20 @@
     renderer.setSize(stage.clientWidth || window.innerWidth, stage.clientHeight || window.innerHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x67e8f9);
-    scene.fog = new THREE.FogExp2(0xbae6fd, 0.0052);
+    scene.fog = new THREE.FogExp2(0xd2e6f2, 0.0052);
 
     const camera = new THREE.PerspectiveCamera(52, (stage.clientWidth || window.innerWidth) / (stage.clientHeight || window.innerHeight), 0.1, 270);
 
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x6ee7b7, 0.9);
+    // Warm outdoor key. Sky color stays; the only shadow caster is this sun.
+    const hemiLight = new THREE.HemisphereLight(0xfff3e4, 0xf3d2a6, 0.72);
     scene.add(hemiLight);
-    const sunLight = new THREE.DirectionalLight(0xfffbeb, 0.92);
-    sunLight.position.set(22, 46, 26);
+    const sunLight = new THREE.DirectionalLight(0xffdcb5, 0.76);
+    sunLight.position.set(18, 34, 20);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.width = 1024;
     sunLight.shadow.mapSize.height = 1024;
@@ -1420,6 +1423,7 @@
     sunLight.shadow.camera.right = dCam;
     sunLight.shadow.camera.top = dCam;
     sunLight.shadow.camera.bottom = -dCam;
+    sunLight.shadow.normalBias = 0.02;
     scene.add(sunLight);
 
     const GEO = {
@@ -1451,12 +1455,12 @@
     boostTex.userData = { keepTex: true };
 
     const MAT = {
-      cream: regMat(new THREE.MeshStandardMaterial({ color: 0xfffbeb, roughness: 0.48 })),
-      dark: regMat(new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.32 })),
-      pink: regMat(new THREE.MeshStandardMaterial({ color: 0xec4899, roughness: 0.28 })),
-      red: regMat(new THREE.MeshStandardMaterial({ color: 0xf43f5e, roughness: 0.3 })),
-      gold: regMat(new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0xa16207, emissiveIntensity: 0.25, roughness: 0.22, metalness: 0.35 })),
-      star: regMat(new THREE.MeshStandardMaterial({ color: 0xfde047, emissive: 0xca8a04, emissiveIntensity: 0.4, roughness: 0.2 })),
+      cream: regMat(new THREE.MeshStandardMaterial({ color: 0xfffbeb, roughness: 0.74, metalness: 0 })),
+      dark: regMat(new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.46, metalness: 0 })),
+      pink: regMat(new THREE.MeshStandardMaterial({ color: 0xec4899, roughness: 0.64, metalness: 0 })),
+      red: regMat(new THREE.MeshStandardMaterial({ color: 0xf43f5e, roughness: 0.64, metalness: 0 })),
+      gold: regMat(new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0xa16207, emissiveIntensity: 0.16, roughness: 0.46, metalness: 0.22 })),
+      star: regMat(new THREE.MeshStandardMaterial({ color: 0xfde047, emissive: 0xca8a04, emissiveIntensity: 0.26, roughness: 0.5, metalness: 0 })),
       boost: regMat(new THREE.MeshBasicMaterial({ map: boostTex })),
       blobShadow: regMat(new THREE.MeshBasicMaterial({ color: 0x0f172a, transparent: true, opacity: 0.22, depthWrite: false })),
       aura: regMat(new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: 0.78 }))
@@ -1498,11 +1502,22 @@
         ctx.fillText('★', 66, 92);
         ctx.fillText('✦', 24, 102);
       }
+      paintVelvetNap(ctx, 128, 128);
       const tex = new THREE.CanvasTexture(c);
       tex.wrapS = THREE.RepeatWrapping;
       tex.wrapT = THREE.RepeatWrapping;
       tex.userData = { keepTex: true };
       return tex;
+    }
+    function paintVelvetNap(ctx, w, h) {
+      for (let i = 0; i < 72; i++) {
+        const x = (i * 41) % w;
+        const y = (i * 23) % h;
+        ctx.fillStyle = i % 2 === 0 ? 'rgba(255,248,236,0.055)' : 'rgba(90,42,24,0.045)';
+        ctx.beginPath();
+        ctx.ellipse(x, y, 9, 3.4, (i % 6) * 0.45, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
     function getCoatMat(hex, pattern) {
       const colorNum = Number(hex) || 0xf59e0b;
@@ -1510,8 +1525,8 @@
       const key = colorNum + '_' + pat;
       if (!COAT_MAT_POOL.has(key)) {
         const mat = pat === 'solid'
-          ? new THREE.MeshStandardMaterial({ color: colorNum, roughness: 0.34, metalness: 0.06 })
-          : new THREE.MeshStandardMaterial({ map: makePatternCoatTex(colorNum, pat), roughness: 0.32, metalness: 0.08 });
+          ? new THREE.MeshStandardMaterial({ color: colorNum, roughness: 0.72, metalness: 0 })
+          : new THREE.MeshStandardMaterial({ map: makePatternCoatTex(colorNum, pat), roughness: 0.68, metalness: 0 });
         COAT_MAT_POOL.set(key, regMat(mat));
       }
       return COAT_MAT_POOL.get(key);
@@ -1758,13 +1773,13 @@
     const lobbyPodiumGroup = new THREE.Group();
     const podBase = new THREE.Mesh(
       new THREE.CylinderGeometry(2.35, 2.75, 0.42, 36),
-      new THREE.MeshStandardMaterial({ color: 0xec4899, emissive: 0x9d174d, emissiveIntensity: 0.22, roughness: 0.28 })
+      new THREE.MeshStandardMaterial({ color: 0xec4899, emissive: 0x9d174d, emissiveIntensity: 0.14, roughness: 0.62, metalness: 0 })
     );
     podBase.position.y = 0.21;
     podBase.receiveShadow = true;
     const podTop = new THREE.Mesh(
       new THREE.CylinderGeometry(2.15, 2.15, 0.08, 36),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x38bdf8, emissiveIntensity: 0.18, roughness: 0.22 })
+      new THREE.MeshStandardMaterial({ color: 0xfff7ed, emissive: 0xfde68a, emissiveIntensity: 0.1, roughness: 0.62, metalness: 0 })
     );
     podTop.position.y = 0.43;
     const podRing = new THREE.Mesh(new THREE.TorusGeometry(2.38, 0.11, 10, 48), MAT.gold);
@@ -1801,7 +1816,7 @@
 
       if (i % 4 === 0) {
         const balloon = new THREE.Group();
-        const bMat = new THREE.MeshStandardMaterial({ color: blimpColors[(i / 4) % 4], roughness: 0.35 });
+        const bMat = new THREE.MeshStandardMaterial({ color: blimpColors[(i / 4) % 4], roughness: 0.64, metalness: 0 });
         const env = new THREE.Mesh(new THREE.SphereGeometry(3.4, 14, 12), bMat);
         env.scale.set(1, 1.25, 1);
         const basket = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.75, 1.1, 10), MAT.gold);
@@ -1815,8 +1830,8 @@
 
     const islandGroup = new THREE.Group();
     const deckTex = makeCheckeredDeckTexture();
-    const deckTopMat = new THREE.MeshStandardMaterial({ map: deckTex, roughness: 0.58 });
-    const deckSideMat = new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.65 });
+    const deckTopMat = new THREE.MeshStandardMaterial({ map: deckTex, roughness: 0.78, metalness: 0 });
+    const deckSideMat = new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.8, metalness: 0 });
     const outerRing = new THREE.Mesh(
       new THREE.CylinderGeometry(METRICS.islandRadius + 0.4, METRICS.islandRadius - 3.2, 2.8, 56),
       [deckSideMat, deckTopMat, deckSideMat]
@@ -1824,14 +1839,14 @@
     outerRing.position.y = -1.4;
     outerRing.receiveShadow = true;
 
-    const trimRingMat = new THREE.MeshStandardMaterial({ color: 0xf472b6, emissive: 0xdb2777, emissiveIntensity: 0.15, roughness: 0.35 });
+    const trimRingMat = new THREE.MeshStandardMaterial({ color: 0xf472b6, emissive: 0xdb2777, emissiveIntensity: 0.1, roughness: 0.58, metalness: 0 });
     const trimRing = new THREE.Mesh(new THREE.TorusGeometry(METRICS.islandRadius + 0.2, 0.62, 12, 72), trimRingMat);
     trimRing.rotation.x = Math.PI / 2;
     trimRing.position.y = 0.05;
 
     const underRock = new THREE.Mesh(
       new THREE.ConeGeometry(METRICS.islandRadius - 3.6, 16, 28),
-      new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.85 })
+      new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.88, metalness: 0 })
     );
     underRock.rotation.x = Math.PI;
     underRock.position.y = -10.6;
@@ -1899,9 +1914,9 @@
     ];
     DRUM_PADS.forEach((dp) => {
       const g = new THREE.Group();
-      const base = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.4, 0.6, 20), new THREE.MeshStandardMaterial({ color: dp.color, roughness: 0.4 }));
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.4, 0.6, 20), new THREE.MeshStandardMaterial({ color: dp.color, roughness: 0.64, metalness: 0 }));
       base.position.y = 0.3;
-      const top = new THREE.Mesh(new THREE.CylinderGeometry(1.9, 1.9, 0.18, 20), new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.32 }));
+      const top = new THREE.Mesh(new THREE.CylinderGeometry(1.9, 1.9, 0.18, 20), new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.72, metalness: 0 }));
       top.position.y = 0.65;
       g.add(base, top);
       g.position.set(dp.x, 0, dp.z);
@@ -1917,11 +1932,11 @@
     ];
     SWEEPERS.forEach((sw) => {
       const g = new THREE.Group();
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.62, 1.7, 14), new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.5 }));
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.62, 1.7, 14), new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.68, metalness: 0 }));
       post.position.y = 0.85;
       const bar = new THREE.Mesh(
         new THREE.CylinderGeometry(0.28, 0.28, sw.len * 2, 12),
-        new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.28, emissive: 0x854d0e, emissiveIntensity: 0.2 })
+        new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.52, metalness: 0, emissive: 0x854d0e, emissiveIntensity: 0.14 })
       );
       bar.rotation.z = Math.PI / 2;
       bar.position.y = 0.82;
@@ -1950,7 +1965,7 @@
       const kz = 29.0;
       const mesh = new THREE.Mesh(
         new THREE.BoxGeometry(2.02, 0.3, 4.0),
-        new THREE.MeshStandardMaterial({ color: pn.color, roughness: 0.3 })
+        new THREE.MeshStandardMaterial({ color: pn.color, roughness: 0.66, metalness: 0 })
       );
       mesh.position.set(kx, 0.15, kz);
       mesh.receiveShadow = true;
@@ -1967,7 +1982,7 @@
       const g = new THREE.Group();
       const ring = new THREE.Mesh(
         new THREE.TorusGeometry(2.2, 0.28, 14, 36),
-        new THREE.MeshStandardMaterial({ color: pt.color, emissive: pt.color, emissiveIntensity: 0.42, roughness: 0.25 })
+        new THREE.MeshStandardMaterial({ color: pt.color, emissive: pt.color, emissiveIntensity: 0.28, roughness: 0.5, metalness: 0 })
       );
       ring.position.y = 2.5;
       const disc = new THREE.Mesh(
@@ -2034,8 +2049,8 @@
           const label = options[idx] || '♪';
           const fontPx = label.length > 8 ? 30 : (label.length > 5 ? 36 : 48);
           const topTex = makeLabelTexture(label, '#ffffff', '#0f172a', 256, 256, fontPx, hexCss);
-          const sideMat = new THREE.MeshStandardMaterial({ color, roughness: 0.36 });
-          const topMat = new THREE.MeshStandardMaterial({ map: topTex, roughness: 0.3 });
+          const sideMat = new THREE.MeshStandardMaterial({ color, roughness: 0.66, metalness: 0 });
+          const topMat = new THREE.MeshStandardMaterial({ map: topTex, roughness: 0.58, metalness: 0 });
 
           const tileGroup = new THREE.Group();
           const mesh = new THREE.Mesh(
@@ -2069,7 +2084,7 @@
       // Rosewood Grand Piano Backboard Frame
       const frame = new THREE.Mesh(
         new THREE.BoxGeometry(31.8, 1.8, 1.6),
-        new THREE.MeshStandardMaterial({ color: 0x3b0764, roughness: 0.35 })
+        new THREE.MeshStandardMaterial({ color: 0x3b0764, roughness: 0.64, metalness: 0 })
       );
       frame.position.set(0, 0.9, -6.9);
       modeArenaGroup.add(frame);
@@ -2078,7 +2093,8 @@
         const g = new THREE.Group();
         const keyMat = new THREE.MeshStandardMaterial({
           color: kd.isSharp ? 0x1e293b : 0xffffff,
-          roughness: kd.isSharp ? 0.25 : 0.32
+          roughness: kd.isSharp ? 0.52 : 0.64,
+          metalness: 0
         });
         const mesh = new THREE.Mesh(new THREE.BoxGeometry(kd.w, kd.topY, kd.d), keyMat);
         mesh.position.y = kd.topY * 0.5;
@@ -2115,7 +2131,7 @@
     function buildGatesArena(options, ans) {
       clearModeArena();
       // Canyon Racecourse Side Guide Barriers
-      const wallMat = new THREE.MeshStandardMaterial({ color: 0xf472b6, roughness: 0.4 });
+      const wallMat = new THREE.MeshStandardMaterial({ color: 0xf472b6, roughness: 0.66, metalness: 0 });
       [-18.8, 18.8].forEach((wx) => {
         const wall = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.5, 32), wallMat);
         wall.position.set(wx, 0.75, 4.0);
@@ -2125,16 +2141,16 @@
       METRICS.gateXs.forEach((x, i) => {
         const label = options[i] || '♪';
         const g = new THREE.Group();
-        const pillarMat = new THREE.MeshStandardMaterial({ color: 0xf472b6, roughness: 0.35 });
+        const pillarMat = new THREE.MeshStandardMaterial({ color: 0xf472b6, roughness: 0.64, metalness: 0 });
         const halfW = METRICS.gateWidth * 0.5;
         const pL = new THREE.Mesh(new THREE.BoxGeometry(0.82, 4.7, 0.82), pillarMat);
         pL.position.set(-halfW, 2.35, 0);
         const pR = pL.clone();
         pR.position.x = halfW;
-        const lintelMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.3 });
+        const lintelMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.56, metalness: 0 });
         const lintel = new THREE.Mesh(new THREE.BoxGeometry(METRICS.gateWidth + 1.1, 0.9, 1.0), lintelMat);
         lintel.position.set(0, 4.8, 0);
-        const doorMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.68, roughness: 0.2 });
+        const doorMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.68, roughness: 0.46, metalness: 0 });
         const door = new THREE.Mesh(new THREE.BoxGeometry(METRICS.gateWidth - 0.9, 4.2, 0.32), doorMat);
         door.position.set(0, 2.1, 0);
         const fontPx = label.length > 8 ? 28 : 35;
@@ -2158,7 +2174,7 @@
         rod.position.y = -2.7;
         const hammer = new THREE.Mesh(
           new THREE.CylinderGeometry(0.85, 0.85, 2.2, 16),
-          new THREE.MeshStandardMaterial({ color: idx === 0 ? 0xf59e0b : 0xec4899, roughness: 0.3 })
+          new THREE.MeshStandardMaterial({ color: idx === 0 ? 0xf59e0b : 0xec4899, roughness: 0.6, metalness: 0 })
         );
         hammer.rotation.x = Math.PI / 2;
         hammer.position.y = -5.4;
@@ -2172,7 +2188,7 @@
         const g = new THREE.Group();
         const body = new THREE.Mesh(
           new THREE.CylinderGeometry(bm.radius, bm.radius * 0.92, 1.45, 20),
-          new THREE.MeshStandardMaterial({ color: idx === 1 ? 0xa855f7 : 0xf43f5e, roughness: 0.3 })
+          new THREE.MeshStandardMaterial({ color: idx === 1 ? 0xa855f7 : 0xf43f5e, roughness: 0.6, metalness: 0 })
         );
         body.position.y = 0.72;
         const rim = new THREE.Mesh(new THREE.TorusGeometry(bm.radius, 0.14, 8, 24), MAT.gold);
@@ -2192,7 +2208,7 @@
         arenaBoosts.push(bp);
       });
 
-      const finishMat = new THREE.MeshStandardMaterial({ color: 0xfef08a, emissive: 0xca8a04, emissiveIntensity: 0.22, roughness: 0.35 });
+      const finishMat = new THREE.MeshStandardMaterial({ color: 0xfef08a, emissive: 0xca8a04, emissiveIntensity: 0.14, roughness: 0.58, metalness: 0 });
       const finishStrip = new THREE.Mesh(new THREE.BoxGeometry(35, 0.45, 4.2), finishMat);
       finishStrip.position.set(0, 0.225, -13.5);
       modeArenaGroup.add(finishStrip);
@@ -2203,8 +2219,8 @@
       clearModeArena();
       const group = new THREE.Group();
       const discTex = makeTurntableDiscTexture(options);
-      const topMat = new THREE.MeshStandardMaterial({ map: discTex, roughness: 0.35 });
-      const rimMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3 });
+      const topMat = new THREE.MeshStandardMaterial({ map: discTex, roughness: 0.56, metalness: 0 });
+      const rimMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.62, metalness: 0 });
       const disc = new THREE.Mesh(
         new THREE.CylinderGeometry(METRICS.turntableRadius, METRICS.turntableRadius + 0.4, 0.36, 56),
         [rimMat, topMat, rimMat]
@@ -2262,7 +2278,7 @@
     function buildFreezeZonesArena(options, ans) {
       clearModeArena();
       // X-Cross Rainbow Connecting Walkways
-      const bridgeMat = new THREE.MeshStandardMaterial({ color: 0xfef08a, emissive: 0xf59e0b, emissiveIntensity: 0.18, roughness: 0.4 });
+      const bridgeMat = new THREE.MeshStandardMaterial({ color: 0xfef08a, emissive: 0xf59e0b, emissiveIntensity: 0.12, roughness: 0.62, metalness: 0 });
       [0.72, -0.72].forEach((rotY) => {
         const br = new THREE.Mesh(new THREE.BoxGeometry(34.0, 0.35, 2.8), bridgeMat);
         br.position.y = 0.18;
@@ -2273,7 +2289,7 @@
       METRICS.freezeCoords.forEach((c, i) => {
         const label = options[i] || '♪';
         const g = new THREE.Group();
-        const padMat = new THREE.MeshStandardMaterial({ color: c.color, emissive: c.color, emissiveIntensity: 0.26, roughness: 0.35 });
+        const padMat = new THREE.MeshStandardMaterial({ color: c.color, emissive: c.color, emissiveIntensity: 0.16, roughness: 0.58, metalness: 0 });
         const pad = new THREE.Mesh(new THREE.CylinderGeometry(METRICS.freezeZoneRadius, METRICS.freezeZoneRadius + 0.4, 0.52, 32), padMat);
         pad.position.y = 0.26;
         const ring = new THREE.Mesh(new THREE.TorusGeometry(METRICS.freezeZoneRadius, 0.16, 10, 42), new THREE.MeshBasicMaterial({ color: 0xffffff }));
@@ -2301,7 +2317,7 @@
         const h = t.height - prevH;
         const cyl = new THREE.Mesh(
           new THREE.CylinderGeometry(t.radius, t.radius + 0.45, h, 36),
-          new THREE.MeshStandardMaterial({ color: tierColors[idx], emissive: 0xa16207, emissiveIntensity: 0.18 + idx * 0.06, roughness: 0.28 })
+          new THREE.MeshStandardMaterial({ color: tierColors[idx], emissive: 0xa16207, emissiveIntensity: 0.12 + idx * 0.04, roughness: 0.5, metalness: 0.12 })
         );
         cyl.position.y = prevH + h * 0.5;
         cyl.receiveShadow = true;
@@ -2330,8 +2346,9 @@
           new THREE.MeshStandardMaterial({
             color: item.good ? 0x38bdf8 : 0xfb7185,
             emissive: item.good ? 0x0284c7 : 0xe11d48,
-            emissiveIntensity: 0.32,
-            roughness: 0.22
+            emissiveIntensity: 0.22,
+            roughness: 0.5,
+            metalness: 0
           })
         );
         const lbl = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeLabelTexture(item.label, '#ffffff', '#0f172a', 220, 76, 32), transparent: true }));
