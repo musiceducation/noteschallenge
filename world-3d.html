@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800;900&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
   <script src="world-3d-logic.js"></script>
   <style>
     :root {
@@ -1297,11 +1298,18 @@
 
     const SHARED_GEOS = new Set();
     const SHARED_MATS = new Set();
+    const partyShibaSlots = [];
     function regGeo(g) { SHARED_GEOS.add(g); return g; }
     function regMat(m) { SHARED_MATS.add(m); return m; }
 
     function disposeObject3D(obj) {
       if (!obj) return;
+      if (obj.userData && obj.userData.partySlot) {
+        const slot = obj.userData.partySlot;
+        const idx = partyShibaSlots.indexOf(slot);
+        if (idx >= 0) partyShibaSlots.splice(idx, 1);
+        slot.anchor = null;
+      }
       obj.traverse((child) => {
         if (child.geometry && !SHARED_GEOS.has(child.geometry)) {
           child.geometry.dispose();
@@ -1427,15 +1435,6 @@
     scene.add(sunLight);
 
     const GEO = {
-      torso: regGeo(new THREE.CylinderGeometry(0.55, 0.58, 0.88, 12)),
-      head: regGeo(new THREE.SphereGeometry(0.55, 12, 10)),
-      hips: regGeo(new THREE.SphereGeometry(0.57, 12, 10)),
-      arm: regGeo(new THREE.CylinderGeometry(0.12, 0.13, 0.54, 8)),
-      face: regGeo(new THREE.SphereGeometry(0.46, 10, 8)),
-      eye: regGeo(new THREE.SphereGeometry(0.065, 6, 6)),
-      ear: regGeo(new THREE.ConeGeometry(0.16, 0.34, 6)),
-      tail: regGeo(new THREE.TorusGeometry(0.16, 0.07, 6, 10, Math.PI * 1.4)),
-      foot: regGeo(new THREE.SphereGeometry(0.18, 8, 6)),
       blobShadow: regGeo(new THREE.CircleGeometry(0.62, 16)),
       aura: regGeo(new THREE.TorusGeometry(0.78, 0.06, 6, 22)),
       shockRing: regGeo(new THREE.TorusGeometry(1.0, 0.08, 8, 32)),
@@ -1466,71 +1465,138 @@
       aura: regMat(new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: 0.78 }))
     };
 
-    const COAT_MAT_POOL = new Map();
-    function makePatternCoatTex(hex, pattern) {
-      const c = document.createElement('canvas');
-      c.width = 128; c.height = 128;
-      const ctx = c.getContext('2d');
-      const baseCss = '#' + (Number(hex) || 0xf59e0b).toString(16).padStart(6, '0');
-      ctx.fillStyle = baseCss;
-      ctx.fillRect(0, 0, 128, 128);
-      if (pattern === 'stripes') {
-        ctx.fillStyle = 'rgba(255,255,255,0.34)';
-        for (let y = 0; y < 128; y += 26) ctx.fillRect(0, y, 128, 11);
-      } else if (pattern === 'dots') {
-        ctx.fillStyle = 'rgba(255,255,255,0.42)';
-        for (let y = 14; y < 128; y += 30) {
-          for (let x = 14; x < 128; x += 30) {
-            ctx.beginPath();
-            ctx.arc(x + ((y / 30) % 2) * 14, y, 7.5, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
-      } else if (pattern === 'star') {
-        const g = ctx.createLinearGradient(0, 0, 0, 128);
-        g.addColorStop(0, 'rgba(255,255,255,0.42)');
-        g.addColorStop(0.55, 'rgba(255,255,255,0.0)');
-        g.addColorStop(1, 'rgba(15,23,42,0.18)');
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, 128, 128);
-        ctx.fillStyle = 'rgba(254,240,138,0.88)';
-        ctx.font = 'bold 26px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('★', 32, 34);
-        ctx.fillText('✦', 94, 46);
-        ctx.fillText('★', 66, 92);
-        ctx.fillText('✦', 24, 102);
-      }
-      paintVelvetNap(ctx, 128, 128);
-      const tex = new THREE.CanvasTexture(c);
-      tex.wrapS = THREE.RepeatWrapping;
-      tex.wrapT = THREE.RepeatWrapping;
-      tex.userData = { keepTex: true };
-      return tex;
+    // Party Shiba: one static GLB for the whole room. Geometry is shared;
+    // each skin/pattern gets one cloned PBR material (maps stay shared).
+    const PARTY_SHIBA_HEIGHT = 2.02;
+    const PARTY_SHIBA_ROTY = 0;
+    const FUR_MAT_POOL = new Map();
+    let partyShibaGeo = null;
+    let partyShibaBaseMat = null;
+    let partyShibaScale = PARTY_SHIBA_HEIGHT / 0.9797764420509338;
+    let partyShibaFit = { x: 0, y: 0, z: 0 };
+    let partyShibaLoadStarted = false;
+
+    function partyPatternId(pattern) {
+      if (pattern === 'stripes') return 1;
+      if (pattern === 'dots') return 2;
+      if (pattern === 'star') return 3;
+      return 0;
     }
-    function paintVelvetNap(ctx, w, h) {
-      for (let i = 0; i < 72; i++) {
-        const x = (i * 41) % w;
-        const y = (i * 23) % h;
-        ctx.fillStyle = i % 2 === 0 ? 'rgba(255,248,236,0.055)' : 'rgba(90,42,24,0.045)';
-        ctx.beginPath();
-        ctx.ellipse(x, y, 9, 3.4, (i % 6) * 0.45, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    function getCoatMat(hex, pattern) {
+
+    function getPartyCoatMat(hex, pattern) {
       const colorNum = Number(hex) || 0xf59e0b;
       const pat = (pattern === 'stripes' || pattern === 'dots' || pattern === 'star') ? pattern : 'solid';
       const key = colorNum + '_' + pat;
-      if (!COAT_MAT_POOL.has(key)) {
-        const mat = pat === 'solid'
-          ? new THREE.MeshStandardMaterial({ color: colorNum, roughness: 0.72, metalness: 0 })
-          : new THREE.MeshStandardMaterial({ map: makePatternCoatTex(colorNum, pat), roughness: 0.68, metalness: 0 });
-        COAT_MAT_POOL.set(key, regMat(mat));
+      if (!FUR_MAT_POOL.has(key)) {
+        const mat = partyShibaBaseMat.clone();
+        mat.name = 'partyShibaFur_' + key;
+        // Keep the baked color. Drop normal/ORM maps so 50 copies stay a cartoon
+        // Standard material (same roughness family as the rest of the stage).
+        mat.normalMap = null;
+        mat.roughnessMap = null;
+        mat.metalnessMap = null;
+        mat.aoMap = null;
+        mat.metalness = 0;
+        mat.roughness = 0.72;
+        mat.color.setHex(0xffffff);
+        mat.defines = Object.assign({}, mat.defines, { PARTY_FUR_TINT: 1, ['FUR_' + key]: 1 });
+        const tr = ((colorNum >> 16) & 255) / 255;
+        const tg = ((colorNum >> 8) & 255) / 255;
+        const tb = (colorNum & 255) / 255;
+        // Default 柴犬橘 stays close to the baked orange. Other swatches recolor coat fur only.
+        const mix = (colorNum === 0xf59e0b) ? 0.28 : 0.82;
+        const patId = partyPatternId(pat);
+        mat.onBeforeCompile = (shader) => {
+          shader.vertexShader = shader.vertexShader
+            .replace('#include <common>', '#include <common>\nvarying vec3 vCoatPos;')
+            .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCoatPos = transformed;');
+          shader.fragmentShader = shader.fragmentShader
+            .replace('#include <common>', '#include <common>\nvarying vec3 vCoatPos;')
+            .replace('#include <map_fragment>', `#include <map_fragment>
+              {
+                vec3 src = diffuseColor.rgb;
+                float luma = dot(src, vec3(0.299, 0.587, 0.114));
+                float mx = max(src.r, max(src.g, src.b));
+                float mn = min(src.r, min(src.g, src.b));
+                float sat = mx - mn;
+                float warm = smoothstep(0.03, 0.12, src.r - max(src.g, src.b));
+                float fur = warm * smoothstep(0.06, 0.16, sat) * smoothstep(0.12, 0.26, luma) * (1.0 - smoothstep(0.90, 0.98, luma));
+                vec3 tint = vec3(${tr.toFixed(5)}, ${tg.toFixed(5)}, ${tb.toFixed(5)});
+                vec3 tinted = clamp(tint * (0.42 + luma * 0.95), 0.0, 1.0);
+                vec3 coated = mix(src, tinted, ${mix.toFixed(3)});
+                float patMask = 0.0;
+                if (${patId} == 1) {
+                  patMask = step(0.52, fract(vCoatPos.y * 5.2));
+                } else if (${patId} == 2) {
+                  vec2 cell = fract(vCoatPos.xz * 3.4) - 0.5;
+                  patMask = 1.0 - smoothstep(0.11, 0.18, length(cell));
+                } else if (${patId} == 3) {
+                  float bands = step(0.74, fract(vCoatPos.y * 2.4));
+                  float spark = step(0.94, fract(sin(dot(floor(vCoatPos * 7.0), vec3(12.9898, 78.233, 37.719))) * 43758.5453));
+                  patMask = max(bands * 0.7, spark);
+                }
+                vec3 patterned = mix(coated, vec3(1.0, 0.97, 0.84), patMask * 0.78);
+                diffuseColor.rgb = mix(src, patterned, fur);
+              }
+            `);
+        };
+        FUR_MAT_POOL.set(key, regMat(mat));
       }
-      return COAT_MAT_POOL.get(key);
+      return FUR_MAT_POOL.get(key);
     }
+
+    function attachPartyShiba(slot) {
+      if (!partyShibaGeo || !slot.anchor) return;
+      const mat = getPartyCoatMat(slot.skin(), slot.pattern());
+      if (!slot.mesh) {
+        const mesh = new THREE.Mesh(partyShibaGeo, mat);
+        mesh.scale.setScalar(partyShibaScale);
+        mesh.position.set(partyShibaFit.x, partyShibaFit.y, partyShibaFit.z);
+        mesh.rotation.y = PARTY_SHIBA_ROTY;
+        mesh.castShadow = !!slot.isMe;
+        mesh.receiveShadow = false;
+        slot.anchor.add(mesh);
+        slot.mesh = mesh;
+      } else {
+        slot.mesh.material = mat;
+      }
+    }
+
+    function loadPartyShibaOnce() {
+      if (partyShibaLoadStarted) return;
+      partyShibaLoadStarted = true;
+      if (typeof THREE.GLTFLoader !== 'function') return;
+      const loader = new THREE.GLTFLoader();
+      loader.load('models/party-shiba.glb', (gltf) => {
+        const src = gltf.scene || (gltf.scenes && gltf.scenes[0]);
+        if (!src) return;
+        src.traverse((o) => {
+          if (!o.isMesh || partyShibaGeo) return;
+          partyShibaGeo = o.geometry;
+          partyShibaBaseMat = o.material;
+          regGeo(partyShibaGeo);
+          ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap'].forEach((mapKey) => {
+            const tex = o.material && o.material[mapKey];
+            if (!tex) return;
+            // r128 Texture has no userData; disposeObject3D only skips materials flagged this way.
+            if (!tex.userData) tex.userData = {};
+            tex.userData.keepTex = true;
+          });
+        });
+        if (!partyShibaGeo) return;
+        partyShibaGeo.computeBoundingBox();
+        const box = partyShibaGeo.boundingBox;
+        const rawH = box.max.y - box.min.y;
+        if (rawH > 0.001) partyShibaScale = PARTY_SHIBA_HEIGHT / rawH;
+        partyShibaFit = {
+          x: -((box.min.x + box.max.x) * 0.5) * partyShibaScale,
+          y: -box.min.y * partyShibaScale,
+          z: -((box.min.z + box.max.z) * 0.5) * partyShibaScale
+        };
+        partyShibaSlots.forEach(attachPartyShiba);
+      });
+    }
+    loadPartyShibaOnce();
 
     // 4 Full-Body 3D Dances + Emote Icons
     const DANCE_PRESETS = [
@@ -1551,46 +1617,46 @@
       const g = new THREE.Group();
       if (hatType === 'headphones') {
         const band = new THREE.Mesh(GEO.hpBand, MAT.dark);
-        band.position.y = 1.42;
+        band.position.y = 1.66;
         const cupL = new THREE.Mesh(GEO.hpCup, MAT.pink);
         cupL.rotation.z = Math.PI / 2;
-        cupL.position.set(-0.58, 1.42, 0);
+        cupL.position.set(-0.52, 1.64, 0.06);
         const cupR = new THREE.Mesh(GEO.hpCup, MAT.pink);
         cupR.rotation.z = Math.PI / 2;
-        cupR.position.set(0.58, 1.42, 0);
+        cupR.position.set(0.52, 1.64, 0.06);
         g.add(band, cupL, cupR);
       } else if (hatType === 'crown') {
         const base = new THREE.Mesh(GEO.crownBase, MAT.gold);
-        base.position.y = 2.02;
+        base.position.y = 1.92;
         g.add(base);
         for (let i = 0; i < 5; i++) {
           const a = (i / 5) * Math.PI * 2;
           const tip = new THREE.Mesh(GEO.crownTip, MAT.gold);
-          tip.position.set(Math.cos(a) * 0.24, 2.2, Math.sin(a) * 0.24);
+          tip.position.set(Math.cos(a) * 0.24, 2.1, Math.sin(a) * 0.24);
           g.add(tip);
         }
       } else if (hatType === 'conductor') {
         const brim = new THREE.Mesh(GEO.condBrim, MAT.dark);
-        brim.position.y = 1.93;
+        brim.position.y = 1.86;
         const top = new THREE.Mesh(GEO.condTop, MAT.dark);
-        top.position.y = 2.14;
+        top.position.y = 2.06;
         const rib = new THREE.Mesh(GEO.condRib, MAT.red);
-        rib.position.y = 1.99;
+        rib.position.y = 1.92;
         g.add(brim, top, rib);
       } else if (hatType === 'star') {
         const stem = new THREE.Mesh(GEO.starStem, MAT.star);
-        stem.position.y = 2.08;
+        stem.position.y = 2.0;
         const orb = new THREE.Mesh(GEO.starOrb, MAT.star);
-        orb.position.y = 2.32;
+        orb.position.y = 2.24;
         g.add(stem, orb);
       } else if (hatType === 'note') {
         const stem = new THREE.Mesh(GEO.starStem, MAT.pink);
-        stem.position.set(0.05, 2.18, 0);
+        stem.position.set(0.05, 2.08, 0);
         const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), MAT.pink);
         head.scale.set(1.2, 0.9, 0.9);
-        head.position.set(-0.04, 2.02, 0);
+        head.position.set(-0.04, 1.92, 0);
         const flag = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.08, 0.06), MAT.gold);
-        flag.position.set(0.16, 2.34, 0);
+        flag.position.set(0.16, 2.24, 0);
         flag.rotation.z = -0.35;
         g.add(stem, head, flag);
       }
@@ -1600,19 +1666,24 @@
     function buildFaceOverlay(faceType) {
       const g = new THREE.Group();
       if (faceType === 'cool') {
-        const lensL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.08), MAT.dark);
-        lensL.position.set(-0.17, 1.42, 0.54);
-        const lensR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.08), MAT.dark);
-        lensR.position.set(0.17, 1.42, 0.54);
-        const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.06), MAT.gold);
-        bridge.position.set(0, 1.44, 0.55);
+        const lensL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.09, 0.05), MAT.dark);
+        lensL.position.set(-0.14, 1.46, 0.74);
+        const lensR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.09, 0.05), MAT.dark);
+        lensR.position.set(0.14, 1.46, 0.74);
+        const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.03, 0.04), MAT.gold);
+        bridge.position.set(0, 1.48, 0.76);
         g.add(lensL, lensR, bridge);
       } else if (faceType === 'star') {
-        const starL = new THREE.Mesh(new THREE.OctahedronGeometry(0.09, 0), MAT.star);
-        starL.position.set(-0.17, 1.42, 0.52);
-        const starR = new THREE.Mesh(new THREE.OctahedronGeometry(0.09, 0), MAT.star);
-        starR.position.set(0.17, 1.42, 0.52);
+        const starL = new THREE.Mesh(new THREE.OctahedronGeometry(0.08, 0), MAT.star);
+        starL.position.set(-0.14, 1.48, 0.72);
+        const starR = new THREE.Mesh(new THREE.OctahedronGeometry(0.08, 0), MAT.star);
+        starR.position.set(0.14, 1.48, 0.72);
         g.add(starL, starR);
+      } else if (faceType === 'wink') {
+        const lid = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.045, 0.04), MAT.dark);
+        lid.position.set(0.14, 1.48, 0.74);
+        lid.rotation.z = -0.35;
+        g.add(lid);
       }
       return g;
     }
@@ -1644,68 +1715,30 @@
       let curSkin = Number(skinHex) || 0xf59e0b;
       let curPattern = patternType || 'solid';
       let curFace = faceType || 'happy';
-      let coatMat = getCoatMat(curSkin, curPattern);
 
       const blob = new THREE.Mesh(GEO.blobShadow, MAT.blobShadow);
       blob.rotation.x = -Math.PI / 2;
       blob.position.y = 0.03;
       root.add(blob);
 
-      const torso = new THREE.Mesh(GEO.torso, coatMat);
-      torso.position.y = 0.95;
-      torso.castShadow = !!isMe;
-      const head = new THREE.Mesh(GEO.head, coatMat);
-      head.position.y = 1.4;
-      head.castShadow = !!isMe;
-      const hips = new THREE.Mesh(GEO.hips, coatMat);
-      hips.position.y = 0.5;
-
-      const armL = new THREE.Mesh(GEO.arm, coatMat);
-      armL.position.set(-0.66, 0.96, 0);
-      armL.rotation.z = 0.32;
-      const armR = new THREE.Mesh(GEO.arm, coatMat);
-      armR.position.set(0.66, 0.96, 0);
-      armR.rotation.z = -0.32;
-
-      const face = new THREE.Mesh(GEO.face, MAT.cream);
-      face.position.set(0, 1.32, 0.22);
-      face.scale.set(0.88, 0.85, 0.65);
-
-      const eyeL = new THREE.Mesh(GEO.eye, MAT.dark);
-      eyeL.position.set(-0.17, 1.42, 0.49);
-      const eyeR = new THREE.Mesh(GEO.eye, MAT.dark);
-      eyeR.position.set(0.17, 1.42, 0.49);
-      const nose = new THREE.Mesh(GEO.eye, MAT.dark);
-      nose.scale.set(0.85, 0.85, 0.85);
-      nose.position.set(0, 1.31, 0.53);
-
-      const earL = new THREE.Mesh(GEO.ear, coatMat);
-      earL.position.set(-0.34, 1.88, 0.05);
-      earL.rotation.z = 0.28;
-      const earR = new THREE.Mesh(GEO.ear, coatMat);
-      earR.position.set(0.34, 1.88, 0.05);
-      earR.rotation.z = -0.28;
-
-      const tail = new THREE.Mesh(GEO.tail, coatMat);
-      tail.position.set(0, 0.62, -0.58);
-      tail.rotation.y = Math.PI / 2;
-
-      const footL = new THREE.Mesh(GEO.foot, MAT.cream);
-      footL.position.set(-0.22, 0.18, 0.06);
-      footL.scale.set(0.9, 0.7, 1.3);
-      const footR = new THREE.Mesh(GEO.foot, MAT.cream);
-      footR.position.set(0.22, 0.18, 0.06);
-      footR.scale.set(0.9, 0.7, 1.3);
-
-      const coatParts = [torso, head, hips, armL, armR, earL, earR, tail];
-      bodyGroup.add(torso, head, hips, armL, armR, face, eyeL, eyeR, nose, earL, earR, tail, footL, footR);
+      const shibaAnchor = new THREE.Group();
+      bodyGroup.add(shibaAnchor);
+      const slot = {
+        anchor: shibaAnchor,
+        mesh: null,
+        isMe: !!isMe,
+        skin: () => curSkin,
+        pattern: () => curPattern
+      };
+      partyShibaSlots.push(slot);
+      root.userData.partySlot = slot;
+      attachPartyShiba(slot);
 
       let hatGroup = buildHatMesh(hatType || 'none');
       bodyGroup.add(hatGroup);
 
       let faceOverlay = buildFaceOverlay(curFace);
       bodyGroup.add(faceOverlay);
-      if (curFace === 'wink') eyeR.scale.set(1.2, 0.25, 1);
 
       const aura = new THREE.Mesh(GEO.aura, MAT.aura);
       aura.rotation.x = Math.PI / 2;
@@ -1724,26 +1757,21 @@
       emoteSprite.visible = false;
       root.add(emoteSprite);
 
-      function applyCoat() {
-        coatMat = getCoatMat(curSkin, curPattern);
-        coatParts.forEach(p => { p.material = coatMat; });
-      }
-
       return {
-        root, bodyGroup, blob, armL, armR, earL, earR, footL, footR, aura, nameSprite, emoteSprite,
+        root, bodyGroup, blob, aura, nameSprite, emoteSprite,
         hatType: hatType || 'none',
         patternType: curPattern,
         faceType: curFace,
         setSkin(hex) {
           curSkin = Number(hex) || 0xf59e0b;
-          applyCoat();
+          attachPartyShiba(slot);
         },
         setPattern(nextPat) {
           const norm = nextPat || 'solid';
           if (curPattern === norm) return;
           curPattern = norm;
           this.patternType = norm;
-          applyCoat();
+          attachPartyShiba(slot);
         },
         setFace(nextFace) {
           const norm = nextFace || 'happy';
@@ -1754,9 +1782,6 @@
           disposeObject3D(faceOverlay);
           faceOverlay = buildFaceOverlay(norm);
           bodyGroup.add(faceOverlay);
-          eyeL.visible = norm !== 'star';
-          eyeR.visible = norm !== 'star';
-          eyeR.scale.set(norm === 'wink' ? 1.2 : 1, norm === 'wink' ? 0.25 : 1, 1);
         },
         setHat(nextHat) {
           if (this.hatType === nextHat) return;
@@ -4103,11 +4128,8 @@
     }
 
     /**
-     * Full Fall Guys Character Motion Animator:
-     * - Waddle & hip-sway run cycle + vertical hop + floppy Shiba ears
-     * - Superman torpedo belly-dive
-     * - 360° comical ragdoll tumble spin when hit by obstacles
-     * - 4 procedural 3D full-body dances!
+     * Whole-wrapper motion for the static party Shiba (no skeleton):
+     * hop, pitch, roll, yaw spin, and squash live on root / bodyGroup.
      */
     function animateBeanModel(char, dt, speed, isDiving, nowMs, phaseOffset, groundY) {
       char.squashY += (1 - char.squashY) * Math.min(1, dt * 12);
@@ -4120,62 +4142,38 @@
       let spinYawOffset = 0;
 
       if (char.tumbleTimer > 0) {
-        // Comical 360° Ragdoll Tumble Spin!
         spinYawOffset = char.tumbleTimer * 16.0;
         tiltX = Math.sin(nowMs * 0.03) * 0.85;
         waddleZ = 0.65;
-        char.model.armL.rotation.x = -2.8;
-        char.model.armR.rotation.x = 2.8;
       } else if (isDiving) {
-        // Superman Torpedo Belly-Dive
         tiltX = 1.24;
-        char.model.armL.rotation.x = -2.65;
-        char.model.armR.rotation.x = -2.65;
       } else if (char.danceTimer > 0 && speed < 1.2 && !airborne) {
-        // 4 Full-Body 3D Dance Motions!
         const dtSec = nowMs * 0.01;
         if (char.danceType === 1) {
-          // 1: Pirouette Spin + Hop
           spinYawOffset = (nowMs * 0.009) % (Math.PI * 2);
           hopY = Math.abs(Math.sin(dtSec * 1.4)) * 0.34;
-          char.model.armL.rotation.x = -2.7;
-          char.model.armR.rotation.x = -2.7;
         } else if (char.danceType === 2) {
-          // 2: Rock Headbang + Fist Pump
-          tiltX = Math.sin(dtSec * 2.2) * 0.38;
+          tiltX = Math.sin(dtSec * 2.2) * 0.42;
+          waddleZ = Math.sin(dtSec * 2.2) * 0.22;
           hopY = Math.abs(Math.cos(dtSec * 2.2)) * 0.18;
-          char.model.armL.rotation.x = Math.sin(dtSec * 2.2) * 1.8 - 1.2;
-          char.model.armR.rotation.x = -Math.sin(dtSec * 2.2) * 1.8 - 1.2;
         } else if (char.danceType === 3) {
-          // 3: Celebratory Backflip!
           const flipPhase = (char.danceTimer % 0.8) / 0.8;
           hopY = Math.sin(flipPhase * Math.PI) * 0.95;
           tiltX = -flipPhase * Math.PI * 2;
-          char.model.armL.rotation.x = -2.5;
-          char.model.armR.rotation.x = -2.5;
         } else {
-          // 4: Cute Hip-Sway + High Wave
-          waddleZ = Math.sin(dtSec * 1.5) * 0.28;
-          char.model.armL.rotation.x = 0.2;
-          char.model.armR.rotation.x = -2.8 + Math.sin(dtSec * 3.0) * 0.35;
+          waddleZ = Math.sin(dtSec * 1.5) * 0.32;
+          hopY = Math.abs(Math.sin(dtSec * 1.5)) * 0.1;
+          tiltX = Math.sin(dtSec * 3.0) * 0.2;
         }
       } else if (airborne) {
-        tiltX = Math.max(-0.25, Math.min(0.28, -char.vy * 0.02));
-        char.model.armL.rotation.x = -2.6;
-        char.model.armR.rotation.x = -2.6;
+        tiltX = Math.max(-0.35, Math.min(0.4, -char.vy * 0.02));
       } else if (speed > 0.45) {
-        // Classic Fall Guys Waddle & Bouncy Stride!
-        hopY = Math.abs(Math.sin(cyc)) * 0.11;
-        waddleZ = Math.sin(cyc) * 0.14;
-        tiltX = Math.min(0.24, speed * 0.02);
-        const armSwing = Math.cos(cyc) * 0.78;
-        char.model.armL.rotation.x = armSwing;
-        char.model.armR.rotation.x = -armSwing;
+        hopY = Math.abs(Math.sin(cyc)) * 0.12;
+        waddleZ = Math.sin(cyc) * 0.16;
+        tiltX = Math.min(0.2, speed * 0.016) + Math.sin(cyc) * 0.08;
       } else {
-        // Subtle idle breathing bob
-        hopY = Math.sin(nowMs * 0.004 + (phaseOffset || 0)) * 0.03;
-        char.model.armL.rotation.x = 0;
-        char.model.armR.rotation.x = 0;
+        hopY = Math.sin(nowMs * 0.004 + (phaseOffset || 0)) * 0.035;
+        tiltX = Math.sin(nowMs * 0.003 + (phaseOffset || 0)) * 0.03;
       }
 
       char.model.root.position.set(char.x, char.y + hopY, char.z);
@@ -4185,11 +4183,6 @@
       char.model.bodyGroup.rotation.x = tiltX;
       char.model.bodyGroup.rotation.z = waddleZ;
 
-      // Floppy Shiba Ears react to vertical velocity & waddle
-      const earFlop = Math.max(-0.22, Math.min(0.25, -(char.vy || 0) * 0.018));
-      char.model.earL.rotation.z = 0.28 + earFlop + waddleZ * 0.4;
-      char.model.earR.rotation.z = -0.28 - earFlop + waddleZ * 0.4;
-
       if (groundY !== null && char.y >= groundY - 0.1) {
         char.model.blob.visible = true;
         char.model.blob.position.y = (groundY - (char.y + hopY)) + 0.03;
@@ -4197,10 +4190,6 @@
       } else {
         char.model.blob.visible = false;
       }
-
-      const stride = speed > 0.45 && !airborne ? Math.sin(cyc) * 0.30 : 0;
-      char.model.footL.position.z = 0.06 + stride;
-      char.model.footR.position.z = 0.06 - stride;
 
       if (char.isMe) {
         char.model.nameSprite.visible = true;
