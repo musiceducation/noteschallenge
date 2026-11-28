@@ -513,10 +513,14 @@
     .boot-notes span:nth-child(2) { animation-delay: 0.14s; }
     .boot-notes span:nth-child(3) { animation-delay: 0.28s; }
     .boot-title { font-size: clamp(1.35rem, 3.2vw, 2rem); font-weight: 900; color: #ffffff; text-shadow: 0 3px 14px rgba(15, 23, 42, 0.22); letter-spacing: 0.02em; }
+    .boot-status { max-width: min(440px, 88vw); text-align: center; font-size: 1rem; font-weight: 800; color: #ffffff; line-height: 1.45; text-shadow: 0 2px 8px rgba(15, 23, 42, 0.28); }
     .boot-bar { width: min(260px, 72vw); height: 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.45); overflow: hidden; padding: 2px; }
-    .boot-bar-fill { height: 100%; width: 100%; border-radius: 999px; background: linear-gradient(90deg, #ec4899 0%, #facc15 100%); animation: fg-load 0.55s ease-out forwards; transform-origin: left; }
+    .boot-bar-fill { height: 100%; width: 42%; border-radius: 999px; background: linear-gradient(90deg, #ec4899 0%, #facc15 100%); animation: fg-load 0.9s ease-in-out infinite; }
+    .boot-splash.is-error { background: linear-gradient(160deg, #9f1239 0%, #e11d48 55%, #fb7185 100%); }
+    .boot-splash.is-error .boot-status { color: #fff1f2; }
+    .boot-splash.is-error .boot-bar-fill { animation: none; width: 100%; background: #fff1f2; }
     @keyframes fg-hop { from { transform: translateY(0) scale(1); } to { transform: translateY(-14px) scale(1.12); } }
-    @keyframes fg-load { from { transform: scaleX(0.12); } to { transform: scaleX(1); } }
+    @keyframes fg-load { from { transform: translateX(-120%); } to { transform: translateX(260%); } }
 
     /* Live 3D Stage Shell (Transparent over WebGL canvas so 3D bean is interactive!) */
     .fg-stage {
@@ -704,6 +708,7 @@
     <div class="boot-splash" id="bootSplash" aria-live="polite">
       <div class="boot-notes"><span>♪</span><span>♫</span><span>♬</span></div>
       <div class="boot-title">🎪 糖豆人音樂派對世界 3D</div>
+      <div class="boot-status" id="bootStatus">Loading… 柴犬角色載入中</div>
       <div class="boot-bar"><div class="boot-bar-fill"></div></div>
     </div>
 
@@ -1475,6 +1480,26 @@
     let partyShibaScale = PARTY_SHIBA_HEIGHT / 0.9797764420509338;
     let partyShibaFit = { x: 0, y: 0, z: 0 };
     let partyShibaLoadStarted = false;
+    let partyShibaLoadFailed = false;
+
+    function dismissPartyLoadOverlay() {
+      const splash = document.getElementById('bootSplash');
+      if (!splash || !partyShibaGeo) return;
+      splash.classList.remove('is-error');
+      splash.classList.add('done');
+    }
+
+    function showPartyLoadError(message) {
+      partyShibaLoadFailed = true;
+      const splash = document.getElementById('bootSplash');
+      const status = document.getElementById('bootStatus');
+      if (status) status.textContent = message;
+      if (splash) {
+        splash.classList.add('is-error');
+        splash.classList.remove('done');
+        splash.setAttribute('aria-live', 'assertive');
+      }
+    }
 
     function partyPatternId(pattern) {
       if (pattern === 'stripes') return 1;
@@ -1565,11 +1590,17 @@
     function loadPartyShibaOnce() {
       if (partyShibaLoadStarted) return;
       partyShibaLoadStarted = true;
-      if (typeof THREE.GLTFLoader !== 'function') return;
+      if (typeof THREE.GLTFLoader !== 'function') {
+        showPartyLoadError('角色載入器未就緒，無法進入派對。請重新整理頁面。');
+        return;
+      }
       const loader = new THREE.GLTFLoader();
       loader.load('models/party-shiba.glb', (gltf) => {
         const src = gltf.scene || (gltf.scenes && gltf.scenes[0]);
-        if (!src) return;
+        if (!src) {
+          showPartyLoadError('角色模型載入失敗，無法進入派對。請重新整理頁面。');
+          return;
+        }
         src.traverse((o) => {
           if (!o.isMesh || partyShibaGeo) return;
           partyShibaGeo = o.geometry;
@@ -1583,7 +1614,10 @@
             tex.userData.keepTex = true;
           });
         });
-        if (!partyShibaGeo) return;
+        if (!partyShibaGeo) {
+          showPartyLoadError('角色模型沒有可用網格，無法進入派對。請重新整理頁面。');
+          return;
+        }
         partyShibaGeo.computeBoundingBox();
         const box = partyShibaGeo.boundingBox;
         const rawH = box.max.y - box.min.y;
@@ -1594,6 +1628,9 @@
           z: -((box.min.z + box.max.z) * 0.5) * partyShibaScale
         };
         partyShibaSlots.forEach(attachPartyShiba);
+        requestAnimationFrame(() => dismissPartyLoadOverlay());
+      }, undefined, () => {
+        showPartyLoadError('角色模型載入失敗，無法進入派對。請重新整理頁面。');
       });
     }
     loadPartyShibaOnce();
@@ -3559,6 +3596,14 @@
     document.getElementById('btnOpenLobby').addEventListener('click', () => returnToLobbyShowcase('wardrobe'));
 
     document.getElementById('btnEnterWorld').addEventListener('click', () => {
+      if (!partyShibaGeo) {
+        const splash = document.getElementById('bootSplash');
+        if (splash) {
+          splash.classList.remove('done');
+          if (partyShibaLoadFailed) splash.classList.add('is-error');
+        }
+        return;
+      }
       unlockAudio();
       const room = getActiveRoomCode();
       document.getElementById('roomCodeInput').value = room;
@@ -4744,12 +4789,6 @@
       }
 
       renderer.render(scene, camera);
-
-      if (!window.__ncWorldBootDone) {
-        window.__ncWorldBootDone = true;
-        const splash = document.getElementById('bootSplash');
-        if (splash) setTimeout(() => splash.classList.add('done'), 420);
-      }
     }
     requestAnimationFrame(animate);
   })();
